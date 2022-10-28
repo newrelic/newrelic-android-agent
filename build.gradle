@@ -7,7 +7,7 @@ description 'The New Relic Android Agent'
 
 apply plugin: 'base'
 
-def deployableProjects = []
+def deployableProjects = [":instrumentation"]
 
 buildscript {
     apply from: "${rootDir}/buildconfig.gradle"
