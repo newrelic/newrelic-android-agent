@@ -1,0 +1,149 @@
+/**
+ * NewRelic Android Agent
+ *
+ **/
+
+description 'The New Relic Android Agent'
+
+apply plugin: 'base'
+
+def deployableProjects = [":instrumentation"]
+
+buildscript {
+    apply from: "${rootDir}/buildconfig.gradle"
+
+    repositories {
+        mavenCentral()
+        google()
+        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url "https://oss.sonatype.org/content/repositories/comnewrelic-${project.versions.agent}" }
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:' + versions.agp.plugin
+        classpath 'com.github.jengelman.gradle.plugins:shadow:' + versions.java.shadow
+        if (project.fullReport) {
+            classpath 'gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:' + versions.java.spotbugs
+            classpath 'org.jacoco:org.jacoco.core:' + versions.java.jacoco
+        }
+    }
+}
+
+task checkJavaVersion {
+    def localVersion = System.properties['java.version']
+    if (localVersion.toString().isEmpty()) {
+        throw new GradleException("Version not specified:")
+    }
+    if (localVersion.toString() < project.versions.java.minVersion.toString()) {
+        throw new GradleException("Unsupported Java version: ${localVersion}. Make sure the version of the Java compiler is ${project.versions.java.minVersion}.")
+    }
+}
+
+allprojects { project ->
+    version = project.versions.agent
+    group = 'com.newrelic.agent.android'
+
+    task allDeps(type: DependencyReportTask) {}
+
+    repositories {
+        maven { url "https://oss.sonatype.org/content/repositories/comnewrelic-" + newrelic.agent.snapshot }
+        mavenCentral()
+        google()
+    }
+
+    // The libsDir method has been deprecated. This is scheduled to be removed in Gradle 6.0.
+    ext.projectLibsDir = project.file("${project.buildDir}/${project.libsDirName}").getAbsolutePath()
+}
+
+subprojects { project ->
+    tasks.withType(JavaCompile) {
+        options.compilerArgs += ["-Xlint:unchecked", "-Xlint:deprecation", "-Xlint:static"]
+        options.encoding = "UTF-8"
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    if (project.fullReport) {
+        // apply static analysis tools
+        logger.quiet("[newrelic] Applying static analysis tools to project[$project.name]")
+    }
+}
+
+deployableProjects.each {
+    project(it) {
+
+        tasks.withType(Jar) {
+            manifest {
+                attributes(
+                        "Created-By": "New Relic, Inc.",
+                        "Built-Date": project.buildDate
+                    )
+            }
+        }
+
+        task javadocJar(type: Jar) {
+            archiveClassifier = 'javadoc'
+            from 'sonatype'
+        }
+
+        task sourcesJar(type: Jar) {
+            archiveClassifier = 'sources'
+            from 'sonatype'
+        }
+    }
+}
+
+project.afterEvaluate {
+    /**
+     * Build the test app using generated artifacts:
+     */
+    project.tasks.register("prepareIntegration", Exec) {
+        dependsOn project.tasks.assemble
+        description "Cache the build artifacts to local M2-REPO"
+        group "test"
+        workingDir "$rootProject.rootDir"
+        environment "M2_REPO", mavenLocal
+        commandLine "./gradlew", "-Pnewrelic.agent.version=$project.versions.agent", "publish"
+        enabled false
+    }
+
+    project.tasks.register("integrationTest", Exec) {
+        dependsOn project.tasks.prepareIntegration
+        description "Build the test app using generated artifacts"
+        group "test"
+        workingDir "$rootProject.rootDir/agent-test-app"
+        environment "M2_REPO", mavenLocal
+        commandLine "./gradlew", "-Pnewrelic.agent.version=$project.versions.agent", "-PagentRepo=${mavenLocal}", "clean", "build", 'clean'
+        enabled project.tasks.prepareIntegration.enabled
+    }
+
+    project.tasks.register("regressionTest", Exec) {
+        dependsOn project.tasks.prepareIntegration
+        description "Regress the plugin tests using generated artifacts"
+        group "test"
+        workingDir "$rootProject.rootDir"
+        environment "M2_REPO", mavenLocal
+        commandLine "./gradlew", "-PregressionTests", "-Pnewrelic.agent.version=$project.versions.agent", "-PagentRepo=${mavenLocal}", "clean", "plugins:gradle:test"
+        enabled project.tasks.prepareIntegration.enabled
+    }
+
+    project.tasks.register("regressionTestDexGuard", Exec) {
+        dependsOn project.tasks.prepareIntegration
+        description "Regress the plugin DexGuard tests using generated artifacts"
+        group "test"
+        workingDir "$rootProject.rootDir"
+        environment "M2_REPO", mavenLocal
+        commandLine "./gradlew", "-PregressionTests=dexguard", "-Pnewrelic.agent.version=$project.versions.agent", "-PagentRepo=${mavenLocal}", "clean", "plugins:gradle:test"
+        enabled project.tasks.prepareIntegration.enabled
+    }
+
+    check.dependsOn(['integrationTest'])
+}
+
+project.tasks.register("cleanRoot", Delete) {
+    delete rootProject.buildDir
+    // delete project.legacyDistDir
+    // delete "$rootDir/agent-test-app/build"
+}
+
+clean.finalizedBy cleanRoot
