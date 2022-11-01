@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Agent Test App</string>
+
+    <string name="title_section1">Wynken</string>
+    <string name="title_section2">Blynken</string>
+    <string name="title_section3">Nod</string>
+
+    <string name="navigation_drawer_open">Sailed off in a wooden shoe</string>
+    <string name="navigation_drawer_close">Sailed off on a river of crystal light, Into a sea of dew</string>
+
+    <string name="action_example">13 / 0 = ?</string>
+
+    <string name="action_settings">Settings</string>
+</resources>
