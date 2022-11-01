@@ -19,7 +19,7 @@ public class BuildId {
     public static final String BUILD_ID_KEY = "NewRelic.buildId";
     public static final String DEFAULT_VARIANT = "release";
 
-    private static AtomicReference<Map<String, String>> variantBuildIds = new AtomicReference<>();
+    private static AtomicReference<Map<String, String>> variantBuildIds = new AtomicReference<>(null);
     private static Log log;
     private static boolean variantMapsEnabled = true;
 

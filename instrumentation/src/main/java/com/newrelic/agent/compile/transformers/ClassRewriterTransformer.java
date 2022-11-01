@@ -33,18 +33,17 @@ import java.util.Map;
  */
 
 public final class ClassRewriterTransformer implements NewRelicClassTransformer {
-    private Log log;
+    private final Log log;
     private final Map<String, ClassVisitorFactory> classVisitors;
 
     /**
      * The classes into which we're injecting code.
      * The methods in the class that we're modifying.
      */
-    String NR_CLASS_REWRITER_CLASS_NAME = "com/newrelic/agent/compile/ClassTransformer";
-    String NR_CLASS_REWRITER_METHOD_NAME = "transformClassBytes";
-    String NR_CLASS_REWRITER_METHOD_SIGNATURE = "(Ljava/lang/String;[B)[B";
+    static final String NR_CLASS_REWRITER_CLASS_NAME = "com/newrelic/agent/compile/ClassTransformer";
+    static final String NR_CLASS_REWRITER_METHOD_NAME = "transformClassBytes";
+    static final String NR_CLASS_REWRITER_METHOD_SIGNATURE = "(Ljava/lang/String;[B)[B";
 
-    @SuppressWarnings("serial")
     public ClassRewriterTransformer(final Log log) throws URISyntaxException {
         try {
             final String agentJarPath = InstrumentationAgent.getAgentJarPath();
@@ -56,7 +55,7 @@ public final class ClassRewriterTransformer implements NewRelicClassTransformer 
         this.log = log;
 
         classVisitors = new HashMap<String, ClassVisitorFactory>() {{
-            put(NewRelicClassTransformer.NR_CLASS_REWRITER_CLASS_NAME,
+            put(NR_CLASS_REWRITER_CLASS_NAME,
                     new ClassVisitorFactory(true) {
                         @Override
                         public ClassVisitor create(ClassVisitor cv) {
@@ -73,8 +72,7 @@ public final class ClassRewriterTransformer implements NewRelicClassTransformer 
 
     @Override
     public byte[] transform(final ClassLoader classLoader, String className, Class<?> clazz,
-                            ProtectionDomain protectionDomain, byte[] bytes)
-            throws IllegalClassFormatException {
+                            ProtectionDomain protectionDomain, byte[] bytes) {
 
         ClassVisitorFactory factory = classVisitors.get(className);
         if (factory != null) {
@@ -109,11 +107,10 @@ public final class ClassRewriterTransformer implements NewRelicClassTransformer 
         return null;
     }
 
-    @SuppressWarnings("serial")
     private static ClassVisitor createTransformClassAdapter(ClassVisitor cw, final Log log) {
 
         return new ClassAdapterBase(log, cw, new HashMap<Method, MethodVisitorFactory>() {{
-            put(new Method(NewRelicClassTransformer.NR_CLASS_REWRITER_METHOD_NAME, NewRelicClassTransformer.NR_CLASS_REWRITER_METHOD_SIGNATURE),
+            put(new Method(NR_CLASS_REWRITER_METHOD_NAME, NR_CLASS_REWRITER_METHOD_SIGNATURE),
                     new MethodVisitorFactory() {
                         @Override
                         public MethodVisitor create(MethodVisitor mv, int access, String name, String desc) {
@@ -121,7 +118,7 @@ public final class ClassRewriterTransformer implements NewRelicClassTransformer 
                                 @Override
                                 protected void onMethodEnter() {
                                     builder.loadInvocationDispatcher().
-                                            loadInvocationDispatcherKey(InstrumentationAgent.getProxyInvocationKey(NewRelicClassTransformer.NR_CLASS_REWRITER_CLASS_NAME, methodName)).
+                                            loadInvocationDispatcherKey(InstrumentationAgent.getProxyInvocationKey(NR_CLASS_REWRITER_CLASS_NAME, methodName)).
                                             loadArgumentsArray(methodDesc).
                                             invokeDispatcher(false);
 

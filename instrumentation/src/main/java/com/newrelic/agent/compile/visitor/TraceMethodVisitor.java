@@ -132,11 +132,8 @@ public class TraceMethodVisitor extends AdviceAdapter {
             super.visitLabel(tryEnd);
         }
     }
-
-    /**
+    /*
      * Push annotation args for call to TraceMachine.enterMethod(String name, ArrayList<String> annotationParams)
-     *
-     * @param name Class name
      */
     private void emitAnnotationParamsList(String name) {
         ArrayList<String> annotationParameters = context.getTracedMethodParameters(name);
@@ -168,12 +165,5 @@ public class TraceMethodVisitor extends AdviceAdapter {
         super.invokeStatic(targetType, new Method("exitMethod", "()V"));
 
         log.debug("[Tracing] [" + name + "] calls exitMethod()");
-
-        /* FIXME MOBILE-7315: this still blows up D8 downstream
-        if (unloadContext) {
-            super.loadThis();
-            super.invokeStatic(targetType, new Method("unloadTraceContext", "(Ljava/lang/Object;)V"));
-        }
-        */
     }
 }
