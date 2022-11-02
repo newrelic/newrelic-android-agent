@@ -1,0 +1,97 @@
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
+
+
+Invalid package reference in library; not included in Android: javax.naming.ldap. Referenced from com.newrelic.org.apache.http.conn.ssl.DefaultHostnameVerifier.
+
+
+/Users/cthomas/.gradle/caches/modules-2/files-2.1/org.apache.httpcomponents/httpclient/4.4.1/16d0bc512222f1253ee6b64d389c84e22f697f0/httpclient-4.4.1.jar: Error: Invalid package reference in library; not included in Android: javax.naming.directory. Referenced from org.apache.http.conn.ssl.DefaultHostnameVerifier. [InvalidPackage]
+
+/Users/cthomas/.gradle/caches/modules-2/files-2.1/org.apache.httpcomponents/httpclient/4.4.1/16d0bc512222f1253ee6b64d389c84e22f697f0/httpclient-4.4.1.jar: Error: Invalid package reference in library; not included in Android: javax.naming.ldap. Referenced from org.apache.http.conn.ssl.DefaultHostnameVerifier. [InvalidPackage]
+
+/Users/cthomas/.m2/repository/com/newrelic/agent/android/android-agent/5.19.1/android-agent-5.19.1.jar(org/apache/http/impl/client/AbstractHttpClient.class): warning: Cannot find annotation method 'value()' in type 'GuardedBy'
+
+
+Rewrite harvest code using HttpUrlConnection (Android native network stack)
+Android 9 SDK provides no legacy Apache packages, so we must provide reference classes. Discovered along the way feferences we weren't fully aware of emerged (exception types)
+Compilation is OK, but discovered name collsions when DEXing
+
+
+Verify:
+* fixes original problem (NoClassFoundException)
+* does not introduce new problems (Apache instrumentation must resolve to agent.JAR). Must embed in agent any Apache code required by the agent. Can't expect customers to add dependencies for packages they don't use. Existing NewRelic API's use Apache classes
+* does not break Apache-only apps. Still customers using Apache network stack (really)
+* does not generate lint errors
+* size of agent hasn't changed significantly 
+
+
+https://developers.google.com/maps/documentation/android-sdk/config#specify_requirement_for_apache_http_legacy_library
+
+Specify requirement for Apache HTTP Legacy library
+If your app is targeting API level 28 (Android 9.0) or above, you must include the following declaration within the <application> element of AndroidManifest.xml.
+
+  <uses-library
+      android:name="org.apache.http.legacy"
+      android:required="false" />
+
+If your app is targeting a lower API level, this is handled for you.
+
+Can't repro NoClassFoundExceptions for SDK < 28
+New apps show symptoms due to AS using the current (highest) SDK level when project is created
+
+
+"The Case of the Missing HTTP Client"
+
+Google's first release of Android included as its default network stack a pre-release of the Apache HttpClient 4.0. Apache HttpClient APIs for Android became of fork of the main Apache 4.0 branch. The Apache stack was large and modifications would often breaking compatibility. With Google's eventual decision to discontinue development of the HttpClient, no further support work was done on the package. 
+
+
+
+In Android 2.3 (Gingerbread), an alternative stack was introduced. Apps that targets API level 9 or higher could use the HttpURLConnection stack instead. HttpUrlConnection classes promised reduced network use through transparent compression and response caching, and minimize power consumption. A popular alternative to the two default Http clients was OkHttp. By Android 4.4 (Kitkat), OkHttp had been integrated into Android as the default HttpUrlConnection implementation.
+
+
+
+With the release of Android 6 (Marshmallow), Google ended support of Apache Http Client. All classes from package org.apache.http.* were removed in API 22, most specifically the DefaultHttpClient and AndroidHttpClient classes. However, apps targeting API 23 or higher could continue using Apache HTTP classes by declaring a compile-time dependency in the app's build.gradle file:
+
+android {
+
+   useLibrary 'org.apache.http.legacy'
+
+}
+
+The deprecation period would end with the package's complete removal from the Android SDK in Android 9
+
+
+
+Fast-forward
+In late August, Android 9 was released and Googlr, keeping to it's promise, removed all Apache HttpClient classes  from Android SDKs. 
+
+
+
+Still available by modifying the manifest:
+
+        <uses-library android:name="org.apache.http.legacy" android:required="false" />
+
+
+
+Impact to the New Relic Android Agent
+
+
+Collector connect and harvest requests were originally implemented using Apache HttpClient, so these had to be rewritten using HttpUrlConnection. 
+
+
+
+We've gotten a few support tickets from customer's experiencing both direct and in-direct effects of Apache's removal. To elicit the problem behavior, customers had to target Android 9 (SDK 28). Fortunately, very few apps had adopted Android 9; the issues we've received appeared in development builds.
+
+
+
+Q: "Why did the build problem suddenly appear?"
+
+A: It was not exactly sudden. Google had been warning Apache would be removed and finally made good on their promise. Agents in the field (all agents had an implicit dependency on "org.apache.http.legacy". When that module was no longer available, build could not satify the dependency and failed with NoClassDefFound exceptions when either data harvests were sent, or a network request failed and the result was sent to an excption helper that contained an _instanceof_ check for two Apache specific exceptions: ClientProtocolException and ConnectTimeoutException. These are now deprecated will be removed when Apache support is removed from the agent.
+
+
+
+Q: Why do new projects (apps) not exhibit the problem?
+
+A: New projects are created using the current SDK level.

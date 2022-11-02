@@ -1,0 +1,2661 @@
+{
+    ".gitmodules": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "Android-SDK-Dependencies.md": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "LICENSE": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "RUNBOOK.md": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/build.gradle": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/libs/commons-logging-1.1.1.jar": {
+        "hash": "e2c390fe739b2550a218262b28f290ce",
+        "libraries": [
+            "commons-logging"
+        ]
+    },
+    "agent-core/libs/export/flatbuffers-java-1.11.0.jar": {
+        "hash": "6c9c9e8ae858e879443c32838ff3bab0",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/libs/export/gson-2.8.9.jar": {
+        "hash": "e67627f67e03301092dc7de0a2d7cef8",
+        "libraries": [
+            "gson"
+        ]
+    },
+    "agent-core/libs/httpclient-4.3.6.jar": {
+        "hash": "2d29a27bb6c6b44bc8a608a0e5d09735",
+        "libraries": [
+            "httpclient"
+        ]
+    },
+    "agent-core/libs/httpclient-android-4.3.3.jar": {
+        "hash": "3405a48981c3446f74e7682326ea6c7e",
+        "libraries": [
+            "httpclient"
+        ]
+    },
+    "agent-core/libs/httpcore-4.3.3.jar": {
+        "hash": "c26171852f9810cd3d2416604a387e71",
+        "libraries": [
+            "httpclient"
+        ]
+    },
+    "agent-core/libs/okhttp-2.7.5.jar": {
+        "hash": "1943a0ecbb1c503874c8c483284377e4",
+        "libraries": [
+            "okhttp"
+        ]
+    },
+    "agent-core/libs/okhttp-3.12.0.jar": {
+        "hash": "2a0ca42298238d76d9b7f4dcf750c01a",
+        "libraries": [
+            "okhttp"
+        ]
+    },
+    "agent-core/libs/okhttp-urlconnection-2.7.5.jar": {
+        "hash": "244dc3da8e15380e63c02c11e7698e18",
+        "libraries": [
+            "okhttp"
+        ]
+    },
+    "agent-core/libs/okhttp-urlconnection-3.12.0.jar": {
+        "hash": "241a69f774cb4cd2c940e06b3588350b",
+        "libraries": [
+            "okhttp"
+        ]
+    },
+    "agent-core/libs/okio-1.15.0.jar": {
+        "hash": "e8ddbcb79210050527c2eda7562e63ce",
+        "libraries": [
+            "okhttp"
+        ]
+    },
+    "agent-core/libs/retrofit-1.8.0.jar": {
+        "hash": "8c59caadd0bb36305ee729f56f22f0c5",
+        "libraries": [
+            "retrofit"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/Agent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/AgentConfiguration.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/AgentImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/ApplicationFramework.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/FeatureFlag.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/MeasurementEngine.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/Measurements.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/NullAgentImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/TaskQueue.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/activity/BaseMeasuredActivity.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/activity/MeasuredActivity.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/activity/NamedActivity.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/activity/config/ActivityTraceConfiguration.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/activity/config/ActivityTraceConfigurationDeserializer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/agentdata/AgentDataController.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/agentdata/AgentDataReporter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/agentdata/AgentDataSender.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/agentdata/HexAttribute.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/agentdata/builder/AgentDataBuilder.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/AnalyticsAttribute.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/AnalyticsAttributeStore.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/AnalyticsController.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/AnalyticsControllerImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/AnalyticsEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/AnalyticsEventCategory.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/AnalyticsEventFactory.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/AnalyticsValidator.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/BreadcrumbEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/CrashEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/CustomEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/EventListener.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/EventManager.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/EventManagerImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/EventTransformAdapter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/InteractionEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/NetworkEventController.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/NetworkEventTransformer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/NetworkRequestErrorEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/NetworkRequestEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/SessionEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/analytics/UserActionEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/common/CarrierType.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/common/ConnectionState.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/common/TransactionData.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/common/WanType.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/v1/ConnectionEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/v1/ConnectionListener.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/v1/Defaults.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/v1/DeviceForm.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/v2/TraceFieldInterface.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/api/v2/TraceMachineInterface.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/background/ApplicationStateEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/background/ApplicationStateListener.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/background/ApplicationStateMonitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/crash/Crash.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/crash/CrashReporter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/crash/CrashSender.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/crash/CrashStore.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/crash/UncaughtExceptionHandler.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/DistributedTracing.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/TraceConfiguration.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/TraceContext.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/TraceFacade.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/TraceHeader.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/TraceListener.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/TraceParent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/TracePayload.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/TraceState.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/UserActionFacade.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/distributedtracing/UserActionType.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/ActivityHistory.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/ActivitySighting.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/ActivityTraces.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/AgentHealth.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/AgentHealthException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/AgentHealthExceptions.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/ApplicationInformation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/ConnectInformation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/DataToken.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/DeviceInformation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/EnvironmentInformation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/Event.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/Events.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/Harvest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HarvestAdapter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HarvestConfiguration.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HarvestConnection.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HarvestData.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HarvestDataValidator.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HarvestLifecycleAware.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HarvestResponse.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HarvestTimer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HarvestableCache.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/Harvester.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HttpTransaction.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/HttpTransactions.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/MachineMeasurements.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/crash/ApplicationInfo.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/crash/DeviceInfo.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/crash/ExceptionInfo.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/crash/ThreadInfo.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/type/BaseHarvestable.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/type/HarvestErrorCodes.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/type/Harvestable.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/type/HarvestableArray.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/type/HarvestableDouble.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/type/HarvestableLong.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/type/HarvestableObject.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/harvest/type/HarvestableValue.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/Stack.java": {
+        "hash": "f5ceb4786073329eead01aea1ecc4576",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/StackFrame.java": {
+        "hash": "4d47ee014ec58755ec6cd2d41c58172a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/StackTrace.java": {
+        "hash": "06e82746f9d92d73121d26193449b871",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/StackTraceException.java": {
+        "hash": "5a072d3083856ceb524d69305c40f11e",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/data/DataBuilder.java": {
+        "hash": "5d01f862faef13b78e068e86646b1219",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/data/DataController.java": {
+        "hash": "b4ac6954e271f3ad28eeb54fc6dc7ae8",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/data/HexAttribute.java": {
+        "hash": "cdb9e90be55fe768d97a5fe3adc7a6ef",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/rninterface/IStack.java": {
+        "hash": "f783971153a800225e1ac71bf26ffaa9",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/rninterface/IStackFrame.java": {
+        "hash": "18db73c69ca5c1ebd5ce3c67360feeb7",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/rninterface/IStackTrace.java": {
+        "hash": "c2ea23eb0174fb0ff119f270ee91d5c1",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/hybrid/rninterface/IStackTraceException.java": {
+        "hash": "fce4636116ad7d8e7ea4fff20fe1a2f0",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/ApacheInstrumentation.java": {
+        "hash": "b972237c5fcb00e6a71e6b9ccc0416ea",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/GsonInstrumentation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/HttpURLConnectionExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/HttpsURLConnectionExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/Instrumented.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/Location.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/MetricCategory.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/OkHttp3Instrumentation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/OkHttpInstrumentation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/ReplaceCallSite.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/SkipTrace.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/Trace.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/TraceConstructor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/TransactionState.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/TransactionStateUtil.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/URLConnectionInstrumentation.java": {
+        "hash": "9a52fbf8a42aafa62b1ccca3c15c9e4c",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/WrapReturn.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/httpclient/ContentBufferingResponseEntityImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/httpclient/HttpRequestEntityImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/httpclient/HttpResponseEntityImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/httpclient/ResponseHandlerImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/io/CountingInputStream.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/io/CountingOutputStream.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/io/StreamCompleteEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/io/StreamCompleteListener.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/io/StreamCompleteListenerManager.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/io/StreamCompleteListenerSource.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp2/CallExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp2/CallbackExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp2/OkHttp2Instrumentation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp2/OkHttp2TransactionStateUtil.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp2/PrebufferedResponseBody.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp2/RequestBuilderExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp2/ResponseBuilderExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp3/CallExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp3/CallbackExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp3/OkHttp3Instrumentation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp3/OkHttp3TransactionStateUtil.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp3/PrebufferedResponseBody.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp3/RequestBuilderExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/okhttp3/ResponseBuilderExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/retrofit/ClientExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/retrofit/ContentBufferingTypedInput.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/retrofit/EmptyBodyTypedInput.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/retrofit/RestAdapterBuilderExtension.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/retrofit/RetrofitInstrumentation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/instrumentation/retrofit/RetrofitTransactionStateUtil.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/logging/AgentLog.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/logging/AgentLogManager.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/logging/ConsoleAgentLog.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/logging/DefaultAgentLog.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/logging/NullAgentLog.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/ActivityMeasurement.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/BaseMeasurement.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/CategorizedMeasurement.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/CustomMetricMeasurement.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/Measurement.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/MeasurementException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/MeasurementPool.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/MeasurementType.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/MethodMeasurement.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/ThreadInfo.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/consumer/ActivityMeasurementConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/consumer/BaseMeasurementConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/consumer/CustomMetricConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/consumer/HttpErrorHarvestingConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/consumer/HttpTransactionHarvestingConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/consumer/MeasurementConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/consumer/MethodMeasurementConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/consumer/MetricMeasurementConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/consumer/SummaryMetricMeasurementConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/http/HttpTransactionMeasurement.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/producer/ActivityMeasurementProducer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/producer/BaseMeasurementProducer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/producer/CustomMetricProducer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/producer/MeasurementProducer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/producer/MethodMeasurementProducer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/measurement/producer/NetworkMeasurementProducer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/metric/Metric.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/metric/MetricNames.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/metric/MetricStore.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/metric/MetricUnit.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/payload/NullPayloadStore.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/payload/Payload.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/payload/PayloadController.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/payload/PayloadReaper.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/payload/PayloadReporter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/payload/PayloadSender.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/payload/PayloadStore.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/stats/StatsEngine.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/stats/TicToc.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/tracing/ActivityTrace.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/tracing/Sample.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/tracing/SampleValue.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/tracing/Trace.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/tracing/TraceLifecycleAware.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/tracing/TraceMachine.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/tracing/TraceType.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/tracing/TracingInactiveException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/util/AgentBuildOptionsReporter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/util/Constants.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/util/Deflator.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/util/Encoder.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/util/ExceptionHelper.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/util/NamedThreadFactory.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/util/NetworkFailure.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/util/SafeJsonPrimitive.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/agent/android/util/Util.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/ApplicationInfo.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/ApplicationLicense.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/BoolSessionAttribute.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/DoubleSessionAttribute.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/Framework.java": {
+        "hash": "3d9141352f803be3a937b26b56a6b8fd",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/HexAgentData.java": {
+        "hash": "7acc728f63404e4b7fa17bdf3b454aa1",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/HexAgentDataBundle.java": {
+        "hash": "e886197eaaf9829b16f355c932be621c",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/LongSessionAttribute.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/Platform.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/RequestInformation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/StringSessionAttribute.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/hex/Frame.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/hex/HandledException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/hex/Thread.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/ios/Arch.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/ios/Library.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/jserror/Frame.java": {
+        "hash": "f507afc5aa49e5d8e34d1021b9790353",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/jserror/JsError.java": {
+        "hash": "58096b33c60a575b9aff0f762b3e1ec3",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/jserror/Thread.java": {
+        "hash": "433594a16e24baf30e527059a12544b1",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/models/InteractionTrace.java": {
+        "hash": "cf75e24d22a1144941551ec623882438",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent-core/src/main/java/com/newrelic/mobile/fbs/models/InteractionTraceBundle.java": {
+        "hash": "856c76c298c4b5198b74ad8434966929",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/build.gradle": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/jarjar-1.4.jar": {
+        "hash": "9f321ae28e370df70ada0e7260feaff3",
+        "libraries": [
+            "jarjar"
+        ]
+    },
+    "agent/libs/httpcore-4.3.3.jar": {
+        "hash": "c26171852f9810cd3d2416604a387e71",
+        "libraries": [
+            "httpclient"
+        ]
+    },
+    "agent/src/main/AndroidManifest.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/AgentInitializationException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/AndroidAgentImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/InstantApps.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/NewRelic.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/SavedState.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/instrumentation/AsyncTaskInstrumentation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/instrumentation/BitmapFactoryInstrumentation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/instrumentation/JSONArrayInstrumentation.java": {
+        "hash": "7d7d23e1609ad2488667e2246ae27a3e",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/instrumentation/JSONObjectInstrumentation.java": {
+        "hash": "ff45dd2529f1dcbb11e03d3050b9597b",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/instrumentation/SQLiteInstrumentation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/logging/AndroidAgentLog.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/ndk/NativeReporting.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/rum/AppApplicationLifeCycle.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/rum/AppStartUpMetrics.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/rum/AppTracer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/rum/contentprovider/NewRelicAppContentProvider.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/sample/MachineMeasurementConsumer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/sample/Sampler.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/stores/SharedPrefsAnalyticsAttributeStore.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/stores/SharedPrefsCrashStore.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/stores/SharedPrefsPayloadStore.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/stores/SharedPrefsStore.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/unity/NewRelicUnity.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/unity/UnityEvent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/unity/UnityException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/util/ActivityLifecycleBackgroundListener.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/util/AndroidEncoder.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/util/Connectivity.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/util/PersistentUUID.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/util/Reachability.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "agent/src/main/java/com/newrelic/agent/android/util/UiBackgroundListener.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/archive-maven-artifacts.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/archive-unity-artifacts.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/archive-zip-artifacts.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/artifact-validations.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/deploy-production.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/deploy-staging.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/releases-repo.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/slack-speak.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/validate-downloads.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/validate-releases.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "bin/validate-sonatype.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "build.gradle": {
+        "hash": "4f0c24eda183d6f21759c94c1acb53db",
+        "libraries": [
+            "New Relic",
+            "shadow"
+        ]
+    },
+    "buildconfig.gradle": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/build.gradle": {
+        "hash": "56fe448dd3aae2fdc2d129635bef9251",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/libs/export/asm-8.0.1.jar": {
+        "hash": "72c74304fc162ae3b03e34ca6727e19f",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/libs/export/asm-commons-8.0.1.jar": {
+        "hash": "7f5ce78ad1745d67fb858a3d4fd491e9",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/libs/export/commons-io-2.4.jar": {
+        "hash": "7f97854dc04c119d461fed14f5d8bb96",
+        "libraries": [
+            "commons-io"
+        ]
+    },
+    "class-rewriter/libs/export/guava-18.0.jar": {
+        "hash": "947641f6bb535b1d942d1bc387c45290",
+        "libraries": [
+            "gson"
+        ]
+    },
+    "class-rewriter/libs/export/slf4j-api-1.6.1.jar": {
+        "hash": "bff6016da57e19fb736d0f5742ce60ac",
+        "libraries": [
+            "commons-logging"
+        ]
+    },
+    "class-rewriter/libs/export/slf4j-simple-1.6.1.jar": {
+        "hash": "03ff67fd0b12fb27d724d5db10f6dcc1",
+        "libraries": [
+            "commons-logging"
+        ]
+    },
+    "class-rewriter/libs/reflections-0.9.8.jar": {
+        "hash": "46192a2539fbe9e1fb69f8e5764e3aaa",
+        "libraries": [
+            "reflections"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/Constants.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassAdapterBase.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassData.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassMethod.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassRemapperConfig.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassTransformer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassVisitorFactory.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassWriterSafe.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/FileLogImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/HaltBuildException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/InstrumentationContext.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/InstrumentedMethod.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/InvocationDispatcher.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/Log.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/MapFileGenerator.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/MethodVisitorFactory.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/PatchedClassWriter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/RewriterAgent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/SkipException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/SystemErrLog.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/transformers/ClassRewriterTransformer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/transformers/DexClassTransformer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/transformers/NewRelicClassTransformer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/transformers/NoOpClassTransformer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ActivityClassAdapter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ActivityClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/AnnotatingClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/Annotations.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/AsyncTaskClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/BaseMethodVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ClassAnnotationVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ContextInitializationClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/FragmentClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/MethodAnnotationVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/NewRelicClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/PrefilterClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ReplaceCallSiteClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/SafeInstrumentationMethodVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/SkipInstrumentedMethodsMethodVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/TraceAnnotationClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/TraceAnnotationVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/TraceClassDecorator.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/TraceMethodVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/WrapMethodClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/obfuscation/Proguard.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/util/AnnotationImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/util/Annotations.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/util/BuildId.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/util/BytecodeBuilder.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/util/ClassAnnotation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/util/ClassAnnotationImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/util/FileUtils.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/util/MethodAnnotation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/main/java/com/newrelic/agent/util/Streams.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/TestContext.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/ClassDataTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/ClassRemapperConfigTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/ClassTransformerTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/InstrumentationContextTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/InvocationDispatcherTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/ActivityClassVisitorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/AsyncTaskClassVisitorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/FragmentClassVisitorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/TraceClassDecoratorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/WrapMethodClassVisitorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/obfuscation/ProguardTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/util/BuildIdTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/java/com/newrelic/agent/util/FileUtilsTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/resources/BaseUIFragment.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/resources/MainActivity.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/resources/jetified-okhttp-3.10.0.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/resources/test.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/resources/type_map.properties": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/resources/visitor/AsyncTask.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/resources/visitor/replaceCallSite/CancelCall.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/src/test/resources/visitor/wrapReturn/OkHttpURLConnectionRegression.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "class-rewriter/type_map.properties": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/Android9Notes": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/DependencyVersions": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/FeatureRequests.doc": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/GRADLE_OPTS": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/MigrationNotes.md": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/TraceMachine.md": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/agent-gradle-interop.md": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/bintray.properties": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/commandExecution": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/diagrams/AgentData.suml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/diagrams/Crash.suml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/diagrams/DefaultCrashHandler.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/diagrams/Payloads.suml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "docs/diagrams/SharedPrefsStores.suml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "gradle.properties": {
+        "hash": "c91221509ad62655d40ae795584ef996",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "gradle/coverage.gradle": {
+        "hash": "55de3e6b123ca760de89938b0b7e3815",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "gradle/distribution.gradle": {
+        "hash": "e0f482ef7d4df1cbc25c9f4c661e511c",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "gradle/publishing.gradle": {
+        "hash": "c7c1cbc958d1d870acab06ba025acdc1",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "gradle/static-analysis.gradle": {
+        "hash": "2e70f32795edd3e63fa7a2147cbfaf58",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "gradle/version-tools.gradle": {
+        "hash": "9f1302308a7389b86090cdd54277b464",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "gradle/wrapper/gradle-wrapper.jar": {
+        "hash": "f88499380f0e86a9aa9f1fea62f7dca0",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "gradle/wrapper/gradle-wrapper.properties": {
+        "hash": "24907aa397a0e00302a5b9c6c46cbce5",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "gradlew": {
+        "hash": "a670520d9d36833b3e28d1e4b73cbe22",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "gradlew.bat": {
+        "hash": "375ddea382b6c56a7be2a967a20e0ab5",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "plugins/gradle/build.gradle": {
+        "hash": "0072c5e3c991da606a5c800cc95dc280",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "plugins/gradle/gradle.properties": {
+        "hash": "dbf21d5a6b8991f5196ed43211ab524d",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "plugins/gradle/settings.gradle": {
+        "hash": "d46da0acad50a1cf618e74c92d185e54",
+        "libraries": [
+            "gradle"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/BuildHelper.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/DexGuardHelper.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicClassRewriterTask.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicConfigTask.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicExtension.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicGradlePlugin.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicMapUploadTask.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicTask.groovy": {
+        "hash": "d08f87f15188eb15bcfb3b3aa6464147",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicTransform.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/groovy/com/newrelic/agent/android/VariantConfiguration.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/resources/META-INF/gradle-plugins/newrelic.properties": {
+        "hash": "5c62f3dfeeef2a586915c5ca105af2c8",
+        "libraries": [
+            "android"
+        ]
+    },
+    "plugins/gradle/src/test/groovy/com/newrelic/agent/android/PluginDexGuardIntegrationSpec.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/test/groovy/com/newrelic/agent/android/PluginDexGuardRegressionSpec.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/test/groovy/com/newrelic/agent/android/PluginIntegrationSpec.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/test/groovy/com/newrelic/agent/android/PluginRegressionSpec.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/test/groovy/com/newrelic/agent/android/PrintFilter.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/test/resources/SpockConfig.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    }
+}

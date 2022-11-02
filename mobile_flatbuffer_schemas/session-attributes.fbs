@@ -1,0 +1,21 @@
+namespace com.newrelic.mobile.fbs;
+
+table StringSessionAttribute {
+    name: string (key);
+    value: string;
+}
+
+table LongSessionAttribute {
+    name: string (key);
+    value: long;
+}
+
+table DoubleSessionAttribute {
+    name: string (key);
+    value: double;
+}
+
+table BoolSessionAttribute {
+    name: string (key);
+    value: bool;
+}

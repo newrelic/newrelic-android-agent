@@ -1,0 +1,81 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        google()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle-api:${project.versions.agp.gradleApi}"
+    }
+}
+
+apply from: "${rootDir}/gradle/publishing.gradle"
+
+apply plugin: 'groovy'
+apply plugin: 'maven-publish'
+
+group = 'com.newrelic.agent.android'
+version = project.versions.agent
+archivesBaseName = "agent-gradle-plugin"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(path: ':class-rewriter', configuration: 'shadow')
+    implementation project(path: ':agent', configuration: 'default')
+    implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
+
+    compileOnly gradleApi()
+    compileOnly localGroovy()
+    compileOnly 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    compileOnly 'com.google.guava:guava:' + project.versions.java.guava
+
+    testImplementation gradleTestKit()
+    testImplementation gradleApi()
+    testImplementation 'junit:junit:' + project.versions.test.junit
+    testImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    testImplementation('org.spockframework:spock-core:1.3-groovy-2.4') {
+        exclude module: 'groovy-all'
+    }
+}
+
+project.tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+test {
+    useJUnit()
+    maxHeapSize = '1G'
+    if (project.hasProperty("integrationTests")) {
+        systemProperty "integrationTests", project.property("integrationTests")
+    }
+    if (project.hasProperty("regressionTests")) {
+        systemProperty "regressionTests", project.property("regressionTests")
+    }
+    onlyIf {
+        project.hasProperty('integrationTests') || project.hasProperty('regressionTests')
+    }
+}
+
+artifacts {
+    archives jar
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId 'agent-gradle-plugin'
+            pom {
+                artifactId = 'agent-gradle-plugin'
+                name = 'New Relic Android Gradle Plugin'
+                description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
+            }
+        }
+    }
+}

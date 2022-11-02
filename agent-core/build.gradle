@@ -1,0 +1,107 @@
+apply plugin: 'java'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+version = project.versions.agent
+archivesBaseName = "agent-core"
+
+def buildGenPath = "${buildDir}/tmp/compileJava/src/main/java"
+
+tasks.withType(JavaCompile) {
+    sourceCompatibility = JavaVersion.VERSION_1_7
+    targetCompatibility = JavaVersion.VERSION_1_7
+}
+
+configurations {
+    fat {
+        extendsFrom project.configurations.runtime
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+                "Implementation-Title": "NewRelic Agent-Core",
+                "Implementation-Version": project.version,
+                "Built-Date": project.buildDate,
+                "Specification-Version": project.versions.display)
+    }
+}
+
+//
+// Class rewriting (package relocation)
+//
+
+shadowJar {
+    archiveClassifier = 'fat'
+     relocate 'com.google.flatbuffers', 'com.newrelic.com.google.flatbuffers'
+    // relocate 'com.google.gson', 'com.newrelic.com.google.gson'
+    manifest {
+        inheritFrom project.tasks.jar.manifest
+    }
+    mergeServiceFiles()
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs/export', include: '*.jar')
+    compileOnly fileTree(dir: 'libs', include: '*.jar')
+
+    testImplementation fileTree(dir: 'libs', include: '*.jar')
+    testImplementation fileTree(dir: 'libs/export', include: '*.jar')
+    testImplementation 'junit:junit:' + project.versions.test.junit
+    testImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
+}
+
+artifacts {
+    'fat' shadowJar
+}
+
+test {
+    forkEvery = 1
+}
+
+task stampAgentClass(type: Copy) {
+    logger.quiet "[newrelic] [agent-core] Version[${version}]"
+    logger.quiet "[newrelic] [agent-core] UnityEnabled[${unityEnabled}]"
+    logger.quiet "[newrelic] [agent-core] MonoEnabled[${monoEnabled}]"
+
+    def buildId = ""
+    if (unityEnabled || monoEnabled) {
+        def stdout = new ByteArrayOutputStream()
+        exec() {
+            executable = "uuidgen"
+            standardOutput = stdout
+        }
+        buildId = stdout.toString().trim()
+        logger.quiet "[newrelic] [agent-core] BuildId[${buildId}]"
+    }
+
+    from("src/main/java/com/newrelic/agent/android/Agent.java") {
+        filter { it.replaceAll('#VERSION#', version) }
+        filter { it.replaceAll('#UNITY_INSTRUMENTATION_FLAG#', unityEnabled ? "YES" : "NO") }
+        filter { it.replaceAll('#MONO_INSTRUMENTATION_FLAG#', monoEnabled ? "YES" : "NO") }
+        filter { it.replaceAll('#DEFAULT_BUILD_ID#', buildId) }
+    }
+    into "${buildGenPath}/com/newrelic/agent/android"
+}
+
+/**
+ * Compile the stamped source file created above
+ */
+task compileStampedAgent(type: JavaCompile, dependsOn: 'stampAgentClass') {
+    source = buildGenPath
+    include 'com/newrelic/agent/android/Agent.java'
+    classpath = sourceSets.main.compileClasspath
+    destinationDir = sourceSets.main.output.classesDirs.first()
+
+    options.sourcepath = sourceSets.main.allJava.getSourceDirectories()
+    options.listFiles = false
+}
+
+/**
+ * Set dependencies
+ */
+project.afterEvaluate() {
+    classes.finalizedBy compileStampedAgent, shadowJar
+}
+
+apply from: "${rootDir}/gradle/coverage.gradle"

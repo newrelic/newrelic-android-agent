@@ -1,0 +1,26 @@
+apply plugin: 'jacoco'
+
+jacocoTestReport {
+
+    def coverageExcludes = []
+
+    group = "Reporting"
+    description = "Generate Jacoco coverage reports after running tests."
+    getSourceDirectories().setFrom files([sourceSets.main.allSource.srcDirs])
+    getClassDirectories().setFrom files(fileTree(
+            dir: sourceSets.main.output.classesDirs.first(),
+            excludes: coverageExcludes
+    ))
+    reports {
+        xml.enabled = true
+        html.enabled = true
+    }
+}
+
+test.finalizedBy jacocoTestReport
+
+task coverageReport(dependsOn: jacocoTestReport) {
+    group = "Reporting"
+    description = "Produce code coverage report using Jacoco execution data"
+
+}

@@ -1,0 +1,42 @@
+//
+// version-tools.gradle
+// methods to assist making the project build-friendly
+//
+// methods defines outside the main script must be defined as extension (ext) properties
+//
+
+ext {
+    def projectTag = "newrelic.agent."
+
+    computeVersion = { ->
+        def version = "6.0.0"
+        if (project.hasProperty(projectTag + "version")) {
+            version = project.property(projectTag + "version")
+        }
+        version
+    }
+
+    computeVersionCode = { ->
+        def versionCode = 1
+        if (project.hasProperty(projectTag + "versionCode")) {
+            versionCode = project.property(projectTag + "versionCode").toInteger()
+        }
+        versionCode
+    }
+
+    computeVersionBuild = { ->
+        def build = "SNAPSHOT"
+        if (project.hasProperty(projectTag + "build"))
+            build = project.property(projectTag + "build")
+        build
+    }
+
+    computeVersionFull = { ->
+        def versionFull = "6.0.0" + computeVersionBuild()
+        if (project.hasProperty(projectTag + "version")) {
+            def ver = project.property(projectTag + "version")
+            versionFull = ver + "-" + computeVersionBuild()
+        }
+        versionFull
+    }
+}

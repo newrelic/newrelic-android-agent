@@ -1,0 +1,79 @@
+{
+    "libraries": {
+        "New Relic": {
+            "licenses": [
+                "New Relic"
+            ],
+            "name": "New Relic",
+            "url": "http://newrelic.com/"
+        },
+        "android": {
+            "licenses": [
+                "CC-A"
+            ],
+            "name": "Android SDK",
+            "url": "http://developer.android.com/"
+        },
+        "commons-logging": {
+            "licenses": [
+                "Apache-2"
+            ],
+            "name": "Apache Commons Logging",
+            "url": "http://commons.apache.org/logging/"
+        },
+        "gradle": {
+            "licenses": [
+                "Apache-2"
+            ],
+            "name": "gradle",
+            "url": "http://www.gradle.org/"
+        },
+        "gson": {
+            "licenses": [
+                "Apache-2"
+            ],
+            "name": "gson",
+            "url": "http://code.google.com/p/google-gson/"
+        },
+        "httpclient": {
+            "licenses": [
+                "Apache-2"
+            ],
+            "name": "Apache HttpClient",
+            "url": "http://hc.apache.org/httpclient-3.x/"
+        },
+        "okhttp": {
+            "licenses": [
+                "Apache-2"
+            ],
+            "name": "Square OkHttp",
+            "url": "https://github.com/square/okhttp"
+        },
+        "retrofit": {
+            "licenses": [],
+            "name": "Apache-2",
+            "url": "https://github.com/square/retrofit"
+        },
+        "shadow": {
+            "licenses": [
+                "Apache-2"
+            ],
+            "name": "Shadow",
+            "url": "https://imperceptiblethoughts.com/shadow/"
+        }
+    },
+    "licenses": {
+        "Apache-2": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+        },
+        "CC-A": {
+            "name": "Creative Commons Attribution",
+            "url": "http://creativecommons.org/licenses/by/2.5/legalcode"
+        },
+        "New Relic": {
+            "name": "New Relic",
+            "url": "http://newrelic.com/"
+        }
+    }
+}

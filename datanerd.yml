@@ -1,0 +1,22 @@
+services:
+  Android Agent:
+    service_name: android_agent
+    team: Mobile Monitoring
+    tier: 1
+    geography: global
+    type: agent
+    health_score: B
+    maturity: stable
+
+    dependencies:
+      - F5 Load Balancers
+      - Mobile Crash Router
+      - Mobile Router
+
+    links:
+      - https://source.datanerd.us/mobile/android_agent
+
+    environments:
+      production:
+      eu-production:
+      staging:

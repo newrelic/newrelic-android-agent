@@ -1,0 +1,161 @@
+apply from: "${rootDir}/gradle/publishing.gradle"
+
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+apply from: "${rootDir}/gradle/coverage.gradle"
+
+version = project.versions.agent
+archivesBaseName = "class-rewriter"
+
+def typeMapPath = "${project.projectDir}/type_map.properties"
+def buildGenPath = "${buildDir}/tmp/compileJava/src/main/java"
+
+configurations {
+    mappedClasses
+}
+
+tasks.withType(JavaCompile) {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs/export', include: '*.jar')
+    compileOnly fileTree(dir: 'libs', include: '*.jar')
+    compileOnly project(path: ':agent-core', configuration: 'default')
+
+    // brittle: tread lightly
+    mappedClasses fileTree(dir: rootProject.project(':agent').projectLibsDir, include: "android-agent-${version}.jar")
+    mappedClasses project(path: ':agent', configuration: 'default')
+    mappedClasses project(path: ':agent-core', configuration: 'default')
+
+    /** Rollback to using the reference jars until dependencies can be further evaluated
+     implementation 'org.ow2.asm:asm:8.+'
+     implementation 'org.ow2.asm:asm-commons:8.+.'
+     implementation 'org.ow2.asm:asm-analysis:8.+.'
+     implementation 'org.ow2.asm:asm-tree:8.+.'
+     implementation 'org.slf4j:slf4j-util:1.7.+'
+     implementation 'org.slf4j:slf4j-simple:1.7.+'
+     implementation 'com.google.code.gson:gson:2.2.4'
+     implementation 'commons-io:commons-io:2.4.+'
+     implementation 'org.reflections:reflections:0.9.+'
+     */
+
+    testImplementation "junit:junit:" + project.versions.test.junit
+    testImplementation "org.mockito:mockito-core:" + project.versions.test.mockitoCore
+    testImplementation "org.ow2.asm:asm:8.0.1"
+    testImplementation "org.ow2.asm:asm-commons:8.0.1"
+    testImplementation "org.ow2.asm:asm-analysis:8.0.1"
+    testImplementation "org.ow2.asm:asm-util:8.0.1"
+    testImplementation "org.ow2.asm:asm-tree:8.0.1"
+}
+
+jar {
+    manifest {
+        attributes(
+                "New-Relic-App-Version": project.version,
+                "Premain-Class": "com.newrelic.agent.compile.RewriterAgent",
+                "Agent-Class": "com.newrelic.agent.compile.RewriterAgent",
+                "Can-Retransform-Classes": "true",
+                "Can-Redefine-Classes": "true")
+    }
+}
+
+task stampRewriterAgentVersion(type: Copy) {
+    def srcPath = sourceSets.main.java.srcDirs[0]
+
+    logger.quiet("[newrelic] [class-rewriter] Stamping [${srcPath}/com/newrelic/agent/compile/RewriterAgent.java] " +
+            "into [${buildGenPath}/com/newrelic/agent/compile]")
+
+    from("${srcPath}/com/newrelic/agent/compile/RewriterAgent.java") {
+        filter { it.replaceAll('replaceme', version) }
+    }
+    into "${buildGenPath}/com/newrelic/agent/compile"
+}
+
+task compileStampedRewriterAgent(type: JavaCompile, dependsOn: [stampRewriterAgentVersion]) {
+    logger.quiet("newrelic] [class-rewriter] Recompiling [${buildGenPath}/com/newrelic/agent/compile/RewriterAgent.java]")
+
+    source = buildGenPath
+    include 'com/newrelic/agent/compile/RewriterAgent.java'
+    classpath = sourceSets.main.compileClasspath
+    destinationDir = sourceSets.main.output.classesDirs.first()
+    options.sourcepath = sourceSets.main.allJava.getSourceDirectories()
+    options.listFiles = true
+}
+
+
+/**
+ * Finalize class-rewriter.jar
+ *
+ * This task will merge the class rewriter and dependencies into a fat jar,
+ * using Shadow to rewrite package names where applicable
+ */
+
+//
+// Class rewriting (package relocation)
+//
+
+shadowJar {
+    archiveClassifier = ''
+
+    // load static type map
+    from typeMapPath
+
+    relocate "org.objectweb.asm", "com.newrelic.org.objectweb.asm"
+    relocate "org.reflections", "com.newrelic.org.reflections"
+    relocate "com.google", "com.newrelic.com.google"
+    relocate "org.slf4j", "com.newrelic.org.slf4j"
+    relocate "org.apache", "com.newrelic.org.apache"
+
+    manifest {
+        inheritFrom jar.manifest
+    }
+
+    exclude "META-INF/*"
+}
+
+/**
+ * Set dependencies
+ */
+project.afterEvaluate() {
+    classes.finalizedBy compileStampedRewriterAgent
+
+    project.tasks.register("generateMapFile", JavaExec) {
+        description "Extract relocation rules from instrumentation code and generate type_map properties file"
+        dependsOn compileStampedRewriterAgent
+        group "build"
+        main 'com.newrelic.agent.compile.MapFileGenerator'
+        jvmArgs '-Xmx1024m'
+        args "${typeMapPath}"
+        classpath sourceSets.main.compileClasspath
+        classpath sourceSets.main.runtimeClasspath
+        classpath configurations.mappedClasses
+        doFirst {
+            standardOutput = new FileOutputStream(new File(getTemporaryDir(), 'MapFileGenerator.log'))
+        }
+        gradle.taskGraph.whenReady {
+            logger.quiet("GenerateMapFile task enabled[${gradle.taskGraph.hasTask(generateMapFile)}]")
+        }
+    }
+}
+
+artifacts {
+    archives shadowJar
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact shadowJar
+            artifactId 'class-rewriter'
+            pom {
+                artifactId = 'class-rewriter'
+                name = 'New Relic Android Class Rewriter'
+                description = 'The New Relic Android class rewriter instruments classes for Android applications'
+            }
+        }
+    }
+}

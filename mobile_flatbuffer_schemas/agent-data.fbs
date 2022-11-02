@@ -1,0 +1,36 @@
+include "hex.fbs";
+include "session-attributes.fbs";
+
+namespace com.newrelic.mobile.fbs;
+
+table ApplicationLicense {
+    licenseKey: string (key);
+    accountId: ulong;
+    clusterAgentId: ulong;
+}
+
+enum Platform : ubyte {
+    Android = 0,
+    iOS,
+    tvOS
+}
+
+table ApplicationInfo {
+    applicationLicense: ApplicationLicense;
+    platform: Platform;
+}
+
+table AgentData {
+    stringAttributes: [StringSessionAttribute];
+    longAttributes: [LongSessionAttribute];
+    doubleAttributes: [DoubleSessionAttribute];
+    boolAttributes: [BoolSessionAttribute];
+    handledExceptions: [hex.HandledException];
+    applicationInfo: ApplicationInfo;
+}
+
+table AgentDataBundle {
+    agentData: [AgentData];
+}
+
+root_type AgentDataBundle;

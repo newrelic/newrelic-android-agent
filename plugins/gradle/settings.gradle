@@ -1,0 +1,1 @@
+ext.testAppDir = new File(rootDir, "agent-test-app")

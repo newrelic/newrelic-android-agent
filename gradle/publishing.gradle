@@ -1,0 +1,78 @@
+apply plugin: 'signing'
+apply plugin: 'maven-publish'
+
+def isSnapshotDeploy = {
+    (!computeVersionBuild().equals('SNAPSHOT') &&
+            (rootProject.hasProperty('sonatypeUsername') && rootProject.hasProperty('sonatypePassword')))
+}
+
+publishing {
+    repositories {
+        maven {
+            name "artifacts"
+            url uri(rootProject.mavenLocal)
+        }
+
+        if (isSnapshotDeploy()) {
+            maven {
+                name "snapshots"
+                url "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+                credentials {
+                    username = sonatypeUsername
+                    password = sonatypePassword
+                }
+            }
+        }
+    }
+
+    publications {
+        mavenJava(MavenPublication) {
+            groupId 'com.newrelic.agent.android'
+            version project.versions.agent
+            artifact javadocJar
+            artifact sourcesJar
+
+            pom {
+                name = 'com.newrelic.agent.android'
+                description = 'The New Relic Android Agent provides run time performance monitoring for Android applications'
+                url = 'https://newrelic.com'
+                packaging = 'jar'
+
+                licenses {
+                    license {
+                        url = 'https://newrelic.com/docs/java/java-agent-license'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'mobile-agents-team'
+                        name = 'Mobile Agents Team'
+                        email = 'mobile-agents@newrelic.com'
+                    }
+                }
+
+                scm {
+                    url = 'scm:git:git@github.com:newrelic/android_agent.git'
+                    connection = 'scm:git:git@github.com:newrelic/android_agent.git'
+                }
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenJava
+    required {
+        gradle.taskGraph.hasTask("publishAllPublicationsToArtifactsRepository") ||
+                gradle.taskGraph.hasTask("publishAllPublicationsToSnapshotsRepository")
+    }
+}
+
+project.tasks.register("install") {
+    dependsOn publishMavenJavaPublicationToMavenLocal
+    description "Publishes all Maven publications produced by this project to the local Maven cache. " +
+            "Replacement for the legacy 'maven' plugin task."
+    group "publishing"
+}
+
