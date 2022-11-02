@@ -1,5 +1,8 @@
 rootProject.name = 'newrelic-android-agent'
 
 // To declare projects as part of a multi-project build use the 'include' method
-include ':samples:agent-test-app'
 include ':instrumentation'
+include ':plugins:gradle'
+
+// Uncomment to build the samples
+// include ':samples:agent-test-app'
