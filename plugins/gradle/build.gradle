@@ -14,7 +14,6 @@ buildscript {
 }
 
 apply plugin: 'groovy'
-apply plugin: 'maven-publish'
 
 group = 'com.newrelic.agent.android'
 version = project.versions.agent
@@ -66,6 +65,9 @@ test {
 artifacts {
     archives jar
 }
+
+
+apply from: "${rootDir}/gradle/publishing.gradle"
 
 publishing {
     publications {

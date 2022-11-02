@@ -1,13 +1,13 @@
-/**
- * NewRelic Android Agent
- *
- **/
+/*
+ * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 description 'The New Relic Android Agent'
 
 apply plugin: 'base'
 
-def deployableProjects = [":instrumentation"]
+def deployableProjects = [":instrumentation", ":plugins:gradle"]
 
 buildscript {
     apply from: "${rootDir}/buildconfig.gradle"

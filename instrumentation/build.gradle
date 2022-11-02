@@ -4,11 +4,10 @@
  */
 
 apply plugin: 'java'
-apply plugin: 'maven-publish'
 apply plugin: 'com.github.johnrengelman.shadow'
 
 version = project.versions.agent
-archivesBaseName = "class-rewriter"
+archivesBaseName = "instrumentation"
 
 def typeMapPath = "${project.projectDir}/type_map.properties"
 def buildGenPath = "${buildDir}/tmp/compileJava/src/main/java"
@@ -52,7 +51,7 @@ jar {
 task stampAgentVersion(type: Copy) {
     def srcPath = sourceSets.main.java.srcDirs[0]
 
-    logger.quiet("[newrelic] [class-rewriter] Stamping [${srcPath}/com/newrelic/agent/InstrumentationAgent.java] " +
+    logger.quiet("[newrelic] [instrumentation] Stamping [${srcPath}/com/newrelic/agent/InstrumentationAgent.java] " +
             "into [${buildGenPath}/com/newrelic/agent]")
 
     from("${srcPath}/com/newrelic/agent/InstrumentationAgent.java") {
@@ -73,16 +72,12 @@ task compileStampedAgent(type: JavaCompile, dependsOn: [stampAgentVersion]) {
 }
 
 
-/**
- * Finalize class-rewriter.jar
+/*
+ * Finalize instrumentation.jar
  *
  * This task will merge the class rewriter and dependencies into a fat jar,
  * using Shadow to rewrite package names where applicable
  */
-
-//
-// Class rewriting (package relocation)
-//
 
 shadowJar {
     archiveClassifier = ''
@@ -132,16 +127,20 @@ artifacts {
     archives shadowJar
 }
 
+
+apply from: "${rootDir}/gradle/publishing.gradle"
+
 publishing {
     publications {
         mavenJava(MavenPublication) {
             artifact shadowJar
-            artifactId 'class-rewriter'
+            artifactId 'instrumentation'
             pom {
-                artifactId = 'class-rewriter'
-                name = 'New Relic Android Class Rewriter'
-                description = 'The New Relic Android class rewriter instruments classes for Android applications'
+                artifactId = 'instrumentation'
+                name = 'New Relic Android Instrumentation Agent'
+                description = 'The New Relic Android instrumentation agent instruments and rewrites classes for Android applications'
             }
         }
     }
 }
+
