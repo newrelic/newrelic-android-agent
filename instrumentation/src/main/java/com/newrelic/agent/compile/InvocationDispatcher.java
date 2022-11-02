@@ -7,7 +7,6 @@ package com.newrelic.agent.compile;
 
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.InstrumentationAgent;
-import com.newrelic.agent.compile.transformers.NewRelicClassTransformer;
 import com.newrelic.agent.compile.visitor.ActivityClassVisitor;
 import com.newrelic.agent.compile.visitor.AnnotatingClassVisitor;
 import com.newrelic.agent.compile.visitor.AsyncTaskClassVisitor;
@@ -59,8 +58,8 @@ public class InvocationDispatcher implements InvocationHandler {
         this.invocationHandlers = Collections.unmodifiableMap(
                 new HashMap<String, InvocationHandler>() {{
                     String proxyInvocationKey = InstrumentationAgent.getProxyInvocationKey(
-                            NewRelicClassTransformer.NR_CLASS_REWRITER_CLASS_NAME,
-                            NewRelicClassTransformer.NR_CLASS_REWRITER_METHOD_NAME);
+                            Constants.CLASS_TRANSFORMER_CLASS_NAME,
+                            Constants.CLASS_TRANSFORMER_METHOD_NAME);
 
                     put(proxyInvocationKey, new InvocationHandler() {
                         @Override
