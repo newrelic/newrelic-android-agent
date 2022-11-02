@@ -69,7 +69,6 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
                         agentOptions.put(Proguard.VARIANT_KEY, variantName.get())
                         agentOptions.put(BuildId.BUILD_ID_KEY, buildId.get())
 
-                        // FIXME Move map upload task to plugin. Not needed at runtime
                         new Proguard(new SystemErrLog(agentOptions), agentOptions).findAndSendMapFile()
 
                     } else {

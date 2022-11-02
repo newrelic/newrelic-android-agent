@@ -52,11 +52,6 @@ public class PrefilterClassVisitor extends ClassVisitor {
     }
 
     @Override
-    public void visitInnerClass(String arg0, String arg1, String arg2, int arg3) {
-        // TODO push inner class name.
-    }
-
-    @Override
     public MethodVisitor visitMethod(final int access, final String name, final String desc, final String signature, final String[] exceptions) {
         MethodVisitor methodVisitor = new MethodVisitor(Opcodes.ASM8) {
             @Override
