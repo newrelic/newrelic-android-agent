@@ -172,7 +172,6 @@ public class InvocationDispatcher implements InvocationHandler {
         String className = "unknown";
 
         if (isInstrumentationDisabled()) {
-            // TODO needs work
             return new ClassData(bytes, false);
         }
 

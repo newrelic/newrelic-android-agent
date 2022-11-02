@@ -292,7 +292,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     try {
                         project.tasks.getByName(targetTaskName) { targetTask ->
                             if (targetTask.transform && targetTask.transform instanceof NewRelicTransform) {
-                                /* FIXME: will be disabled until AGP8 work
+                                /* Will be disabled until AGP8 support is added:
                                 targetTask.doFirst {
                                     targetTask.transform.withTransformState(variant.name, shouldExcludeVariant)
                                 }

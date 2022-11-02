@@ -53,9 +53,6 @@ public class ActivityClassVisitor extends ActivityClassAdapter {
     public static final Map<Method, Method> methodDelegateMap = ImmutableMap.of(
             new Method("onStart", "()V"), new Method("activityStarted", "()V"),
             new Method("onStop", "()V"), new Method("activityStopped", "()V")
-            /* TODO
-            new Method("onBackPressed", "()V"), new Method("onActivityBackPressed", "()V")
-            /**/
     );
 
 
@@ -96,7 +93,6 @@ public class ActivityClassVisitor extends ActivityClassAdapter {
             log.debug("[ActivityClassVisitor] injecting onStop method");
 
         } else if (method.getName().equalsIgnoreCase("onBackPressed")) {
-            /* TODO */
             log.debug("[ActivityClassVisitor] injecting onBackPressed method");
         }
     }

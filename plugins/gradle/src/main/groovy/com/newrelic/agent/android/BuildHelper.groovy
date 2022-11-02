@@ -244,7 +244,7 @@ class BuildHelper {
 
     def configurationCacheEnabled() {
         try {
-            // FIXME May also be enabled through command line: --configuration-cache
+            // TODO May also be enabled through command line: --configuration-cache
             def prop = providers.gradleProperty("org.gradle.unsafe.configuration-cache")
             return prop.present
         } catch (Exception) {

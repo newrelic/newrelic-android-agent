@@ -162,15 +162,11 @@ public class WrapMethodClassVisitor extends ClassVisitor {
                 // be responsible for creating the object.  To discard the original object, we first store all the args
                 // in locals.  Next, we pop the two objects off the stack (note the dup call) and then reload the args.
                 // Finally, we'll call the static replacement method and its return value will be on top of the stack.
-                // TODO research "MethodNode"
                 if (opcode == Opcodes.INVOKESPECIAL && name.equals("<init>")) {
                     Method originalMethod = new Method(name, desc);
 
                     // At the moment, we don't want to instrument constructors that extend classes we instrument
                     if (context.getSuperClassName() != null && context.getSuperClassName().equals(owner)) {
-                        // TODO: While it is certainly possible to instrument these cases, it's not trivial.  We'll have
-                        // to wrap the call to the super constructor in timing code.  We can't simply swizzle the constructor
-                        // because the dalvik runtime will check to make sure super was called before the return.
                         log.debug(MessageFormat.format("[{0}] skipping call site replacement for class extending {1}", context.getFriendlyClassName(), context.getFriendlySuperClassName()));
                         return false;
                     }

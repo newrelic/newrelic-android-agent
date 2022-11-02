@@ -295,7 +295,6 @@ public final class ClassTransformer {
             if (realManifest != null) {
                 realManifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
 
-                // FIXME Better check for SHA-256 digests in manifest
                 Map<String, Attributes> entries = realManifest.getEntries();
                 for (String entryKey : entries.keySet()) {
                     Attributes attrs = realManifest.getAttributes(entryKey);

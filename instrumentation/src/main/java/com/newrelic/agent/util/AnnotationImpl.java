@@ -31,12 +31,6 @@ public class AnnotationImpl extends AnnotationVisitor {
     }
 
     @Override
-    public void visitEnd() {
-        // TODO Auto-generated method stub
-
-    }
-
-    @Override
     public AnnotationVisitor visitArray(String name) {
         return new ArrayVisitor(name);
     }

@@ -71,7 +71,6 @@ public class Annotations {
                 Collection<MethodAnnotation> annotations = MethodAnnotationVisitor.getAnnotations(cr, annotationDescription);
                 list.addAll(annotations);
             } catch (IOException e) {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
 
