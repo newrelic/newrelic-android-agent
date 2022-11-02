@@ -1,0 +1,36 @@
+Agent:
+/Users/cthomas/projects/mobile/android/android_agent/agent/libs/httpcore-4.3.3.jar
+
+agent-core.jar =>
+
+Agent-core: 
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/export/flatbuffers-java-1.6.0.3.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/export/gson-2.2.4.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/commons-logging-1.1.1.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/httpclient-4.3.6.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/httpclient-android-4.3.3.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/httpcore-4.3.3.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/jarjar-1.4.jar 
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/okhttp-2.7.5.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/okhttp-urlconnection-2.7.5.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/okhttp-3.12.0.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/okhttp-urlconnection-3.12.0.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/okio-1.15.0.jar
+/Users/cthomas/projects/mobile/android/android_agent/agent-core/libs/retrofit-1.8.0.jar
+
+
+class-rewriter:
+./class-rewriter/libs/asm-7.0.jar
+./class-rewriter/libs/asm-commons-7.0.jar
+./class-rewriter/libs/commons-io-2.4.jar
+./class-rewriter/libs/gson-1.4.jar
+./class-rewriter/libs/guava-18.0.jar
+./class-rewriter/libs/jarjar-1.4.jar
+./class-rewriter/libs/javassist-3.12.1.GA.jar
+./class-rewriter/libs/reflections-0.9.8.jar
+./class-rewriter/libs/slf4j-api-1.6.1.jar
+./class-rewriter/libs/slf4j-simple-1.6.1.jar
+
+=> agent.jar (compileOnly)
+=> agent-core.jar (compileOnly)
+

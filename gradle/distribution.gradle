@@ -1,0 +1,82 @@
+apply plugin: 'distribution'
+apply plugin: 'maven-publish'
+
+distributions {
+
+    main {
+        version project.version
+        contents {
+            from 'README'
+            from 'LICENSE'
+            into('lib') {
+                from("${project.mavenLocal}/com/newrelic/agent/android/android-agent/${project.version}") {
+                    include "android-agent-${project.version}.jar"
+                }
+                from("${project.mavenLocal}/com/newrelic/agent/android/class-rewriter/${project.version}") {
+                    include "class-rewriter-${project.version}.jar"
+                }
+            }
+        }
+    }
+}
+
+distZip.dependsOn publish
+
+// tasks to copy the distribution into legacy locations
+
+def legacyArchiveName = "newrelic-android-${project.version}"
+def legacyRootPath = new File(project.legacyDistDir, legacyArchiveName)
+
+task legacyDistUnzip(dependsOn: distZip) {
+    doLast {
+        group = "Distribution"
+        description = "Unpacks Gradle distribution into rootProject/$legacyDistDir}."
+        copy {
+            from zipTree("${project.distsDir}/android-agent-${project.version}.zip")
+            rename "class-rewriter-${project.version}", 'class.rewriter'
+            rename "android-agent-${project.version}", 'newrelic.android'
+            into project.legacyDistDir
+        }
+        file(new File(project.legacyDistDir, "android-agent-${project.version}")).renameTo(legacyRootPath)
+    }
+}
+
+task legacyDistZip(type: Zip, dependsOn: legacyDistUnzip) {
+    group = "Distribution"
+    description = "Bundles Ant archive into ${legacyDistDir}."
+    from(project.legacyDistDir) {
+        include "${legacyArchiveName}/**"
+    }
+    archiveFileName = "NewRelic_Android_Agent_${project.version}.zip"
+    destinationDirectory = project.legacyDistDir
+}
+
+task legacyCopyMavenArtifacts(type: Copy) {
+    group = "Distribution"
+    description = "Bundles agent and class rewriter artifacts into ${legacyDistDir}"
+    from("${project.mavenLocal}/com/newrelic/agent/android/android-agent/${project.version}") {
+        include "*"
+    }
+    from("${project.mavenLocal}/com/newrelic/agent/android/class-rewriter/${project.version}") {
+        include "*"
+    }
+    into new File(project.legacyDistDir, "maven")
+}
+
+task legacyCopyGradlePluginArtifacts(type: Copy) {
+    group = "Distribution"
+    description = "Bundles Gradle plugin artifacts into ${legacyDistDir}."
+    from("${project.mavenLocal}/com/newrelic/agent/android/agent-gradle-plugin/${project.version}") {
+        include "***"
+    }
+    into new File(project.legacyDistDir, "gradle-plugin")
+}
+
+task copyLegacyArtifacts(dependsOn: ['legacyDistUnzip',
+                                     'legacyDistZip',
+                                     'legacyCopyMavenArtifacts',
+                                     'legacyCopyGradlePluginArtifacts']) {
+    group = "Distribution"
+    description = "Unpacks all Gradle distribution artifacts into $legacyDistDir}"
+}
+

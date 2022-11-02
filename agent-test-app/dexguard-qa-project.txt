@@ -1,0 +1,38 @@
+# DexGuard's default settings are fine for this sample application.
+
+# We'll just display some more statistics about the processed code.
+# -verbose
+
+# If you encounter problems in your project, you can try to narrow down
+# the issue by disabling some processing steps:
+#
+#-dontshrink
+#-dontoptimize
+#-dontobfuscate
+
+# You can also check if the problem can be solved by keeping additional
+# code and/or resources:
+#
+#-keep class * { *; }
+#-keepattributes *
+#
+#-keepresources */*
+#-keepresourcefiles res/**
+#-keepresourcefiles assets/**
+#-keepresourcefiles lib/**
+#-keepresourcexmlattributenames **
+
+# These are really crude settings that you shouldn't use for building
+# actual releases, but it's easier to start from a working configuration,
+# which you can then refine.
+
+-addconfigurationdebugging
+
+-keep class com.newrelic.agent.** { *; }
+-dontwarn com.newrelic.agent.**
+-dontwarn com.google.android.**
+
+-keepattributes Exceptions, Signature, InnerClasses, LineNumberTable, SourceFile, EnclosingMethod
+
+-printmapping build/outputs/dexguard/mapping/qa/qa-mapping.txt
+# should be: -printmapping build/outputs/dexguard/mapping/<variant.buildDir>/mapping.txt

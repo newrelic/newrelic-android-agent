@@ -1,0 +1,15 @@
+namespace com.newrelic.mobile.fbs.ios;
+
+enum Arch : ubyte {
+ armv7, arm64
+}
+
+table Library {
+  uuidLow: ulong;
+  uuidHigh: ulong;
+  address: ulong;
+  userLibrary: bool;
+  arch: Arch;
+}
+
+root_type Library;

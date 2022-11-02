@@ -1,0 +1,26 @@
+apply plugin: 'pmd'
+pmd {
+    consoleOutput = false
+    ignoreFailures = true
+    reportsDir = file("${rootProject.buildDir}/reports/pmd")
+}
+
+apply plugin: "com.github.spotbugs"
+spotbugs {
+    toolVersion = project.versions.java.spotbugs
+    ignoreFailures = true
+    showProgress = false
+    effort = 'default'
+    reportsDir = file("${rootProject.buildDir}/reports/spotbugs")
+    // showStackTraces = false
+    // reportLevel = 'default'
+    // includeFilter = file("include.xml")
+    // excludeFilter = file("exclude.xml")
+    // visitors = ['FindSqlInjection', 'SwitchFallthrough']
+    // omitVisitors = ['FindNonShortCircuit']
+    // baselineFile = file("baseline.xml")
+    // onlyAnalyze = [ 'com.foobar.MyClass', 'com.foobar.mypkg.*' ]
+    // maxHeapSize = '1g'
+    // extraArgs = ['-nested:false']
+}
+

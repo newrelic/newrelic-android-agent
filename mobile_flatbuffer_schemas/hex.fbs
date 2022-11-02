@@ -1,0 +1,30 @@
+include "ios.fbs";
+
+namespace com.newrelic.mobile.fbs.hex;
+
+table Frame {
+  value: string;
+  className: string;
+  methodName: string;
+  fileName: string;
+  lineNumber: long;
+  address: ulong;
+}
+
+table Thread {
+    frames: [Frame];
+}
+
+table HandledException {
+    appUuidLow: ulong;
+    appUuidHigh: ulong;
+    sessionId: string;
+    reportedTimestampMs: ulong;
+    name: string;
+    message: string;
+    cause: string;
+    threads: [Thread];
+    libraries: [ios.Library];
+}
+
+root_type HandledException;
