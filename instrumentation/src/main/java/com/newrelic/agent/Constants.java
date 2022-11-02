@@ -38,6 +38,10 @@ public class Constants {
     public static final String TRACEMACHINE_ENTER_METHOD_NAME = "enterMethod";
     public static final String TRACEMACHINE_ENTER_METHOD_SIGNATURE = "(Lcom/newrelic/agent/android/tracing/Trace;Ljava/lang/String;Ljava/util/ArrayList;)V";
 
+    public static final String CLASS_TRANSFORMER_CLASS_NAME = "com/newrelic/agent/compile/ClassTransformer";
+    public static final String CLASS_TRANSFORMER_METHOD_NAME = "transformClassBytes";
+    public static final String CLASS_TRANSFORMER_METHOD_SIGNATURE = "(Ljava/lang/String;[B)[B";
+
     public static final String NEWRELIC_CLASS_NAME = "com/newrelic/agent/android/NewRelic";
     public static final String ASM_CLASS_NAME = "com/newrelic/agent/android/background/ApplicationStateMonitor";
     public static final String CRASH_CLASS_NAME = "com/newrelic/agent/android/crash/Crash";

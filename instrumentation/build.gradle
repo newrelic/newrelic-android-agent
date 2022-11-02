@@ -1,13 +1,13 @@
-// apply from: "${rootDir}/gradle/publishing.gradle"
+/*
+ * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 apply plugin: 'java'
-apply plugin: 'maven-publish'
 apply plugin: 'com.github.johnrengelman.shadow'
 
-// apply from: "${rootDir}/gradle/coverage.gradle"
-
 version = project.versions.agent
-archivesBaseName = "class-rewriter"
+archivesBaseName = "instrumentation"
 
 def typeMapPath = "${project.projectDir}/type_map.properties"
 def buildGenPath = "${buildDir}/tmp/compileJava/src/main/java"
@@ -24,24 +24,9 @@ tasks.withType(JavaCompile) {
 dependencies {
     implementation fileTree(dir: 'libs/export', include: '*.jar')
     compileOnly fileTree(dir: 'libs', include: '*.jar')
-    // compileOnly project(path: ':agent-core', configuration: 'default')
 
     // brittle: tread lightly
     // mappedClasses fileTree(dir: rootProject.project(':agent').projectLibsDir, include: "android-agent-${version}.jar")
-    // mappedClasses project(path: ':agent', configuration: 'default')
-    // mappedClasses project(path: ':agent-core', configuration: 'default')
-
-    /** Rollback to using the reference jars until dependencies can be further evaluated
-     implementation 'org.ow2.asm:asm:8.+'
-     implementation 'org.ow2.asm:asm-commons:8.+.'
-     implementation 'org.ow2.asm:asm-analysis:8.+.'
-     implementation 'org.ow2.asm:asm-tree:8.+.'
-     implementation 'org.slf4j:slf4j-util:1.7.+'
-     implementation 'org.slf4j:slf4j-simple:1.7.+'
-     implementation 'com.google.code.gson:gson:2.2.4'
-     implementation 'commons-io:commons-io:2.4.+'
-     implementation 'org.reflections:reflections:0.9.+'
-     */
 
     testImplementation "junit:junit:" + project.versions.test.junit
     testImplementation "org.mockito:mockito-core:" + project.versions.test.mockitoCore
@@ -66,7 +51,7 @@ jar {
 task stampAgentVersion(type: Copy) {
     def srcPath = sourceSets.main.java.srcDirs[0]
 
-    logger.quiet("[newrelic] [class-rewriter] Stamping [${srcPath}/com/newrelic/agent/InstrumentationAgent.java] " +
+    logger.quiet("[newrelic] [instrumentation] Stamping [${srcPath}/com/newrelic/agent/InstrumentationAgent.java] " +
             "into [${buildGenPath}/com/newrelic/agent]")
 
     from("${srcPath}/com/newrelic/agent/InstrumentationAgent.java") {
@@ -87,16 +72,12 @@ task compileStampedAgent(type: JavaCompile, dependsOn: [stampAgentVersion]) {
 }
 
 
-/**
- * Finalize class-rewriter.jar
+/*
+ * Finalize instrumentation.jar
  *
  * This task will merge the class rewriter and dependencies into a fat jar,
  * using Shadow to rewrite package names where applicable
  */
-
-//
-// Class rewriting (package relocation)
-//
 
 shadowJar {
     archiveClassifier = ''
@@ -146,16 +127,20 @@ artifacts {
     archives shadowJar
 }
 
+
+apply from: "${rootDir}/gradle/publishing.gradle"
+
 publishing {
     publications {
         mavenJava(MavenPublication) {
             artifact shadowJar
-            artifactId 'class-rewriter'
+            artifactId 'instrumentation'
             pom {
-                artifactId = 'class-rewriter'
-                name = 'New Relic Android Class Rewriter'
-                description = 'The New Relic Android class rewriter instruments classes for Android applications'
+                artifactId = 'instrumentation'
+                name = 'New Relic Android Instrumentation Agent'
+                description = 'The New Relic Android instrumentation agent instruments and rewrites classes for Android applications'
             }
         }
     }
 }
+

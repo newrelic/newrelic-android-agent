@@ -40,7 +40,7 @@ public final class BytecodeBuilder {
         mv.visitInsn(Opcodes.ICONST_1); // true
         mv.invokeVirtual(Type.getType(Field.class), new Method("setAccessible", "(Z)V"));
 
-        // InstrumentationAgent.INVOCATION_DISPATCHER_FIELD_NAME is a static field so we can just load null for the get invocation
+        // InvocationDispatcher.INVOCATION_DISPATCHER_FIELD_NAME is a static field so we can just load null for the get invocation
         mv.visitInsn(Opcodes.ACONST_NULL);
 
         mv.invokeVirtual(Type.getType(Field.class), new Method("get", "(Ljava/lang/Object;)Ljava/lang/Object;"));

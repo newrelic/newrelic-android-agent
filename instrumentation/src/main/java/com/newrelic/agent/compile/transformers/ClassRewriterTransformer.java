@@ -5,9 +5,10 @@
 
 package com.newrelic.agent.compile.transformers;
 
+import com.newrelic.agent.Constants;
+import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.compile.ClassAdapterBase;
 import com.newrelic.agent.compile.ClassVisitorFactory;
-import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.compile.Log;
 import com.newrelic.agent.compile.MethodVisitorFactory;
 import com.newrelic.agent.compile.PatchedClassWriter;
@@ -21,7 +22,6 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.Method;
 
-import java.lang.instrument.IllegalClassFormatException;
 import java.net.URISyntaxException;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
@@ -32,19 +32,11 @@ import java.util.Map;
  * processed through the transform filter.
  */
 
+@Deprecated
 public final class ClassRewriterTransformer implements NewRelicClassTransformer {
-    private Log log;
+    private final Log log;
     private final Map<String, ClassVisitorFactory> classVisitors;
 
-    /**
-     * The classes into which we're injecting code.
-     * The methods in the class that we're modifying.
-     */
-    String NR_CLASS_REWRITER_CLASS_NAME = "com/newrelic/agent/compile/ClassTransformer";
-    String NR_CLASS_REWRITER_METHOD_NAME = "transformClassBytes";
-    String NR_CLASS_REWRITER_METHOD_SIGNATURE = "(Ljava/lang/String;[B)[B";
-
-    @SuppressWarnings("serial")
     public ClassRewriterTransformer(final Log log) throws URISyntaxException {
         try {
             final String agentJarPath = InstrumentationAgent.getAgentJarPath();
@@ -56,7 +48,7 @@ public final class ClassRewriterTransformer implements NewRelicClassTransformer 
         this.log = log;
 
         classVisitors = new HashMap<String, ClassVisitorFactory>() {{
-            put(NewRelicClassTransformer.NR_CLASS_REWRITER_CLASS_NAME,
+            put(Constants.CLASS_TRANSFORMER_CLASS_NAME,
                     new ClassVisitorFactory(true) {
                         @Override
                         public ClassVisitor create(ClassVisitor cv) {
@@ -73,8 +65,7 @@ public final class ClassRewriterTransformer implements NewRelicClassTransformer 
 
     @Override
     public byte[] transform(final ClassLoader classLoader, String className, Class<?> clazz,
-                            ProtectionDomain protectionDomain, byte[] bytes)
-            throws IllegalClassFormatException {
+                            ProtectionDomain protectionDomain, byte[] bytes) {
 
         ClassVisitorFactory factory = classVisitors.get(className);
         if (factory != null) {
@@ -109,11 +100,10 @@ public final class ClassRewriterTransformer implements NewRelicClassTransformer 
         return null;
     }
 
-    @SuppressWarnings("serial")
     private static ClassVisitor createTransformClassAdapter(ClassVisitor cw, final Log log) {
 
         return new ClassAdapterBase(log, cw, new HashMap<Method, MethodVisitorFactory>() {{
-            put(new Method(NewRelicClassTransformer.NR_CLASS_REWRITER_METHOD_NAME, NewRelicClassTransformer.NR_CLASS_REWRITER_METHOD_SIGNATURE),
+            put(new Method(Constants.CLASS_TRANSFORMER_METHOD_NAME, Constants.CLASS_TRANSFORMER_METHOD_SIGNATURE),
                     new MethodVisitorFactory() {
                         @Override
                         public MethodVisitor create(MethodVisitor mv, int access, String name, String desc) {
@@ -121,7 +111,7 @@ public final class ClassRewriterTransformer implements NewRelicClassTransformer 
                                 @Override
                                 protected void onMethodEnter() {
                                     builder.loadInvocationDispatcher().
-                                            loadInvocationDispatcherKey(InstrumentationAgent.getProxyInvocationKey(NewRelicClassTransformer.NR_CLASS_REWRITER_CLASS_NAME, methodName)).
+                                            loadInvocationDispatcherKey(InstrumentationAgent.getProxyInvocationKey(Constants.CLASS_TRANSFORMER_CLASS_NAME, methodName)).
                                             loadArgumentsArray(methodDesc).
                                             invokeDispatcher(false);
 

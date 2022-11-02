@@ -18,15 +18,6 @@ public abstract class Log { // implements AgentLog {
         WARN(2),
         ERROR(1);
 
-        /** Gradle Log levels: Logger extends org.slf4j.Logger
-         LIFECYCLE(0)           // Progress information messages
-         QUIET(7),              // Important information messages
-         DEBUG(5),              // Debug messages
-         INFO(3),               // Information messages
-         WARNING(2),            // Warning messages
-         ERROR(1),              // Error messages
-        */
-
         private final int value;
 
         LogLevel(final int newValue) {

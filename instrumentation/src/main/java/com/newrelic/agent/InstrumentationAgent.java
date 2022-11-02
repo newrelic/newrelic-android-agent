@@ -24,20 +24,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class InstrumentationAgent {
+public final class InstrumentationAgent extends Constants {
     public static final String VERSION = "replaceme";
-/*
-    public static final String DISABLE_INSTRUMENTATION_SYSTEM_PROPERTY = "newrelic.instrumentation.disabled";
-    public static final String SET_INSTRUMENTATION_DISABLED_FLAG = "SET_INSTRUMENTATION_DISABLED_FLAG";
-    public static final String PRINT_TO_INFO_LOG = "PRINT_TO_INFO_LOG";
-    public static final String NR_AGENT_ARGS_KEY = "newrelic.agent.args";
-*/
 
     private static Map<String, String> agentOptions = Collections.emptyMap();
 
     public static Throwable withAgentArgs(String agentArgs) {
         try {
             InstrumentationAgent.agentOptions = parseAgentArgs(agentArgs);
+            System.setProperty(Constants.NR_AGENT_ARGS_KEY, agentArgs);
         } catch (Throwable t) {
             return t;
         }
