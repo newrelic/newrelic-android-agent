@@ -7,13 +7,6 @@
             "name": "New Relic",
             "url": "http://newrelic.com/"
         },
-        "android": {
-            "licenses": [
-                "CC-A"
-            ],
-            "name": "Android SDK",
-            "url": "http://developer.android.com/"
-        },
         "commons-logging": {
             "licenses": [
                 "Apache-2"
@@ -53,23 +46,12 @@
             "licenses": [],
             "name": "Apache-2",
             "url": "https://github.com/square/retrofit"
-        },
-        "shadow": {
-            "licenses": [
-                "Apache-2"
-            ],
-            "name": "Shadow",
-            "url": "https://imperceptiblethoughts.com/shadow/"
         }
     },
     "licenses": {
         "Apache-2": {
             "name": "Apache 2.0",
             "url": "http://www.apache.org/licenses/LICENSE-2.0"
-        },
-        "CC-A": {
-            "name": "Creative Commons Attribution",
-            "url": "http://creativecommons.org/licenses/by/2.5/legalcode"
         },
         "New Relic": {
             "name": "New Relic",

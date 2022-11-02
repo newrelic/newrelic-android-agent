@@ -1,0 +1,32 @@
+<%#
+---
+article:
+  permalink: {permalink}
+  title: {projectname} licenses
+  keywords: licenses, {projectname}
+  display_order: {displayorder}
+  beta: false
+  sub_category: {subcategory}
+  meta_description: "A list of third-party licenses we use in the {projectname}."
+---
+%>
+
+<p>We love open-source software, and use the following in the {projectname}. Thank you, open-source community, for making these fine tools! Some of these are listed under multiple software licenses, and in that case we have listed the license we've chosen to use.</p>
+
+<table>
+<thead>
+  <tr>
+    <th width="200"><b>Library</b></th>
+    <th><b>License</b></th>
+  </tr>
+</thead>
+<tbody>
+{library_table}
+</tbody>
+</table>
+
+<p>The remainder of the code is covered by the New Relic License agreement found in the LICENSE file in the distribution.</p>
+
+<h2 id="more_help">For more help</h2>
+
+<%= article_boilerplate 'license-footer'  %>

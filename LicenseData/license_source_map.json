@@ -1,5 +1,23 @@
 {
-    ".gitmodules": {
+    ".github/ISSUE_TEMPLATE/bug_report.md": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    ".github/ISSUE_TEMPLATE/enhancement.md": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    ".github/workflows/android.yml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    ".github/workflows/repolinter.yml": {
         "hash": "n/a",
         "libraries": [
             "New Relic"
@@ -11,7 +29,19 @@
             "New Relic"
         ]
     },
+    "CONTRIBUTING.md": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
     "LICENSE": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "README_agent.md": {
         "hash": "n/a",
         "libraries": [
             "New Relic"
@@ -1872,10 +1902,9 @@
         ]
     },
     "build.gradle": {
-        "hash": "4f0c24eda183d6f21759c94c1acb53db",
+        "hash": "n/a",
         "libraries": [
-            "New Relic",
-            "shadow"
+            "New Relic"
         ]
     },
     "buildconfig.gradle": {
@@ -1884,511 +1913,7 @@
             "New Relic"
         ]
     },
-    "class-rewriter/build.gradle": {
-        "hash": "56fe448dd3aae2fdc2d129635bef9251",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/libs/export/asm-8.0.1.jar": {
-        "hash": "72c74304fc162ae3b03e34ca6727e19f",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/libs/export/asm-commons-8.0.1.jar": {
-        "hash": "7f5ce78ad1745d67fb858a3d4fd491e9",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/libs/export/commons-io-2.4.jar": {
-        "hash": "7f97854dc04c119d461fed14f5d8bb96",
-        "libraries": [
-            "commons-io"
-        ]
-    },
-    "class-rewriter/libs/export/guava-18.0.jar": {
-        "hash": "947641f6bb535b1d942d1bc387c45290",
-        "libraries": [
-            "gson"
-        ]
-    },
-    "class-rewriter/libs/export/slf4j-api-1.6.1.jar": {
-        "hash": "bff6016da57e19fb736d0f5742ce60ac",
-        "libraries": [
-            "commons-logging"
-        ]
-    },
-    "class-rewriter/libs/export/slf4j-simple-1.6.1.jar": {
-        "hash": "03ff67fd0b12fb27d724d5db10f6dcc1",
-        "libraries": [
-            "commons-logging"
-        ]
-    },
-    "class-rewriter/libs/reflections-0.9.8.jar": {
-        "hash": "46192a2539fbe9e1fb69f8e5764e3aaa",
-        "libraries": [
-            "reflections"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/Constants.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassAdapterBase.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassData.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassMethod.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassRemapperConfig.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassTransformer.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassVisitorFactory.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/ClassWriterSafe.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/FileLogImpl.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/HaltBuildException.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/InstrumentationContext.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/InstrumentedMethod.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/InvocationDispatcher.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/Log.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/MapFileGenerator.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/MethodVisitorFactory.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/PatchedClassWriter.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/RewriterAgent.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/SkipException.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/SystemErrLog.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/transformers/ClassRewriterTransformer.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/transformers/DexClassTransformer.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/transformers/NewRelicClassTransformer.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/transformers/NoOpClassTransformer.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ActivityClassAdapter.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ActivityClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/AnnotatingClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/Annotations.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/AsyncTaskClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/BaseMethodVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ClassAnnotationVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ContextInitializationClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/FragmentClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/MethodAnnotationVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/NewRelicClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/PrefilterClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/ReplaceCallSiteClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/SafeInstrumentationMethodVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/SkipInstrumentedMethodsMethodVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/TraceAnnotationClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/TraceAnnotationVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/TraceClassDecorator.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/TraceMethodVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/compile/visitor/WrapMethodClassVisitor.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/obfuscation/Proguard.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/util/AnnotationImpl.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/util/Annotations.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/util/BuildId.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/util/BytecodeBuilder.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/util/ClassAnnotation.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/util/ClassAnnotationImpl.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/util/FileUtils.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/util/MethodAnnotation.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/main/java/com/newrelic/agent/util/Streams.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/TestContext.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/ClassDataTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/ClassRemapperConfigTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/ClassTransformerTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/InstrumentationContextTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/InvocationDispatcherTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/ActivityClassVisitorTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/AsyncTaskClassVisitorTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/FragmentClassVisitorTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/TraceClassDecoratorTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/compile/visitor/WrapMethodClassVisitorTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/obfuscation/ProguardTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/util/BuildIdTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/java/com/newrelic/agent/util/FileUtilsTest.java": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/resources/BaseUIFragment.class": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/resources/MainActivity.class": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/resources/jetified-okhttp-3.10.0.jar": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/resources/test.jar": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/resources/type_map.properties": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/resources/visitor/AsyncTask.class": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/resources/visitor/replaceCallSite/CancelCall.class": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/src/test/resources/visitor/wrapReturn/OkHttpURLConnectionRegression.class": {
-        "hash": "n/a",
-        "libraries": [
-            "New Relic"
-        ]
-    },
-    "class-rewriter/type_map.properties": {
+    "cla.md": {
         "hash": "n/a",
         "libraries": [
             "New Relic"
@@ -2538,22 +2063,562 @@
             "gradle"
         ]
     },
+    "instrumentation/build.gradle": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/libs/export/asm-8.0.1.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/libs/export/asm-commons-8.0.1.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/libs/export/commons-io-2.11.0.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/libs/export/guava-18.0.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/libs/export/slf4j-api-1.6.1.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/libs/export/slf4j-simple-1.6.1.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/libs/reflections-0.9.8.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/Constants.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/InstrumentationAgent.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/android/instrumentation/ReplaceCallSite.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/android/instrumentation/SkipTrace.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/android/instrumentation/WrapReturn.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/ClassAdapterBase.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/ClassData.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/ClassMethod.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/ClassRemapperConfig.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/ClassTransformer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/ClassVisitorFactory.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/ClassWriterSafe.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/FileLogImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/HaltBuildException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/InstrumentationContext.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/InstrumentedMethod.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/InvocationDispatcher.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/Log.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/MethodVisitorFactory.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/PatchedClassWriter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/SkipException.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/SystemErrLog.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/transformers/ClassRewriterTransformer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/transformers/NewRelicClassTransformer.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/ActivityClassAdapter.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/ActivityClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/AnnotatingClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/Annotations.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/AsyncTaskClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/BaseMethodVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/ClassAnnotationVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/ContextInitializationClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/FragmentClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/MethodAnnotationVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/NewRelicClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/PrefilterClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/ReplaceCallSiteClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/SafeInstrumentationMethodVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/SkipInstrumentedMethodsMethodVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/TraceAnnotationClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/TraceAnnotationVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/TraceClassDecorator.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/TraceMethodVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/compile/visitor/WrapMethodClassVisitor.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/obfuscation/Proguard.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/AnnotationImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/Annotations.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/BuildId.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/BytecodeBuilder.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/ClassAnnotation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/ClassAnnotationImpl.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/FileUtils.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/MapFileGenerator.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/MethodAnnotation.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/main/java/com/newrelic/agent/util/Streams.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/TestContext.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/ClassDataTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/ClassRemapperConfigTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/ClassTransformerTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/InstrumentationContextTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/InvocationDispatcherTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/visitor/ActivityClassVisitorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/visitor/AsyncTaskClassVisitorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/visitor/FragmentClassVisitorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/visitor/TraceClassDecoratorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/compile/visitor/WrapMethodClassVisitorTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/obfuscation/ProguardTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/util/BuildIdTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/java/com/newrelic/agent/util/FileUtilsTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/resources/BaseUIFragment.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/resources/MainActivity.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/resources/jetified-okhttp-3.10.0.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/resources/test.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/resources/type_map.properties": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/resources/visitor/AsyncTask.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/resources/visitor/replaceCallSite/CancelCall.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/src/test/resources/visitor/wrapReturn/OkHttpURLConnectionRegression.class": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "instrumentation/type_map.properties": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "mobile_flatbuffer_schemas/.gitignore": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "mobile_flatbuffer_schemas/agent-data.fbs": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "mobile_flatbuffer_schemas/gen-flatbuffers-java.sh": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "mobile_flatbuffer_schemas/hex.fbs": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "mobile_flatbuffer_schemas/ios.fbs": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "mobile_flatbuffer_schemas/session-attributes.fbs": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
     "plugins/gradle/build.gradle": {
-        "hash": "0072c5e3c991da606a5c800cc95dc280",
+        "hash": "n/a",
         "libraries": [
-            "gradle"
-        ]
-    },
-    "plugins/gradle/gradle.properties": {
-        "hash": "dbf21d5a6b8991f5196ed43211ab524d",
-        "libraries": [
-            "gradle"
-        ]
-    },
-    "plugins/gradle/settings.gradle": {
-        "hash": "d46da0acad50a1cf618e74c92d185e54",
-        "libraries": [
-            "gradle"
+            "New Relic"
         ]
     },
     "plugins/gradle/src/main/groovy/com/newrelic/agent/android/BuildHelper.groovy": {
@@ -2616,10 +2681,16 @@
             "New Relic"
         ]
     },
-    "plugins/gradle/src/main/resources/META-INF/gradle-plugins/newrelic.properties": {
-        "hash": "5c62f3dfeeef2a586915c5ca105af2c8",
+    "plugins/gradle/src/main/java/com/newrelic/agent/android/obfuscation/Proguard.java": {
+        "hash": "n/a",
         "libraries": [
-            "android"
+            "New Relic"
+        ]
+    },
+    "plugins/gradle/src/main/resources/META-INF/gradle-plugins/newrelic.properties": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
         ]
     },
     "plugins/gradle/src/test/groovy/com/newrelic/agent/android/PluginDexGuardIntegrationSpec.groovy": {
@@ -2652,7 +2723,229 @@
             "New Relic"
         ]
     },
+    "plugins/gradle/src/test/java/com/newrelic/agent/android/obfuscation/ProguardTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
     "plugins/gradle/src/test/resources/SpockConfig.groovy": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/.gitignore": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/build.gradle": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/buildconfig.gradle": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/gradle.properties": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/gradle/wrapper/gradle-wrapper.jar": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/gradle/wrapper/gradle-wrapper.properties": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/gradlew": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/gradlew.bat": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/newrelic.properties": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/proguard-rules.pro": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/settings.gradle": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/androidTest/java/com/newrelic/agent/android/testapp/ApplicationTest.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/AndroidManifest.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/java/com/newrelic/agent/android/testapp/MainActivity.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/java/com/newrelic/agent/android/testapp/NavigationDrawerFragment.java": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/drawable-hdpi/drawer_shadow.9.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/drawable-hdpi/ic_drawer.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/drawable-mdpi/drawer_shadow.9.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/drawable-mdpi/ic_drawer.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/drawable-xhdpi/drawer_shadow.9.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/drawable-xhdpi/ic_drawer.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/drawable-xxhdpi/drawer_shadow.9.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/drawable-xxhdpi/ic_drawer.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/layout/activity_main.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/layout/fragment_main.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/layout/fragment_navigation_drawer.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/menu/global.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/menu/main.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/mipmap-hdpi/ic_launcher.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/mipmap-mdpi/ic_launcher.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/values-w820dp/dimens.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/values/dimens.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/values/strings.xml": {
+        "hash": "n/a",
+        "libraries": [
+            "New Relic"
+        ]
+    },
+    "samples/agent-test-app/src/main/res/values/styles.xml": {
         "hash": "n/a",
         "libraries": [
             "New Relic"
