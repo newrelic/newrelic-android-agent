@@ -177,6 +177,7 @@ public class Providers {
         devInfo.setApplicationFramework(ApplicationFramework.Cordova);
         devInfo.setApplicationFrameworkVersion("1.2.3.4");
         devInfo.setSize("normal");
+        devInfo.setArchitecture("x86_64");
 
         DeviceInformation clone = new DeviceInformation();
         clone.setOsName(devInfo.getOsName());

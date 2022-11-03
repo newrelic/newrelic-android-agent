@@ -231,6 +231,7 @@ public class Providers {
         devInfo.setManufacturer("spacely sprockets");
         devInfo.setModel("6000sux");
         devInfo.setRunTime("1.7.0");
+        devInfo.setArchitecture("x86_64");
 
         DeviceInformation clone = new DeviceInformation();
         clone.setOsName(devInfo.getOsName());
