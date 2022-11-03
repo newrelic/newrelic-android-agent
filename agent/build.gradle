@@ -1,0 +1,236 @@
+import com.android.builder.core.BuilderConstants
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://jitpack.io" }
+    }
+}
+
+
+apply plugin: 'com.android.library'
+
+version = project.versions.agent
+archivesBaseName = "android-agent"
+
+android {
+    compileSdkVersion project.versions.agp.compileSdk
+
+    defaultConfig {
+        minSdkVersion project.versions.agp.minSdk
+        targetSdkVersion project.versions.agp.targetSdk
+    }
+
+    buildTypes {
+        release {
+            testCoverageEnabled false
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // only interested in the release variant
+    variantFilter { variant ->
+        if (variant.buildType.name != BuilderConstants.RELEASE) {
+            variant.ignore = true
+        }
+    }
+
+    lintOptions {
+        abortOnError true
+        disable 'InvalidPackage', 'GradleDynamicVersion'
+    }
+
+    testOptions {
+        unitTests.includeAndroidResources = true
+        unitTests.returnDefaultValues = true
+        unitTests.all {
+            forkEvery = 1
+            jacoco {
+                includeNoLocationClasses = true
+                excludes = ['jdk.internal.*']
+            }
+        }
+    }
+
+    libraryVariants.all { variant ->
+        if (variant.buildType.name == BuilderConstants.RELEASE) {
+            configureCoverageReport(variant)
+        }
+
+        // The artifact is now a fat jar
+        logger.quiet("[FAT-JAR] Variant[${variant.name}]")
+        variant.ext.fatJarTask = toFatJarTask(variant)
+        artifacts {
+            archives variant.ext.fatJarTask
+        }
+
+        /**
+         * Set dependencies
+         */
+        def assembleTask = variant.getAssembleProvider().get()
+        fatJarTask.dependsOn assembleTask
+        assembleTask.finalizedBy variant.ext.fatJarTask
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: '*.jar')
+
+    compileOnly project(path: ':agent-core', configuration: 'fat')
+    compileOnly newrelic.deps.ndk
+
+    testImplementation project(path: ':agent-core', configuration: 'fat')
+    testImplementation newrelic.deps.ndk
+
+    testImplementation 'org.robolectric:robolectric:' + project.versions.test.robolectric
+    testImplementation 'junit:junit:' + project.versions.test.junit
+    testImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
+    testImplementation 'androidx.test:core:' + project.versions.test.androidxCore
+}
+
+/**
+ * Returns path to *fat* agent-core
+ */
+def agentCoreJarPath() {
+    configurations.releaseCompileClasspath.find { c -> c.absolutePath.contains("agent-core-$version-fat") }
+}
+
+/**
+ * Finalize agent.jar for the passed variant
+ */
+def toFatJarTask(def variant) {
+    def variantName = variant.name.toLowerCase()
+    def fatJarFile = "android-agent-${project.version}.jar"
+
+    // This task will merge agent and agent-core classes, relocating embedded 3rd-party classes.
+    // ShadowJar doesn't support Android so use JarJar until that's resolved
+
+    def fatJarTaskName = "fatJar${variantName.capitalize()}"
+    def fatJarTask = task(fatJarTaskName, type: Jar) {
+        manifest {
+            attributes(
+                    "Implementation-Vendor": "New Relic Inc.",
+                    "Implementation-Title": "Android Agent",
+                    "Implementation-Version": project.version,
+                    "Built-Date": project.buildDate,
+            )
+            metaInf {
+                from variant.mergedFlavor.consumerProguardFiles
+                into "proguard"
+            }
+        }
+
+        exclude 'META-INF/**'
+
+        doLast {
+            /**
+             * Create a combined agent jar
+             */
+            def fatjarOutputFile = new File("${project.projectLibsDir}/${fatJarFile}").getCanonicalFile()
+            def agentCoreJarPath = agentCoreJarPath()
+            def compileTask = variant.getJavaCompileProvider().get()
+
+            logger.quiet "[newrelic] [agent] Agent core dependency: ${agentCoreJarPath}"
+            logger.quiet "[newrelic] [agent] Agent fat jar: ${fatjarOutputFile}"
+
+            ant {
+                taskdef name: 'jarjar', classname: 'com.tonicsystems.jarjar.JarJarTask', classpath: "${projectDir}/jarjar-1.4.jar"
+
+                // Combine shadowed dependencies
+                jarjar(jarfile: fatjarOutputFile, manifest: "$buildDir/tmp/${fatJarTaskName}/MANIFEST.MF") {
+                    fileset(dir: compileTask.destinationDir)
+                    zipfileset(src: agentCoreJarPath) {
+                        exclude(name: '**/GsonInstrumentation.*')
+                    }
+                    rule pattern: "com.google.**", result: "com.newrelic.com.google.@1"
+                }
+
+                // Insert unshadowed file(s) into target
+                jar(destfile: fatjarOutputFile, update: "true", compress: "true", duplicate: "fail") {
+                    zipfileset(src: agentCoreJarPath) {
+                        include(name: '**/GsonInstrumentation.*')
+                    }
+                }
+            }
+        }
+    }
+
+    return fatJarTask
+}
+
+
+/**
+ * Configure Code coverage
+ */
+apply plugin: 'jacoco'
+
+def configureCoverageReport(variant) {
+
+    def variantName = variant.name
+    def coverageExcludes = [
+            '**/R.class',
+            '**/R$*.class',
+            '**/BuildConfig.*',
+            '**/Manifest*.*',
+            '**/*$ViewInjector*.*',
+            '**/*$ViewBinder*.*',
+            '**/*Test*.*',
+    ]
+
+    def testTaskName = "test${variantName.capitalize()}UnitTest"
+    def javaCompileTask = variant.getJavaCompileProvider().get()
+
+    task jacocoTestReport(type: JacocoReport, dependsOn: [testTaskName, "create${variantName.capitalize()}CoverageReport"]) {
+        group = "Reporting"
+        description = "Generate Jacoco Release coverage report after running unit tests."
+        getSourceDirectories().setFrom files([android.sourceSets.main.java.srcDirs] + android.sourceSets[variant.name].java.srcDirs)
+        getClassDirectories().setFrom files(fileTree(
+                dir: javaCompileTask.destinationDir,
+                excludes: coverageExcludes
+        ))
+        getExecutionData().setFrom fileTree(dir: project.buildDir,
+                includes: ["jacoco/${testTaskName}.exec",
+                           "outputs/code-coverage/connected/*coverage.ec"
+                ])
+
+        reports {
+            xml.enabled = true
+            html.enabled = true
+        }
+
+        doFirst {
+            javaCompileTask.destinationDir.listFiles().each { file ->
+                if (file.name.contains('$$')) {
+                    file.renameTo(file.path.replace('$$', '$'))
+                }
+            }
+        }
+    }
+
+    task coverageReport(dependsOn: jacocoTestReport) {}
+}
+
+/**
+ * Configure artifact publishing
+ */
+apply from: "${rootDir}/gradle/publishing.gradle"
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            android.libraryVariants.all { variant ->
+                artifact variant.ext.fatJarTask
+            }
+            artifactId 'android-agent'
+            pom {
+                groupId = 'com.newrelic.agent.android'
+                artifactId = 'android-agent'
+                version = rootProject.version
+                name = 'New Relic Android Agent'
+                description = 'The New Relic Android agent provides performance monitoring instrumentation for Android applications'
+            }
+        }
+    }
+}

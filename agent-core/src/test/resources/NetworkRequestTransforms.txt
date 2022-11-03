@@ -1,0 +1,12 @@
+00bb94c2, dead-beef
+73ce3d80, dead-beef
+34024842, dead-beef
+4c4dbb1b, dead-beef
+0c9fdd48, dead-beef
+4266833000400, dead-beef
+782c0066, dead-beef
+21af56170c8c1d3a5dce4fbdd78cf736e34d01d4ae0dd8c33b9303729aace4cd, dead-beef
+0381fbc81fc79eae146521f6162f64be4556a7389ccda857dfe5e15b4849cdd5, dead-beef
+177f0f2dce458f85fdeab8c1d4697814dd55aef4e385f8b4d94fdacc8972a6cd, dead-beef
+payments\/.*\/partners\/, repayments\/
+postbank\.de, postbank\.gr
