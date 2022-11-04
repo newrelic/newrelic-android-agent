@@ -20,11 +20,7 @@ public class ExceptionInfo extends HarvestableObject {
     public ExceptionInfo(Throwable throwable) {
         super();
 
-        if (throwable.getClass().getName().equalsIgnoreCase("com.newrelic.agent.android.unity.UnityException")) {
-            this.className = throwable.toString();
-        } else {
-            this.className = throwable.getClass().getName();
-        }
+        this.className = throwable.getClass().getName();
 
         if (throwable.getMessage() != null) {
             this.message = throwable.getMessage();
