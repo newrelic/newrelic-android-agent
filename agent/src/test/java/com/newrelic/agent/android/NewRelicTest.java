@@ -105,16 +105,6 @@ public class NewRelicTest {
     }
 
     @Before
-    public void removeFinalModifiers() throws Exception {
-        Field field = Agent.class.getDeclaredField("MONO_INSTRUMENTATION_FLAG");
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        field.set(String.class, "YES");
-    }
-
-    @Before
     public void setUp() {
         spyContext = new SpyContext();
         nrInstance = NewRelic.withApplicationToken(APP_TOKEN).withLogLevel(AgentLog.DEBUG);

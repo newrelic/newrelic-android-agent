@@ -61,24 +61,10 @@ test {
 
 task stampAgentClass(type: Copy) {
     logger.quiet "[newrelic] [agent-core] Version[${version}]"
-    logger.quiet "[newrelic] [agent-core] UnityEnabled[${unityEnabled}]"
-    logger.quiet "[newrelic] [agent-core] MonoEnabled[${monoEnabled}]"
 
     def buildId = ""
-    if (unityEnabled || monoEnabled) {
-        def stdout = new ByteArrayOutputStream()
-        exec() {
-            executable = "uuidgen"
-            standardOutput = stdout
-        }
-        buildId = stdout.toString().trim()
-        logger.quiet "[newrelic] [agent-core] BuildId[${buildId}]"
-    }
-
     from("src/main/java/com/newrelic/agent/android/Agent.java") {
         filter { it.replaceAll('#VERSION#', version) }
-        filter { it.replaceAll('#UNITY_INSTRUMENTATION_FLAG#', unityEnabled ? "YES" : "NO") }
-        filter { it.replaceAll('#MONO_INSTRUMENTATION_FLAG#', monoEnabled ? "YES" : "NO") }
         filter { it.replaceAll('#DEFAULT_BUILD_ID#', buildId) }
     }
     into "${buildGenPath}/com/newrelic/agent/android"
@@ -103,5 +89,3 @@ task compileStampedAgent(type: JavaCompile, dependsOn: 'stampAgentClass') {
 project.afterEvaluate() {
     classes.finalizedBy compileStampedAgent, shadowJar
 }
-
-apply from: "${rootDir}/gradle/coverage.gradle"

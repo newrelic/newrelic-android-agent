@@ -120,22 +120,7 @@ public class AndroidAgentImpl implements
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             // used to determine when app backgrounds
             final UiBackgroundListener backgroundListener;
-
-            if (Agent.getUnityInstrumentationFlag().equals("YES")) {
-                backgroundListener = new ActivityLifecycleBackgroundListener();
-                if (backgroundListener instanceof Application.ActivityLifecycleCallbacks) {
-                    try {
-                        if (context.getApplicationContext() instanceof Application) {
-                            Application application = (Application) context.getApplicationContext();
-                            application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
-                        }
-                    } catch (Exception e) {
-                        // ignore
-                    }
-                }
-            } else {
-                backgroundListener = new UiBackgroundListener();
-            }
+            backgroundListener = new UiBackgroundListener();
 
             context.registerComponentCallbacks(backgroundListener);
         }

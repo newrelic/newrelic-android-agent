@@ -24,7 +24,6 @@ buildscript {
         classpath 'com.github.jengelman.gradle.plugins:shadow:' + versions.java.shadow
         if (project.fullReport) {
             classpath 'gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:' + versions.java.spotbugs
-            classpath 'org.jacoco:org.jacoco.core:' + versions.java.jacoco
         }
     }
 }

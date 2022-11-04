@@ -86,10 +86,6 @@ public class UncaughtExceptionHandlerTest {
         verify(crashReporter, times(1)).storeAndReportCrash(any(Crash.class));
         verify(crashStore, times(1)).store(any(Crash.class));
 
-        if (!Agent.getUnityInstrumentationFlag().equals("YES")) {
-            verify(uncaughtExceptionHandler, atLeastOnce()).chainExceptionHandler(
-                    Mockito.isNull(Thread.UncaughtExceptionHandler.class), any(Thread.class), any(Throwable.class));
-        }
     }
 
     @Test

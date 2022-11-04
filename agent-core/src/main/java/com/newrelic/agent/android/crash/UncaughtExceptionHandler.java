@@ -63,13 +63,10 @@ public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler
 
     @Override
     public void uncaughtException(final Thread thread, final Throwable throwable) {
-
-        if (!Agent.getUnityInstrumentationFlag().equals("YES")) {
-            // Only handle an exception once (even chaining, we did our due diligence already)
-            if (!handledException.compareAndSet(false, true)) {
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_RECURSIVE_HANDLER);
-                return;
-            }
+        // Only handle an exception once (even chaining, we did our due diligence already)
+        if (!handledException.compareAndSet(false, true)) {
+            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_RECURSIVE_HANDLER);
+            return;
         }
 
         try {
@@ -118,14 +115,11 @@ public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler
             // all submitted tasks will still run out
             PayloadController.shutdown();
 
-            if (!Agent.getUnityInstrumentationFlag().equals("YES")) {
-
-                // To prevent recursive crashing, just proxy this exception through
-                // Chaining to an existing handler is usually a one-way trip:
-                // the app is usually killed and the call never returns, which is why PayloadController
-                // must be shutdown prior to chaining.
-                chainExceptionHandler(exceptionHandler, thread, throwable);
-            }
+            // To prevent recursive crashing, just proxy this exception through
+            // Chaining to an existing handler is usually a one-way trip:
+            // the app is usually killed and the call never returns, which is why PayloadController
+            // must be shutdown prior to chaining.
+            chainExceptionHandler(exceptionHandler, thread, throwable);
         }
     }
 

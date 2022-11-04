@@ -31,7 +31,6 @@ buildscript {
                         minVersion: JavaVersion.VERSION_1_8,
                         shadow    : '6.1.0',
                         spotbugs  : '4.0.+',
-                        jacoco    : '0.8.7',
                         gson      : '2.2.4',
                         guava     : '18.0',
                 ],
@@ -54,9 +53,6 @@ buildscript {
                 ],
 
         ]
-
-        monoEnabled = project.properties['Mono.Build'] == null ? false : project.properties['Mono.Build'] == "YES"
-        unityEnabled = project.properties['Unity.Build'] == null ? false : project.properties['Unity.Build'] == "YES"
 
         buildDate = new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         mavenLocal = new File(rootProject.buildDir, ".m2/repository")

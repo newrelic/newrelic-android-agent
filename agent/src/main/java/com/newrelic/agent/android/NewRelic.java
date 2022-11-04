@@ -283,7 +283,7 @@ public final class NewRelic {
 
             boolean instantApp = InstantApps.isInstantApp(context);
 
-            if (instantApp || isInstrumented()) {
+            if (instantApp) {
                 AndroidAgentImpl.init(context, agentConfiguration);
                 started = true;
 
@@ -320,16 +320,6 @@ public final class NewRelic {
      */
     public static boolean isStarted() {
         return started;
-    }
-
-    /*
-     * This method is used to test if instrumentation was run successfully at
-     * compile time. If successful, this method will simply be re-written to
-     * return true.
-     */
-    private boolean isInstrumented() {
-        log.info("isInstrumented: checking for Mono instrumentation flag - " + Agent.getMonoInstrumentationFlag());
-        return Agent.getMonoInstrumentationFlag().equals("YES");
     }
 
     /****** Public APIs ******/

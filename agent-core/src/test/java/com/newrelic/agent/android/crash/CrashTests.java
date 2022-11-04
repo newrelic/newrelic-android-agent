@@ -96,18 +96,8 @@ public class CrashTests {
     public void testAndroidBuildId() throws Exception {
         crash = new Crash(uuid, "buildId", timeOfTests);
         String buildId = Crash.getSafeBuildId();
+        Assert.assertEquals("Android buildId should be injected", buildId, NewRelicConfig.getBuildId());
 
-        // set in agent-core/build.gradle
-        if (Agent.getMonoInstrumentationFlag().equals("YES")) {
-            try {
-                UUID uuid = UUID.fromString(buildId);
-                Assert.assertEquals("Android buildId is a generated UUID", uuid.toString().toLowerCase(), buildId.toLowerCase());
-            } catch (Exception e) {
-                Assert.fail("Android buildId should be a generated UUID");
-            }
-        } else {
-            Assert.assertEquals("Android buildId should be injected", buildId, NewRelicConfig.getBuildId());
-        }
     }
 
     @Test

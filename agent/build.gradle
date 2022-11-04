@@ -24,7 +24,6 @@ android {
 
     buildTypes {
         release {
-            testCoverageEnabled false
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -47,18 +46,10 @@ android {
         unitTests.returnDefaultValues = true
         unitTests.all {
             forkEvery = 1
-            jacoco {
-                includeNoLocationClasses = true
-                excludes = ['jdk.internal.*']
-            }
         }
     }
 
     libraryVariants.all { variant ->
-        if (variant.buildType.name == BuilderConstants.RELEASE) {
-            configureCoverageReport(variant)
-        }
-
         // The artifact is now a fat jar
         logger.quiet("[FAT-JAR] Variant[${variant.name}]")
         variant.ext.fatJarTask = toFatJarTask(variant)
@@ -158,58 +149,6 @@ def toFatJarTask(def variant) {
     }
 
     return fatJarTask
-}
-
-
-/**
- * Configure Code coverage
- */
-apply plugin: 'jacoco'
-
-def configureCoverageReport(variant) {
-
-    def variantName = variant.name
-    def coverageExcludes = [
-            '**/R.class',
-            '**/R$*.class',
-            '**/BuildConfig.*',
-            '**/Manifest*.*',
-            '**/*$ViewInjector*.*',
-            '**/*$ViewBinder*.*',
-            '**/*Test*.*',
-    ]
-
-    def testTaskName = "test${variantName.capitalize()}UnitTest"
-    def javaCompileTask = variant.getJavaCompileProvider().get()
-
-    task jacocoTestReport(type: JacocoReport, dependsOn: [testTaskName, "create${variantName.capitalize()}CoverageReport"]) {
-        group = "Reporting"
-        description = "Generate Jacoco Release coverage report after running unit tests."
-        getSourceDirectories().setFrom files([android.sourceSets.main.java.srcDirs] + android.sourceSets[variant.name].java.srcDirs)
-        getClassDirectories().setFrom files(fileTree(
-                dir: javaCompileTask.destinationDir,
-                excludes: coverageExcludes
-        ))
-        getExecutionData().setFrom fileTree(dir: project.buildDir,
-                includes: ["jacoco/${testTaskName}.exec",
-                           "outputs/code-coverage/connected/*coverage.ec"
-                ])
-
-        reports {
-            xml.enabled = true
-            html.enabled = true
-        }
-
-        doFirst {
-            javaCompileTask.destinationDir.listFiles().each { file ->
-                if (file.name.contains('$$')) {
-                    file.renameTo(file.path.replace('$$', '$'))
-                }
-            }
-        }
-    }
-
-    task coverageReport(dependsOn: jacocoTestReport) {}
 }
 
 /**
