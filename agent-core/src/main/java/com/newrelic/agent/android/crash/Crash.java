@@ -193,8 +193,7 @@ public class Crash extends HarvestableObject {
     }
 
     public static Crash crashFromJsonString(String json) {
-        final JsonElement element = new JsonParser().parse(json);
-        final JsonObject crashObject = element.getAsJsonObject();
+        final JsonObject crashObject = JsonParser.parseString(json).getAsJsonObject();
 
         final String uuid = crashObject.get("uuid").getAsString();
         final String buildIdentifier = crashObject.get("buildId").getAsString();

@@ -465,6 +465,7 @@ public final class NewRelic {
      *
      * @param attributes
      */
+    @SuppressWarnings("unchecked")
     public static void noticeHttpTransaction(Map<String, Object> attributes) {
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API

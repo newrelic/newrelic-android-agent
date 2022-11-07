@@ -211,7 +211,7 @@ public class SamplerTest {
     @Test
     public void testShouldNotSampleInBackground() throws AgentInitializationException {
         Assert.assertFalse("Sampler singleton should be running prior to agent start",
-                Sampler.sampler.scheduler.isShutdown());
+                Sampler.scheduler.isShutdown());
 
         AndroidAgentImpl agent = new AndroidAgentImpl(context.getContext(), new AgentConfiguration());
         Agent.setImpl(agent);

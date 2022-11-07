@@ -240,7 +240,6 @@ public class EventManagerImpl implements EventManager, EventListener {
     }
 
     @Override
-    @Deprecated
     public void setMaxEventBufferTime(int maxBufferTimeInSec) {
         if (maxBufferTimeInSec < DEFAULT_MIN_EVENT_BUFFER_TIME) {
             log.error("Event buffer time cannot be shorter than " + DEFAULT_MIN_EVENT_BUFFER_TIME + " seconds");

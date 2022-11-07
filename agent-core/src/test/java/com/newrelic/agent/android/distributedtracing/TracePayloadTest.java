@@ -58,7 +58,7 @@ public class TracePayloadTest extends TestCase {
         Assert.assertFalse(headerValue.isEmpty());
 
         try {
-            JsonObject jsonObject = new JsonParser().parse(headerValue).getAsJsonObject();
+            JsonObject jsonObject = JsonParser.parseString(headerValue).getAsJsonObject();
             Assert.assertEquals(2, jsonObject.entrySet().size());
 
             Assert.assertTrue(jsonObject.has(TracePayload.VERSION_KEY));

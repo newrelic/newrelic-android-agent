@@ -341,7 +341,9 @@ public class HandledExceptionsTest {
         Assert.assertEquals(hexAttrMap.get("message"), exceptionMessage);
 
         Assert.assertNotNull(hexAttrMap.get("thread 0"));
+        @SuppressWarnings("unchecked")
         HashMap<String, Object> stackTrace = (HashMap<String, Object>) hexAttrMap.get("thread 0");
+        @SuppressWarnings("unchecked")
         HashMap<String, Object> stackFrame = (HashMap<String, Object>) stackTrace.get("frame 1");
         Assert.assertEquals(stackFrame.get("className"), this.getClass().getName());
         Assert.assertEquals(stackFrame.get("methodName"), "testThrowable");

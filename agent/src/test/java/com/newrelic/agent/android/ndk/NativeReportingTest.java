@@ -40,7 +40,7 @@ public class NativeReportingTest {
     @Test
     public void initialize() {
         NativeReporting module = NativeReporting.initialize(context.getContext(), agentConfig);
-        Assert.assertTrue(module.isInitialized());
+        Assert.assertTrue(NativeReporting.isInitialized());
     }
 
     @Test

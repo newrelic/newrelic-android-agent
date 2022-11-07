@@ -49,7 +49,7 @@ public final class AppTracer {
     }
 
     public void setContentProviderStartedTime(Long contentProviderStartedTime) {
-        this.contentProviderStartedTime = contentProviderStartedTime;
+        AppTracer.contentProviderStartedTime = contentProviderStartedTime;
     }
 
     public Long getAppOnCreateTime() {
@@ -57,7 +57,7 @@ public final class AppTracer {
     }
 
     public void setAppOnCreateTime(Long appOnCreateTime) {
-        this.appOnCreateTime = appOnCreateTime;
+        AppTracer.appOnCreateTime = appOnCreateTime;
     }
 
     public Long getAppOnCreateEndTime() {
@@ -65,7 +65,7 @@ public final class AppTracer {
     }
 
     public void setAppOnCreateEndTime(Long appOnCreateEndTime) {
-        this.appOnCreateEndTime = appOnCreateEndTime;
+        AppTracer.appOnCreateEndTime = appOnCreateEndTime;
     }
 
     public Long getFirstDrawTime() {
@@ -73,7 +73,7 @@ public final class AppTracer {
     }
 
     public void setFirstDrawTime(Long firstDrawTime) {
-        this.firstDrawTime = firstDrawTime;
+        AppTracer.firstDrawTime = firstDrawTime;
     }
 
     public Long getFirstActivityCreatedTime() {
@@ -81,7 +81,7 @@ public final class AppTracer {
     }
 
     public void setFirstActivityCreatedTime(Long firstActivityCreatedTime) {
-        this.firstActivityCreatedTime = firstActivityCreatedTime;
+        AppTracer.firstActivityCreatedTime = firstActivityCreatedTime;
     }
 
     public String getFirstActivityName() {
@@ -89,7 +89,7 @@ public final class AppTracer {
     }
 
     public void setFirstActivityName(String firstActivityName) {
-        this.firstActivityName = firstActivityName;
+        AppTracer.firstActivityName = firstActivityName;
     }
 
     public Long getFirstActivityStartTime() {
@@ -97,7 +97,7 @@ public final class AppTracer {
     }
 
     public void setFirstActivityStartTime(Long firstActivityStartTime) {
-        this.firstActivityStartTime = firstActivityStartTime;
+        AppTracer.firstActivityStartTime = firstActivityStartTime;
     }
 
     public Long getFirstActivityResumeTime() {
@@ -105,7 +105,7 @@ public final class AppTracer {
     }
 
     public void setFirstActivityResumeTime(Long firstActivityResumeTime) {
-        this.firstActivityResumeTime = firstActivityResumeTime;
+        AppTracer.firstActivityResumeTime = firstActivityResumeTime;
     }
 
     public Long getLastAppPauseTime() {
@@ -113,7 +113,7 @@ public final class AppTracer {
     }
 
     public void setLastAppPauseTime(Long lastAppPauseTime) {
-        this.lastAppPauseTime = lastAppPauseTime;
+        AppTracer.lastAppPauseTime = lastAppPauseTime;
     }
 
     public boolean isColdStart() {
@@ -121,7 +121,7 @@ public final class AppTracer {
     }
 
     public void setIsColdStart(boolean isColdStart) {
-        this.isColdStart = isColdStart;
+        AppTracer.isColdStart = isColdStart;
     }
 
     public Boolean getCurrentAppLaunchProcessed() {
@@ -129,7 +129,7 @@ public final class AppTracer {
     }
 
     public void setCurrentAppLaunchProcessed(Boolean currentAppLaunchProcessed) {
-        this.currentAppLaunchProcessed = currentAppLaunchProcessed;
+        AppTracer.currentAppLaunchProcessed = currentAppLaunchProcessed;
     }
 
     public Boolean getFirstPostExecuted() {
@@ -145,7 +145,7 @@ public final class AppTracer {
     }
 
     public void setFirstActivityReferrer(String firstActivityReferrer) {
-        this.firstActivityReferrer = firstActivityReferrer;
+        AppTracer.firstActivityReferrer = firstActivityReferrer;
     }
 
     public Intent getFirstActivityIntent() {
@@ -153,6 +153,6 @@ public final class AppTracer {
     }
 
     public void setFirstActivityIntent(Intent firstActivityIntent) {
-        this.firstActivityIntent = firstActivityIntent;
+        AppTracer.firstActivityIntent = firstActivityIntent;
     }
 }

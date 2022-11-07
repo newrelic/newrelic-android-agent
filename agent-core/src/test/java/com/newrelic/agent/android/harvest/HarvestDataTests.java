@@ -102,8 +102,7 @@ public class HarvestDataTests {
         Assert.assertTrue(harvestJson.length() > 0);
 
         // Convert the string back into a JSON array and validate the contents
-        JsonParser parser = new JsonParser();
-        JsonArray array = parser.parse(harvestJson).getAsJsonArray();
+        JsonArray array = JsonParser.parseString(harvestJson).getAsJsonArray();
 
         Assert.assertEquals(9, array.size());
         JsonArray dataTokenElement = array.get(0).getAsJsonArray();
@@ -284,8 +283,7 @@ public class HarvestDataTests {
         Assert.assertTrue(harvestJson.length() > 0);
 
         // Convert the string back into a JSON array and validate the contents
-        JsonParser parser = new JsonParser();
-        JsonArray array = parser.parse(harvestJson).getAsJsonArray();
+        JsonArray array = JsonParser.parseString(harvestJson).getAsJsonArray();
 
         Assert.assertEquals(7, array.size());
         JsonArray activityTracesElement = array.get(6).getAsJsonArray();
