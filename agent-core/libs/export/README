@@ -1,0 +1,2 @@
+Place jars here that will be bundled with the agent-core jar and shipped with the agent.
+After adding the jar here, make sure to add the jar to the `shadowJar` task in build.gradle.

@@ -31,7 +31,6 @@ buildscript {
                         minVersion: JavaVersion.VERSION_1_8,
                         shadow    : '6.1.0',
                         spotbugs  : '4.0.+',
-                        jacoco    : '0.8.7',
                         gson      : '2.2.4',
                         guava     : '18.0',
                 ],
