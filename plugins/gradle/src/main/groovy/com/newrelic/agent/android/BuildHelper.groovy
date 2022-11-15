@@ -49,6 +49,7 @@ class BuildHelper {
     static final GradleVersion minSupportedAGPConfigCacheVersion = GradleVersion.version('7.0.2')
 
     public static final boolean legacyGradle = (currentGradleVersion < legacyGradleVersion)
+    public static String NEWLN = "\r\n"
 
     final Logger logger
     final ProviderFactory providers
@@ -56,7 +57,6 @@ class BuildHelper {
     final ProjectLayout layout
     final ObjectFactory objects
     final GradleVersion agpVersion
-    final String NEWLN
 
     DexGuardHelper dexguardHelper
 
@@ -69,7 +69,6 @@ class BuildHelper {
         this.layout = project.layout
         this.objects = project.objects
         this.dexguardHelper = new DexGuardHelper(project)
-        this.NEWLN = getSystemPropertyProvider("line.separator").get()
 
         def reportedAGPVersion = getAGPVersion()
 
@@ -106,6 +105,8 @@ class BuildHelper {
         }
 
         BuildHelper.instance.compareAndSet(null, this)
+        BuildHelper.NEWLN = getSystemPropertyProvider("line.separator").get()
+
     }
 
     /**

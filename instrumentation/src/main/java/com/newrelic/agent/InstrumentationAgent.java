@@ -50,7 +50,7 @@ public final class InstrumentationAgent extends Constants {
 
         Log log = logFileName == null ? new SystemErrLog(agentOptions) : new FileLogImpl(agentOptions, logFileName);
         if (argsError != null) {
-            log.error("Agent args error: " + agentArgs, argsError);
+            log.error("Agent args error: " + argsError);
         }
 
         final String nameOfRunningVM = ManagementFactory.getRuntimeMXBean().getName();
@@ -58,7 +58,6 @@ public final class InstrumentationAgent extends Constants {
         final String pid = nameOfRunningVM.substring(0, p);
 
         log.debug("Bootstrapping New Relic Android class rewriter");
-        log.debug("Agent args[" + agentArgs + "]");
         log.debug("Agent running in pid " + pid + " arguments: " + agentArgs);
 
         try {
