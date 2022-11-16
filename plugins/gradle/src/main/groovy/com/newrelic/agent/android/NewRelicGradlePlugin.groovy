@@ -41,11 +41,9 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
         BuildId.invalidate();
 
-        final String NEWLN = BuildHelper.NEWLN
-
         def agentArgs = ""
-        
         def prop = buildHelper.getSystemPropertyProvider(InstrumentationAgent.NR_AGENT_ARGS_KEY)
+
         if (prop.present) {
             agentArgs = prop.get()
 
@@ -62,13 +60,13 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                 agentArgs = "loglevel=VERBOSE"
             }
         }
-        
+
         InstrumentationAgent.parseAgentArgs(agentArgs)
 
         if (!project.hasProperty("android")) {
-            throw new StopActionException("The New Relic agent plugin depends on the Android plugin." + NEWLN +
-                    "Please apply the Android plugin before the New Relic agent: " + NEWLN +
-                    "apply plugin: 'com.android.application' ('com.android.library', 'com.android.feature' or 'com.android.dynamic-feature')" + NEWLN +
+            throw new StopActionException("The New Relic agent plugin depends on the Android plugin." + BuildHelper.NEWLN +
+                    "Please apply the Android plugin before the New Relic agent: " + BuildHelper.NEWLN +
+                    "apply plugin: 'com.android.application' ('com.android.library', 'com.android.feature' or 'com.android.dynamic-feature')" + BuildHelper.NEWLN +
                     "apply plugin: 'newrelic'")
         }
 
@@ -122,7 +120,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                 }
 
                 // Register the New Relic transformer
-                logger.debug("[newrelic.debug] TransformAPI: registering NewRelicTransform(" + InstrumentationAgent.agentArgs + ")")
+                logger.debug("[newrelic.debug] TransformAPI: registering NewRelicTransform(" + agentArgs + ")")
                 android.registerTransform(newrelicTransform)
 
             } else {
