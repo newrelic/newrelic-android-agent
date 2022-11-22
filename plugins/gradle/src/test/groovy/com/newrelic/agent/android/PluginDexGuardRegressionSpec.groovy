@@ -27,10 +27,10 @@ class PluginDexGuardRegressionSpec extends Specification {
     static final rootDir = new File("../..")
     static final projectRootDir = new File(rootDir, "agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
-    static final debuggable = true             // set to true to break in plugin/Gradle code
+    static final debuggable = false             // set to true to break in plugin/Gradle code
 
     // Current values (update as needed)
-    static final agentVersion = "6.6.0"
+    static final agentVersion = "6.10.0"        // modify as needed
     static final dexguardHome                   // = /path/to/dexguard/artifacts"
 
     /* According to GuardSquare, you should place your license file dexguard-license.txt

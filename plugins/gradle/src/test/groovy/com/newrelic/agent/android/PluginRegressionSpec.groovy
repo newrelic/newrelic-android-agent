@@ -18,9 +18,9 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 class PluginRegressionSpec extends Specification {
 
     static final rootDir = new File("../..")
-    static final projectRootDir = new File(rootDir, "agent-test-app/")
+    static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
-    static final agentVersion = '6.9.0'         // update as needed
+    static final agentVersion = '6.10.0'         // update as needed
 
     @Shared
     Map<String, String> localEnv = [:]

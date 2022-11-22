@@ -10,12 +10,16 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.io.BaseEncoding;
-import com.newrelic.agent.compile.Log;
 import com.newrelic.agent.util.BuildId;
 
+import org.apache.commons.io.input.ReversedLinesFileReader;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -23,11 +27,14 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+@RunWith(JUnit4.class)
 public class ProguardTest {
 
     static private String projectRoot = ".";
     static private String appToken = "<APP_TOKEN>";
     static private String fileName = Proguard.MAPPING_FILENAME;
+    private static Logger logger = Logging.getLogger("NewRelicGradlePlugin");
+
     private Map<String, String> agentOptions;
 
     @Before
@@ -39,7 +46,7 @@ public class ProguardTest {
 
     @Test
     public void testGetProjectRoot() {
-        Proguard p = new Proguard(Log.LOGGER, agentOptions);
+        Proguard p = new Proguard(logger, agentOptions);
         assertEquals(projectRoot, p.getProjectRoot());
 
     }
@@ -49,7 +56,7 @@ public class ProguardTest {
     public void testMapFileHasCorrectBuildId() {
 
         String buildId = BuildId.getBuildId(BuildId.DEFAULT_VARIANT);
-        Proguard p = new Proguard(Log.LOGGER, agentOptions);
+        Proguard p = new Proguard(logger, agentOptions);
         File file = new File(fileName);
 
         try {
@@ -60,11 +67,11 @@ public class ProguardTest {
 
             p.shouldUploadMapFile(file);
 
-            Proguard.ReversedLinesFileReader reader = new Proguard.ReversedLinesFileReader(file);
+            try (ReversedLinesFileReader reader = new ReversedLinesFileReader(file)) {
+                String line = reader.readLine();
+                assertEquals("# NR_BUILD_ID -> " + buildId, line);
+            }
 
-            String line = reader.readLine();
-            assertEquals("# NR_BUILD_ID -> " + buildId, line);
-            reader.close();
         } catch (IOException e) {
             fail(e.getMessage());
         } finally {

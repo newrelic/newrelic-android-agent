@@ -8,7 +8,6 @@ package com.newrelic.agent.android
 import com.google.common.io.BaseEncoding
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
-import com.newrelic.agent.compile.SystemErrLog
 import com.newrelic.agent.util.BuildId
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -69,7 +68,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
                         agentOptions.put(Proguard.VARIANT_KEY, variantName.get())
                         agentOptions.put(BuildId.BUILD_ID_KEY, buildId.get())
 
-                        new Proguard(new SystemErrLog(agentOptions), agentOptions).findAndSendMapFile()
+                        new Proguard(NewRelicGradlePlugin.logger, agentOptions).findAndSendMapFile()
 
                     } else {
                         logger.error("[newrelic.error] No build ID for variant [${variantName.get()}]")

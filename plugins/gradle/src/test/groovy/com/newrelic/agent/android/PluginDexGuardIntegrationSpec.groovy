@@ -28,12 +28,12 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 class PluginDexGuardIntegrationSpec extends Specification {
 
     static final rootDir = new File("../..")
-    static final projectRootDir = new File(rootDir, "agent-test-app/")
+    static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
-    static final debuggable = true             // set to true to break in plugin/Gradle code
+    static final debuggable = false             // set to true to break in plugin/Gradle code
 
     // Current values (update as needed)
-    static final agentVersion = "6.6.0"
+    static final agentVersion = "6.10.0"        // modify as needed
     static final agpVersion = "4.+"
     static final gradleVersion = "6.7.1"
     static final dexguardBaseVersion = "9.3.7"

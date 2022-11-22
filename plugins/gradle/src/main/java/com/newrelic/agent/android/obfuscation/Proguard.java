@@ -7,20 +7,18 @@ package com.newrelic.agent.android.obfuscation;
 
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
-import com.newrelic.agent.InstrumentationAgent;
-import com.newrelic.agent.compile.Log;
 import com.newrelic.agent.util.BuildId;
 import com.newrelic.agent.util.Streams;
 
-import org.gradle.internal.impldep.org.apache.commons.io.Charsets;
-import org.gradle.internal.impldep.org.apache.commons.io.FileUtils;
-import org.gradle.internal.impldep.org.apache.commons.io.filefilter.FileFilterUtils;
-import org.gradle.internal.impldep.org.apache.commons.io.filefilter.IOFileFilter;
-import org.gradle.internal.impldep.org.apache.commons.io.filefilter.TrueFileFilter;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.FileFilterUtils;
+import org.apache.commons.io.filefilter.IOFileFilter;
+import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.apache.commons.io.input.ReversedLinesFileReader;
+import org.gradle.api.logging.Logger;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.Closeable;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -31,16 +29,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.RandomAccessFile;
 import java.io.Reader;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -72,6 +65,7 @@ public class Proguard {
     private static final String NR_MAP_PREFIX = "# NR_BUILD_ID -> ";
     private static final String NR_COMPILER_PREFIX = "# compiler: ";
     private static final String NR_COMPILER_VERSION_PREFIX = "# compiler_version: ";
+    private static final String NEWLN = System.getProperty("line.separator", "\r\n");
 
     static final class Network {
         public static final String APPLICATION_LICENSE_HEADER = "X-App-License-Key";
@@ -93,12 +87,12 @@ public class Proguard {
 
         public static String decompose(String mapProvider) {
             String[] parts = mapProvider.split("[:]");
-            String header = NR_COMPILER_PREFIX + mapProvider + newLn;
+            String header = NR_COMPILER_PREFIX + mapProvider + NEWLN;
 
             if (parts.length > 0) {
-                header = NR_COMPILER_PREFIX + parts[0] + newLn;
+                header = NR_COMPILER_PREFIX + parts[0] + NEWLN;
                 if (parts.length > 1) {
-                    header += NR_COMPILER_VERSION_PREFIX + parts[1] + newLn;
+                    header += NR_COMPILER_VERSION_PREFIX + parts[1] + NEWLN;
                 }
             }
 
@@ -106,7 +100,7 @@ public class Proguard {
         }
     }
 
-    private final Log log;
+    private final Logger log;
 
     private String projectRoot;
     private String licenseKey = null;
@@ -116,12 +110,11 @@ public class Proguard {
     private boolean sslConnection = true;
 
     private static Map<String, String> agentOptions = Collections.emptyMap();
-    private static String newLn = System.getProperty("line.separator", "\r\n");
     private static String buildId = BuildId.getBuildId(BuildId.DEFAULT_VARIANT);
 
     private Properties newRelicProps;
 
-    public Proguard(final Log log, final Map<String, String> agentOptions) {
+    public Proguard(final Logger log, final Map<String, String> agentOptions) {
         this.log = log;
         Proguard.agentOptions = agentOptions;
     }
@@ -142,7 +135,7 @@ public class Proguard {
                 if (mappingFile.exists()) {
                     files.add(mappingFile);
                 } else {
-                    log.warning("Mapping file [" + mappingFile.getAbsolutePath() + "] doesn't exist");
+                    log.warn("[newrelic.w] Mapping file [" + mappingFile.getAbsolutePath() + "] doesn't exist");
                 }
 
             } else {
@@ -152,7 +145,7 @@ public class Proguard {
             }
 
             if (files.isEmpty()) {
-                log.error("While evidence of ProGuard/DexGuard was detected, New Relic failed to find 'mapping.txt' files.");
+                log.error("[newrelic.w] While evidence of ProGuard/DexGuard was detected, New Relic failed to find 'mapping.txt' files.");
                 logRecourse();
                 return;
             }
@@ -163,11 +156,11 @@ public class Proguard {
                         if (uploadingEnabled) {
                             sendMapping(file);
                         } else {
-                            log.error("Map uploads are disabled!");
+                            log.error("[newrelic.e] Map uploads are disabled!");
                         }
                     }
                 } catch (IOException e) {
-                    log.error("Unable to open ProGuard/DexGuard 'mapping.txt' file: " + e.getLocalizedMessage());
+                    log.error("[newrelic.e] Unable to open ProGuard/DexGuard 'mapping.txt' file: " + e.getLocalizedMessage());
                     logRecourse();
                 }
             }
@@ -182,19 +175,19 @@ public class Proguard {
                 revReader.close();
 
                 if (lastLine == null || lastLine.isEmpty()) {
-                    log.warning("Map [" + file.getAbsolutePath() + "] is empty!");
+                    log.warn("[newrelic.w] Map [" + file.getAbsolutePath() + "] is empty!");
                 } else if (lastLine.startsWith(NR_MAP_PREFIX)) {
                     // replace build id with parsed value
                     buildId = lastLine.substring(NR_MAP_PREFIX.length());
-                    log.debug("Map [" + file.getAbsolutePath() + "] has already been tagged with buildID [" + buildId + "] - resending.");
+                    log.info("[newrelic.i] Map [" + file.getAbsolutePath() + "] has already been tagged with buildID [" + buildId + "] - resending.");
                     return true;        // send it again
                 } else {
                     String variant = agentOptions.get(VARIANT_KEY);
                     buildId = BuildId.getBuildId(variant);
-                    log.info("Tagging map [" + file.getAbsolutePath() + "] with buildID [" + buildId + "]");
+                    log.info("[newrelic.i] Tagging map [" + file.getAbsolutePath() + "] with buildID [" + buildId + "]");
                     // Write the build ID to the file so the user can uploaded it manually later.
                     try (final FileWriter fileWriter = new FileWriter(file, true)) {
-                        fileWriter.write(NR_MAP_PREFIX + buildId + newLn);
+                        fileWriter.write(NR_MAP_PREFIX + buildId + NEWLN);
                         fileWriter.close();
                         return true;    // send it
                     }
@@ -209,7 +202,7 @@ public class Proguard {
             final String encodedProjectRoot = agentOptions.get(PROJECT_ROOT_KEY);
             if (encodedProjectRoot == null) {
                 // Fall back to the CWD
-                log.info("Unable to determine project root, falling back to CWD.");
+                log.info("[newrelic.i] Unable to determine project root, falling back to CWD.");
                 projectRoot = System.getProperty("user.dir");
             } else {
                 projectRoot = new String(BaseEncoding.base64().decode(encodedProjectRoot));
@@ -231,7 +224,7 @@ public class Proguard {
 
             licenseKey = newRelicProps.getProperty(PROP_NR_APP_TOKEN, null);
             if (licenseKey == null) {
-                log.error("Unable to find a value for " + PROP_NR_APP_TOKEN + " in 'newrelic.properties'");
+                log.error("[newrelic.e] Unable to find a value for " + PROP_NR_APP_TOKEN + " in 'newrelic.properties'");
                 logRecourse();
                 return false;
             }
@@ -245,12 +238,12 @@ public class Proguard {
             }
 
         } catch (FileNotFoundException e) {
-            log.error("Unable to find 'newrelic.properties' in the project root (" + getProjectRoot() + "): " + e.getLocalizedMessage());
+            log.error("[newrelic.e] Unable to find 'newrelic.properties' in the project root (" + getProjectRoot() + "): " + e.getLocalizedMessage());
             logRecourse();
             return false;
 
         } catch (IOException e) {
-            log.error("Unable to read 'newrelic.properties' in the project root (" + getProjectRoot() + "): " + e.getLocalizedMessage());
+            log.error("[newrelic.e] Unable to read 'newrelic.properties' in the project root (" + getProjectRoot() + "): " + e.getLocalizedMessage());
             logRecourse();
             return false;
 
@@ -263,7 +256,7 @@ public class Proguard {
         final int USEFUL_BUFFER_SIZE = 0x10000;     // 64k
 
         if (mapFile.length() <= 0) {
-            log.error("Tried to send a zero-length map file!");
+            log.error("[newrelic.e] Tried to send a zero-length map file!");
             return;
         }
 
@@ -291,7 +284,7 @@ public class Proguard {
 
             // use the blocking API call if debug enabled
             if (agentOptions.containsKey(LOGLEVEL_KEY) && agentOptions.get(LOGLEVEL_KEY).equalsIgnoreCase("debug")) {
-                log.debug("Map upload request is synchronous");
+                log.debug("[newrelic.d] Map upload request is synchronous");
                 connection.setRequestProperty(Network.REQUEST_DEBUG_HEADER, "NRMA");
             }
 
@@ -361,26 +354,26 @@ public class Proguard {
 
                 dos.writeBytes("&buildId=" + buildId);
                 dos.flush();
-                log.debug("sendMapping writing [" + dos.size() + "] bytes" + (compressedUploads ? " (compressed)" : ""));
+                log.debug("[newrelic.d] sendMapping writing [" + dos.size() + "] bytes" + (compressedUploads ? " (compressed)" : ""));
 
             } finally {
                 outputStrm.close();
             }
 
             final int responseCode = connection.getResponseCode();
-            log.debug("Mapping.txt upload returns [" + responseCode + "]");
+            log.debug("[newrelic.d] Mapping.txt upload returns [" + responseCode + "]");
 
             switch (responseCode) {
                 case HttpURLConnection.HTTP_OK:
-                    log.info("Mapping.txt updated.");
+                    log.info("[newrelic.i] Mapping.txt updated.");
                     break;
 
                 case HttpURLConnection.HTTP_CREATED:
-                    log.info("Successfully sent ProGuard/DexGuard 'mapping.txt' to New Relic.");
+                    log.info("[newrelic.i] Successfully sent ProGuard/DexGuard 'mapping.txt' to New Relic.");
                     break;
 
                 case HttpURLConnection.HTTP_ACCEPTED:
-                    log.info("Successfully sent ProGuard/DexGuard 'mapping.txt' to New Relic for background processing.");
+                    log.info("[newrelic.i] Successfully sent ProGuard/DexGuard 'mapping.txt' to New Relic for background processing.");
                     break;
 
                 case HttpURLConnection.HTTP_BAD_REQUEST:
@@ -389,13 +382,13 @@ public class Proguard {
                         if (Strings.isNullOrEmpty(response)) {
                             response = connection.getResponseMessage();
                         }
-                        log.error("Unable to send ProGuard/DexGuard 'mapping.txt' to New Relic: " + response);
+                        log.error("[newrelic.e] Unable to send ProGuard/DexGuard 'mapping.txt' to New Relic: " + response);
                         logRecourse();
                     }
                     break;
 
                 case HttpURLConnection.HTTP_CONFLICT:
-                    log.info("A ProGuard/DexGuard 'mapping.txt' tagged with build ID [" + buildId + "] has already been stored.");
+                    log.info("[newrelic.i] A ProGuard/DexGuard 'mapping.txt' tagged with build ID [" + buildId + "] has already been stored.");
                     break;
 
                 default:
@@ -405,17 +398,17 @@ public class Proguard {
                             if (Strings.isNullOrEmpty(response)) {
                                 response = connection.getResponseMessage();
                             }
-                            log.error("Unable to send ProGuard/DexGuard 'mapping.txt' to New Relic - received status " + responseCode + ": " + response);
+                            log.error("[newrelic.e] Unable to send ProGuard/DexGuard 'mapping.txt' to New Relic - received status " + responseCode + ": " + response);
                             logRecourse();
                         }
                     } else {
-                        log.error("ProGuard/DexGuard 'mapping.txt' upload return [" + responseCode + "]");
+                        log.error("[newrelic.e] ProGuard/DexGuard 'mapping.txt' upload return [" + responseCode + "]");
                     }
                     break;
             }
 
         } catch (Exception e) {
-            log.error("An error occurred uploading ProGuard/DexGuard 'mapping.txt' to New Relic: " + e.getLocalizedMessage());
+            log.error("[newrelic.e] An error occurred uploading ProGuard/DexGuard 'mapping.txt' to New Relic: " + e.getLocalizedMessage());
             logRecourse();
 
         } finally {
@@ -426,9 +419,9 @@ public class Proguard {
     }
 
     private void logRecourse() {
-        log.error("To de-obfuscate crashes, upload the build's ProGuard/DexGuard 'mapping.txt' manually,");
-        log.error("or run the 'newRelicMapUpload<Variant>' or 'newRelicProguardScanTask' Gradle tasks.");
-        log.error("For more help, see 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/android-agent-crash-reporting'");
+        log.error("[newrelic.e] To de-obfuscate crashes, upload the build's ProGuard/DexGuard 'mapping.txt' manually,");
+        log.error("[newrelic.e] or run the 'newRelicMapUpload<Variant>' or 'newRelicProguardScanTask' Gradle tasks.");
+        log.error("[newrelic.e] For more help, see 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/android-agent-crash-reporting'");
     }
 
     /**
@@ -457,13 +450,13 @@ public class Proguard {
             try {
                 final String prefix = matcher.group(1);
                 if (prefix == null || "".equals(prefix)) {
-                    log.warning("Region prefix empty");
+                    log.warn("[newrelic.w] Region prefix empty");
                 } else {
                     return prefix;
                 }
 
             } catch (Exception e) {
-                log.error("getRegionalCollectorFromLicenseKey: " + e);
+                log.error("[newrelic.e] getRegionalCollectorFromLicenseKey: " + e);
             }
         }
 
@@ -496,212 +489,6 @@ public class Proguard {
 
         public void finish() throws IOException {
             writeString(newLn + "--" + boundary + "--" + newLn);
-        }
-    }
-
-    static class ReversedLinesFileReader implements Closeable {
-        private final int blockSize;
-        private final Charset encoding;
-        private final RandomAccessFile randomAccessFile;
-        private final long totalByteLength;
-        private final long totalBlockCount;
-        private final byte[][] newLineSequences;
-        private final int avoidNewlineSplitBufferSize;
-        private final int byteDecrement;
-        private ReversedLinesFileReader.FilePart currentFilePart;
-        private boolean trailingNewlineOfFileSkipped;
-
-        /**
-         * @deprecated
-         */
-        @Deprecated
-        public ReversedLinesFileReader(File file) throws IOException {
-            this(file, 4096, (Charset) Charset.defaultCharset());
-        }
-
-        public ReversedLinesFileReader(File file, Charset charset) throws IOException {
-            this(file, 4096, (Charset) charset);
-        }
-
-        public ReversedLinesFileReader(File file, int blockSize, Charset encoding) throws IOException {
-            this.trailingNewlineOfFileSkipped = false;
-            this.blockSize = blockSize;
-            this.encoding = encoding;
-            Charset charset = Charsets.toCharset(encoding);
-            CharsetEncoder charsetEncoder = charset.newEncoder();
-            float maxBytesPerChar = charsetEncoder.maxBytesPerChar();
-            if (maxBytesPerChar == 1.0F) {
-                this.byteDecrement = 1;
-            } else if (charset == StandardCharsets.UTF_8) {
-                this.byteDecrement = 1;
-            } else if (charset != Charset.forName("Shift_JIS") && charset != Charset.forName("windows-31j") && charset != Charset.forName("x-windows-949") && charset != Charset.forName("gbk") && charset != Charset.forName("x-windows-950")) {
-                if (charset != StandardCharsets.UTF_16BE && charset != StandardCharsets.UTF_16LE) {
-                    if (charset == StandardCharsets.UTF_16) {
-                        throw new UnsupportedEncodingException("For UTF-16, you need to specify the byte order (use UTF-16BE or UTF-16LE)");
-                    }
-
-                    throw new UnsupportedEncodingException("Encoding " + encoding + " is not supported yet (feel free to submit a patch)");
-                }
-
-                this.byteDecrement = 2;
-            } else {
-                this.byteDecrement = 1;
-            }
-
-            this.newLineSequences = new byte[][]{"\r\n".getBytes(encoding), "\n".getBytes(encoding), "\r".getBytes(encoding)};
-            this.avoidNewlineSplitBufferSize = this.newLineSequences[0].length;
-            this.randomAccessFile = new RandomAccessFile(file, "r");
-            this.totalByteLength = this.randomAccessFile.length();
-            int lastBlockLength = (int) (this.totalByteLength % (long) blockSize);
-            if (lastBlockLength > 0) {
-                this.totalBlockCount = this.totalByteLength / (long) blockSize + 1L;
-            } else {
-                this.totalBlockCount = this.totalByteLength / (long) blockSize;
-                if (this.totalByteLength > 0L) {
-                    lastBlockLength = blockSize;
-                }
-            }
-
-            this.currentFilePart = new ReversedLinesFileReader.FilePart(this.totalBlockCount, lastBlockLength, (byte[]) null);
-        }
-
-        public ReversedLinesFileReader(File file, int blockSize, String encoding) throws IOException {
-            this(file, blockSize, Charsets.toCharset(encoding));
-        }
-
-        public String readLine() throws IOException {
-            String line;
-            for (line = this.currentFilePart.readLine(); line == null; line = this.currentFilePart.readLine()) {
-                this.currentFilePart = this.currentFilePart.rollOver();
-                if (this.currentFilePart == null) {
-                    break;
-                }
-            }
-
-            if ("".equals(line) && !this.trailingNewlineOfFileSkipped) {
-                this.trailingNewlineOfFileSkipped = true;
-                line = this.readLine();
-            }
-
-            return line;
-        }
-
-        public void close() throws IOException {
-            this.randomAccessFile.close();
-        }
-
-        private class FilePart {
-            private final long no;
-            private final byte[] data;
-            private byte[] leftOver;
-            private int currentLastBytePos;
-
-            private FilePart(long no, int length, byte[] leftOverOfLastFilePart) throws IOException {
-                this.no = no;
-                int dataLength = length + (leftOverOfLastFilePart != null ? leftOverOfLastFilePart.length : 0);
-                this.data = new byte[dataLength];
-                long off = (no - 1L) * (long) ReversedLinesFileReader.this.blockSize;
-                if (no > 0L) {
-                    ReversedLinesFileReader.this.randomAccessFile.seek(off);
-                    int countRead = ReversedLinesFileReader.this.randomAccessFile.read(this.data, 0, length);
-                    if (countRead != length) {
-                        throw new IllegalStateException("Count of requested bytes and actually read bytes don't match");
-                    }
-                }
-
-                if (leftOverOfLastFilePart != null) {
-                    System.arraycopy(leftOverOfLastFilePart, 0, this.data, length, leftOverOfLastFilePart.length);
-                }
-
-                this.currentLastBytePos = this.data.length - 1;
-                this.leftOver = null;
-            }
-
-            private ReversedLinesFileReader.FilePart rollOver() throws IOException {
-                if (this.currentLastBytePos > -1) {
-                    throw new IllegalStateException("Current currentLastCharPos unexpectedly positive... last readLine() should have returned something! currentLastCharPos=" + this.currentLastBytePos);
-                } else if (this.no > 1L) {
-                    return ReversedLinesFileReader.this.new FilePart(this.no - 1L, ReversedLinesFileReader.this.blockSize, this.leftOver);
-                } else if (this.leftOver != null) {
-                    throw new IllegalStateException("Unexpected leftover of the last block: leftOverOfThisFilePart=" + new String(this.leftOver, ReversedLinesFileReader.this.encoding));
-                } else {
-                    return null;
-                }
-            }
-
-            private String readLine() throws IOException {
-                String line = null;
-                boolean isLastFilePart = this.no == 1L;
-                int i = this.currentLastBytePos;
-
-                while (i > -1) {
-                    if (!isLastFilePart && i < ReversedLinesFileReader.this.avoidNewlineSplitBufferSize) {
-                        this.createLeftOver();
-                        break;
-                    }
-
-                    int newLineMatchByteCount;
-                    if ((newLineMatchByteCount = this.getNewLineMatchByteCount(this.data, i)) > 0) {
-                        int lineStart = i + 1;
-                        int lineLengthBytes = this.currentLastBytePos - lineStart + 1;
-                        if (lineLengthBytes < 0) {
-                            throw new IllegalStateException("Unexpected negative line length=" + lineLengthBytes);
-                        }
-
-                        byte[] lineData = new byte[lineLengthBytes];
-                        System.arraycopy(this.data, lineStart, lineData, 0, lineLengthBytes);
-                        line = new String(lineData, ReversedLinesFileReader.this.encoding);
-                        this.currentLastBytePos = i - newLineMatchByteCount;
-                        break;
-                    }
-
-                    i -= ReversedLinesFileReader.this.byteDecrement;
-                    if (i < 0) {
-                        this.createLeftOver();
-                        break;
-                    }
-                }
-
-                if (isLastFilePart && this.leftOver != null) {
-                    line = new String(this.leftOver, ReversedLinesFileReader.this.encoding);
-                    this.leftOver = null;
-                }
-
-                return line;
-            }
-
-            private void createLeftOver() {
-                int lineLengthBytes = this.currentLastBytePos + 1;
-                if (lineLengthBytes > 0) {
-                    this.leftOver = new byte[lineLengthBytes];
-                    System.arraycopy(this.data, 0, this.leftOver, 0, lineLengthBytes);
-                } else {
-                    this.leftOver = null;
-                }
-
-                this.currentLastBytePos = -1;
-            }
-
-            private int getNewLineMatchByteCount(byte[] data, int i) {
-                byte[][] var3 = ReversedLinesFileReader.this.newLineSequences;
-                int var4 = var3.length;
-
-                for (int var5 = 0; var5 < var4; ++var5) {
-                    byte[] newLineSequence = var3[var5];
-                    boolean match = true;
-
-                    for (int j = newLineSequence.length - 1; j >= 0; --j) {
-                        int k = i + j - (newLineSequence.length - 1);
-                        match &= k >= 0 && data[k] == newLineSequence[j];
-                    }
-
-                    if (match) {
-                        return newLineSequence.length;
-                    }
-                }
-
-                return 0;
-            }
         }
     }
 
