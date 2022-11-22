@@ -33,16 +33,17 @@ buildscript {
                         spotbugs  : '4.0.+',
                         gson      : '2.2.4',
                         guava     : '18.0',
+                        commons_io: '2.8.0',
                 ],
 
-                test   : [
+                test : [
                         junit       : '4.12',
                         mockitoCore : '2.28.2',
                         robolectric : '4.6.+',
                         androidxCore: '1.4.+',
                 ],
 
-                agp    : [
+                agp  : [
                         // https://developer.android.com/studio/releases/platforms
                         plugin    : '4.1.0',    // Gradle 6.5
                         minSdk    : 24,         // Android 7.0
