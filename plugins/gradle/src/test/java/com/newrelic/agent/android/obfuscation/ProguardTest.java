@@ -13,13 +13,12 @@ import com.google.common.io.BaseEncoding;
 import com.newrelic.agent.util.BuildId;
 
 import org.apache.commons.io.input.ReversedLinesFileReader;
-import org.gradle.api.logging.Logger;
-import org.gradle.api.logging.Logging;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -33,7 +32,7 @@ public class ProguardTest {
     static private String projectRoot = ".";
     static private String appToken = "<APP_TOKEN>";
     static private String fileName = Proguard.MAPPING_FILENAME;
-    private static Logger logger = Logging.getLogger("NewRelicGradlePlugin");
+    private static Logger logger = LoggerFactory.getLogger("newrelic");
 
     private Map<String, String> agentOptions;
 
@@ -79,7 +78,4 @@ public class ProguardTest {
         }
     }
 
-    @After
-    public void tearDown() {
-    }
 }

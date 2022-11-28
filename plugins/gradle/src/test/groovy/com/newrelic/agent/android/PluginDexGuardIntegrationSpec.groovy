@@ -7,6 +7,7 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Specification
@@ -24,7 +25,7 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
  *
  */
 @Stepwise
-@Requires({ System.getProperty('integrationTests', '') == 'dexguard' })
+@IgnoreIf({ System.getProperty('integrationTests', '') != 'dexguard' })
 class PluginDexGuardIntegrationSpec extends Specification {
 
     static final rootDir = new File("../..")

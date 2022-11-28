@@ -11,13 +11,14 @@ import com.newrelic.agent.util.BuildId
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.UnknownTaskException
+import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.Logger
-import org.gradle.api.logging.Logging
 import org.gradle.api.tasks.StopActionException
 import org.gradle.util.GradleVersion
+import org.slf4j.LoggerFactory
 
 class NewRelicGradlePlugin implements Plugin<Project> {
-    private static Logger logger = Logging.getLogger("NewRelicGradlePlugin")
+    private static Logger logger = LoggerFactory.getLogger("newrelic")
 
     public static final String PLUGIN_EXTENSION_NAME = "newrelic"
 
@@ -37,10 +38,12 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
     @Override
     void apply(Project project) {
+        project.logging.captureStandardError(LogLevel.WARN)
+
         logger = project.getLogger()
         buildHelper = new BuildHelper(project)
 
-        BuildId.invalidate();
+        BuildId.invalidate()
 
         def agentArgs = ""
         def prop = buildHelper.getSystemPropertyProvider(InstrumentationAgent.NR_AGENT_ARGS_KEY)
@@ -49,20 +52,29 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             agentArgs = prop.get()
 
         } else {
-            if (logger.isDebugEnabled()) {
-                agentArgs = "loglevel=DEBUG"
-            } else if (logger.isInfoEnabled()) {
-                agentArgs = "loglevel=INFO"
-            } else if (logger.isWarnEnabled()) {
-                agentArgs = "loglevel=WARN"
-            } else if (logger.isErrorEnabled()) {
-                agentArgs = "loglevel=ERROR"
-            } else if (logger.isLifecycleEnabled()) {
-                agentArgs = "loglevel=VERBOSE"
+            switch (project.logging.level) {
+                case LogLevel.DEBUG:
+                    agentArgs = "loglevel=DEBUG"
+                    break
+                case LogLevel.INFO:
+                    agentArgs = "loglevel=INFO"
+                    break
+                case LogLevel.WARN:
+                    agentArgs = "loglevel=WARN"
+                    break
+                case LogLevel.QUIET:
+                    agentArgs = "loglevel=QUIET"
+                    break
+                case LogLevel.ERROR:
+                    agentArgs = "loglevel=ERROR"
+                    break
             }
         }
 
-        InstrumentationAgent.parseAgentArgs(agentArgs)
+        Throwable argsError = InstrumentationAgent.withAgentArgs(agentArgs)
+        if (argsError != null) {
+            logger.error(argsError.message)
+        }
 
         if (!project.hasProperty("android")) {
             throw new StopActionException("The New Relic agent plugin depends on the Android plugin." + BuildHelper.NEWLN +
@@ -179,7 +191,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     def desugarTask = project.tasks.getByName(desugarTaskName)
                     desugarTask.finalizedBy classRewriterTask
 
-                } catch (UnknownTaskException e) {
+                } catch (UnknownTaskException) {
                     // not desugaring, ignore
 
                 } catch (Exception e) {
@@ -252,7 +264,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                 } else {
                     logger.debug("[newrelic.debug] Variant[$variant.name] mapping file is null!")
                 }
-            } catch (UnknownTaskException e) {
+            } catch (UnknownTaskException) {
                 // task for this variant not available
             }
         }
@@ -267,7 +279,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     mappingFile
                 })
             }
-        } catch (UnknownTaskException e) {
+        } catch (UnknownTaskException) {
             // task for this variant not available
         }
     }
@@ -306,7 +318,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     }
                 }
             }
-        } catch (UnknownTaskException e) {
+        } catch (UnknownTaskException) {
             // ignored: task doesn't exist if proguard not enabled
         }
     }
@@ -358,7 +370,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     logger.debug("[newrelic.info] Map upload ignored for variant[$variant.name]")
                 }
             }
-        } catch (UnknownTaskException e) {
+        } catch (UnknownTaskException) {
             // ignored: task doesn't exist if proguard not enabled
         }
     }
@@ -392,8 +404,17 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                          * Update the variant model
                          * @see{https://android.googlesource.com/platform/tools/build/+/master/gradle/src/main/groovy/com/android/build/gradle/api/BaseVariant.java}*
                          */
-                        variant.registerJavaGeneratingTask(taskProvider, genSrcFolder.get().asFile)
-                        variant.addJavaSourceFoldersToModel(genSrcFolder.get().asFile)
+                        try {
+                            variant.registerJavaGeneratingTask(taskProvider, genSrcFolder.get().asFile)
+                        } catch (Exception e) {
+                            logger.error("[newrelic.error] " + e.message)
+                        }
+
+                        try {
+                            variant.addJavaSourceFoldersToModel(genSrcFolder.get().asFile)
+                        } catch (Exception e) {
+                            logger.error("[newrelic.error] " + e.message)
+                        }
 
                         // must manually update the Kotlin compile tasks sourcesets (per variant)
                         try {
@@ -402,7 +423,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                                 kotlinCompileTask.source project.objects.sourceDirectorySet(taskProvider.get().name,
                                         taskProvider.get().name).srcDir(genSrcFolder)
                             }
-                        } catch (UnknownTaskException e) {
+                        } catch (UnknownTaskException) {
                             // Kotlin source not present
                         }
 
@@ -413,16 +434,16 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     }
                 } catch (Exception e) {
                     // task for this variant not available
-                    logger.warn("[newrelic.warn] configureConfigTasks: " + e)
+                    logger.warn("[newrelic.warn] configureConfigTasks: " + e.message)
                 }
             }
         } catch (MissingPropertyException e) {
             // has no android closure or applicationVariants property
-            logger.warn("[newrelic.warn] configureConfigTasks: " + e)
+            logger.warn("[newrelic.warn] configureConfigTasks: " + e.message)
 
         } catch (Exception e) {
             // ignored: task doesn't exist if proguard not enabled
-            logger.warn("[newrelic.warn] configureConfigTasks: " + e)
+            logger.warn("[newrelic.warn] configureConfigTasks: " + e.message)
         }
     }
 
@@ -440,14 +461,14 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         return project.plugins.hasPlugin("com.android.library")
     }
 
-/**
- * Seed the default variant build ID map.
- *
- * Currently, all variants use the same build ID
- *
- * @param project
- * @return Map of variant to build ID
- */
+    /**
+     * Seed the default variant build ID map.
+     *
+     * Currently, all variants use the same build ID
+     *
+     * @param project
+     * @return Map of variant to build ID
+     */
     protected Map<String, String> getDefaultBuildMap(Project project) {
         Map<String, String> buildIdCache = [:]
         getProjectVariants(project).each { variant ->

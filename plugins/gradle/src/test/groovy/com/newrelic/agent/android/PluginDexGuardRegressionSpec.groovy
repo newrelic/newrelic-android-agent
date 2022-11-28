@@ -21,7 +21,7 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
  *
  */
 @Stepwise
-@Requires({ System.getProperty('regressionTests', '') == 'dexguard' })
+@IgnoreIf({ System.getProperty('regressionTests', '') != 'dexguard' })
 class PluginDexGuardRegressionSpec extends Specification {
 
     static final rootDir = new File("../..")
