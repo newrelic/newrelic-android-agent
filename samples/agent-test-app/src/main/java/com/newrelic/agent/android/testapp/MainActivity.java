@@ -47,9 +47,8 @@ public class MainActivity extends AppCompatActivity
 
         // Add NewRelic
         NewRelic.enableFeature(FeatureFlag.NativeReporting);
-        NewRelic.withApplicationToken("AAdf95166b7a9a294cdb59cfdf5f92e79fdde4ac37-NRMA") // Android Agent Test Sink (Mobile APM)
+        NewRelic.withApplicationToken("<APP-ID>")    // ## Provide application ID to test map uploads
                 .withLogLevel(AgentLog.AUDIT)
-                .withBuildIdentifier("AndroidAgentTest")
                 .start(this);
     }
 

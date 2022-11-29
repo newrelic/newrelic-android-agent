@@ -99,10 +99,10 @@ project.afterEvaluate {
         dependsOn project.tasks.assemble
         description "Cache the build artifacts to local M2-REPO"
         group "test"
-        workingDir "$rootProject.rootDir"
+        workingDir rootProject.rootDir
         environment "M2_REPO", mavenLocal
         commandLine "./gradlew", "-Pnewrelic.agent.version=$project.versions.agent", "publish"
-        enabled false
+        enabled true
     }
 
     project.tasks.register("integrationTest", Exec) {
@@ -111,28 +111,7 @@ project.afterEvaluate {
         group "test"
         workingDir "$rootProject.rootDir/samples/agent-test-app"
         environment "M2_REPO", mavenLocal
-        commandLine "./gradlew", "-Pnewrelic.agent.version=$project.versions.agent", "-PagentRepo=${mavenLocal}", "clean", "build", 'clean'
-        enabled project.tasks.prepareIntegration.enabled
-    }
-
-    project.tasks.register("regressionTest", Exec) {
-        dependsOn project.tasks.prepareIntegration
-        description "Regress the plugin tests using generated artifacts"
-        group "test"
-        workingDir "$rootProject.rootDir"
-        environment "M2_REPO", mavenLocal
-        commandLine "./gradlew", "-PregressionTests", "-Pnewrelic.agent.version=$project.versions.agent", "-PagentRepo=${mavenLocal}", "clean", "plugins:gradle:test"
-        enabled project.tasks.prepareIntegration.enabled
-    }
-
-    project.tasks.register("regressionTestDexGuard", Exec) {
-        dependsOn project.tasks.prepareIntegration
-        description "Regress the plugin DexGuard tests using generated artifacts"
-        group "test"
-        workingDir "$rootProject.rootDir"
-        environment "M2_REPO", mavenLocal
-        commandLine "./gradlew", "-PregressionTests=dexguard", "-Pnewrelic.agent.version=$project.versions.agent", "-PagentRepo=${mavenLocal}", "clean", "plugins:gradle:test"
-        enabled project.tasks.prepareIntegration.enabled
+        commandLine "./gradlew", "-Pnewrelic.agent.version=$project.versions.agent", "-PagentRepo=${mavenLocal}", "clean", "build"
     }
 
     check.dependsOn(['integrationTest'])

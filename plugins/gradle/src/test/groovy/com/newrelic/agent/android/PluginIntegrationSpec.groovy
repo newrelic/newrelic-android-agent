@@ -8,7 +8,7 @@ package com.newrelic.agent.android
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.UnexpectedBuildFailure
-import spock.lang.Requires
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Stepwise
@@ -17,14 +17,14 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 @Stepwise
-@Requires({ System.hasProperty('integrationTests') && System.getProperty('integrationTests', '') != 'dexguard' })
+@IgnoreIf({ System.getProperty('integrationTests', 'dexguard') == 'dexguard' })
 class PluginIntegrationSpec extends Specification {
 
     static final rootDir = new File("../..")
-    static final projectRootDir = new File(rootDir, "agent-test-app/")
+    static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
 
-    static final agentVersion = '6.9.0'     // update as needed
+    static final agentVersion = '6.10.0'     // update as needed
     static final agpVersion = BuildHelper.minSupportedAGPConfigCacheVersion.version
     static final gradleVersion = BuildHelper.minSupportedAGPConfigCacheVersion.version
 
@@ -33,6 +33,9 @@ class PluginIntegrationSpec extends Specification {
 
     @Shared
     BuildResult buildResult
+
+    @Shared
+    boolean debuggable = true
 
     @Shared
     def testTask = 'assembleRelease'
@@ -74,7 +77,7 @@ class PluginIntegrationSpec extends Specification {
         printFilter = new PrintFilter()
         def runner = GradleRunner.create()
                 .forwardStdOutput(printFilter)
-                .withDebug(true)
+                .withDebug(debuggable)
                 .withGradleVersion(gradleVersion)
                 .withProjectDir(projectRootDir)
                 .withArguments("--debug",

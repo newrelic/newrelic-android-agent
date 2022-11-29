@@ -7,6 +7,7 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Specification
@@ -24,16 +25,16 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
  *
  */
 @Stepwise
-@Requires({ System.getProperty('integrationTests', '') == 'dexguard' })
+@IgnoreIf({ System.getProperty('integrationTests', '') != 'dexguard' })
 class PluginDexGuardIntegrationSpec extends Specification {
 
     static final rootDir = new File("../..")
-    static final projectRootDir = new File(rootDir, "agent-test-app/")
+    static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
-    static final debuggable = true             // set to true to break in plugin/Gradle code
+    static final debuggable = false             // set to true to break in plugin/Gradle code
 
     // Current values (update as needed)
-    static final agentVersion = "6.6.0"
+    static final agentVersion = "6.10.0"        // modify as needed
     static final agpVersion = "4.+"
     static final gradleVersion = "6.7.1"
     static final dexguardBaseVersion = "9.3.7"

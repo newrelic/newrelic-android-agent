@@ -120,36 +120,26 @@ The agent uses JUnit, Mockito and Robolectric to mock and test agent functionali
 
 ### `Unit Tests`
 
-|Module|Reports|
-|---|---|
-|`agent`|file://agent/build/reports/tests/release/index.html|
-|`agent-core`|file://agent-core/build/reports/tests/index.html|
+| Module           | Reports                                                     |
+|------------------|-------------------------------------------------------------|
+| `agent`          | file://agent/build/reports/tests/testReleaseUnitTest/index.html         |
+| `agent-core`     | file://agent-core/build/reports/tests/test/index.html            |
+| `instrumentation`| file://instrumentation/build/reports/tests/test/index.html  |
 
 ### `Integration Tests`
 
-|Module|Reports|
-|---|---|
-|`agent`|file://agent/build/reports/tests/release/index.html|
-|`agent-core`|file://agent-core/build/reports/tests/index.html|
+| Module           |Reports|
+|------------------|---|
+| `plugins:gradle` |file://plugins/gradle/build/reports/tests/test/index.html|
 
-### `Regression Tests` `[Incubating]`
-
-| Module            |Reports|
-|-------------------|---|
-| `agent`           |file://agent/build/reports/tests/release/index.html|
-| `agent-core`      |file://agent-core/build/reports/tests/index.html|
-| `instrumentation` |file://agent-core/build/reports/tests/index.html|
-| `plugin`          |file://agent-core/build/reports/tests/index.html|
 
 # Static Analysis Reports
 | Module |Reports|
 |--------|---|
-| `Lint` |file://agent/build/outputs/lint-results-release.html|
-|        |file://agent-core/build/reports/pmd/test.html|
-|        |file://class-rewriter/build/reports/pmd/main.html|
+| `Lint` |file://agent/build/reports/lint-results-release.html|
 
 
-# Coverage Reports
+# Coverage Reports 
 
 |Module|Reports|
 |---|---|

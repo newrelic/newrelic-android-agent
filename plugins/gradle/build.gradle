@@ -30,6 +30,7 @@ repositories {
 dependencies {
     implementation project(path: ':instrumentation', configuration: 'shadow')
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
+    implementation 'commons-io:commons-io:' + project.versions.java.commons_io
 
     compileOnly gradleApi()
     compileOnly localGroovy()
@@ -39,6 +40,7 @@ dependencies {
     testImplementation gradleTestKit()
     testImplementation gradleApi()
     testImplementation 'junit:junit:' + project.versions.test.junit
+    testImplementation "org.mockito:mockito-core:" + project.versions.test.mockitoCore
     testImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
     testImplementation('org.spockframework:spock-core:1.3-groovy-2.4') {
         exclude module: 'groovy-all'

@@ -7,6 +7,7 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Specification
@@ -14,13 +15,13 @@ import spock.lang.Unroll
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
-@Requires({ System.properties.containsKey('regressionTests') })
+@IgnoreIf({ System.getProperty('regressionTests', 'dexguard') == 'dexguard' })
 class PluginRegressionSpec extends Specification {
 
     static final rootDir = new File("../..")
-    static final projectRootDir = new File(rootDir, "agent-test-app/")
+    static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
-    static final agentVersion = '6.9.0'         // update as needed
+    static final agentVersion = '6.10.0'         // update as needed
 
     @Shared
     Map<String, String> localEnv = [:]
