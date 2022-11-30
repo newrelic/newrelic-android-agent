@@ -9,7 +9,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
@@ -17,6 +16,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
+import org.slf4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,14 +42,14 @@ public abstract class ActivityClassAdapter extends ClassVisitor {
     protected final Map<String, Pattern> baseClassPatterns;
     private final Map<Method, MethodVisitorFactory> methodVisitors;
     protected final InstrumentationContext context;
-    protected final Log log;
+    protected final Logger log;
     protected String superName;
     protected boolean instrument = false;
     protected int access = 0;
     private Pattern androidPackagePattern = Pattern.compile(Constants.ANDROID_PACKAGE_RE);
 
 
-    public ActivityClassAdapter(ClassVisitor cv, InstrumentationContext context, Log log, Set<String> baseClasses, Map<Method, Method> methodMappings) {
+    public ActivityClassAdapter(ClassVisitor cv, InstrumentationContext context, Logger log, Set<String> baseClasses, Map<Method, Method> methodMappings) {
         super(Opcodes.ASM8, cv);
         this.context = context;
         this.log = log;

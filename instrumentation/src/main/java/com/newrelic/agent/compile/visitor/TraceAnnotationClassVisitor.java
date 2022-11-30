@@ -6,16 +6,16 @@
 package com.newrelic.agent.compile.visitor;
 
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.slf4j.Logger;
 
 public class TraceAnnotationClassVisitor extends ClassVisitor {
     private final InstrumentationContext context;
 
-    public TraceAnnotationClassVisitor(ClassVisitor cv, InstrumentationContext context, Log log) {
+    public TraceAnnotationClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log) {
         super(Opcodes.ASM8, cv);
         this.context = context;
     }

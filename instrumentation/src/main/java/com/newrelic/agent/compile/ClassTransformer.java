@@ -5,10 +5,11 @@
 
 package com.newrelic.agent.compile;
 
-import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.util.BuildId;
 import com.newrelic.agent.util.FileUtils;
 import com.newrelic.agent.util.Streams;
+
+import org.slf4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,7 +37,8 @@ public final class ClassTransformer {
     private static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
     private static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
 
-    private final Log log;
+    public static Logger log = Log.LOGGER;
+
     private final List<File> classes;
     private File inputFile;
     private File outputFile;
@@ -60,7 +62,6 @@ public final class ClassTransformer {
     }
 
     public ClassTransformer() {
-        this.log = new SystemErrLog(InstrumentationAgent.getAgentOptions());
         this.classes = new ArrayList<File>();
         this.inputFile = new File(".");
         this.outputFile = new File(".");

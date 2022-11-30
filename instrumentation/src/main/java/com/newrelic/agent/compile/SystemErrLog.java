@@ -5,54 +5,28 @@
 
 package com.newrelic.agent.compile;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
-import java.util.Locale;
 import java.util.Map;
 
-public final class SystemErrLog extends Log {
-
-    Logger logger = LoggerFactory.getLogger(getFullyQualifiedCallerName());
+public final class SystemErrLog extends Log.SLF4JLogger {
 
     public SystemErrLog(Map<String, String> agentOptions) {
         super(agentOptions);
     }
 
     @Override
-    protected void log(LogLevel level, String message) {
-        switch (level) {
-            case ERROR:
-                logger.error(message);
-                break;
-            case WARN:
-                logger.warn(message);
-                break;
-            case INFO:
-                logger.info(message);
-                break;
-            case DEBUG:
-                logger.debug(message);
-                break;
-            case TRACE:
-                logger.trace(message);
-                break;
-            default:
-                break;
-        }
-    }
-
     protected void log(String level, String message) {
         synchronized (this) {
-            System.out.println("[newrelic." + level.substring(0, 1).toUpperCase(Locale.ROOT) + "] " + message);
+            System.out.println("[newrelic] " + message);
         }
     }
 
     @Override
     public void warn(String message, Throwable cause) {
-        if (logLevelEnabled(LogLevel.WARN)) {
+        if (isLevelEnabled(Level.WARN)) {
             synchronized (this) {
-                log(LogLevel.WARN, message);
+                System.err.println("[newrelic] " + message);
                 cause.printStackTrace(System.err);
             }
         }
@@ -60,9 +34,10 @@ public final class SystemErrLog extends Log {
 
     @Override
     public void error(String message, Throwable cause) {
-        if (logLevelEnabled(LogLevel.ERROR)) {
+        if (isLevelEnabled(Level.ERROR)) {
             synchronized (this) {
-                log(LogLevel.ERROR, message);
+                // logger.error(message, cause);
+                System.err.println("[newrelic] " + message);
                 cause.printStackTrace(System.err);
             }
         }

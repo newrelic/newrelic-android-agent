@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.compile;
 
+import org.slf4j.Logger;
+
 import java.io.InputStream;
 import java.net.URL;
 import java.text.MessageFormat;
@@ -24,7 +26,7 @@ public class ClassRemapperConfig {
     private final Map<ClassMethod, ClassMethod> methodWrappers;
     private final Map<String, Collection<ClassMethod>> callSiteReplacements;
 
-    public ClassRemapperConfig(final Log log) throws ClassNotFoundException {
+    public ClassRemapperConfig(final Logger log) throws ClassNotFoundException {
         @SuppressWarnings("unchecked") final Map<String, String> remappings = getRemappings(log);
         methodWrappers = getMethodWrappers(remappings, log);
         callSiteReplacements = getCallSiteReplacements(remappings, log);
@@ -58,7 +60,7 @@ public class ClassRemapperConfig {
      * Return a map of the method calls whose return value we want to wrap.
      * @throws ClassNotFoundException
      */
-    private static Map<ClassMethod, ClassMethod> getMethodWrappers(Map<String, String> remappings, Log log) throws ClassNotFoundException {
+    private static Map<ClassMethod, ClassMethod> getMethodWrappers(Map<String, String> remappings, Logger log) throws ClassNotFoundException {
         HashMap<ClassMethod, ClassMethod> methodWrappers = new HashMap<ClassMethod, ClassMethod>();
         for (Entry<String, String> entry : remappings.entrySet()) {
             if (entry.getKey().startsWith(WRAP_METHOD_IDENTIFIER)) {
@@ -76,7 +78,7 @@ public class ClassRemapperConfig {
      * Return a map of the call sites that we wish to replace.
      * @throws ClassNotFoundException
      */
-    private static Map<String, Collection<ClassMethod>> getCallSiteReplacements(Map<String, String> remappings, Log log) throws ClassNotFoundException {
+    private static Map<String, Collection<ClassMethod>> getCallSiteReplacements(Map<String, String> remappings, Logger log) throws ClassNotFoundException {
         final HashMap<String, Set<ClassMethod>> temp = new HashMap<String, Set<ClassMethod>>();
         for (Entry<String, String> entry : remappings.entrySet()) {
             if (entry.getKey().startsWith(REPLACE_CALL_SITE_IDENTIFIER)) {
@@ -128,7 +130,7 @@ public class ClassRemapperConfig {
      * Return the map of class/method modifications from the type_map.properties file.
      */
     @SuppressWarnings("rawtypes")
-    private static Map getRemappings(final Log log) {
+    private static Map getRemappings(final Logger log) {
         Properties props = new Properties();
         URL resource = ClassRemapperConfig.class.getResource("/type_map.properties");
 

@@ -5,37 +5,25 @@
 
 package com.newrelic.agent.compile;
 
+import com.newrelic.agent.InstrumentationAgent;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.event.Level;
 import org.slf4j.helpers.LegacyAbstractLogger;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class Log extends LegacyAbstractLogger {
+    public static Log LOGGER = new SLF4JLogger(InstrumentationAgent.getAgentOptions());
 
-    public enum LogLevel {
-
-        ERROR(0),       // Error messages
-        WARN(1),        // Warning messages
-        INFO(2),        // Information messages
-        DEBUG(3),       // Debug messages
-        TRACE(4);       // Trace messages
-
-        final int value;
-
-        LogLevel(final int newValue) {
-            value = newValue;
-        }
-    }
-
-    public static Log LOGGER = new NullLogger();
-
-    protected final int logLevel;
+    protected final Level logLevel;
 
     public Log(Map<String, String> agentOptions) {
-        String logLevelOpt = agentOptions.get("loglevel");
-        logLevel = (logLevelOpt != null) ? LogLevel.valueOf(logLevelOpt).value : LogLevel.WARN.value;
+        String logLevelOpt = agentOptions.getOrDefault("loglevel", Level.WARN.name());
+        logLevel = Level.valueOf(logLevelOpt);
+        name = getFullyQualifiedCallerName();
         LOGGER = this;
     }
 
@@ -43,21 +31,21 @@ public class Log extends LegacyAbstractLogger {
         // no-op
     }
 
-    protected void log(LogLevel level, String message) {
-        if (logLevelEnabled(level)) {
+    protected void log(Level level, String message) {
+        if (isLevelEnabled(level)) {
             synchronized (this) {
                 log(level.name(), message);
             }
         }
     }
 
-    boolean logLevelEnabled(LogLevel level) {
-        return (logLevel >= level.value);
+    boolean isLevelEnabled(Level level) {
+        return logLevel.toInt() <= level.toInt();
     }
 
     @Override
     public boolean isErrorEnabled() {
-        return logLevelEnabled(LogLevel.ERROR);
+        return isLevelEnabled(Level.ERROR);
     }
 
     @Override
@@ -67,7 +55,7 @@ public class Log extends LegacyAbstractLogger {
 
     @Override
     public boolean isWarnEnabled() {
-        return logLevelEnabled(LogLevel.WARN);
+        return isLevelEnabled(Level.WARN);
     }
 
     @Override
@@ -77,7 +65,7 @@ public class Log extends LegacyAbstractLogger {
 
     @Override
     public boolean isInfoEnabled() {
-        return (logLevelEnabled(LogLevel.INFO));
+        return (isLevelEnabled(Level.INFO));
     }
 
     @Override
@@ -87,7 +75,7 @@ public class Log extends LegacyAbstractLogger {
 
     @Override
     public boolean isDebugEnabled() {
-        return logLevelEnabled(LogLevel.DEBUG);
+        return isLevelEnabled(Level.DEBUG);
     }
 
     @Override
@@ -97,7 +85,7 @@ public class Log extends LegacyAbstractLogger {
 
     @Override
     public boolean isTraceEnabled() {
-        return logLevelEnabled(LogLevel.TRACE);
+        return isLevelEnabled(Level.TRACE);
     }
 
     @Override
@@ -115,9 +103,16 @@ public class Log extends LegacyAbstractLogger {
         log(level.name(), String.format(s, objects));
     }
 
-    static class NullLogger extends Log {
-        public NullLogger() {
-            super(new HashMap<>());
+    static class SLF4JLogger extends Log {
+        Logger logger = LoggerFactory.getLogger(getFullyQualifiedCallerName());
+
+        public SLF4JLogger(Map<String, String> agentOptions) {
+            super(agentOptions);
+        }
+
+        @Override
+        protected void log(String level, String message) {
+            logger.atLevel(Level.valueOf(level)).log(message);
         }
     }
 

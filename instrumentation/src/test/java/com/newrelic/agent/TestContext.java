@@ -9,7 +9,6 @@ import com.newrelic.agent.compile.ClassRemapperConfig;
 import com.newrelic.agent.compile.ClassWriterSafe;
 import com.newrelic.agent.compile.InstrumentationContext;
 import com.newrelic.agent.compile.Log;
-import com.newrelic.agent.compile.SystemErrLog;
 import com.newrelic.agent.compile.visitor.PrefilterClassVisitor;
 
 import org.junit.Assert;
@@ -29,18 +28,14 @@ import org.objectweb.asm.util.TraceMethodVisitor;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.HashMap;
 
 public class TestContext {
 
     static public ClassRemapperConfig config;
 
     static {
-        new SystemErrLog(new HashMap<String, String>() {{
-            put("loglevel", "DEBUG");
-        }});
-
         try {
+            InstrumentationAgent.withAgentArgs("loglevel=TRACE");
             config = Mockito.spy(new ClassRemapperConfig(Log.LOGGER));
 
         } catch (ClassNotFoundException e) {

@@ -7,7 +7,6 @@ package com.newrelic.agent.compile.visitor;
 
 import com.newrelic.agent.compile.ClassMethod;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
@@ -15,15 +14,16 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
+import org.slf4j.Logger;
 
 import java.text.MessageFormat;
 import java.util.Collection;
 
 public class WrapMethodClassVisitor extends ClassVisitor {
     private final InstrumentationContext context;
-    private final Log log;
+    private final Logger log;
 
-    public WrapMethodClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Log log) {
+    public WrapMethodClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Logger log) {
         super(Opcodes.ASM8, cv);
         this.context = context;
         this.log = log;
@@ -42,11 +42,11 @@ public class WrapMethodClassVisitor extends ClassVisitor {
         private final String name;
         private final String desc;
         private final InstrumentationContext context;
-        private final Log log;
+        private final Logger log;
         private boolean newInstructionFound = false;
         private boolean dupInstructionFound = false;
 
-        public MethodWrapMethodVisitor(MethodVisitor mv, final int access, final String name, final String desc, final InstrumentationContext context, final Log log) {
+        public MethodWrapMethodVisitor(MethodVisitor mv, final int access, final String name, final String desc, final InstrumentationContext context, final Logger log) {
             super(Opcodes.ASM8, mv, access, name, desc);
             this.name = name;
             this.desc = desc;

@@ -63,7 +63,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     agentArgs = "loglevel=WARN"
                     break
                 case LogLevel.QUIET:
-                    agentArgs = "loglevel=QUIET"
+                    agentArgs = "loglevel=INFO"
                     break
                 case LogLevel.ERROR:
                     agentArgs = "loglevel=ERROR"

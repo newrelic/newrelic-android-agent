@@ -5,14 +5,22 @@
 
 package com.newrelic.agent.util;
 
+import com.newrelic.agent.InstrumentationAgent;
+
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Map;
 import java.util.UUID;
 
 public class BuildIdTest {
+
+    @BeforeClass
+    public static void beforeClass() throws Exception {
+        InstrumentationAgent.withAgentArgs("loglevel=DEBUG");
+    }
 
     @Before
     public void setUp() throws Exception {

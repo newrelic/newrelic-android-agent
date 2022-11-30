@@ -8,7 +8,6 @@ package com.newrelic.agent.compile.visitor;
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 import com.newrelic.agent.util.BuildId;
 
 import org.objectweb.asm.ClassVisitor;
@@ -16,12 +15,13 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.GeneratorAdapter;
+import org.slf4j.Logger;
 
 public class NewRelicClassVisitor extends ClassVisitor {
     private final InstrumentationContext context;
-    private final Log log;
+    private final Logger log;
 
-    public NewRelicClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Log log) {
+    public NewRelicClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Logger log) {
         super(Opcodes.ASM8, cv);
         this.context = context;
         this.log = log;

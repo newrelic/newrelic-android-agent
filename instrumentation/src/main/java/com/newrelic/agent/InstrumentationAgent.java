@@ -12,6 +12,8 @@ import com.newrelic.agent.compile.SystemErrLog;
 import com.newrelic.agent.compile.transformers.ClassRewriterTransformer;
 import com.newrelic.agent.compile.transformers.NewRelicClassTransformer;
 
+import org.slf4j.Logger;
+
 import java.io.File;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
@@ -32,6 +34,7 @@ public final class InstrumentationAgent extends Constants {
     public static Throwable withAgentArgs(String agentArgs) {
         try {
             InstrumentationAgent.agentOptions = parseAgentArgs(agentArgs);
+            Log.LOGGER = new SystemErrLog(agentOptions);
             System.setProperty(Constants.NR_AGENT_ARGS_KEY, agentArgs);
         } catch (Throwable t) {
             return t;
@@ -48,7 +51,7 @@ public final class InstrumentationAgent extends Constants {
         Throwable argsError = withAgentArgs(agentArgs);
         String logFileName = agentOptions.get("logfile");
 
-        Log log = logFileName == null ? new SystemErrLog(agentOptions) : new FileLogImpl(agentOptions, logFileName);
+        Logger log = logFileName == null ? new SystemErrLog(agentOptions) : new FileLogImpl(agentOptions, logFileName);
         if (argsError != null) {
             log.error("Agent args error: " + argsError);
         }
@@ -133,7 +136,7 @@ public final class InstrumentationAgent extends Constants {
      * The classloader used to load the main dex class may not have visibility to our code, so we implement an InvocationHandler
      * and stuff it in a private static field on the Java Proxy class.
      */
-    private static void createInvocationDispatcher(Log log) throws Exception {
+    private static void createInvocationDispatcher(Logger log) throws Exception {
         Field field = InvocationDispatcher.INVOCATION_DISPATCHER_CLASS.getDeclaredField(InvocationDispatcher.INVOCATION_DISPATCHER_FIELD_NAME);
         field.setAccessible(true);
 

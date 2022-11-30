@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.compile;
 
+import org.slf4j.event.Level;
+
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
@@ -33,14 +35,14 @@ public final class FileLogImpl extends Log {
     }
 
     @Override
-    protected void log(LogLevel level, String message) {
+    protected void log(Level level, String message) {
         log(level.name(), message);
     }
 
     @Override
     public void warn(String message, Throwable cause) {
-        if (logLevelEnabled(LogLevel.WARN)) {
-            log(LogLevel.WARN, message);
+        if (isLevelEnabled(Level.WARN)) {
+            log(Level.WARN, message);
             cause.printStackTrace(writer);
             writer.flush();
         }
@@ -48,8 +50,8 @@ public final class FileLogImpl extends Log {
 
     @Override
     public void error(String message, Throwable cause) {
-        if (logLevelEnabled(LogLevel.ERROR)) {
-            log("error", message);
+        if (isLevelEnabled(Level.ERROR)) {
+            log(Level.ERROR, message);
             cause.printStackTrace(writer);
             writer.flush();
         }
