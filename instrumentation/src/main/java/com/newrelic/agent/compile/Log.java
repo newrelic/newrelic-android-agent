@@ -5,82 +5,120 @@
 
 package com.newrelic.agent.compile;
 
-// import com.newrelic.agent.android.logging.AgentLog;
+import org.slf4j.Marker;
+import org.slf4j.event.Level;
+import org.slf4j.helpers.LegacyAbstractLogger;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class Log { // implements AgentLog {
-    public enum LogLevel {
-        DEBUG(5),
-        VERBOSE(4),
-        INFO(3),
-        WARN(2),
-        ERROR(1);
+public class Log extends LegacyAbstractLogger {
 
-        private final int value;
+    public enum LogLevel {
+
+        ERROR(0),       // Error messages
+        WARN(1),        // Warning messages
+        INFO(2),        // Information messages
+        DEBUG(3),       // Debug messages
+        TRACE(4);       // Trace messages
+
+        final int value;
 
         LogLevel(final int newValue) {
             value = newValue;
         }
-
-        public int getValue() {
-            return value;
-        }
     }
 
-    public static Log LOGGER = new Log(new HashMap<String, String>()) {
-    };
+    public static Log LOGGER = new NullLogger();
 
     protected final int logLevel;
 
     public Log(Map<String, String> agentOptions) {
         String logLevelOpt = agentOptions.get("loglevel");
-        if (logLevelOpt != null) {
-            this.logLevel = LogLevel.valueOf(logLevelOpt).getValue();
-        } else {
-            logLevel = LogLevel.WARN.getValue();
-        }
-
+        logLevel = (logLevelOpt != null) ? LogLevel.valueOf(logLevelOpt).value : LogLevel.WARN.value;
         LOGGER = this;
     }
 
-    public void info(String message) {
-        if (logLevel >= LogLevel.INFO.getValue()) {
-            log("info", message);
-        }
+    protected void log(String level, String message) {
+        // no-op
     }
 
-    public void debug(String message) {
-        if (logLevel >= LogLevel.DEBUG.getValue()) {
+    protected void log(LogLevel level, String message) {
+        if (logLevelEnabled(level)) {
             synchronized (this) {
-                log("debug", message);
+                log(level.name(), message);
             }
         }
     }
 
-    public void warning(String message) {
-        if (logLevel >= LogLevel.WARN.getValue()) {
-            log("warn", message);
+    boolean logLevelEnabled(LogLevel level) {
+        return (logLevel >= level.value);
+    }
+
+    @Override
+    public boolean isErrorEnabled() {
+        return logLevelEnabled(LogLevel.ERROR);
+    }
+
+    @Override
+    public boolean isErrorEnabled(Marker marker) {
+        return isErrorEnabled();
+    }
+
+    @Override
+    public boolean isWarnEnabled() {
+        return logLevelEnabled(LogLevel.WARN);
+    }
+
+    @Override
+    public boolean isWarnEnabled(Marker marker) {
+        return isWarnEnabled();
+    }
+
+    @Override
+    public boolean isInfoEnabled() {
+        return (logLevelEnabled(LogLevel.INFO));
+    }
+
+    @Override
+    public boolean isInfoEnabled(Marker marker) {
+        return isInfoEnabled();
+    }
+
+    @Override
+    public boolean isDebugEnabled() {
+        return logLevelEnabled(LogLevel.DEBUG);
+    }
+
+    @Override
+    public boolean isDebugEnabled(Marker marker) {
+        return isDebugEnabled();
+    }
+
+    @Override
+    public boolean isTraceEnabled() {
+        return logLevelEnabled(LogLevel.TRACE);
+    }
+
+    @Override
+    public boolean isTraceEnabled(Marker marker) {
+        return isTraceEnabled();
+    }
+
+    @Override
+    protected String getFullyQualifiedCallerName() {
+        return "newrelic";
+    }
+
+    @Override
+    protected void handleNormalizedLoggingCall(Level level, Marker marker, String s, Object[] objects, Throwable throwable) {
+        log(level.name(), String.format(s, objects));
+    }
+
+    static class NullLogger extends Log {
+        public NullLogger() {
+            super(new HashMap<>());
         }
-    }
-
-    public void error(String message) {
-        if (logLevel >= LogLevel.ERROR.getValue()) {
-            log("error", message);
-        }
-    }
-
-    protected void log(String level, String message) {
-        // log nothing
-    }
-
-    public void warning(String message, Throwable cause) {
-        // log nothing
-    }
-
-    public void error(String message, Throwable cause) {
-        // log nothing
     }
 
 }

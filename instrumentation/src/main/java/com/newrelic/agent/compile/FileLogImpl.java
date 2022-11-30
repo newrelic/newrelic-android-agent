@@ -8,6 +8,7 @@ package com.newrelic.agent.compile;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
+import java.util.Locale;
 import java.util.Map;
 
 public final class FileLogImpl extends Log {
@@ -26,15 +27,20 @@ public final class FileLogImpl extends Log {
     @Override
     protected void log(String level, String message) {
         synchronized (this) {
-            writer.write("[newrelic." + level.toLowerCase() + "] " + message + "\n");
+            writer.write("[newrelic." + level.substring(0, 1).toUpperCase(Locale.ROOT) + "] " + message + "\n");
             writer.flush();
         }
     }
 
     @Override
-    public void warning(String message, Throwable cause) {
-        if (logLevel >= LogLevel.WARN.getValue()) {
-            log("warn", message);
+    protected void log(LogLevel level, String message) {
+        log(level.name(), message);
+    }
+
+    @Override
+    public void warn(String message, Throwable cause) {
+        if (logLevelEnabled(LogLevel.WARN)) {
+            log(LogLevel.WARN, message);
             cause.printStackTrace(writer);
             writer.flush();
         }
@@ -42,7 +48,7 @@ public final class FileLogImpl extends Log {
 
     @Override
     public void error(String message, Throwable cause) {
-        if (logLevel >= LogLevel.ERROR.getValue()) {
+        if (logLevelEnabled(LogLevel.ERROR)) {
             log("error", message);
             cause.printStackTrace(writer);
             writer.flush();

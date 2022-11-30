@@ -234,7 +234,7 @@ public class InvocationDispatcher implements InvocationHandler {
                         log.debug("[InvocationDispatcher] Retry with ClassWriter.COMPUTE_MAXS");
                         return visitClassBytesWithOptions(bytes, ClassWriter.COMPUTE_MAXS);
                     }
-                    log.warning("[InvocationDispatcher] [" + className + "] instrumentation failed: " + e.getLocalizedMessage());
+                    log.warn("[InvocationDispatcher] [" + className + "] instrumentation failed: " + e.getLocalizedMessage());
                     return new ClassData(bytes, false);
                 }
 
@@ -253,7 +253,7 @@ public class InvocationDispatcher implements InvocationHandler {
             return new ClassData(bytes, false);
 
         } catch (IllegalArgumentException e) {
-            log.warning("[InvocationDispatcher] Class[" + className + "] ignored: JDK not supported");
+            log.warn("[InvocationDispatcher] Class[" + className + "] ignored: JDK not supported");
             return new ClassData(bytes, false);
 
         } catch (HaltBuildException e) {
@@ -261,7 +261,7 @@ public class InvocationDispatcher implements InvocationHandler {
             throw new RuntimeException(e);
 
         } catch (NoClassDefFoundError e) {
-            log.warning("Unfortunately, an error has occurred while processing class [" + className + "].\n"
+            log.warn("Unfortunately, an error has occurred while processing class [" + className + "].\n"
                     + "The file is unable to be parsed. Please copy your build logs and the jar containing "
                     + "this class and visit http://support.newrelic.com, thanks!\n" + e.getLocalizedMessage());
             return new ClassData(bytes, false);

@@ -48,7 +48,7 @@ jar {
     }
 }
 
-task stampAgentVersion(type: Copy) {
+tasks.register("stampAgentVersion", Copy) {
     def srcPath = sourceSets.main.java.srcDirs[0]
 
     logger.quiet("[newrelic] [instrumentation] Stamping [${srcPath}/com/newrelic/agent/InstrumentationAgent.java] " +
@@ -60,9 +60,10 @@ task stampAgentVersion(type: Copy) {
     into "${buildGenPath}/com/newrelic/agent"
 }
 
-task compileStampedAgent(type: JavaCompile, dependsOn: [stampAgentVersion]) {
+tasks.register("compileStampedAgent", JavaCompile) {
     logger.quiet("[newrelic] [instrumentation] Recompiling [${buildGenPath}/com/newrelic/agent/InstrumentationAgent.java]")
 
+    dependsOn stampAgentVersion
     source = buildGenPath
     include 'com/newrelic/agent/InstrumentationAgent.java'
     classpath = sourceSets.main.compileClasspath
@@ -104,7 +105,7 @@ shadowJar {
 project.afterEvaluate() {
     classes.finalizedBy compileStampedAgent
 
-    project.tasks.register("generateMapFile", JavaExec) {
+    tasks.register("generateMapFile", JavaExec) {
         description "Extract relocation rules from instrumentation code and generate type_map properties file"
         dependsOn compileStampedAgent
         group "build"
@@ -144,3 +145,8 @@ publishing {
     }
 }
 
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}

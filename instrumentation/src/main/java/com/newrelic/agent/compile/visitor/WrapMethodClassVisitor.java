@@ -66,7 +66,7 @@ public class WrapMethodClassVisitor extends ClassVisitor {
             // Unlikely that we care about INVOKEDYNAMIC right now
             //
             if (opcode == Opcodes.INVOKEDYNAMIC) {
-                log.warning(MessageFormat.format("[{0}] INVOKEDYNAMIC instruction cannot be instrumented", context.getClassName().replaceAll("/", ".")));
+                log.warn(MessageFormat.format("[{0}] INVOKEDYNAMIC instruction cannot be instrumented", context.getClassName().replaceAll("/", ".")));
                 super.visitMethodInsn(opcode, owner, name, desc, isInterface);
                 return;
             }

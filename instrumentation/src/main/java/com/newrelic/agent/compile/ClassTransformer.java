@@ -51,7 +51,6 @@ public final class ClassTransformer {
     }
 
     private InvocationDispatcher initDispatcher() {
-        SystemErrLog log = new SystemErrLog(InstrumentationAgent.getAgentOptions());
         try {
             return new InvocationDispatcher(log);
         } catch (Exception e) {
@@ -344,7 +343,7 @@ public final class ClassTransformer {
                         jarOutputStream.closeEntry();
 
                     } catch (Exception e) {
-                        log.warning("[ClassTransformer] transformArchive: " + e);
+                        log.warn("[ClassTransformer] transformArchive: " + e);
                         if (explodeJar) {
                             didProcessArchive |= writeClassFile(classBytesInputStream, archiveClassFile);
                         } else {
@@ -378,8 +377,8 @@ public final class ClassTransformer {
             }
 
         } catch (Exception e) {
-            log.warning("[ClassTransformer] transformArchive: Original library file is outputted as we encountered an exception");
-            log.warning("[ClassTransformer] transformArchive: " + e);
+            log.warn("[ClassTransformer] transformArchive: Original library file is outputted as we encountered an exception");
+            log.warn("[ClassTransformer] transformArchive: " + e);
             return Streams.copy(new FileInputStream(archiveFile), new FileOutputStream(outputFile)) > 0;
         } finally {
             // close all the streams that may or may npt have already been closed
@@ -454,7 +453,7 @@ public final class ClassTransformer {
             try {
                 closeable.close();
             } catch (IOException e) {
-                log.warning("[ClassTransformer] closeQuietly: " + e);
+                log.warn("[ClassTransformer] closeQuietly: " + e);
             }
         }
     }

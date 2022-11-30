@@ -45,7 +45,7 @@ public class NewRelicClassVisitor extends ClassVisitor {
     public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
         if (context.getClassName().equals(Constants.AGENT_CLASS_NAME) && name.equals("VERSION")) {
             if (!value.equals(InstrumentationAgent.getVersion())) {
-                log.warning("New Relic Error: Your agent and class rewriter versions do not match: "
+                log.warn("New Relic Error: Your agent and class rewriter versions do not match: "
                         + "agent[" + value + "] class rewriter[" + InstrumentationAgent.getVersion() + "]. "
                         + "You may need to update one of these components, or simply invalidate your AndroidStudio cache.  "
                         + "If you're using gradle and just updated, run gradle -stop to restart the daemon.");

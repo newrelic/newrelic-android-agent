@@ -79,7 +79,7 @@ public final class InstrumentationAgent extends Constants {
                 if (instrumentation.isRetransformClassesSupported()) {
                     instrumentation.retransformClasses(classes.toArray(new Class[classes.size()]));
                 } else {
-                    log.warning("Unable to retransform classes: " + classes);
+                    log.warn("Unable to retransform classes: " + classes);
                 }
             }
 
