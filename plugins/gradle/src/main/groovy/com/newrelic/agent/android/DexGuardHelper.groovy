@@ -35,14 +35,14 @@ class DexGuardHelper {
      */
     DexGuardHelper(Project project) {
         this.project = project
-        this.logger = project.logger
+        this.logger = NewRelicGradlePlugin.logger
         try {
             this.enabled = project.plugins.hasPlugin(PLUGIN_EXTENSION_NAME)
             if (this.enabled) {
                 this.extension = project.extensions.getByName(PLUGIN_EXTENSION_NAME)
                 this.version = GradleVersion.version(this.extension.version)
                 if (this.version < minSupported) {
-                    logger.warn("[newrelic.warn] The New Relic plugin may not be compatible with DexGuard version ${this.version}.")
+                    logger.warn("The New Relic plugin may not be compatible with DexGuard version ${this.version}.")
                 }
             }
         } catch (Exception e) {

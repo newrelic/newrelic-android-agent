@@ -29,8 +29,8 @@ abstract class NewRelicClassRewriterTask extends NewRelicTask {
             def destinationDir = (inputPath == null) ? javaCompileTask.destinationDir : inputPath
             def inputDir = destinationDir
 
-            logger.info("[newrelic.info] [NewRelicClassRewriterTask] inputDir[" + inputDir + "]")
-            logger.info("[newrelic.info] [NewRelicClassRewriterTask] destinationDir[" + destinationDir + "]")
+            logger.info("[NewRelicClassRewriterTask] inputDir[" + inputDir + "]")
+            logger.info("[NewRelicClassRewriterTask] destinationDir[" + destinationDir + "]")
 
             ClassTransformer classTransformer = new ClassTransformer(inputDir, destinationDir)
             classTransformer.withWriteMode(ClassTransformer.WriteMode.modified);
@@ -43,11 +43,11 @@ abstract class NewRelicClassRewriterTask extends NewRelicTask {
             classTransformer.doTransform();
 
         } catch (Exception e) {
-            logger.error("[newrelic.error] [NewRelicClassRewriterTask] Error encountered while instrumenting class files: ", e)
+            logger.error("[NewRelicClassRewriterTask] Error encountered while instrumenting class files: ", e)
             throw new RuntimeException(e)
         }
 
-        logger.info("[newrelic.info] [NewRelicClassRewriterTask] Class instrumentation finished in " + Double.valueOf((double) (
+        logger.info("[NewRelicClassRewriterTask] Class instrumentation finished in " + Double.valueOf((double) (
                 System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.");
 
     }

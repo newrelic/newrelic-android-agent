@@ -55,7 +55,7 @@ abstract class NewRelicConfigTask extends DefaultTask {
                     .replaceAll("@provider@", mapProvider.get())
 
         } catch (Exception e) {
-            logger.error("[newrelic.error] Error encountered while configuring the New Relic agent: ", e)
+            logger.error("Error encountered while configuring the New Relic agent: ", e)
         }
     }
 }

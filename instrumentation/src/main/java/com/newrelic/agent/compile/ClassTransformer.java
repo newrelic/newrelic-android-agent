@@ -25,6 +25,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -62,7 +63,7 @@ public final class ClassTransformer {
     }
 
     public ClassTransformer() {
-        this.classes = new ArrayList<File>();
+        this.classes = new ArrayList<>();
         this.inputFile = new File(".");
         this.outputFile = new File(".");
         this.classData = null;
@@ -104,7 +105,8 @@ public final class ClassTransformer {
             transformClassFile(classFile);
         }
 
-        log.info(MessageFormat.format("[ClassTransformer] doTransform finished in {0} sec.", Float.valueOf((System.currentTimeMillis() - tStart) / 1000f)));
+        log.info(MessageFormat.format("[ClassTransformer] doTransform finished in {0} sec.",
+                Float.valueOf((System.currentTimeMillis() - tStart) / 1000f)));
     }
 
     /*
@@ -237,7 +239,7 @@ public final class ClassTransformer {
         boolean didProcessDirectory = false;
 
         if (directory.isDirectory()) {
-            for (File f : directory.listFiles()) {
+            for (File f : Objects.requireNonNull(directory.listFiles())) {
                 didProcessDirectory |= transformClassFile(f);
             }
         }

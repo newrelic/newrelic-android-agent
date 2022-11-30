@@ -135,7 +135,7 @@ public class Proguard {
                 if (mappingFile.exists()) {
                     files.add(mappingFile);
                 } else {
-                    log.warn("[newrelic.warn] Mapping file [" + mappingFile.getAbsolutePath() + "] doesn't exist");
+                    log.warn("Mapping file [" + mappingFile.getAbsolutePath() + "] doesn't exist");
                 }
 
             } else {
@@ -145,7 +145,7 @@ public class Proguard {
             }
 
             if (files.isEmpty()) {
-                log.error("[newrelic.warn] While evidence of ProGuard/DexGuard was detected, New Relic failed to find 'mapping.txt' files.");
+                log.error("While evidence of ProGuard/DexGuard was detected, New Relic failed to find 'mapping.txt' files.");
                 logRecourse();
                 return;
             }
@@ -156,11 +156,11 @@ public class Proguard {
                         if (uploadingEnabled) {
                             sendMapping(file);
                         } else {
-                            log.error("[newrelic.error] Map uploads are disabled!");
+                            log.error("Map uploads are disabled!");
                         }
                     }
                 } catch (IOException e) {
-                    log.error("[newrelic.error] Unable to open ProGuard/DexGuard 'mapping.txt' file: " + e.getLocalizedMessage());
+                    log.error("Unable to open ProGuard/DexGuard 'mapping.txt' file: " + e.getLocalizedMessage());
                     logRecourse();
                 }
             }
@@ -175,16 +175,16 @@ public class Proguard {
                 revReader.close();
 
                 if (lastLine == null || lastLine.isEmpty()) {
-                    log.warn("[newrelic.warn] Map [" + file.getAbsolutePath() + "] is empty!");
+                    log.warn("Map [" + file.getAbsolutePath() + "] is empty!");
                 } else if (lastLine.startsWith(NR_MAP_PREFIX)) {
                     // replace build id with parsed value
                     buildId = lastLine.substring(NR_MAP_PREFIX.length());
-                    log.info("[newrelic.info] Map [" + file.getAbsolutePath() + "] has already been tagged with buildID [" + buildId + "] - resending.");
+                    log.info("Map [" + file.getAbsolutePath() + "] has already been tagged with buildID [" + buildId + "] - resending.");
                     return true;        // send it again
                 } else {
                     String variant = agentOptions.get(VARIANT_KEY);
                     buildId = BuildId.getBuildId(variant);
-                    log.info("[newrelic.info] Tagging map [" + file.getAbsolutePath() + "] with buildID [" + buildId + "]");
+                    log.info("Tagging map [" + file.getAbsolutePath() + "] with buildID [" + buildId + "]");
                     // Write the build ID to the file so the user can uploaded it manually later.
                     try (final FileWriter fileWriter = new FileWriter(file, true)) {
                         fileWriter.write(NR_MAP_PREFIX + buildId + NEWLN);
@@ -202,7 +202,7 @@ public class Proguard {
             final String encodedProjectRoot = agentOptions.get(PROJECT_ROOT_KEY);
             if (encodedProjectRoot == null) {
                 // Fall back to the CWD
-                log.info("[newrelic.info] Unable to determine project root, falling back to CWD.");
+                log.info("Unable to determine project root, falling back to CWD.");
                 projectRoot = System.getProperty("user.dir");
             } else {
                 projectRoot = new String(BaseEncoding.base64().decode(encodedProjectRoot));
@@ -224,7 +224,7 @@ public class Proguard {
 
             licenseKey = newRelicProps.getProperty(PROP_NR_APP_TOKEN, null);
             if (licenseKey == null) {
-                log.error("[newrelic.error] Unable to find a value for " + PROP_NR_APP_TOKEN + " in 'newrelic.properties'");
+                log.error("Unable to find a value for " + PROP_NR_APP_TOKEN + " in 'newrelic.properties'");
                 logRecourse();
                 return false;
             }
@@ -238,12 +238,12 @@ public class Proguard {
             }
 
         } catch (FileNotFoundException e) {
-            log.error("[newrelic.error] Unable to find 'newrelic.properties' in the project root (" + getProjectRoot() + "): " + e.getLocalizedMessage());
+            log.error("Unable to find 'newrelic.properties' in the project root (" + getProjectRoot() + "): " + e.getLocalizedMessage());
             logRecourse();
             return false;
 
         } catch (IOException e) {
-            log.error("[newrelic.error] Unable to read 'newrelic.properties' in the project root (" + getProjectRoot() + "): " + e.getLocalizedMessage());
+            log.error("Unable to read 'newrelic.properties' in the project root (" + getProjectRoot() + "): " + e.getLocalizedMessage());
             logRecourse();
             return false;
 
@@ -256,7 +256,7 @@ public class Proguard {
         final int USEFUL_BUFFER_SIZE = 0x10000;     // 64k
 
         if (mapFile.length() <= 0) {
-            log.error("[newrelic.error] Tried to send a zero-length map file!");
+            log.error("Tried to send a zero-length map file!");
             return;
         }
 
@@ -284,7 +284,7 @@ public class Proguard {
 
             // use the blocking API call if debug enabled
             if (agentOptions.containsKey(LOGLEVEL_KEY) && agentOptions.get(LOGLEVEL_KEY).equalsIgnoreCase("debug")) {
-                log.debug("[newrelic.debug] Map upload request is synchronous");
+                log.debug("Map upload request is synchronous");
                 connection.setRequestProperty(Network.REQUEST_DEBUG_HEADER, "NRMA");
             }
 
@@ -354,26 +354,26 @@ public class Proguard {
 
                 dos.writeBytes("&buildId=" + buildId);
                 dos.flush();
-                log.debug("[newrelic.debug] sendMapping writing [" + dos.size() + "] bytes" + (compressedUploads ? " (compressed)" : ""));
+                log.debug("sendMapping writing [" + dos.size() + "] bytes" + (compressedUploads ? " (compressed)" : ""));
 
             } finally {
                 outputStrm.close();
             }
 
             final int responseCode = connection.getResponseCode();
-            log.debug("[newrelic.debug] Mapping.txt upload returns [" + responseCode + "]");
+            log.debug("Mapping.txt upload returns [" + responseCode + "]");
 
             switch (responseCode) {
                 case HttpURLConnection.HTTP_OK:
-                    log.info("[newrelic.info] Mapping.txt updated.");
+                    log.info("Mapping.txt updated.");
                     break;
 
                 case HttpURLConnection.HTTP_CREATED:
-                    log.info("[newrelic.info] Successfully sent ProGuard/DexGuard 'mapping.txt' to New Relic.");
+                    log.info("Successfully sent ProGuard/DexGuard 'mapping.txt' to New Relic.");
                     break;
 
                 case HttpURLConnection.HTTP_ACCEPTED:
-                    log.info("[newrelic.info] Successfully sent ProGuard/DexGuard 'mapping.txt' to New Relic for background processing.");
+                    log.info("Successfully sent ProGuard/DexGuard 'mapping.txt' to New Relic for background processing.");
                     break;
 
                 case HttpURLConnection.HTTP_BAD_REQUEST:
@@ -382,13 +382,13 @@ public class Proguard {
                         if (Strings.isNullOrEmpty(response)) {
                             response = connection.getResponseMessage();
                         }
-                        log.error("[newrelic.error] Unable to send ProGuard/DexGuard 'mapping.txt' to New Relic: " + response);
+                        log.error("Unable to send ProGuard/DexGuard 'mapping.txt' to New Relic: " + response);
                         logRecourse();
                     }
                     break;
 
                 case HttpURLConnection.HTTP_CONFLICT:
-                    log.info("[newrelic.info] A ProGuard/DexGuard 'mapping.txt' tagged with build ID [" + buildId + "] has already been stored.");
+                    log.info("A ProGuard/DexGuard 'mapping.txt' tagged with build ID [" + buildId + "] has already been stored.");
                     break;
 
                 default:
@@ -398,17 +398,17 @@ public class Proguard {
                             if (Strings.isNullOrEmpty(response)) {
                                 response = connection.getResponseMessage();
                             }
-                            log.error("[newrelic.error] Unable to send ProGuard/DexGuard 'mapping.txt' to New Relic - received status " + responseCode + ": " + response);
+                            log.error("Unable to send ProGuard/DexGuard 'mapping.txt' to New Relic - received status " + responseCode + ": " + response);
                             logRecourse();
                         }
                     } else {
-                        log.error("[newrelic.error] ProGuard/DexGuard 'mapping.txt' upload return [" + responseCode + "]");
+                        log.error("ProGuard/DexGuard 'mapping.txt' upload return [" + responseCode + "]");
                     }
                     break;
             }
 
         } catch (Exception e) {
-            log.error("[newrelic.error] An error occurred uploading ProGuard/DexGuard 'mapping.txt' to New Relic: " + e.getLocalizedMessage());
+            log.error("An error occurred uploading ProGuard/DexGuard 'mapping.txt' to New Relic: " + e.getLocalizedMessage());
             logRecourse();
 
         } finally {
@@ -419,9 +419,9 @@ public class Proguard {
     }
 
     private void logRecourse() {
-        log.error("[newrelic.error] To de-obfuscate crashes, upload the build's ProGuard/DexGuard 'mapping.txt' manually,");
-        log.error("[newrelic.error] or run the 'newRelicMapUpload<Variant>' or 'newRelicProguardScanTask' Gradle tasks.");
-        log.error("[newrelic.error] For more help, see 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/android-agent-crash-reporting'");
+        log.error("To de-obfuscate crashes, upload the build's ProGuard/DexGuard 'mapping.txt' manually,");
+        log.error("or run the 'newRelicMapUpload<Variant>' or 'newRelicProguardScanTask' Gradle tasks.");
+        log.error("For more help, see 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/android-agent-crash-reporting'");
     }
 
     /**
@@ -450,13 +450,13 @@ public class Proguard {
             try {
                 final String prefix = matcher.group(1);
                 if (prefix == null || "".equals(prefix)) {
-                    log.warn("[newrelic.warn] Region prefix empty");
+                    log.warn("Region prefix empty");
                 } else {
                     return prefix;
                 }
 
             } catch (Exception e) {
-                log.error("[newrelic.error] getRegionalCollectorFromLicenseKey: " + e);
+                log.error("getRegionalCollectorFromLicenseKey: " + e);
             }
         }
 

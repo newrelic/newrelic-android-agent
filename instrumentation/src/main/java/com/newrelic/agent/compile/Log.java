@@ -16,7 +16,7 @@ import org.slf4j.helpers.LegacyAbstractLogger;
 import java.util.Map;
 
 public class Log extends LegacyAbstractLogger {
-    public static Log LOGGER = new SLF4JLogger(InstrumentationAgent.getAgentOptions());
+    public static Logger LOGGER = new SystemErrLog(InstrumentationAgent.getAgentOptions());
 
     protected final Level logLevel;
 
@@ -24,7 +24,6 @@ public class Log extends LegacyAbstractLogger {
         String logLevelOpt = agentOptions.getOrDefault("loglevel", Level.WARN.name());
         logLevel = Level.valueOf(logLevelOpt);
         name = getFullyQualifiedCallerName();
-        LOGGER = this;
     }
 
     protected void log(String level, String message) {
