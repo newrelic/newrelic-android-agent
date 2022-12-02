@@ -8,8 +8,10 @@ package com.newrelic.agent.android
 import com.newrelic.agent.InstrumentationAgent
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 
@@ -57,5 +59,11 @@ abstract class NewRelicConfigTask extends DefaultTask {
         } catch (Exception e) {
             logger.error("Error encountered while configuring the New Relic agent: ", e)
         }
+    }
+
+    @Internal
+    @Override
+    Logger getLogger() {
+        return NewRelicGradlePlugin.LOGGER
     }
 }

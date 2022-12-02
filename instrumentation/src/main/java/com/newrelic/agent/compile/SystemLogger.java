@@ -9,16 +9,16 @@ import org.slf4j.event.Level;
 
 import java.util.Map;
 
-public final class SystemErrLog extends Log {
+public final class SystemLogger extends Logger {
 
-    public SystemErrLog(Map<String, String> agentOptions) {
+    public SystemLogger(Map<String, String> agentOptions) {
         super(agentOptions);
     }
 
     @Override
     protected void log(String level, String message) {
         synchronized (this) {
-            System.out.println("[newrelic **out**] " + message);
+            System.out.println("[" + level + "] [" + TAG + "] " + message);
         }
     }
 
@@ -26,7 +26,7 @@ public final class SystemErrLog extends Log {
     public void warn(String message, Throwable cause) {
         if (isLevelEnabled(Level.WARN)) {
             synchronized (this) {
-                System.err.println("[newrelic **err**] " + message);
+                System.err.println("[WARN] [" + TAG + "] " + message);
                 cause.printStackTrace(System.err);
             }
         }
@@ -36,7 +36,7 @@ public final class SystemErrLog extends Log {
     public void error(String message, Throwable cause) {
         if (isLevelEnabled(Level.ERROR)) {
             synchronized (this) {
-                System.err.println("[newrelic] " + message);
+                System.err.println("[ERROR] [" + TAG + "] " + message);
                 cause.printStackTrace(System.err);
             }
         }

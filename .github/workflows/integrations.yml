@@ -3,6 +3,7 @@ name: Android Integration Workflows
 on:
   release:
     types: [created]
+  pull_request:
 
 jobs:
   integration-tests:

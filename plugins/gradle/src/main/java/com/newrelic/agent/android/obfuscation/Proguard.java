@@ -167,6 +167,7 @@ public class Proguard {
         }
     }
 
+    @SuppressWarnings("deprecation")
     boolean shouldUploadMapFile(File file) throws IOException {
 
         if (file.exists()) {

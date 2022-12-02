@@ -32,7 +32,7 @@ class NewRelicTransform extends Transform {
     private boolean identityTransform = false
 
     NewRelicTransform(final Project project, final NewRelicExtension pluginExtension) {
-        this.logger =  NewRelicGradlePlugin.logger
+        this.logger = NewRelicGradlePlugin.LOGGER
         this.pluginExtension = pluginExtension
         this.objectFactory = project.objects
         this.providers = project.providers
@@ -134,7 +134,6 @@ class NewRelicTransform extends Transform {
 
             logger.debug("Calling class rewriter: ")
 
-            ClassTransformer.log = (Logger) NewRelicGradlePlugin.logger
             ClassTransformer classTransformer
 
             inputs.each { input ->

@@ -22,15 +22,15 @@ public class InstrumentationContextTest {
 
     @Before
     public void setUp() throws Exception {
-        instrumentation = new InstrumentationContext(TestContext.config, Log.LOGGER);
+        instrumentation = new InstrumentationContext(TestContext.config, InstrumentationAgent.LOGGER);
         instrumentation.setClassName(getClass().getSimpleName());
         instrumentation.setSuperClassName(getClass().getSuperclass().getName());
     }
 
     @Test
     public void getLog() {
-        Assert.assertEquals(Log.LOGGER, instrumentation.getLog());
-        Log newLog = new SystemErrLog(InstrumentationAgent.getAgentOptions());
+        Assert.assertEquals(InstrumentationAgent.LOGGER, instrumentation.getLog());
+        Logger newLog = new SystemLogger(InstrumentationAgent.getAgentOptions());
         instrumentation = new InstrumentationContext(TestContext.config, newLog);
         Assert.assertEquals(newLog, instrumentation.getLog());
     }

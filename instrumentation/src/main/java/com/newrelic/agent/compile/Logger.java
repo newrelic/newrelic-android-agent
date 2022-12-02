@@ -5,25 +5,26 @@
 
 package com.newrelic.agent.compile;
 
-import com.newrelic.agent.InstrumentationAgent;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.event.Level;
 import org.slf4j.helpers.LegacyAbstractLogger;
 
 import java.util.Map;
 
-public class Log extends LegacyAbstractLogger {
-    public static Logger LOGGER = new SystemErrLog(InstrumentationAgent.getAgentOptions());
+public abstract class Logger extends LegacyAbstractLogger {
+    final static String TAG = "newrelic";
 
     protected final Level logLevel;
 
-    public Log(Map<String, String> agentOptions) {
+    protected Logger() {
+        logLevel = Level.WARN;
+        name = getFullyQualifiedCallerName();
+    }
+
+    public Logger(Map<String, String> agentOptions) {
+        super();
         String logLevelOpt = agentOptions.getOrDefault("loglevel", Level.WARN.name());
         logLevel = Level.valueOf(logLevelOpt);
-        name = getFullyQualifiedCallerName();
     }
 
     protected void log(String level, String message) {
@@ -94,25 +95,12 @@ public class Log extends LegacyAbstractLogger {
 
     @Override
     protected String getFullyQualifiedCallerName() {
-        return "newrelic";
+        return TAG;
     }
 
     @Override
     protected void handleNormalizedLoggingCall(Level level, Marker marker, String s, Object[] objects, Throwable throwable) {
         log(level.name(), String.format(s, objects));
-    }
-
-    static class SLF4JLogger extends Log {
-        Logger logger = LoggerFactory.getLogger(getFullyQualifiedCallerName());
-
-        public SLF4JLogger(Map<String, String> agentOptions) {
-            super(agentOptions);
-        }
-
-        @Override
-        protected void log(String level, String message) {
-            logger.atLevel(Level.valueOf(level)).log(message);
-        }
     }
 
 }

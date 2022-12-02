@@ -10,14 +10,13 @@ import org.slf4j.event.Level;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
-import java.util.Locale;
 import java.util.Map;
 
-public final class FileLogImpl extends Log {
+public final class FileLogger extends Logger {
 
     private final PrintWriter writer;
 
-    public FileLogImpl(Map<String, String> agentOptions, String logFileName) {
+    public FileLogger(Map<String, String> agentOptions, String logFileName) {
         super(agentOptions);
         try {
             writer = new PrintWriter(new FileOutputStream(logFileName));
@@ -29,7 +28,7 @@ public final class FileLogImpl extends Log {
     @Override
     protected void log(String level, String message) {
         synchronized (this) {
-            writer.write("[newrelic." + level.substring(0, 1).toUpperCase(Locale.ROOT) + "] " + message + "\n");
+            writer.write("[" + level + "] [" + TAG + "] " + message);
             writer.flush();
         }
     }

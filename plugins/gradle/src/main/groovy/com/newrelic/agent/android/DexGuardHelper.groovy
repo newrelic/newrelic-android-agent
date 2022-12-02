@@ -35,7 +35,7 @@ class DexGuardHelper {
      */
     DexGuardHelper(Project project) {
         this.project = project
-        this.logger = NewRelicGradlePlugin.logger
+        this.logger = NewRelicGradlePlugin.LOGGER
         try {
             this.enabled = project.plugins.hasPlugin(PLUGIN_EXTENSION_NAME)
             if (this.enabled) {

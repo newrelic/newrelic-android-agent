@@ -12,6 +12,7 @@ import com.newrelic.agent.util.BuildId
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
@@ -37,6 +38,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
 
     @TaskAction
     def newRelicMapUploadTask() {
+
         try {
             def propertiesFound = false
             def agentOptions = InstrumentationAgent.getAgentOptions()
@@ -68,7 +70,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
                         agentOptions.put(Proguard.VARIANT_KEY, variantName.get())
                         agentOptions.put(BuildId.BUILD_ID_KEY, buildId.get())
 
-                        new Proguard(NewRelicGradlePlugin.logger, agentOptions).findAndSendMapFile()
+                        new Proguard(NewRelicGradlePlugin.LOGGER, agentOptions).findAndSendMapFile()
 
                     } else {
                         logger.error("No build ID for variant [${variantName.get()}]")
@@ -84,6 +86,12 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
         } catch (Exception e) {
             logger.error("NewRelicMapUploadTask: " + e)
         }
+    }
+
+    @Internal
+    @Override
+    Logger getLogger() {
+        return NewRelicGradlePlugin.LOGGER
     }
 
 }

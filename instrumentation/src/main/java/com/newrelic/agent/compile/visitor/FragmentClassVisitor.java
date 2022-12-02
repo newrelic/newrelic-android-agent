@@ -89,7 +89,7 @@ public class FragmentClassVisitor extends ActivityClassAdapter {
 
         } else if (instrument) {
             if (traceMethodMap.containsKey(methodName) && traceMethodMap.get(methodName).equals(desc)) {
-                log.info("[FragmentClassVisitor] Tracing method [" + methodName + "]");
+                log.debug("[FragmentClassVisitor] Tracing method [" + methodName + "]");
                 MethodVisitor methodVisitor = super.visitMethod(access, methodName, desc, signature, exceptions);
                 TraceMethodVisitor traceMethodVisitor = new TraceMethodVisitor(methodVisitor, access, methodName, desc, context);
 

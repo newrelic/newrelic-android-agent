@@ -89,8 +89,11 @@ shadowJar {
     relocate "org.objectweb.asm", "com.newrelic.org.objectweb.asm"
     relocate "org.reflections", "com.newrelic.org.reflections"
     relocate "com.google", "com.newrelic.com.google"
-    // relocate "org.slf4j", "com.newrelic.org.slf4j"
     relocate "org.apache", "com.newrelic.org.apache"
+
+    relocate ("org.slf4j", "com.newrelic.org.slf4j") {
+        exclude "org.slf4j.Logger"
+    }
 
     manifest {
         inheritFrom jar.manifest

@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.compile;
 
+import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.util.BuildId;
 import com.newrelic.agent.util.FileUtils;
 import com.newrelic.agent.util.Streams;
@@ -38,9 +39,8 @@ public final class ClassTransformer {
     private static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
     private static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
 
-    public static Logger log = Log.LOGGER;
-
     private final List<File> classes;
+    private final Logger log;
     private File inputFile;
     private File outputFile;
     private ClassData classData;
@@ -64,6 +64,7 @@ public final class ClassTransformer {
 
     public ClassTransformer() {
         this.classes = new ArrayList<>();
+        this.log = InstrumentationAgent.LOGGER;
         this.inputFile = new File(".");
         this.outputFile = new File(".");
         this.classData = null;
@@ -93,7 +94,7 @@ public final class ClassTransformer {
     protected void doTransform() {
         long tStart = System.currentTimeMillis();
 
-        log.info("[ClassTransformer] Using build ID[" + BuildId.getBuildId(invocationDispatcher.getInstrumentationContext().getVariantName()) + "]");
+            log.info("[ClassTransformer] Using build ID[" + BuildId.getBuildId(invocationDispatcher.getInstrumentationContext().getVariantName()) + "]");
 
         for (File classFile : classes) {
             inputFile = FileUtils.isClass(classFile) ? classFile.getParentFile() : classFile;
@@ -168,7 +169,7 @@ public final class ClassTransformer {
         } else {
             if ((classBytes.length != transformedClassBytes.length) &&
                     (classData != null && classData.isModified())) {
-                log.info("[ClassTransformer] Rewrote class[" + classFile.getPath() + "] bytes[" +
+                log.debug("[ClassTransformer] Rewrote class[" + classFile.getPath() + "] bytes[" +
                         classBytes.length + "] rewritten[" + transformedClassBytes.length + "]");
             }
             processedClassBytesStream = new ByteArrayInputStream(transformedClassBytes);

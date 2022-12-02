@@ -6,7 +6,7 @@
 package com.newrelic.agent.util;
 
 import com.google.common.base.Strings;
-import com.newrelic.agent.compile.Log;
+import com.newrelic.agent.InstrumentationAgent;
 
 import org.slf4j.Logger;
 
@@ -20,7 +20,7 @@ public class BuildId {
     public static final String DEFAULT_VARIANT = "release";
 
     private static AtomicReference<Map<String, String>> variantBuildIds = new AtomicReference<>(null);
-    private static Logger log = Log.LOGGER;
+    private static Logger log = InstrumentationAgent.LOGGER;
     private static boolean variantMapsEnabled = true;
 
     static {
@@ -101,7 +101,7 @@ public class BuildId {
      */
     public static void setVariantMapsEnabled(boolean variantMapsEnabled) {
         BuildId.variantMapsEnabled = variantMapsEnabled;
-        log.info("Variant buildIds have been " + (BuildId.variantMapsEnabled ? "enabled" : "disabled"));
+        log.debug("Variant buildIds have been " + (BuildId.variantMapsEnabled ? "enabled" : "disabled"));
     }
 
 }

@@ -63,7 +63,7 @@ class BuildHelper {
     static final AtomicReference<BuildHelper> instance = new AtomicReference<BuildHelper>(null)
 
     BuildHelper(Project project) {
-        this.logger = NewRelicGradlePlugin.logger
+        this.logger = NewRelicGradlePlugin.LOGGER
         this.providers = project.providers
         this.extensions = project.extensions
         this.layout = project.layout
