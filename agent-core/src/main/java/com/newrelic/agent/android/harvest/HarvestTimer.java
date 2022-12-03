@@ -105,12 +105,12 @@ public class HarvestTimer implements Runnable {
 
     public void start() {
         if (ApplicationStateMonitor.isAppInBackground()) {
-            log.warning("HarvestTimer: Attempting to start while app is in background");
+            log.warn("HarvestTimer: Attempting to start while app is in background");
             return;
         }
 
         if (isRunning()) {
-            log.warning("HarvestTimer: Attempting to start while already running");
+            log.warn("HarvestTimer: Attempting to start while already running");
             return;
         }
 
@@ -131,7 +131,7 @@ public class HarvestTimer implements Runnable {
 
     public void stop() {
         if (!isRunning()) {
-            log.warning("HarvestTimer: Attempting to stop when not running");
+            log.warn("HarvestTimer: Attempting to stop when not running");
             return;
         }
         cancelPendingTasks();

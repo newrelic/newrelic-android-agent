@@ -8,45 +8,52 @@ package com.newrelic.agent.android.logging;
 import android.util.Log;
 
 public class AndroidAgentLog implements AgentLog {
-	private static final String TAG = "com.newrelic.android";
+	private static final String TAG = "newrelic";
 
     // Default to INFO
     private int level = INFO;
 
     @Override
     public void audit(String message) {
-        if (level == AUDIT)
+        if (level == AUDIT) {
             Log.d(TAG, message);
+        }
     }
 
     public void debug(final String message) {
-        if (level >= DEBUG)
+        if (level >= DEBUG) {
             Log.d(TAG, message);
+        }
 	}
 
     public void verbose(final String message) {
-        if (level >= VERBOSE)
+        if (level >= VERBOSE) {
             Log.v(TAG, message);
+        }
     }
 
 	public void info(final String message) {
-        if (level >= INFO)
+        if (level >= INFO) {
             Log.i(TAG, message);
+        }
 	}
 
-    public void warning(final String message) {
-        if (level >= WARNING)
+    public void warn(final String message) {
+        if (level >= WARN) {
             Log.w(TAG, message);
+        }
     }
 
-	public void error(final String message) {
-        if (level >= ERROR)
+    public void error(final String message) {
+        if (level >= ERROR) {
             Log.e(TAG, message);
+        }
 	}
 	
 	public void error(final String message, Throwable cause) {
-        if (level >= ERROR)
+        if (level >= ERROR) {
             Log.e(TAG, message, cause);
+        }
     }
 
     public int getLevel() {

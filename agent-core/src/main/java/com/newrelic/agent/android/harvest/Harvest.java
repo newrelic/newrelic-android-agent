@@ -173,7 +173,7 @@ public class Harvest {
         instance.getHarvester().expireActivityTraces();
 
         if (DISABLE_ACTIVITY_TRACE_LIMITS_FOR_DEBUGGING) {
-            log.warning("WARNING: Activity trace limits are being ignored!");
+            log.warn("WARNING: Activity trace limits are being ignored!");
         } else {
             if (activityTraces.count() >= configurations.getMaxTotalTraceCount()) {
                 log.debug("Activity trace limit of " + configurations.getMaxTotalTraceCount() + " exceeded. Ignoring trace: " + activityTrace.toJsonString());

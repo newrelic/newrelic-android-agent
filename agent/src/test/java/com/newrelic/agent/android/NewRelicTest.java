@@ -169,7 +169,7 @@ public class NewRelicTest {
         Assert.assertEquals("Should set app token", APP_TOKEN, agentConfiguration.getApplicationToken());
         Assert.assertEquals("Should set crash collector address", APP_URL, agentConfiguration.getCrashCollectorHost());
         Assert.assertEquals("Should set crash collector address", APP_URL, agentConfiguration.getCrashCollectorHost());
-        Assert.assertEquals("Should set verbose agent logging", AgentLog.DEBUG, instance.logLevel);
+        Assert.assertEquals("Should set debug agent logging", AgentLog.DEBUG, instance.logLevel);
         Assert.assertEquals("Should set app version", agentConfiguration.getCustomApplicationVersion(), APP_VERSION);
         Assert.assertEquals("Should set app build", agentConfiguration.getCustomBuildIdentifier(), APP_BUILD);
     }
@@ -200,8 +200,8 @@ public class NewRelicTest {
 
     @Test
     public void testWithLogLevel() {
-        nrInstance.withLogLevel(AgentLog.VERBOSE);
-        Assert.assertEquals("Should set verbose agent logging", AgentLog.VERBOSE, nrInstance.logLevel);
+        nrInstance.withLogLevel(AgentLog.AUDIT);
+        Assert.assertEquals("Should set audit-level agent logging", AgentLog.AUDIT, nrInstance.logLevel);
     }
 
     @Test

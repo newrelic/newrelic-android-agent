@@ -102,7 +102,7 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
 
         // Only initialize once.
         if (!initialized.compareAndSet(false, true)) {
-            log.warning("AnalyticsControllerImpl.initialize(): Has already been initialized. Bypassing..");
+            log.warn("AnalyticsControllerImpl.initialize(): Has already been initialized. Bypassing..");
             return;
         }
 
@@ -460,12 +460,12 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
                 attribute.getStringValue() + (persistent ? " (persistent)" : " (transient)"));
 
         if (!initialized.get()) {
-            log.warning("Analytics controller is not initialized!");
+            log.warn("Analytics controller is not initialized!");
             return false;
         }
 
         if (!isEnabled.get()) {
-            log.warning("Analytics controller is not enabled!");
+            log.warn("Analytics controller is not enabled!");
             return false;
         }
 
@@ -562,7 +562,7 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
             } else {
                 // The attribute is defined, and is currently a String.  Log a warning and return
                 // false to indicate the operation cannot be performed.
-                log.warning("Cannot increment attribute " + name + ": the attribute is already defined as a non-float value.");
+                log.warn("Cannot increment attribute " + name + ": the attribute is already defined as a non-float value.");
                 return false;
             }
         }
@@ -953,12 +953,12 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
 
     private boolean isInitializedAndEnabled() {
         if (!initialized.get()) {
-            log.warning("Analytics controller is not initialized!");
+            log.warn("Analytics controller is not initialized!");
             return false;
         }
 
         if (!isEnabled.get()) {
-            log.warning("Analytics controller is not enabled!");
+            log.warn("Analytics controller is not enabled!");
             return false;
         }
 
@@ -987,7 +987,7 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
 
         } else {
             // The user-defined attribute limit has been reached
-            log.warning("Attribute limit exceeded: " + MAX_ATTRIBUTES + " are allowed.");
+            log.warn("Attribute limit exceeded: " + MAX_ATTRIBUTES + " are allowed.");
             if (log.getLevel() >= AgentLog.AUDIT) {
                 log.audit("Currently defined attributes:");
                 for (AnalyticsAttribute attr : userAttributes) {

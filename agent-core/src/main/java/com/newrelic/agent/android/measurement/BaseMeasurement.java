@@ -164,7 +164,7 @@ public class BaseMeasurement implements Measurement {
 
     private boolean logIfFinished() {
         if (finished) {
-            log.warning("BaseMeasuredActivity: cannot modify finished Activity");
+            log.warn("BaseMeasuredActivity: cannot modify finished Activity");
         }
         return finished;
     }

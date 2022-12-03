@@ -60,7 +60,7 @@ test {
 }
 
 task stampAgentClass(type: Copy) {
-    logger.quiet "[newrelic] [agent-core] Version[${version}]"
+    logger.lifecycle "[newrelic] [agent-core] Version[${version}]"
 
     def buildId = ""
     from("src/main/java/com/newrelic/agent/android/Agent.java") {

@@ -42,7 +42,7 @@ public final class Connectivity {
         } else if (isBluetooth(networkInfo)) {
             return CarrierType.BLUETOOTH;
         } else {
-            log.warning(MessageFormat.format("Unknown network type: {0} [{1}]", networkInfo.getTypeName(), networkInfo.getType()));
+            log.warn(MessageFormat.format("Unknown network type: {0} [{1}]", networkInfo.getTypeName(), networkInfo.getType()));
             return CarrierType.UNKNOWN;
         }
     }
@@ -121,7 +121,7 @@ public final class Connectivity {
         try {
             return connectivityManager.getActiveNetworkInfo();
         } catch (SecurityException e) {
-            log.warning("Cannot determine network state. Enable android.permission.ACCESS_NETWORK_STATE in your manifest.");
+            log.warn("Cannot determine network state. Enable android.permission.ACCESS_NETWORK_STATE in your manifest.");
             throw e;
         }
     }

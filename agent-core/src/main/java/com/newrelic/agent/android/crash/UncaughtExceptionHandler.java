@@ -44,9 +44,9 @@ public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler
 
             if (previousExceptionHandler != null) {
                 if (previousExceptionHandler instanceof UncaughtExceptionHandler) {
-                    log.warning("Previous uncaught exception handler[" + previousExceptionHandler.getClass().getName() + "] exists, and it is us! Replace it.");
+                    log.warn("Previous uncaught exception handler[" + previousExceptionHandler.getClass().getName() + "] exists, and it is us! Replace it.");
                 } else {
-                    log.warning("Previous uncaught exception handler[" + previousExceptionHandler.getClass().getName() + "] exists. Assuming it delegates to [" + UncaughtExceptionHandler.class.getName() + "]");
+                    log.warn("Previous uncaught exception handler[" + previousExceptionHandler.getClass().getName() + "] exists. Assuming it delegates to [" + UncaughtExceptionHandler.class.getName() + "]");
                     return;
                 }
             }
@@ -142,7 +142,7 @@ public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler
                     Thread.setDefaultUncaughtExceptionHandler(previousExceptionHandler);
                     previousExceptionHandler = null;
                 } else {
-                    log.warning("Previous uncaught exception handler[" + currentExceptionHandler.getClass().getName() + "] was set after agent start. Let it be...");
+                    log.warn("Previous uncaught exception handler[" + currentExceptionHandler.getClass().getName() + "] was set after agent start. Let it be...");
                 }
             }
         }

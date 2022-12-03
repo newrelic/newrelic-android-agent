@@ -9,15 +9,10 @@ import static com.newrelic.agent.android.instrumentation.TransactionStateUtil.se
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.Measurements;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceHeader;
-import com.newrelic.agent.android.instrumentation.httpclient.ContentBufferingResponseEntityImpl;
-import com.newrelic.agent.android.instrumentation.httpclient.HttpRequestEntityImpl;
-import com.newrelic.agent.android.instrumentation.httpclient.HttpResponseEntityImpl;
-import com.newrelic.agent.android.instrumentation.httpclient.ResponseHandlerImpl;
 import com.newrelic.agent.android.instrumentation.io.CountingInputStream;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -255,7 +250,7 @@ public final class ApacheInstrumentation {
     }
 
     private static <T> ResponseHandler<? extends T> delegate(final ResponseHandler<? extends T> handler, TransactionState transactionState) {
-        return ResponseHandlerImpl.wrap(handler, transactionState);
+        return com.newrelic.agent.android.instrumentation.httpclient.ResponseHandlerImpl.wrap(handler, transactionState);
     }
 
     private static void setCrossProcessHeader(final HttpRequest request) {
@@ -368,7 +363,7 @@ public final class ApacheInstrumentation {
         if (request instanceof HttpEntityEnclosingRequest) {
             final HttpEntityEnclosingRequest entityEnclosingRequest = (HttpEntityEnclosingRequest) request;
             if (entityEnclosingRequest.getEntity() != null) {
-                entityEnclosingRequest.setEntity(new HttpRequestEntityImpl(entityEnclosingRequest.getEntity(), transactionState));
+                entityEnclosingRequest.setEntity(new com.newrelic.agent.android.instrumentation.httpclient.HttpRequestEntityImpl(entityEnclosingRequest.getEntity(), transactionState));
             }
         }
     }
@@ -390,10 +385,10 @@ public final class ApacheInstrumentation {
 
                 addTransactionAndErrorData(transactionState, response);
             } catch (NumberFormatException e) {
-                log.warning("Failed to parse content length: " + e);
+                log.warn("Failed to parse content length: " + e);
             }
         } else if (response.getEntity() != null) {
-            response.setEntity(new HttpResponseEntityImpl(response.getEntity(), transactionState, contentLengthFromHeader));
+            response.setEntity(new com.newrelic.agent.android.instrumentation.httpclient.HttpResponseEntityImpl(response.getEntity(), transactionState, contentLengthFromHeader));
         } else {
             //
             // No content-length header and no HttpEntity? Not much else we can do for 'em.
@@ -427,9 +422,9 @@ public final class ApacheInstrumentation {
 
                 try {
                     if (response.getEntity() != null) {
-                        if (!(response.getEntity() instanceof HttpRequestEntityImpl)) {
+                        if (!(response.getEntity() instanceof com.newrelic.agent.android.instrumentation.httpclient.HttpRequestEntityImpl)) {
                             // We need to wrap the entity in order to get to the response body stream.
-                            response.setEntity(new ContentBufferingResponseEntityImpl(response.getEntity()));
+                            response.setEntity(new com.newrelic.agent.android.instrumentation.httpclient.ContentBufferingResponseEntityImpl(response.getEntity()));
                         }
                         final InputStream content = response.getEntity().getContent();
                         if (content instanceof CountingInputStream) {

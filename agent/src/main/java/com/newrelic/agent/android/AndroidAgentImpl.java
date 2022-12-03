@@ -55,7 +55,6 @@ import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
 import com.newrelic.agent.android.tracing.TraceMachine;
-import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
 import com.newrelic.agent.android.util.Connectivity;
 import com.newrelic.agent.android.util.Encoder;
@@ -308,10 +307,10 @@ public class AndroidAgentImpl implements
                 appName = packageName;
             }
         } catch (PackageManager.NameNotFoundException e) {
-            log.warning(e.toString());
+            log.warn(e.toString());
             appName = packageName;
         } catch (SecurityException e) {
-            log.warning(e.toString());
+            log.warn(e.toString());
             appName = packageName;
         }
         log.debug("Using application name " + appName);
@@ -323,7 +322,7 @@ public class AndroidAgentImpl implements
                 build = String.valueOf(packageInfo.versionCode);
             } else {
                 build = "";
-                log.warning("Your app doesn't appear to have a version code defined. Ensure you have defined 'versionCode' in your manifest.");
+                log.warn("Your app doesn't appear to have a version code defined. Ensure you have defined 'versionCode' in your manifest.");
             }
         }
         log.debug("Using build " + build);
@@ -490,10 +489,10 @@ public class AndroidAgentImpl implements
             if (harvestData != null && harvestData.isValid()) {
                 Collection<AnalyticsEvent> events = harvestData.getAnalyticsEvents();
                 if (!events.isEmpty()) {
-                    log.warning("Agent stopped with " + events.size() + " events dropped from failed harvest.");
+                    log.warn("Agent stopped with " + events.size() + " events dropped from failed harvest.");
                 }
                 if (0 < eventManager.size()) {
-                    log.warning("Agent stopped with " + eventManager.size() + " events left in event pool.");
+                    log.warn("Agent stopped with " + eventManager.size() + " events left in event pool.");
                 }
             }
         }
@@ -515,7 +514,7 @@ public class AndroidAgentImpl implements
 
     @Override
     public void disable() {
-        log.warning("PERMANENTLY DISABLING AGENT v" + Agent.getVersion());
+        log.warn("PERMANENTLY DISABLING AGENT v" + Agent.getVersion());
         try {
             savedState.saveDisabledVersion(Agent.getVersion());
         } finally {

@@ -161,7 +161,7 @@ public class MeasurementEngine {
         try {
              future = worker.submit(runnable);
         } catch (Exception e) {
-            log.warning("MeasurementEngine background worker: " + e);
+            log.warn("MeasurementEngine background worker: " + e);
         }
         return future;
     }

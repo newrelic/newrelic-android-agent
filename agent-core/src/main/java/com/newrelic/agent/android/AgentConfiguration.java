@@ -261,7 +261,7 @@ public class AgentConfiguration {
             try {
                 final String prefix = matcher.group(1);
                 if (prefix == null || "".equals(prefix)) {
-                    log.warning("Region prefix empty");
+                    log.warn("Region prefix empty");
                 } else {
                     return prefix;
                 }

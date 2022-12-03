@@ -156,7 +156,7 @@ public class AnalyticsValidator {
                 if (isValidAttribute(attr)) {
                     filteredAttributes.add(attr);
                 } else {
-                    log.warning(String.format("Attribute " + key + "] ignored: value is null, empty or exceeds the maximum name length"));
+                    log.warn(String.format("Attribute " + key + "] ignored: value is null, empty or exceeds the maximum name length"));
                 }
             }
 
@@ -176,7 +176,7 @@ public class AnalyticsValidator {
                 if (isValidAttribute(attribute)) {
                     filteredAttributes.add(new AnalyticsAttribute(attribute));
                 } else {
-                    log.warning(String.format("Attribute " + attribute.getName() + "] ignored: value is null, empty or exceeds the maximum name length"));
+                    log.warn(String.format("Attribute " + attribute.getName() + "] ignored: value is null, empty or exceeds the maximum name length"));
                 }
             }
 

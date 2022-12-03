@@ -23,7 +23,7 @@ public class NetworkRequestErrorEvent extends AnalyticsEvent {
             String responseBody = httpTransaction.getResponseBody();
             if (!(responseBody == null || responseBody.isEmpty())) {
                 if (responseBody.length() > AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH) {
-                    log.warning("NetworkRequestErrorEvent: truncating response body to " + AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH + " bytes");
+                    log.warn("NetworkRequestErrorEvent: truncating response body to " + AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH + " bytes");
                     responseBody = responseBody.substring(0, AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
                 }
                 String encodedResponseBody = Agent.getEncoder().encodeNoWrap(responseBody.getBytes());

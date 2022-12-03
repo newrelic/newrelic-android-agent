@@ -84,7 +84,7 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                     jitCrashReporting = agentConfiguration.getReportCrashes();
                 }
             } else {
-                log.warning("CrashReporter: Crash reporting feature is disabled.");
+                log.warn("CrashReporter: Crash reporting feature is disabled.");
             }
         } else {
             log.error("CrashReporter: Must initialize PayloadController first.");
@@ -145,16 +145,16 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                     };
 
                     if (!sender.shouldUploadOpportunistically()) {
-                        log.warning("CrashReporter: network is unreachable. Crash will be uploaded on next app launch");
+                        log.warn("CrashReporter: network is unreachable. Crash will be uploaded on next app launch");
                     }
 
                     return PayloadController.submitPayload(sender, completionHandler);
                 } else {
-                    log.warning("CrashReporter: attempted to report null crash.");
+                    log.warn("CrashReporter: attempted to report null crash.");
                 }
 
             } else {
-                log.warning("CrashReporter: agent has not successfully connected and cannot report crashes.");
+                log.warn("CrashReporter: agent has not successfully connected and cannot report crashes.");
             }
         }
 
@@ -169,13 +169,13 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
             if (crash != null) {
                 stored = crashStore.store(crash);
                 if (!stored) {
-                    log.warning("CrashReporter: failed to store passed crash.");
+                    log.warn("CrashReporter: failed to store passed crash.");
                 }
             } else {
-                log.warning("CrashReporter: attempted to store null crash.");
+                log.warn("CrashReporter: attempted to store null crash.");
             }
         } else {
-            log.warning("CrashReporter: attempted to store crash without a crash store.");
+            log.warn("CrashReporter: attempted to store crash without a crash store.");
         }
 
         try {
@@ -188,7 +188,7 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                 log.error("CrashReporter: Crash was dropped (Crash not stored and Just-in-time crash reporting is disabled).");
             }
         } catch (Exception e) {
-            log.warning("CrashReporter.storeAndReportCrash(Crash): " + e);
+            log.warn("CrashReporter.storeAndReportCrash(Crash): " + e);
         }
     }
 

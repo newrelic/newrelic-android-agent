@@ -41,7 +41,7 @@ public class AgentHealth extends HarvestableArray {
 
             if (statsEngine != null) {
                 if( key == null ) {
-                    log.warning("Passed metric key is null. Defaulting to " + DEFAULT_KEY);
+                    log.warn("Passed metric key is null. Defaulting to " + DEFAULT_KEY);
                 }
 
                 statsEngine.inc(MessageFormat.format("Supportability/AgentHealth/{0}/{1}/{2}/{3}",
