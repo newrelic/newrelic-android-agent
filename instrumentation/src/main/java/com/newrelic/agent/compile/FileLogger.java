@@ -14,6 +14,7 @@ import java.util.Map;
 
 public final class FileLogger extends Logger {
 
+    final static String newLn = System.getProperty("line.separator", "\r\n");
     private final PrintWriter writer;
 
     public FileLogger(Map<String, String> agentOptions, String logFileName) {
@@ -28,7 +29,7 @@ public final class FileLogger extends Logger {
     @Override
     protected void log(String level, String message) {
         synchronized (this) {
-            writer.write("[" + level + "] [" + TAG + "] " + message);
+            writer.write("[" + level + "] [" + Log.TAG + "] " + message + newLn);
             writer.flush();
         }
     }

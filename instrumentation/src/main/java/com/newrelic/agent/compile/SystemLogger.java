@@ -18,7 +18,7 @@ public final class SystemLogger extends Logger {
     @Override
     protected void log(String level, String message) {
         synchronized (this) {
-            System.out.println("[" + level + "] [" + TAG + "] " + message);
+            System.out.println("[" + level + "] [" + Log.TAG + "] " + message);
         }
     }
 
@@ -26,7 +26,7 @@ public final class SystemLogger extends Logger {
     public void warn(String message, Throwable cause) {
         if (isLevelEnabled(Level.WARN)) {
             synchronized (this) {
-                System.err.println("[WARN] [" + TAG + "] " + message);
+                System.err.println("[WARN] [" + Log.TAG + "] " + message);
                 cause.printStackTrace(System.err);
             }
         }
@@ -36,7 +36,7 @@ public final class SystemLogger extends Logger {
     public void error(String message, Throwable cause) {
         if (isLevelEnabled(Level.ERROR)) {
             synchronized (this) {
-                System.err.println("[ERROR] [" + TAG + "] " + message);
+                System.err.println("[ERROR] [" + Log.TAG + "] " + message);
                 cause.printStackTrace(System.err);
             }
         }

@@ -12,8 +12,6 @@ import org.slf4j.helpers.LegacyAbstractLogger;
 import java.util.Map;
 
 public abstract class Logger extends LegacyAbstractLogger {
-    final static String TAG = "newrelic";
-
     protected final Level logLevel;
 
     protected Logger() {
@@ -95,7 +93,7 @@ public abstract class Logger extends LegacyAbstractLogger {
 
     @Override
     protected String getFullyQualifiedCallerName() {
-        return TAG;
+        return Log.TAG;
     }
 
     @Override
