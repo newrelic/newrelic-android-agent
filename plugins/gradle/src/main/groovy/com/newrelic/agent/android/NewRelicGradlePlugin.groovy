@@ -83,7 +83,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
                 project.afterEvaluate {
 
-                    LOGGER.debug("Android Gradle plugin version: " + buildHelper.agpVersion)
+                    LOGGER.debug("Android Gradle plugin version: " + buildHelper.agpVersion.version)
                     LOGGER.debug("Gradle version: " + buildHelper.currentGradleVersion.version)
                     LOGGER.debug("Java version: " + buildHelper.getSystemPropertyProvider('java.version').get())
 
