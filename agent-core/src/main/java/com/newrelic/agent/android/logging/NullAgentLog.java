@@ -6,33 +6,32 @@
 package com.newrelic.agent.android.logging;
 
 public class NullAgentLog implements AgentLog {
-	@Override
-	public void audit(String message) {
+    @Override
+    public void audit(String message) {
+    }
 
-	}
+    @Override
+    public void debug(String message) {
+    }
 
-	@Override
-	public void debug(String message) {
-	}
+    @Override
+    public void info(String message) {
+    }
 
-	@Override
-	public void info(String message) {
-	}
-
-	@Override
+    @Override
 	public void verbose(String message) {
-	}
+    }
 
-	@Override
-	public void error(String message) {
-	}
-	
-	@Override
-	public void error(String message, Throwable cause) {
-	}
+    @Override
+    public void error(String message) {
+    }
 
-	@Override
-	public void warning(String message) {
+    @Override
+    public void error(String message, Throwable cause) {
+    }
+
+    @Override
+	public void warn(String message) {
 	}
 
     @Override

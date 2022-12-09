@@ -10,46 +10,52 @@ public class ConsoleAgentLog implements AgentLog {
 
     @Override
     public void audit(String message) {
-        if (level == AUDIT)
+        if (level == AUDIT) {
             print("AUDIT", message);
+        }
     }
 
     @Override
     public void debug(String message) {
-        if (level >= DEBUG)
+        if (level >= DEBUG) {
             print("DEBUG", message);
+        }
     }
 
     @Override
     public void verbose(String message) {
-        if (level >= VERBOSE)
+        if (level >= VERBOSE) {
             print("VERBOSE", message);
+        }
     }
 
     @Override
     public void info(String message) {
-        if (level >= INFO)
+        if (level >= INFO) {
             print("INFO", message);
+        }
     }
 
     @Override
-    public void warning(String message) {
-        if (level >= WARNING)
+    public void warn(String message) {
+        if (level >= WARN) {
             print("WARN", message);
+        }
     }
 
     @Override
     public void error(String message, Throwable cause) {
-        if (level >= ERROR)
+        if (level >= ERROR) {
             print("ERROR", message + " " + cause.getMessage());
+        }
     }
 
     @Override
     public void error(String message) {
-        if (level >= ERROR)
+        if (level >= ERROR) {
             print("ERROR", message);
+        }
     }
-
 
     @Override
     public int getLevel() {
@@ -62,6 +68,6 @@ public class ConsoleAgentLog implements AgentLog {
     }
 
     private static void print(String tag, String message) {
-        System.out.println("[" + tag + "] " + message);
+        System.out.println("[" + tag + "][newrelic] " + message);
     }
 }

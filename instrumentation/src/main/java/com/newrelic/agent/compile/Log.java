@@ -5,82 +5,48 @@
 
 package com.newrelic.agent.compile;
 
-// import com.newrelic.agent.android.logging.AgentLog;
-
-import java.util.HashMap;
 import java.util.Map;
 
-public abstract class Log { // implements AgentLog {
-    public enum LogLevel {
-        DEBUG(5),
-        VERBOSE(4),
+public class Log {
+    final static String TAG = "newrelic";
+
+    public enum Level {
+        TRACE(5),
+        DEBUG(4),
         INFO(3),
         WARN(2),
-        ERROR(1);
+        ERROR(1),
+        OFF(0);
+        final int value;
 
-        private final int value;
-
-        LogLevel(final int newValue) {
+        Level(final int newValue) {
             value = newValue;
         }
-
-        public int getValue() {
-            return value;
-        }
     }
 
-    public static Log LOGGER = new Log(new HashMap<String, String>()) {
-    };
-
-    protected final int logLevel;
+    final Level logLevel;
+    final String name;
 
     public Log(Map<String, String> agentOptions) {
-        String logLevelOpt = agentOptions.get("loglevel");
-        if (logLevelOpt != null) {
-            this.logLevel = LogLevel.valueOf(logLevelOpt).getValue();
-        } else {
-            logLevel = LogLevel.WARN.getValue();
-        }
-
-        LOGGER = this;
+        String logLevelOpt = agentOptions.getOrDefault("loglevel", Level.WARN.name());
+        logLevel = Level.valueOf(logLevelOpt);
+        name = TAG;
     }
 
-    public void info(String message) {
-        if (logLevel >= LogLevel.INFO.getValue()) {
-            log("info", message);
-        }
+    protected void log(String level, String message) {
+        // no-op
     }
 
-    public void debug(String message) {
-        if (logLevel >= LogLevel.DEBUG.getValue()) {
+    protected void log(Level level, String message) {
+        if (isLevelEnabled(level)) {
             synchronized (this) {
-                log("debug", message);
+                log(level.name(), message);
             }
         }
     }
 
-    public void warning(String message) {
-        if (logLevel >= LogLevel.WARN.getValue()) {
-            log("warn", message);
-        }
-    }
-
-    public void error(String message) {
-        if (logLevel >= LogLevel.ERROR.getValue()) {
-            log("error", message);
-        }
-    }
-
-    protected void log(String level, String message) {
-        // log nothing
-    }
-
-    public void warning(String message, Throwable cause) {
-        // log nothing
-    }
-
-    public void error(String message, Throwable cause) {
-        // log nothing
+    boolean isLevelEnabled(Level level) {
+        return logLevel.value >= level.value;
     }
 
 }

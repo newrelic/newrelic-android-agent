@@ -51,7 +51,7 @@ android {
 
     libraryVariants.all { variant ->
         // The artifact is now a fat jar
-        logger.quiet("[FAT-JAR] Variant[${variant.name}]")
+        logger.info("[FAT-JAR] Variant[${variant.name}]")
         variant.ext.fatJarTask = toFatJarTask(variant)
         artifacts {
             archives variant.ext.fatJarTask
@@ -123,8 +123,8 @@ def toFatJarTask(def variant) {
             def agentCoreJarPath = agentCoreJarPath()
             def compileTask = variant.getJavaCompileProvider().get()
 
-            logger.quiet "[newrelic] [agent] Agent core dependency: ${agentCoreJarPath}"
-            logger.quiet "[newrelic] [agent] Agent fat jar: ${fatjarOutputFile}"
+            logger.lifecycle "[newrelic] [agent] Agent fat jar: ${fatjarOutputFile}"
+            logger.info "[newrelic] [agent] Agent core dependency: ${agentCoreJarPath}"
 
             ant {
                 taskdef name: 'jarjar', classname: 'com.tonicsystems.jarjar.JarJarTask', classpath: "${projectDir}/jarjar-1.4.jar"

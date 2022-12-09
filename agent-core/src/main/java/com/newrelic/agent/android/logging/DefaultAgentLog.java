@@ -35,19 +35,19 @@ public class DefaultAgentLog implements AgentLog {
 		}
 	}
 
-	@Override
-	public void verbose(String message) {
-		synchronized (this) {
-			impl.verbose(message);
-		}
-	}
-
     @Override
-    public void warning(String message) {
+	public void verbose(String message) {
         synchronized (this) {
-            impl.warning(message);
+			impl.verbose(message);
         }
     }
+
+	@Override
+    public void warn(String message) {
+		synchronized (this) {
+            impl.warn(message);
+		}
+	}
 
 	@Override
 	public void error(String message) {

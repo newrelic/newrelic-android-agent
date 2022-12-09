@@ -35,7 +35,7 @@ class PluginIntegrationSpec extends Specification {
     BuildResult buildResult
 
     @Shared
-    boolean debuggable = true
+    boolean debuggable = false
 
     @Shared
     def testTask = 'assembleRelease'

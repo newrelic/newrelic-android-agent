@@ -87,7 +87,7 @@ public class EventManagerImpl implements EventManager, EventListener {
     public void empty() {
         Collection<AnalyticsEvent> droppedEvents = getQueuedEventsSnapshot();
         if (droppedEvents.size() > 0) {
-            log.warning("EventManager.empty(): dropped [" + droppedEvents.size() + "] events");
+            log.warn("EventManager.empty(): dropped [" + droppedEvents.size() + "] events");
         }
         droppedEvents.clear();
         firstEventTimestamp = 0;
@@ -127,7 +127,7 @@ public class EventManagerImpl implements EventManager, EventListener {
         }
 
         if (!listener.get().onEventAdded(event)) {
-            log.warning("Listener dropped new event[" + event.getName() + "]");
+            log.warn("Listener dropped new event[" + event.getName() + "]");
             eventsDropped.incrementAndGet();
             return false;
         }
@@ -147,7 +147,7 @@ public class EventManagerImpl implements EventManager, EventListener {
             if (snapshotSize >= maxEventPoolSize) {
                 try {
                     if (listener.get().onEventOverflow(event)) {
-                        log.warning("Listener dropped overflow event[" + event.getName() + "]");
+                        log.warn("Listener dropped overflow event[" + event.getName() + "]");
                         eventsDropped.incrementAndGet();
                         return false;
                     }
@@ -233,7 +233,7 @@ public class EventManagerImpl implements EventManager, EventListener {
         }
 
         if (maxSize > DEFAULT_MAX_EVENT_BUFFER_SIZE) {
-            log.warning("Event queue should not be larger than " + DEFAULT_MAX_EVENT_BUFFER_SIZE);
+            log.warn("Event queue should not be larger than " + DEFAULT_MAX_EVENT_BUFFER_SIZE);
         }
 
         this.maxEventPoolSize = maxSize;
@@ -247,7 +247,7 @@ public class EventManagerImpl implements EventManager, EventListener {
         }
 
         if (maxBufferTimeInSec > DEFAULT_MAX_EVENT_BUFFER_TIME) {
-            log.warning("Event buffer time should not be longer than " + DEFAULT_MAX_EVENT_BUFFER_TIME + " seconds");
+            log.warn("Event buffer time should not be longer than " + DEFAULT_MAX_EVENT_BUFFER_TIME + " seconds");
             maxBufferTimeInSec = DEFAULT_MAX_EVENT_BUFFER_TIME;
         }
 
@@ -326,7 +326,7 @@ public class EventManagerImpl implements EventManager, EventListener {
      */
     @Override
     public boolean onEventOverflow(AnalyticsEvent event) {
-        log.warning("Event queue overflow adding event [" + event.getName() + "]");
+        log.warn("Event queue overflow adding event [" + event.getName() + "]");
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_EVENT_OVERFLOW);
         transmitRequired.set(true);
         return false;
@@ -341,7 +341,7 @@ public class EventManagerImpl implements EventManager, EventListener {
      */
     @Override
     public boolean onEventEvicted(AnalyticsEvent event) {
-        log.warning("Event [" + event.getName() + "] evicted from queue");
+        log.warn("Event [" + event.getName() + "] evicted from queue");
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_EVENT_EVICTED);
         transmitRequired.set(true);
         return true;
@@ -355,7 +355,7 @@ public class EventManagerImpl implements EventManager, EventListener {
      */
     @Override
     public void onEventQueueSizeExceeded(int currentQueueSize) {
-        log.warning("Event queue size [" + currentQueueSize + "] exceeded max[" + maxEventPoolSize + "]");
+        log.warn("Event queue size [" + currentQueueSize + "] exceeded max[" + maxEventPoolSize + "]");
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_EVENT_QUEUE_SIZE_EXCEEDED);
         transmitRequired.set(true);
     }
@@ -370,7 +370,7 @@ public class EventManagerImpl implements EventManager, EventListener {
      */
     @Override
     public void onEventQueueTimeExceeded(int maxBufferTimeInSec) {
-        log.warning("Event queue time [" + maxBufferTimeInSec + "] exceeded");
+        log.warn("Event queue time [" + maxBufferTimeInSec + "] exceeded");
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_EVENT_QUEUE_TIME_EXCEEDED);
         transmitRequired.set(true);
     }
@@ -399,7 +399,7 @@ public class EventManagerImpl implements EventManager, EventListener {
     @Override
     public void onShutdown() {
         if (!events.get().isEmpty()) {
-            log.warning("Event manager is shutting down with [" + events.get().size() + "] events remaining in the queue");
+            log.warn("Event manager is shutting down with [" + events.get().size() + "] events remaining in the queue");
         }
         transmitRequired.set(true);
     }

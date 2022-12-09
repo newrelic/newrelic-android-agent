@@ -12,6 +12,7 @@ import com.newrelic.agent.util.BuildId
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
@@ -37,6 +38,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
 
     @TaskAction
     def newRelicMapUploadTask() {
+
         try {
             def propertiesFound = false
             def agentOptions = InstrumentationAgent.getAgentOptions()
@@ -45,14 +47,14 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
             // start search for properties at project's root dir
             projectRoot.get().asFile.eachFileRecurse {
                 if (filePattern.matcher(it.name).find()) {
-                    logger.debug("[newrelic.debug] Found properties [${it.absolutePath}]")
+                    logger.debug("Found properties [${it.absolutePath}]")
                     agentOptions.put(Proguard.PROJECT_ROOT_KEY, new String(BaseEncoding.base64().encode(it.getParent().bytes)))
                     propertiesFound = true
                 }
             }
 
             if (!propertiesFound) {
-                logger.error("[newrelic] newrelic.properties was not found! Mapping file for variant [${variantName.get()}] not uploaded.")
+                logger.error("newrelic.properties was not found! Mapping file for variant [${variantName.get()}] not uploaded.")
                 return
             }
 
@@ -61,29 +63,35 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
 
             if (mapFilePath) {
                 if (mapFilePath.exists()) {
-                    logger.debug("[newrelic.debug] Map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
+                    logger.debug("Map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
                     if (buildId.present) {
                         agentOptions.put(Proguard.MAPPING_FILE_KEY, mapFilePath.absolutePath)
                         agentOptions.put(Proguard.MAPPING_PROVIDER_KEY, mapProvider.get())
                         agentOptions.put(Proguard.VARIANT_KEY, variantName.get())
                         agentOptions.put(BuildId.BUILD_ID_KEY, buildId.get())
 
-                        new Proguard(NewRelicGradlePlugin.logger, agentOptions).findAndSendMapFile()
+                        new Proguard(NewRelicGradlePlugin.LOGGER, agentOptions).findAndSendMapFile()
 
                     } else {
-                        logger.error("[newrelic.error] No build ID for variant [${variantName.get()}]")
+                        logger.error("No build ID for variant [${variantName.get()}]")
                     }
                 } else {
-                    logger.debug("[newrelic.debug] No map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
+                    logger.debug("No map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
                 }
 
             } else {
-                logger.warning("[newrelic.warn] variant[${variantName.get()}] mappingFile is null")
+                logger.warning("variant[${variantName.get()}] mappingFile is null")
             }
 
         } catch (Exception e) {
-            logger.error("[newrelic.error] NewRelicMapUploadTask: " + e)
+            logger.error("NewRelicMapUploadTask: " + e)
         }
+    }
+
+    @Internal
+    @Override
+    Logger getLogger() {
+        return NewRelicGradlePlugin.LOGGER
     }
 
 }

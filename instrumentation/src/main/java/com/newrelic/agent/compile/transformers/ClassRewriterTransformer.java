@@ -9,7 +9,6 @@ import com.newrelic.agent.Constants;
 import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.compile.ClassAdapterBase;
 import com.newrelic.agent.compile.ClassVisitorFactory;
-import com.newrelic.agent.compile.Log;
 import com.newrelic.agent.compile.MethodVisitorFactory;
 import com.newrelic.agent.compile.PatchedClassWriter;
 import com.newrelic.agent.compile.SkipException;
@@ -21,6 +20,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.Method;
+import org.slf4j.Logger;
 
 import java.net.URISyntaxException;
 import java.security.ProtectionDomain;
@@ -34,10 +34,10 @@ import java.util.Map;
 
 @Deprecated
 public final class ClassRewriterTransformer implements NewRelicClassTransformer {
-    private final Log log;
+    private final Logger log;
     private final Map<String, ClassVisitorFactory> classVisitors;
 
-    public ClassRewriterTransformer(final Log log) throws URISyntaxException {
+    public ClassRewriterTransformer(final Logger log) throws URISyntaxException {
         try {
             final String agentJarPath = InstrumentationAgent.getAgentJarPath();
         } catch (URISyntaxException e) {
@@ -100,7 +100,7 @@ public final class ClassRewriterTransformer implements NewRelicClassTransformer 
         return null;
     }
 
-    private static ClassVisitor createTransformClassAdapter(ClassVisitor cw, final Log log) {
+    private static ClassVisitor createTransformClassAdapter(ClassVisitor cw, final Logger log) {
 
         return new ClassAdapterBase(log, cw, new HashMap<Method, MethodVisitorFactory>() {{
             put(new Method(Constants.CLASS_TRANSFORMER_METHOD_NAME, Constants.CLASS_TRANSFORMER_METHOD_SIGNATURE),

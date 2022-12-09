@@ -123,7 +123,7 @@ public class Trace {
 
     public void complete() throws TracingInactiveException {
         if (isComplete) {
-            log.warning("Attempted to double complete trace " + myUUID.toString());
+            log.warn("Attempted to double complete trace " + myUUID.toString());
             return;
         }
 

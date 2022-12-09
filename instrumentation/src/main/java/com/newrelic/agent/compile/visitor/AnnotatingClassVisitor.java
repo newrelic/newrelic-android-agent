@@ -7,18 +7,18 @@ package com.newrelic.agent.compile.visitor;
 
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Opcodes;
+import org.slf4j.Logger;
 
 import java.text.MessageFormat;
 
 public class AnnotatingClassVisitor extends ClassVisitor {
     private final InstrumentationContext context;
-    private final Log log;
+    private final Logger log;
 
-    public AnnotatingClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Log log) {
+    public AnnotatingClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Logger log) {
         super(Opcodes.ASM8, cv);
         this.context = context;
         this.log = log;

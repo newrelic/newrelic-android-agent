@@ -11,6 +11,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.Method;
+import org.slf4j.Logger;
 
 import java.util.Map;
 
@@ -20,9 +21,9 @@ import java.util.Map;
  */
 public class ClassAdapterBase extends ClassVisitor {
     final Map<Method, MethodVisitorFactory> methodVisitors;
-    private final Log log;
+    private final Logger log;
 
-    public ClassAdapterBase(Log log, ClassVisitor cv, Map<Method, MethodVisitorFactory> methodVisitors) {
+    public ClassAdapterBase(Logger log, ClassVisitor cv, Map<Method, MethodVisitorFactory> methodVisitors) {
         super(Opcodes.ASM8, cv);
         this.methodVisitors = methodVisitors;
         this.log = log;

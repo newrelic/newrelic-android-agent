@@ -92,7 +92,7 @@ public class CountingOutputStream extends OutputStream implements StreamComplete
 		catch (Exception e) {
             // in this case, code in a StreamComplete handler
             // has thrown, so just log it and move on
-            log.warning(e.toString());
+            log.warn(e.toString());
         }
     }
 

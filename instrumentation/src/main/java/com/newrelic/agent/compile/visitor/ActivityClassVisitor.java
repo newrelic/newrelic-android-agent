@@ -9,7 +9,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
@@ -17,6 +16,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
+import org.slf4j.Logger;
 
 import java.util.Map;
 
@@ -56,7 +56,7 @@ public class ActivityClassVisitor extends ActivityClassAdapter {
     );
 
 
-    public ActivityClassVisitor(ClassVisitor cv, InstrumentationContext context, Log log) {
+    public ActivityClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log) {
         super(cv, context, log, ACTIVITY_CLASSES, methodDelegateMap);
         this.access = 0;
     }

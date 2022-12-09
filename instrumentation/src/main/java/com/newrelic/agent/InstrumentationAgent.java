@@ -5,12 +5,13 @@
 
 package com.newrelic.agent;
 
-import com.newrelic.agent.compile.FileLogImpl;
+import com.newrelic.agent.compile.FileLogger;
 import com.newrelic.agent.compile.InvocationDispatcher;
-import com.newrelic.agent.compile.Log;
-import com.newrelic.agent.compile.SystemErrLog;
+import com.newrelic.agent.compile.Logger;
+import com.newrelic.agent.compile.SystemLogger;
 import com.newrelic.agent.compile.transformers.ClassRewriterTransformer;
 import com.newrelic.agent.compile.transformers.NewRelicClassTransformer;
+import com.newrelic.agent.util.BuildId;
 
 import java.io.File;
 import java.lang.instrument.Instrumentation;
@@ -27,12 +28,18 @@ import java.util.Map;
 public final class InstrumentationAgent extends Constants {
     public static final String VERSION = "replaceme";
 
+    public static org.slf4j.Logger LOGGER = new Logger() {};
     private static Map<String, String> agentOptions = Collections.emptyMap();
 
     public static Throwable withAgentArgs(String agentArgs) {
         try {
             InstrumentationAgent.agentOptions = parseAgentArgs(agentArgs);
+            if (!agentOptions.isEmpty() && LOGGER instanceof Logger) {
+                InstrumentationAgent.LOGGER = new SystemLogger(agentOptions);
+            }
             System.setProperty(Constants.NR_AGENT_ARGS_KEY, agentArgs);
+            BuildId.invalidate();
+
         } catch (Throwable t) {
             return t;
         }
@@ -48,7 +55,7 @@ public final class InstrumentationAgent extends Constants {
         Throwable argsError = withAgentArgs(agentArgs);
         String logFileName = agentOptions.get("logfile");
 
-        Log log = logFileName == null ? new SystemErrLog(agentOptions) : new FileLogImpl(agentOptions, logFileName);
+        org.slf4j.Logger log = logFileName == null ? new SystemLogger(agentOptions) : new FileLogger(agentOptions, logFileName);
         if (argsError != null) {
             log.error("Agent args error: " + argsError);
         }
@@ -79,7 +86,7 @@ public final class InstrumentationAgent extends Constants {
                 if (instrumentation.isRetransformClassesSupported()) {
                     instrumentation.retransformClasses(classes.toArray(new Class[classes.size()]));
                 } else {
-                    log.warning("Unable to retransform classes: " + classes);
+                    log.warn("Unable to retransform classes: " + classes);
                 }
             }
 
@@ -133,7 +140,7 @@ public final class InstrumentationAgent extends Constants {
      * The classloader used to load the main dex class may not have visibility to our code, so we implement an InvocationHandler
      * and stuff it in a private static field on the Java Proxy class.
      */
-    private static void createInvocationDispatcher(Log log) throws Exception {
+    private static void createInvocationDispatcher(org.slf4j.Logger log) throws Exception {
         Field field = InvocationDispatcher.INVOCATION_DISPATCHER_CLASS.getDeclaredField(InvocationDispatcher.INVOCATION_DISPATCHER_FIELD_NAME);
         field.setAccessible(true);
 

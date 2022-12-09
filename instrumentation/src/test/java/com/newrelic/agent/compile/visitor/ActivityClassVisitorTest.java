@@ -8,8 +8,8 @@ package com.newrelic.agent.compile.visitor;
 import static org.mockito.Mockito.times;
 
 import com.newrelic.agent.Constants;
+import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.TestContext;
-import com.newrelic.agent.compile.Log;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -36,7 +36,7 @@ public class ActivityClassVisitorTest {
     @Before
     public void setUp() throws Exception {
         testContext = new TestContext();
-        cv = new ActivityClassVisitor(testContext.classWriter, testContext.instrumentationContext, Log.LOGGER);
+        cv = new ActivityClassVisitor(testContext.classWriter, testContext.instrumentationContext, InstrumentationAgent.LOGGER);
         cv = Mockito.spy(cv);
         classBytes = testContext.classBytesFromResource("/MainActivity.class");
     }

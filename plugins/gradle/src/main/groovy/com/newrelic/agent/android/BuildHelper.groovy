@@ -63,7 +63,7 @@ class BuildHelper {
     static final AtomicReference<BuildHelper> instance = new AtomicReference<BuildHelper>(null)
 
     BuildHelper(Project project) {
-        this.logger = project.logger
+        this.logger = NewRelicGradlePlugin.LOGGER
         this.providers = project.providers
         this.extensions = project.extensions
         this.layout = project.layout
@@ -77,7 +77,7 @@ class BuildHelper {
             this.agpVersion = GradleVersion.version(reportedAGPVersion)
 
         } catch (IllegalArgumentException e) {
-            logger.warn("[newrelic.warn] AGP version [$reportedAGPVersion] is not officially supported")
+            logger.warn("AGP version [$reportedAGPVersion] is not officially supported")
             def (_, agpVersion, qualifier) = (reportedAGPVersion =~ /^(\d{1,3}\.\d{1,3}\.\d{1,3})-(.*)$/)[0]
             this.agpVersion = GradleVersion.version(agpVersion)
         }
@@ -92,16 +92,16 @@ class BuildHelper {
         def enableWarning = hasOptional(PROP_WARNING_AGP, true).toString().toLowerCase()
         if ((enableWarning != 'false') && (enableWarning != '0')) {
             if (agpVersion.baseVersion > currentSupportedAGPVersion) {
-                logger.warn("[newrelic.warn] The New Relic plugin may not be compatible with Android Gradle plugin version ${agpVersion.version}."
+                logger.warn("The New Relic plugin may not be compatible with Android Gradle plugin version ${agpVersion.version}."
                         + NEWLN
-                        + "[newrelic.warn] AGP versions ${minSupportedAGPVersion.getVersion()} - ${currentSupportedAGPVersion.getVersion()} are officially supported.")
+                        + "AGP versions ${minSupportedAGPVersion.getVersion()} - ${currentSupportedAGPVersion.getVersion()} are officially supported.")
             }
         }
 
         if (currentGradleVersion < minSupportedGradleVersion) {
-            logger.warn("[newrelic.warn] The New Relic plugin may not be compatible with Gradle version ${currentGradleVersion.version}."
+            logger.warn("The New Relic plugin may not be compatible with Gradle version ${currentGradleVersion.version}."
                     + NEWLN
-                    + "[newrelic.warn] Gradle versions ${minSupportedGradleVersion.getVersion()} and higher are officially supported.")
+                    + "Gradle versions ${minSupportedGradleVersion.getVersion()} and higher are officially supported.")
         }
 
         BuildHelper.instance.compareAndSet(null, this)
@@ -129,11 +129,11 @@ class BuildHelper {
         } catch (java.lang.ClassNotFoundException unused) {
             try {
                 // AGP 3.4 - 3.5.+: com.android.builder.model.Version.ANDROID_GRADLE_PLUGIN_VERSION
-                logger.error("[newrelic.debug] getAGPVersion: $unused")
+                logger.error("getAGPVersion: $unused")
                 versionClass = classLoader.loadClass("com.android.builder.model.Version");
                 agpVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString();
             } catch (java.lang.ClassNotFoundException ignored) {
-                logger.error("[newrelic.debug] getAGPVersion: unknown - $ignored")
+                logger.error("getAGPVersion: unknown - $ignored")
             }
         }
 
@@ -149,7 +149,7 @@ class BuildHelper {
                 }
             }
         } catch (Exception e) {
-            logger.error("[newrelic.debug] getVariantCompileTask: $e")
+            logger.error("getVariantCompileTask: $e")
         }
 
         return variant.javaCompiler
@@ -173,7 +173,7 @@ class BuildHelper {
                 }
             }
         } catch (Exception e) {
-            logger.error("[newrelic.debug] getVariantBuildConfigTask: $e")
+            logger.error("getVariantBuildConfigTask: $e")
         }
 
         return variant.generateBuildConfig
@@ -220,7 +220,7 @@ class BuildHelper {
                 }
             }
         } catch (Exception e) {
-            logger.error("[newrelic.debug] getVariantMappingFile: Map provider not found in variant [$variant.name]")
+            logger.error("getVariantMappingFile: Map provider not found in variant [$variant.name]")
         }
 
         // If all else fails, default to default map locations

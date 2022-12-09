@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.compile;
 
+import com.newrelic.agent.InstrumentationAgent;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -15,7 +17,7 @@ public class ClassRemapperConfigTest {
 
     @Before
     public void setUp() throws Exception {
-        classRemapper = new ClassRemapperConfig(Log.LOGGER);
+        classRemapper = new ClassRemapperConfig(InstrumentationAgent.LOGGER);
     }
 
     @Test

@@ -5,16 +5,19 @@
 
 package com.newrelic.agent.compile;
 
+import org.slf4j.event.Level;
+
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.util.Map;
 
-public final class FileLogImpl extends Log {
+public final class FileLogger extends Logger {
 
+    final static String newLn = System.getProperty("line.separator", "\r\n");
     private final PrintWriter writer;
 
-    public FileLogImpl(Map<String, String> agentOptions, String logFileName) {
+    public FileLogger(Map<String, String> agentOptions, String logFileName) {
         super(agentOptions);
         try {
             writer = new PrintWriter(new FileOutputStream(logFileName));
@@ -26,15 +29,20 @@ public final class FileLogImpl extends Log {
     @Override
     protected void log(String level, String message) {
         synchronized (this) {
-            writer.write("[newrelic." + level.toLowerCase() + "] " + message + "\n");
+            writer.write("[" + level + "] [" + Log.TAG + "] " + message + newLn);
             writer.flush();
         }
     }
 
     @Override
-    public void warning(String message, Throwable cause) {
-        if (logLevel >= LogLevel.WARN.getValue()) {
-            log("warn", message);
+    protected void log(Level level, String message) {
+        log(level.name(), message);
+    }
+
+    @Override
+    public void warn(String message, Throwable cause) {
+        if (isLevelEnabled(Level.WARN)) {
+            log(Level.WARN, message);
             cause.printStackTrace(writer);
             writer.flush();
         }
@@ -42,8 +50,8 @@ public final class FileLogImpl extends Log {
 
     @Override
     public void error(String message, Throwable cause) {
-        if (logLevel >= LogLevel.ERROR.getValue()) {
-            log("error", message);
+        if (isLevelEnabled(Level.ERROR)) {
+            log(Level.ERROR, message);
             cause.printStackTrace(writer);
             writer.flush();
         }

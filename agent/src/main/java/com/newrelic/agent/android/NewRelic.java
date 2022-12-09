@@ -108,7 +108,6 @@ public final class NewRelic {
      * @param level One of:
      *              AgentLog.AUDIT
      *              AgentLog.DEBUG
-     *              AgentLog.VERBOSE
      *              AgentLog.INFO
      *              AgentLog.WARNING
      *              AgentLog.ERROR

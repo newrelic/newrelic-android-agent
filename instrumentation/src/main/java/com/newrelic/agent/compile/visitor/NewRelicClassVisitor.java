@@ -8,7 +8,6 @@ package com.newrelic.agent.compile.visitor;
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 import com.newrelic.agent.util.BuildId;
 
 import org.objectweb.asm.ClassVisitor;
@@ -16,12 +15,13 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.GeneratorAdapter;
+import org.slf4j.Logger;
 
 public class NewRelicClassVisitor extends ClassVisitor {
     private final InstrumentationContext context;
-    private final Log log;
+    private final Logger log;
 
-    public NewRelicClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Log log) {
+    public NewRelicClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Logger log) {
         super(Opcodes.ASM8, cv);
         this.context = context;
         this.log = log;
@@ -45,7 +45,7 @@ public class NewRelicClassVisitor extends ClassVisitor {
     public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
         if (context.getClassName().equals(Constants.AGENT_CLASS_NAME) && name.equals("VERSION")) {
             if (!value.equals(InstrumentationAgent.getVersion())) {
-                log.warning("New Relic Error: Your agent and class rewriter versions do not match: "
+                log.warn("New Relic Error: Your agent and class rewriter versions do not match: "
                         + "agent[" + value + "] class rewriter[" + InstrumentationAgent.getVersion() + "]. "
                         + "You may need to update one of these components, or simply invalidate your AndroidStudio cache.  "
                         + "If you're using gradle and just updated, run gradle -stop to restart the daemon.");

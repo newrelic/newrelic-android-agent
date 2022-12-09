@@ -7,7 +7,6 @@ package com.newrelic.agent.compile.visitor;
 
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
@@ -15,12 +14,13 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.AdviceAdapter;
 import org.objectweb.asm.commons.Method;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 
 public class TraceMethodVisitor extends AdviceAdapter {
     protected final InstrumentationContext context;
-    protected final Log log;
+    protected final Logger log;
     private final String name;
     protected Boolean unloadContext = false;
     protected Boolean startTracing = false;

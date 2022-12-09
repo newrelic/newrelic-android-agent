@@ -7,6 +7,8 @@ package com.newrelic.agent.compile;
 
 import com.newrelic.agent.util.BuildId;
 
+import org.slf4j.Logger;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -17,7 +19,7 @@ import java.util.Map;
 public class InstrumentationContext {
 
     private final ClassRemapperConfig config;
-    private final Log log;
+    private final Logger log;
     private boolean classModified;
     private String className;
     private String superClassName;
@@ -28,7 +30,7 @@ public class InstrumentationContext {
     private String variantName;
     private int computeFlags;
 
-    public InstrumentationContext(ClassRemapperConfig config, final Log log) {
+    public InstrumentationContext(ClassRemapperConfig config, final Logger log) {
         this.config = config;
         this.log = log;
         this.tracedMethods = new HashMap<>();
@@ -37,7 +39,7 @@ public class InstrumentationContext {
         this.computeFlags = 0;
     }
 
-    public Log getLog() {
+    public Logger getLog() {
         return log;
     }
 

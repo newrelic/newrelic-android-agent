@@ -8,8 +8,6 @@ package com.newrelic.agent;
 import com.newrelic.agent.compile.ClassRemapperConfig;
 import com.newrelic.agent.compile.ClassWriterSafe;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
-import com.newrelic.agent.compile.SystemErrLog;
 import com.newrelic.agent.compile.visitor.PrefilterClassVisitor;
 
 import org.junit.Assert;
@@ -29,19 +27,15 @@ import org.objectweb.asm.util.TraceMethodVisitor;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.HashMap;
 
 public class TestContext {
 
     static public ClassRemapperConfig config;
 
     static {
-        new SystemErrLog(new HashMap<String, String>() {{
-            put("loglevel", "DEBUG");
-        }});
-
         try {
-            config = Mockito.spy(new ClassRemapperConfig(Log.LOGGER));
+            InstrumentationAgent.withAgentArgs("loglevel=TRACE");
+            config = Mockito.spy(new ClassRemapperConfig(InstrumentationAgent.LOGGER));
 
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
@@ -54,7 +48,7 @@ public class TestContext {
     public ClassNode cn = new ClassNode();
 
     public TestContext() {
-        instrumentationContext = Mockito.spy(new InstrumentationContext(config, Log.LOGGER));
+        instrumentationContext = Mockito.spy(new InstrumentationContext(config, InstrumentationAgent.LOGGER));
         classWriter = new ClassWriterSafe(ClassWriter.COMPUTE_FRAMES);
     }
 
@@ -66,7 +60,7 @@ public class TestContext {
     public byte[] classBytesFromResource(final String resourceName) {
         try {
             ClassReader cr = new ClassReader(TestContext.class.getResource(resourceName).openStream());
-            cr.accept(new PrefilterClassVisitor(instrumentationContext, Log.LOGGER),
+            cr.accept(new PrefilterClassVisitor(instrumentationContext, InstrumentationAgent.LOGGER),
                     ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
             cn = toClassNode(cr.b);
             return cr.b;

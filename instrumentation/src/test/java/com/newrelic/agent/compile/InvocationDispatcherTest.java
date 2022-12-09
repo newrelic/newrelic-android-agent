@@ -6,6 +6,7 @@
 package com.newrelic.agent.compile;
 
 import com.newrelic.agent.Constants;
+import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.TestContext;
 
 import org.junit.Assert;
@@ -24,7 +25,7 @@ public class InvocationDispatcherTest {
 
     @Before
     public void setUp() throws Exception {
-        invocationDispatcher = new InvocationDispatcher(Log.LOGGER);
+        invocationDispatcher = new InvocationDispatcher(InstrumentationAgent.LOGGER);
         testContext = new TestContext(invocationDispatcher.getInstrumentationContext());
         classBytes = testContext.classBytesFromResource("/MainActivity.class");
     }

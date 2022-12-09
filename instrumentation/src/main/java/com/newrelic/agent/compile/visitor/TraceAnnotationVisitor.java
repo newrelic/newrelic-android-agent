@@ -6,13 +6,13 @@
 package com.newrelic.agent.compile.visitor;
 
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 import com.newrelic.agent.util.AnnotationImpl;
 
 import org.objectweb.asm.Type;
+import org.slf4j.Logger;
 
 public class TraceAnnotationVisitor extends AnnotationImpl {
-    final Log log;
+    final Logger log;
     final InstrumentationContext context;
 
     public TraceAnnotationVisitor(String name, InstrumentationContext context) {

@@ -177,11 +177,11 @@ public class Harvester {
                 break;
 
             case REQUEST_TIMEOUT:
-                log.warning("Harvest request has timed-out, and will retry during next harvest cycle.");
+                log.warn("Harvest request has timed-out, and will retry during next harvest cycle.");
                 break;
 
             case TOO_MANY_REQUESTS:
-                log.warning("Harvest request has been throttled, and will retry during next harvest cycle.");
+                log.warn("Harvest request has been throttled, and will retry during next harvest cycle.");
                 break;
 
             default:
@@ -254,11 +254,11 @@ public class Harvester {
                 // In the following error cases, harvest data is retained, but may still
                 // be expired using provided TTL values
                 case REQUEST_TIMEOUT:
-                    log.warning("Harvest request has timed-out, and will retry during next harvest cycle.");
+                    log.warn("Harvest request has timed-out, and will retry during next harvest cycle.");
                     break;
 
                 case TOO_MANY_REQUESTS:
-                    log.warning("Harvest request has been throttled, and will retry during next harvest cycle.");
+                    log.warn("Harvest request has been throttled, and will retry during next harvest cycle.");
                     break;
 
                 default:

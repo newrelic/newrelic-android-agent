@@ -7,13 +7,13 @@ package com.newrelic.agent.compile.visitor;
 
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.slf4j.Logger;
 
 import java.text.MessageFormat;
 
@@ -22,9 +22,9 @@ import java.text.MessageFormat;
  */
 public class PrefilterClassVisitor extends ClassVisitor {
     private final InstrumentationContext context;
-    private final Log log;
+    private final Logger log;
 
-    public PrefilterClassVisitor(final InstrumentationContext context, final Log log) {
+    public PrefilterClassVisitor(final InstrumentationContext context, final Logger log) {
         super(Opcodes.ASM8);
         this.context = context;
         this.log = log;

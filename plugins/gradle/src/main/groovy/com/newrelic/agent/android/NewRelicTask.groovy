@@ -27,14 +27,14 @@ abstract class NewRelicTask extends DefaultTask {
             // the form /C:/path/to/file.
             jarFilePath = new File(jarFilePath).getCanonicalPath()
 
-            logger.debug("[newrelic.debug] Found New Relic instrumentation jar: " + jarFilePath)
+            logger.debug("Found New Relic instrumentation jar: " + jarFilePath)
 
             return jarFilePath
         } catch (URISyntaxException e) {
-            logger.error("[newrelic.error] Unable to find New Relic instrumentation jar")
+            logger.error("Unable to find New Relic instrumentation jar")
             throw new RuntimeException(e)
         } catch (IOException e) {
-            logger.error("[newrelic.error] Unable to find New Relic instrumentation jar")
+            logger.error("Unable to find New Relic instrumentation jar")
             throw new RuntimeException(e)
         }
     }

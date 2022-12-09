@@ -8,7 +8,6 @@ package com.newrelic.agent.compile.visitor;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
@@ -16,6 +15,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
+import org.slf4j.Logger;
 
 import java.util.Map;
 
@@ -53,7 +53,7 @@ public class FragmentClassVisitor extends ActivityClassAdapter {
     );
 
 
-    public FragmentClassVisitor(ClassVisitor cv, InstrumentationContext context, Log log) {
+    public FragmentClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log) {
         super(cv, context, log, FRAGMENT_CLASSES, methodDelegateMap);
         this.access = 0;
     }
@@ -89,7 +89,7 @@ public class FragmentClassVisitor extends ActivityClassAdapter {
 
         } else if (instrument) {
             if (traceMethodMap.containsKey(methodName) && traceMethodMap.get(methodName).equals(desc)) {
-                log.info("[FragmentClassVisitor] Tracing method [" + methodName + "]");
+                log.debug("[FragmentClassVisitor] Tracing method [" + methodName + "]");
                 MethodVisitor methodVisitor = super.visitMethod(access, methodName, desc, signature, exceptions);
                 TraceMethodVisitor traceMethodVisitor = new TraceMethodVisitor(methodVisitor, access, methodName, desc, context);
 

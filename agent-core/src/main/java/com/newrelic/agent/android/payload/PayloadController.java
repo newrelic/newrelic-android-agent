@@ -82,14 +82,14 @@ public class PayloadController implements HarvestLifecycleAware {
             if (crashReporter != null) {
                 crashReporter.start();
             } else {
-                log.warning("PayloadController: No crash reporter - crash reporting will be disabled");
+                log.warn("PayloadController: No crash reporter - crash reporting will be disabled");
             }
 
             AgentDataReporter agentDataReporter = AgentDataReporter.initialize(agentConfiguration);
             if (agentDataReporter != null) {
                 agentDataReporter.start();
             } else {
-                log.warning("PayloadController: No payload reporter - payload reporting will be disabled");
+                log.warn("PayloadController: No payload reporter - payload reporting will be disabled");
             }
 
             Harvest.addHarvestListener(instance.get());
@@ -115,7 +115,7 @@ public class PayloadController implements HarvestLifecycleAware {
                 // Threads started during startup could still be running (unlikely)
                 try {
                     if (false == queueExecutor.awaitTermination(PAYLOAD_COLLECTOR_TIMEOUT, TimeUnit.MILLISECONDS)) {
-                        log.warning("PayloadController: upload thread(s) timed-out before handler");
+                        log.warn("PayloadController: upload thread(s) timed-out before handler");
                         queueExecutor.shutdownNow();
                     }
                     AgentDataReporter.shutdown();
@@ -162,7 +162,7 @@ public class PayloadController implements HarvestLifecycleAware {
 
             future = reapersInFlight.get(payloadReaper.getUuid());
             if (future != null) {
-                log.warning("PayloadController: Upload of payload [" + payloadReaper.getUuid() + "] is already in progress.");
+                log.warn("PayloadController: Upload of payload [" + payloadReaper.getUuid() + "] is already in progress.");
             } else {
                 if (payloadSender.shouldUploadOpportunistically()) {
                     future = queueExecutor.submit(payloadReaper);
@@ -190,7 +190,7 @@ public class PayloadController implements HarvestLifecycleAware {
 
             future = reapersInFlight.get(payloadReaper.getUuid());
             if (future != null) {
-                log.warning("PayloadController: Upload of payload [" + payloadReaper.getUuid() + "] is already in progress.");
+                log.warn("PayloadController: Upload of payload [" + payloadReaper.getUuid() + "] is already in progress.");
             } else {
                 future = queueExecutor.submit(payloadReaper);
                 reapersInFlight.put(payloadReaper.getUuid(), future);
@@ -250,7 +250,7 @@ public class PayloadController implements HarvestLifecycleAware {
                         if (!payloadReaper.sender.getPayload().isStale(agentConfiguration.getPayloadTTL())) {
                             submitPayload(payloadReaper);
                         } else {
-                            log.warning("PayloadController: Will not re-queue stale payload.");
+                            log.warn("PayloadController: Will not re-queue stale payload.");
                         }
                     }
                 }

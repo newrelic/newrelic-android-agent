@@ -10,6 +10,8 @@ import com.newrelic.agent.util.BuildId;
 import com.newrelic.agent.util.FileUtils;
 import com.newrelic.agent.util.Streams;
 
+import org.slf4j.Logger;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -24,6 +26,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -36,8 +39,8 @@ public final class ClassTransformer {
     private static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
     private static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
 
-    private final Log log;
     private final List<File> classes;
+    private final Logger log;
     private File inputFile;
     private File outputFile;
     private ClassData classData;
@@ -51,7 +54,6 @@ public final class ClassTransformer {
     }
 
     private InvocationDispatcher initDispatcher() {
-        SystemErrLog log = new SystemErrLog(InstrumentationAgent.getAgentOptions());
         try {
             return new InvocationDispatcher(log);
         } catch (Exception e) {
@@ -61,8 +63,8 @@ public final class ClassTransformer {
     }
 
     public ClassTransformer() {
-        this.log = new SystemErrLog(InstrumentationAgent.getAgentOptions());
-        this.classes = new ArrayList<File>();
+        this.classes = new ArrayList<>();
+        this.log = InstrumentationAgent.LOGGER;
         this.inputFile = new File(".");
         this.outputFile = new File(".");
         this.classData = null;
@@ -92,7 +94,7 @@ public final class ClassTransformer {
     protected void doTransform() {
         long tStart = System.currentTimeMillis();
 
-        log.info("[ClassTransformer] Using build ID[" + BuildId.getBuildId(invocationDispatcher.getInstrumentationContext().getVariantName()) + "]");
+            log.info("[ClassTransformer] Using build ID[" + BuildId.getBuildId(invocationDispatcher.getInstrumentationContext().getVariantName()) + "]");
 
         for (File classFile : classes) {
             inputFile = FileUtils.isClass(classFile) ? classFile.getParentFile() : classFile;
@@ -104,7 +106,8 @@ public final class ClassTransformer {
             transformClassFile(classFile);
         }
 
-        log.info(MessageFormat.format("[ClassTransformer] doTransform finished in {0} sec.", Float.valueOf((System.currentTimeMillis() - tStart) / 1000f)));
+        log.info(MessageFormat.format("[ClassTransformer] doTransform finished in {0} sec.",
+                Float.valueOf((System.currentTimeMillis() - tStart) / 1000f)));
     }
 
     /*
@@ -166,7 +169,7 @@ public final class ClassTransformer {
         } else {
             if ((classBytes.length != transformedClassBytes.length) &&
                     (classData != null && classData.isModified())) {
-                log.info("[ClassTransformer] Rewrote class[" + classFile.getPath() + "] bytes[" +
+                log.debug("[ClassTransformer] Rewrote class[" + classFile.getPath() + "] bytes[" +
                         classBytes.length + "] rewritten[" + transformedClassBytes.length + "]");
             }
             processedClassBytesStream = new ByteArrayInputStream(transformedClassBytes);
@@ -237,7 +240,7 @@ public final class ClassTransformer {
         boolean didProcessDirectory = false;
 
         if (directory.isDirectory()) {
-            for (File f : directory.listFiles()) {
+            for (File f : Objects.requireNonNull(directory.listFiles())) {
                 didProcessDirectory |= transformClassFile(f);
             }
         }
@@ -344,7 +347,7 @@ public final class ClassTransformer {
                         jarOutputStream.closeEntry();
 
                     } catch (Exception e) {
-                        log.warning("[ClassTransformer] transformArchive: " + e);
+                        log.warn("[ClassTransformer] transformArchive: " + e);
                         if (explodeJar) {
                             didProcessArchive |= writeClassFile(classBytesInputStream, archiveClassFile);
                         } else {
@@ -378,8 +381,8 @@ public final class ClassTransformer {
             }
 
         } catch (Exception e) {
-            log.warning("[ClassTransformer] transformArchive: Original library file is outputted as we encountered an exception");
-            log.warning("[ClassTransformer] transformArchive: " + e);
+            log.warn("[ClassTransformer] transformArchive: Original library file is outputted as we encountered an exception");
+            log.warn("[ClassTransformer] transformArchive: " + e);
             return Streams.copy(new FileInputStream(archiveFile), new FileOutputStream(outputFile)) > 0;
         } finally {
             // close all the streams that may or may npt have already been closed
@@ -454,7 +457,7 @@ public final class ClassTransformer {
             try {
                 closeable.close();
             } catch (IOException e) {
-                log.warning("[ClassTransformer] closeQuietly: " + e);
+                log.warn("[ClassTransformer] closeQuietly: " + e);
             }
         }
     }

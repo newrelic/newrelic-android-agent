@@ -20,6 +20,7 @@ import com.newrelic.agent.compile.visitor.WrapMethodClassVisitor;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.slf4j.Logger;
 
 import java.lang.reflect.InvocationHandler;
 import java.text.MessageFormat;
@@ -27,7 +28,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
@@ -39,10 +39,10 @@ import java.util.regex.Pattern;
  */
 public class InvocationDispatcher implements InvocationHandler {
 
-    public static final Class<Logger> INVOCATION_DISPATCHER_CLASS = Logger.class;
+    public static final Class<java.util.logging.Logger> INVOCATION_DISPATCHER_CLASS = java.util.logging.Logger.class;
     public static final String INVOCATION_DISPATCHER_FIELD_NAME = "treeLock";
 
-    private final Log log;
+    private final Logger log;
     private final InstrumentationContext instrumentationContext;
     private final Pattern androidPackagePattern = Pattern.compile(Constants.ANDROID_PACKAGE_RE);
     private final Pattern kotlinPackagePattern = Pattern.compile(Constants.ANDROID_KOTLIN_PACKAGE_RE);
@@ -50,7 +50,7 @@ public class InvocationDispatcher implements InvocationHandler {
     final Map<String, InvocationHandler> invocationHandlers;
     private boolean writeDisabledMessage = true;
 
-    public InvocationDispatcher(final Log log) throws ClassNotFoundException {
+    public InvocationDispatcher(final Logger log) throws ClassNotFoundException {
         ClassRemapperConfig config = new ClassRemapperConfig(log);
 
         this.log = log;
@@ -234,7 +234,7 @@ public class InvocationDispatcher implements InvocationHandler {
                         log.debug("[InvocationDispatcher] Retry with ClassWriter.COMPUTE_MAXS");
                         return visitClassBytesWithOptions(bytes, ClassWriter.COMPUTE_MAXS);
                     }
-                    log.warning("[InvocationDispatcher] [" + className + "] instrumentation failed: " + e.getLocalizedMessage());
+                    log.warn("[InvocationDispatcher] [" + className + "] instrumentation failed: " + e.getLocalizedMessage());
                     return new ClassData(bytes, false);
                 }
 
@@ -253,7 +253,7 @@ public class InvocationDispatcher implements InvocationHandler {
             return new ClassData(bytes, false);
 
         } catch (IllegalArgumentException e) {
-            log.warning("[InvocationDispatcher] Class[" + className + "] ignored: JDK not supported");
+            log.warn("[InvocationDispatcher] Class[" + className + "] ignored: JDK not supported");
             return new ClassData(bytes, false);
 
         } catch (HaltBuildException e) {
@@ -261,7 +261,7 @@ public class InvocationDispatcher implements InvocationHandler {
             throw new RuntimeException(e);
 
         } catch (NoClassDefFoundError e) {
-            log.warning("Unfortunately, an error has occurred while processing class [" + className + "].\n"
+            log.warn("Unfortunately, an error has occurred while processing class [" + className + "].\n"
                     + "The file is unable to be parsed. Please copy your build logs and the jar containing "
                     + "this class and visit http://support.newrelic.com, thanks!\n" + e.getLocalizedMessage());
             return new ClassData(bytes, false);

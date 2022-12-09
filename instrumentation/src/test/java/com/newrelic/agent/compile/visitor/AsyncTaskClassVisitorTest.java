@@ -6,8 +6,8 @@
 package com.newrelic.agent.compile.visitor;
 
 import com.newrelic.agent.Constants;
+import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.TestContext;
-import com.newrelic.agent.compile.Log;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -25,7 +25,7 @@ public class AsyncTaskClassVisitorTest {
     public void setUp() throws Exception {
         testContext = new TestContext();
         cv = new AsyncTaskClassVisitor(testContext.classWriter,
-                testContext.instrumentationContext, Log.LOGGER);
+                testContext.instrumentationContext, InstrumentationAgent.LOGGER);
     }
 
     @Test

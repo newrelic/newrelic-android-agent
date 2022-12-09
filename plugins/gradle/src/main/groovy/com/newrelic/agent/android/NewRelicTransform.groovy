@@ -32,11 +32,10 @@ class NewRelicTransform extends Transform {
     private boolean identityTransform = false
 
     NewRelicTransform(final Project project, final NewRelicExtension pluginExtension) {
-
-        this.logger = project.logger
-        this.pluginExtension = pluginExtension;
+        this.logger = NewRelicGradlePlugin.LOGGER
+        this.pluginExtension = pluginExtension
         this.objectFactory = project.objects
-        this.providers = project.providers;
+        this.providers = project.providers
         this.contentTypes = ImmutableSet.of(
                 QualifiedContent.DefaultContentType.CLASSES
         )
@@ -46,17 +45,17 @@ class NewRelicTransform extends Transform {
                 QualifiedContent.Scope.SUB_PROJECTS,
         )
 
-        logger.debug("[newrelic.debug] project: " + project.name)
+        logger.debug("project: " + project.name)
 
         try {
             def plugins = project.plugins
             if (plugins.hasPlugin('com.android.application') || plugins.hasPlugin('com.android.instantapp')) {
-                logger.debug("[newrelic.debug] apk or instantapp, transform external libraries")
+                logger.debug("apk or instantapp, transform external libraries")
             } else {
-                logger.debug("[newrelic.debug] feature or library")
+                logger.debug("feature or library")
             }
         } catch (Exception e) {
-            logger.error("[newrelic.error] NewRelicTransform: " + e)
+            logger.error("NewRelicTransform: " + e)
         }
     }
 
@@ -91,7 +90,7 @@ class NewRelicTransform extends Transform {
                 transformInvocation.inputs,
                 transformInvocation.referencedInputs,
                 transformInvocation.outputProvider,
-                transformInvocation.incremental);
+                transformInvocation.incremental)
     }
 
     void transform(Context context,
@@ -100,15 +99,15 @@ class NewRelicTransform extends Transform {
                    TransformOutputProvider outputProvider,
                    boolean isIncremental) throws IOException, TransformException, InterruptedException {
 
-        long tStart = System.currentTimeMillis();
+        long tStart = System.currentTimeMillis()
 
-        logger.info("[newrelic.info] [" + TRANSFORMER_NAME + "] Started")
+        logger.info("[" + TRANSFORMER_NAME + "] Started")
         if (identityTransform) {
-            logger.info("[newrelic.info] [" + TRANSFORMER_NAME + "] Will not rewrite classes")
+            logger.info("[" + TRANSFORMER_NAME + "] Will not rewrite classes")
         }
 
-        logger.debug("[newrelic.debug] Context.path: " + context.path)
-        logger.debug("[newrelic.debug] Context.temporaryDir: " + context.temporaryDir)
+        logger.debug("Context.path: " + context.path)
+        logger.debug("Context.temporaryDir: " + context.temporaryDir)
 
         File directoryOutput = context.temporaryDir
         inputs.each { input ->
@@ -119,21 +118,21 @@ class NewRelicTransform extends Transform {
                         dirInp.getContentTypes(),
                         dirInp.getScopes(),
                         Format.DIRECTORY)
-                logger.debug("[newrelic.debug] transform.directoryOutput: " + directoryOutput.absolutePath)
+                logger.debug("transform.directoryOutput: " + directoryOutput.absolutePath)
             }
         }
 
-        logger.debug("[newrelic.debug] transform.outputProvider: " + outputProvider)
-        logger.debug("[newrelic.debug] transform.isIncremental: " + isIncremental)
+        logger.debug("transform.outputProvider: " + outputProvider)
+        logger.debug("transform.isIncremental: " + isIncremental)
 
         try {
             // start with a clean slate
             if (!isIncremental) {
-                logger.debug("[newrelic.debug] Delete transform output contents: ")
+                logger.debug("Delete transform output contents: ")
                 outputProvider.deleteAll()
             }
 
-            logger.debug("[newrelic.debug] Calling class rewriter: ")
+            logger.debug("Calling class rewriter: ")
 
             ClassTransformer classTransformer
 
@@ -145,7 +144,7 @@ class NewRelicTransform extends Transform {
                             dirInp.getScopes(),
                             Format.DIRECTORY)
 
-                    logger.debug("[newrelic.debug] Transform directory[" + dirInp.file.getAbsolutePath() +
+                    logger.debug("Transform directory[" + dirInp.file.getAbsolutePath() +
                             "] Output[" + output.getAbsolutePath() + "]")
 
                     classTransformer = new ClassTransformer(dirInp.file, output)
@@ -162,7 +161,7 @@ class NewRelicTransform extends Transform {
                             jarInp.getScopes(),
                             Format.JAR)
 
-                    logger.debug("[newrelic.debug] Transform JAR[" + jarInp.file.getAbsolutePath() +
+                    logger.debug("Transform JAR[" + jarInp.file.getAbsolutePath() +
                             "] Output[" + output.getAbsolutePath() + "]")
 
                     JarFile jar = null
@@ -182,14 +181,14 @@ class NewRelicTransform extends Transform {
             }
 
         } catch (final IOException exception) {
-            logger.error("[newrelic.error] [" + TRANSFORMER_NAME + "] failed ", exception)
+            logger.error("[" + TRANSFORMER_NAME + "] failed ", exception)
             throw exception
         } catch (final Exception exception) {
-            logger.error("[newrelic.error] [" + TRANSFORMER_NAME + "] failed ", exception)
+            logger.error("[" + TRANSFORMER_NAME + "] failed ", exception)
             throw new TransformException(exception)
         }
 
-        logger.info("[newrelic.info] [" + TRANSFORMER_NAME + "] Finished in " + Double.valueOf((double) (
+        logger.info("[" + TRANSFORMER_NAME + "] Finished in " + Double.valueOf((double) (
                 System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.")
     }
 
@@ -211,7 +210,7 @@ class NewRelicTransform extends Transform {
     @Override
     boolean applyToVariant(VariantInfo variant) {
         if (variant.isTest() && pluginExtension.shouldInstrumentTests()) {
-            logger.info("[newrelic.info] Excluding instrumentation of test variant [" + variant.fullVariantName + "]")
+            logger.info("Excluding instrumentation of test variant [" + variant.fullVariantName + "]")
             return false
         }
 
@@ -219,7 +218,7 @@ class NewRelicTransform extends Transform {
                 pluginExtension.shouldExcludeVariant(variant.buildTypeName)
 
         if (shouldExclude) {
-            logger.info("[newrelic.info] Excluding instrumentation of variant [" + variant.fullVariantName + "]")
+            logger.info("Excluding instrumentation of variant [" + variant.fullVariantName + "]")
         }
         return !shouldExclude
     }
@@ -230,55 +229,55 @@ class NewRelicTransform extends Transform {
         final Collection<TransformInput> referencedInputs = transformInvocation.referencedInputs
         final TransformOutputProvider outputProvider = transformInvocation.outputProvider;
 
-        logger.debug("[newrelic.debug] Inputs")
+        logger.debug("Inputs")
         inputs.each { input ->
             input.directoryInputs.each { dirInp ->
-                logger.debug("[newrelic.debug]     dirInput name: " + dirInp.name)
-                logger.debug("[newrelic.debug]     dirInput file: " + dirInp.file.absolutePath)
+                logger.debug("    dirInput name: " + dirInp.name)
+                logger.debug("    dirInput file: " + dirInp.file.absolutePath)
 
                 final File output = outputProvider.getContentLocation(dirInp.name, dirInp.getContentTypes(), dirInp.getScopes(), Format.DIRECTORY)
-                logger.debug("[newrelic.debug]     dirInput output: " + output.absolutePath)
-                logger.debug("[newrelic.debug]")
+                logger.debug("    dirInput output: " + output.absolutePath)
+                logger.debug("[newrelic]")
             }
 
             input.jarInputs.each { jarInp ->
-                logger.debug("[newrelic.debug]     jarInput name: " + jarInp.name)
-                logger.debug("[newrelic.debug]     jarInput file: " + jarInp.file.absolutePath)
-                logger.debug("[newrelic.debug]     jarInput status: " + jarInp.status)
+                logger.debug("    jarInput name: " + jarInp.name)
+                logger.debug("    jarInput file: " + jarInp.file.absolutePath)
+                logger.debug("    jarInput status: " + jarInp.status)
 
                 File output = outputProvider.getContentLocation(jarInp.name, jarInp.getContentTypes(), jarInp.getScopes(), Format.JAR)
-                logger.debug("[newrelic.debug]     jarInput output: " + output.absolutePath)
-                logger.debug("[newrelic.debug]")
+                logger.debug("    jarInput output: " + output.absolutePath)
+                logger.debug("[newrelic]")
             }
         }
 
-        logger.debug("[newrelic.debug] referencedInputs")
+        logger.debug("referencedInputs")
         referencedInputs.each {
             refInput ->
                 refInput.directoryInputs.each { dirInp ->
-                    logger.debug("[newrelic.debug]     dirInput name: " + dirInp.name)
-                    logger.debug("[newrelic.debug]     dirInput file: " + dirInp.file.absolutePath)
+                    logger.debug("    dirInput name: " + dirInp.name)
+                    logger.debug("    dirInput file: " + dirInp.file.absolutePath)
                     final File output = outputProvider.getContentLocation(dirInp.name,
                             dirInp.getContentTypes(),
                             dirInp.getScopes(),
                             Format.DIRECTORY)
 
-                    logger.debug("[newrelic.debug]     dirInput output: " + output.absolutePath)
-                    logger.debug("[newrelic.debug]")
+                    logger.debug("    dirInput output: " + output.absolutePath)
+                    logger.debug("[newrelic]")
                 }
 
                 refInput.jarInputs.each { jarInp ->
-                    logger.debug("[newrelic.debug]     jarInput name: " + jarInp.name)
-                    logger.debug("[newrelic.debug]     jarInput file: " + jarInp.file.absolutePath)
-                    logger.debug("[newrelic.debug]     jarInput status: " + jarInp.status)
+                    logger.debug("    jarInput name: " + jarInp.name)
+                    logger.debug("    jarInput file: " + jarInp.file.absolutePath)
+                    logger.debug("    jarInput status: " + jarInp.status)
 
                     final File output = outputProvider.getContentLocation(jarInp.name,
                             jarInp.getContentTypes(),
                             jarInp.getScopes(),
                             Format.JAR)
 
-                    logger.debug("[newrelic.debug]     jarInput output: " + output.absolutePath)
-                    logger.debug("[newrelic.debug]")
+                    logger.debug("    jarInput output: " + output.absolutePath)
+                    logger.debug("[newrelic]")
                 }
         }
     }
@@ -290,10 +289,10 @@ class NewRelicTransform extends Transform {
                     break
                 case Status.ADDED:
                 case Status.CHANGED:
-                    // logger.quiet("[newrelic.debug] dir[" + dirInp.name + "] CHANGED or ADDED")
+                    // logger.quiet("dir[" + dirInp.name + "] CHANGED or ADDED")
                     break
                 case Status.REMOVED:
-                    // logger.quiet("[newrelic.debug] dir[" + dirInp.name + "] REMOVED")
+                    // logger.quiet("dir[" + dirInp.name + "] REMOVED")
                     break
             }
         }
@@ -305,10 +304,10 @@ class NewRelicTransform extends Transform {
                 break
             case Status.ADDED:
             case Status.CHANGED:
-                // logger.quiet("[newrelic.debug] JAR[" + jarInp.name + "] CHANGED or ADDED")
+                // logger.quiet("JAR[" + jarInp.name + "] CHANGED or ADDED")
                 break
             case Status.REMOVED:
-                // logger.quiet("[newrelic.debug] JAR[" + jarInp.name + "] REMOVED")
+                // logger.quiet("JAR[" + jarInp.name + "] REMOVED")
                 break
         }
     }

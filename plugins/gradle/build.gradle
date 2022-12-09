@@ -17,15 +17,6 @@ apply plugin: 'groovy'
 
 group = 'com.newrelic.agent.android'
 version = project.versions.agent
-archivesBaseName = "agent-gradle-plugin"
-
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
-repositories {
-    google()
-    mavenCentral()
-}
 
 dependencies {
     implementation project(path: ':instrumentation', configuration: 'shadow')

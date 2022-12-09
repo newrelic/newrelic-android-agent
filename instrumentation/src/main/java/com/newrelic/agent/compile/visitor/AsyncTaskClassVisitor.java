@@ -7,12 +7,12 @@ package com.newrelic.agent.compile.visitor;
 
 import com.google.common.collect.ImmutableMap;
 import com.newrelic.agent.compile.InstrumentationContext;
-import com.newrelic.agent.compile.Log;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.slf4j.Logger;
 
 /**
  * AsyncTask class was deprecated in API level 30.
@@ -29,7 +29,7 @@ public class AsyncTaskClassVisitor extends ClassVisitor {
     public static final String TARGET_CLASS = "android/os/AsyncTask";
 
     private final InstrumentationContext context;
-    private final Log log;
+    private final Logger log;
 
     boolean instrument = false;
 
@@ -44,7 +44,7 @@ public class AsyncTaskClassVisitor extends ClassVisitor {
             "onPostExecute", "(Ljava/lang/Object;)V"
     );
 
-    public AsyncTaskClassVisitor(ClassVisitor cv, InstrumentationContext context, Log log) {
+    public AsyncTaskClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log) {
         super(Opcodes.ASM8, cv);
         this.context = context;
         this.log = log;
