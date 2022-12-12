@@ -36,6 +36,8 @@ publishing {
         mavenJava(MavenPublication) {
             groupId 'com.newrelic.agent.android'
             version project.versions.agent
+            artifact javadocJar
+            artifact sourcesJar
 
             pom {
                 name = 'com.newrelic.agent.android'
@@ -67,6 +69,11 @@ publishing {
 }
 
 signing {
+    useInMemoryPgpKeys(
+            rootProject.ext["signingKeyId"],
+            rootProject.ext["signingKey"],
+            rootProject.ext["signingPassword"]
+    )
     sign publishing.publications.mavenJava
     required {
         gradle.taskGraph.hasTask("publishAllPublicationsToArtifactsRepository") ||

@@ -55,6 +55,12 @@ buildscript {
 
         ]
 
+        signingKeyId = System.getenv("SIGNING_KEY_ID")
+        signingPassword = System.getenv("SIGNING_PASSWORD")
+        signingKey = System.getenv("SIGNING_KEY")
+        sonatypeUsername = System.getenv("SONATYPE_USERNAME")
+        sonatypePassword = System.getenv("SONATYPE_PASSWORD")
+
         buildDate = new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         mavenLocal = new File(rootProject.buildDir, ".m2/repository")
         legacyDistDir = new File(rootProject.projectDir, "dist")
