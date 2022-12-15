@@ -11,6 +11,7 @@ import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.measurement.consumer.BaseMeasurementConsumer;
 import com.newrelic.agent.android.measurement.consumer.MeasurementConsumer;
 import com.newrelic.agent.android.measurement.producer.BaseMeasurementProducer;
+import com.newrelic.agent.android.measurement.producer.CustomMetricProducer;
 import com.newrelic.agent.android.measurement.producer.MeasurementProducer;
 
 import org.junit.Assert;
@@ -25,14 +26,11 @@ import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static org.junit.Assert.fail;
 
 @RunWith(JUnit4.class)
 public class MeasurementPoolTests {
@@ -81,7 +79,7 @@ public class MeasurementPoolTests {
     @Test
     public void testRemoveMeasurementProducer() {
         MeasurementPool pool = new MeasurementPool();
-        BaseMeasurementProducer producer = new BaseMeasurementProducer(MeasurementType.Network);
+        BaseMeasurementProducer producer = new BaseMeasurementProducer(MeasurementType.Custom);
 
         pool.addMeasurementProducer(producer);
         Assert.assertTrue(pool.getMeasurementProducers().contains(producer));
@@ -99,7 +97,7 @@ public class MeasurementPoolTests {
     @Test
     public void testRemoveMeasurementConsumer() {
         MeasurementPool pool = new MeasurementPool();
-        BaseMeasurementConsumer consumer = new BaseMeasurementConsumer(MeasurementType.Network);
+        BaseMeasurementConsumer consumer = new BaseMeasurementConsumer(MeasurementType.Custom);
 
         pool.addMeasurementConsumer(consumer);
         Assert.assertTrue(pool.getMeasurementConsumers().contains(consumer));
@@ -117,13 +115,60 @@ public class MeasurementPoolTests {
     @Test
     public void testSimpleProcessMeasurements() {
         MeasurementPool pool = new MeasurementPool();
-        BaseMeasurementProducer producer = new BaseMeasurementProducer(MeasurementType.Network);
-        BaseMeasurementConsumer consumer = new BaseMeasurementConsumer(MeasurementType.Network);
+        BaseMeasurementProducer producer = new BaseMeasurementProducer(MeasurementType.Custom);
+        BaseMeasurementConsumer consumer = new BaseMeasurementConsumer(MeasurementType.Custom);
 
         pool.addMeasurementProducer(producer);
         pool.addMeasurementConsumer(consumer);
 
+        int numMeasurements = 1000;
+        for (int i = 0; i < numMeasurements; i++) {
+            producer.produceMeasurement(new CustomMetricMeasurement());
+        }
+
         pool.broadcastMeasurements();
+    }
+
+    @Test
+    public void testConcurrentProcessMeasurements() {
+        MeasurementPool pool = new TestMeasurementPool();
+
+        int numProducers = 1;
+        for (int i = 0; i < numProducers; i++) {
+            pool.addMeasurementProducer(new CountingMeasurementProducer(MeasurementType.Custom));
+        }
+
+        int numConsumers = 5;
+        for (int i = 0; i < numConsumers; i++) {
+            pool.addMeasurementConsumer(new CountingMeasurementConsumer(MeasurementType.Custom));
+        }
+
+        long totalMeasurements = 1000;
+        int maxMeasurementsPerRun = 1000;
+        double skipProcessingChance = 0.0;
+
+        ConsumerThread consumerThread = new ConsumerThread(pool, totalMeasurements, skipProcessingChance);
+        Future consumerFuture = Executors.newSingleThreadExecutor().submit(consumerThread);
+
+        ProducerThread producerThread = new ProducerThread(pool, totalMeasurements, maxMeasurementsPerRun);
+        Future producerFuture = Executors.newSingleThreadExecutor().submit(producerThread);
+
+        while (true) {
+            if (consumerFuture.isDone() || consumerFuture.isCancelled()) {
+                if (producerFuture.isDone() || producerFuture.isCancelled()) {
+                    Assert.assertEquals(consumerThread.getProducedMeasurementCount() * numConsumers, consumerThread.getConsumedMeasurementCount());
+                    break;
+                }
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // no-op
+            } catch (Exception e) {
+                log.error(e.getMessage());
+            }
+
+        }
     }
 
     @Test
@@ -136,12 +181,12 @@ public class MeasurementPoolTests {
 
         int numProducers = 5;
         for (int i = 0; i < numProducers; i++) {
-            pool.addMeasurementProducer(new CountingMeasurementProducer(MeasurementType.Network));
+            pool.addMeasurementProducer(new CountingMeasurementProducer(MeasurementType.Custom));
         }
 
         int numConsumers = 15;
         for (int i = 0; i < numConsumers; i++) {
-            pool.addMeasurementConsumer(new CountingMeasurementConsumer(MeasurementType.Network));
+            pool.addMeasurementConsumer(new CountingMeasurementConsumer(MeasurementType.Custom));
         }
 
         final int threadCnt = 10;
@@ -189,23 +234,69 @@ public class MeasurementPoolTests {
     public void testConsumingProducesMeasurement() {
         MeasurementPool pool = new MeasurementPool();
 
+        Measurement measurement = new CustomMetricMeasurement();
+        pool.consumeMeasurement(measurement);
+
         Collection<Measurement> producedMeasurements = pool.drainMeasurements();
 
-        Assert.assertEquals(0, producedMeasurements.size());
+        Assert.assertEquals(1, producedMeasurements.size());
+        Assert.assertEquals(measurement, producedMeasurements.iterator().next());
     }
 
     @Test
     public void testMeasurementPoolFillsFromAnotherPool() {
+        CustomMetricProducer producer = new CustomMetricProducer();
         MeasurementPool rootPool = new MeasurementPool();
         MeasurementPool activityPool = new MeasurementPool();
 
+        rootPool.addMeasurementProducer(producer);
         rootPool.addMeasurementConsumer(activityPool);
+
+        for (int i = 0; i < 1000; i++) {
+            producer.produceMeasurement("customname", "customcategory", 1,2,3);
+        }
 
         rootPool.broadcastMeasurements();
 
         Collection<Measurement> measurements = activityPool.drainMeasurements();
-        Assert.assertEquals(0, measurements.size());
+        Assert.assertEquals(1000, measurements.size());
     }
+
+    @Test
+    public void testFilterNullMeasurements() throws Exception {
+        // test a collection that contains some null measurements
+        final Measurement nullMeasurement = null;
+        ArrayList<Measurement> nullMeasurements = new ArrayList<Measurement>();
+        nullMeasurements.add(nullMeasurement);
+        nullMeasurements.add(new BaseMeasurement(MeasurementType.Custom));
+        nullMeasurements.add(nullMeasurement);
+        nullMeasurements.add(new BaseMeasurement(MeasurementType.Custom));
+        nullMeasurements.add(nullMeasurement);
+        nullMeasurements.add(new BaseMeasurement(MeasurementType.Custom));
+        Assert.assertEquals(6, nullMeasurements.size());
+
+        MeasurementPool pool = new MeasurementPool();
+        CustomMetricProducer producer = new CustomMetricProducer();
+        CountingMeasurementConsumer consumer = new CountingMeasurementConsumer(MeasurementType.Custom);
+
+        // test null measurements against measurement producers
+        pool.addMeasurementConsumer(consumer);
+        pool.addMeasurementProducer(producer);
+
+        producer.produceMeasurements(nullMeasurements);
+
+        // these should fail as well
+        producer.produceMeasurement(nullMeasurement);
+        producer.produceMeasurement("customname", "customcategory", 1,2,3);
+        producer.produceMeasurement("customname", "customcategory", 1,2,3);
+        pool.broadcastMeasurements();
+
+        Assert.assertEquals(5, consumer.getConsumedMeasurementCount().get());
+
+        // producer should be drained
+        Assert.assertEquals(0, pool.drainMeasurements().size());
+    }
+
 
     private class CountingMeasurementProducer extends BaseMeasurementProducer {
         private final AtomicLong producedMeasurements = new AtomicLong();
@@ -276,6 +367,14 @@ public class MeasurementPoolTests {
 
                 if (measurementCount + numMeasurements >= totalMeasurements) {
                     numMeasurements = totalMeasurements - measurementCount;
+                }
+
+                for (MeasurementProducer producer : pool.getMeasurementProducers()) {
+                    for (int i = 0; i < numMeasurements; i++) {
+                        BaseMeasurement measurement = new CustomMetricMeasurement();
+                        producer.produceMeasurement(measurement);
+                    }
+                    measurementCount += numMeasurements;
                 }
 
                 log.debug(Thread.currentThread().getId() + ": ProducerThread{numMeasurements=" + numMeasurements + ", measurementCount=" + measurementCount + "}");
@@ -377,13 +476,13 @@ public class MeasurementPoolTests {
                     Collection<MeasurementProducer> producers = pool.getMeasurementProducers();
                     if (producers.size() > 1) {
                         pool.removeMeasurementProducer(producers.iterator().next());
-                        pool.addMeasurementProducer(new CountingMeasurementProducer(MeasurementType.Network));
+                        pool.addMeasurementProducer(new CountingMeasurementProducer(MeasurementType.Custom));
                     }
 
                     Collection<MeasurementConsumer> consumers = pool.getMeasurementConsumers();
                     if (consumers.size() > 1) {
                         pool.removeMeasurementConsumer(consumers.iterator().next());
-                        pool.addMeasurementConsumer(new CountingMeasurementConsumer(MeasurementType.Network));
+                        pool.addMeasurementConsumer(new CountingMeasurementConsumer(MeasurementType.Custom));
                     }
                 }
 

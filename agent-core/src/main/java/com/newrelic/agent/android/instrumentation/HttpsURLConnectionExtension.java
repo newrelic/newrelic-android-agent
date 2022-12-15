@@ -647,8 +647,6 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
         }
 
         TaskQueue.queue(new HttpTransactionMeasurement(transactionData));
-
-        setDistributedTraceHeaders(transactionState, impl);
     }
 
 }
