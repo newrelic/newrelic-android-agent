@@ -194,31 +194,38 @@ if (project.plugins.hasPlugin("dexguard")) {
 
 if (project.plugins.hasPlugin("newrelic")) {
 
-    newrelic {
-        // use a common buildId for all variants (default: true)
-        // variantMapsEnabled true
+    // this allows integration testing
+    def testExtension = project.file("nr-extension.gradle")
+    if (testExtension.exists()) {
+        apply from: testExtension.absolutePath
 
-        // Tag and report Proguard maps for these build types (default: release):
-        uploadMapsForVariant 'release', 'qa'
+    } else {
+        newrelic {
+            // use a common buildId for all variants (default: true)
+            // variantMapsEnabled true
 
-        // do not instrument these variant builds
-        // excludeVariantInstrumentation 'qa'
+            // Tag and report Proguard maps for these build types (default: release):
+            uploadMapsForVariant 'release', 'qa'
 
-        // do not instrument these specific packages
-        excludePackageInstrumentation 'com.newrelic'
+            // do not instrument these variant builds
+            // excludeVariantInstrumentation 'qa'
 
-        if (GradleVersion.version(newrelic.agent.version).version >= GradleVersion.version("6.6.0").version) {
-            variantConfigurations {
-                debug {
-                    // mappingFile = 'build/outputs/dexguard/mapping/debug/debug-mapping.txt'
-                }
+            // do not instrument these specific packages
+            excludePackageInstrumentation 'com.newrelic'
 
-                qa {
-                    mappingFile = 'build/outputs/dexguard/mapping/qa/qa-mapping.txt'
-                }
+            if (GradleVersion.version(newrelic.agent.version).version >= GradleVersion.version("6.6.0").version) {
+                variantConfigurations {
+                    debug {
+                        // mappingFile = 'build/outputs/dexguard/mapping/debug/debug-mapping.txt'
+                    }
 
-                release {
-                    // mappingFile = 'build/outputs/dexguard/mapping/bundle/release/mapping.txt'
+                    qa {
+                        mappingFile = 'build/outputs/dexguard/mapping/qa/qa-mapping.txt'
+                    }
+
+                    release {
+                        // mappingFile = 'build/outputs/dexguard/mapping/bundle/release/mapping.txt'
+                    }
                 }
             }
         }

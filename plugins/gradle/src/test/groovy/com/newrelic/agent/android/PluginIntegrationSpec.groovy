@@ -24,9 +24,11 @@ class PluginIntegrationSpec extends Specification {
     static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
 
-    static final agentVersion = '6.10.0'     // update as needed
+    static final agentVersion = '6.9.2'     // update as needed
     static final agpVersion = BuildHelper.minSupportedAGPConfigCacheVersion.version
     static final gradleVersion = BuildHelper.minSupportedAGPConfigCacheVersion.version
+
+    def extensionsFile = new File(projectRootDir, "nr-extension.gradle")
 
     @Shared
     Map<String, String> localEnv = [:]
@@ -35,7 +37,7 @@ class PluginIntegrationSpec extends Specification {
     BuildResult buildResult
 
     @Shared
-    boolean debuggable = false
+    boolean debuggable = true
 
     @Shared
     def testTask = 'assembleRelease'
@@ -52,6 +54,7 @@ class PluginIntegrationSpec extends Specification {
     // fixtures
     def setup() {
         printFilter = new PrintFilter()
+        extensionsFile = new File(projectRootDir, "nr-extension.gradle")
     }
 
     def setupSpec() {
@@ -185,7 +188,7 @@ class PluginIntegrationSpec extends Specification {
     def "verify unsupported Gradle version"() {
         given: "Apply an unsupported Gradle version"
         def errStringWriter = new StringWriter()
-        def incompatVers = "5.6.4"
+        def incompatVers = "5.1.1"
         def runner = GradleRunner.create()
                 .forwardStdError(errStringWriter)
                 .withGradleVersion(incompatVers)
@@ -193,7 +196,7 @@ class PluginIntegrationSpec extends Specification {
                 .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=3.+",
+                        "-Pnewrelic.agp.version=3.3.+",
                         "-PagentRepo=${localEnv["M2_REPO"]}")
 
         when: "run the build"
@@ -212,12 +215,12 @@ class PluginIntegrationSpec extends Specification {
         def errStringWriter = new StringWriter()
         def runner = GradleRunner.create()
                 .forwardStdError(errStringWriter)
-                .withGradleVersion('5.6.4')
+                .withGradleVersion('5.1.1')
                 .withProjectDir(projectRootDir)
                 .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=3.+",
+                        "-Pnewrelic.agp.version=3.3.+",
                         "-PagentRepo=${localEnv["M2_REPO"]}")
 
         when: "run the build"
@@ -240,7 +243,8 @@ class PluginIntegrationSpec extends Specification {
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=7.1.0-alpha12",
-                        "-PagentRepo=${localEnv["M2_REPO"]}")
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "clean")
 
         when: "run the build"
         buildResult = runner.build()
@@ -450,8 +454,141 @@ class PluginIntegrationSpec extends Specification {
         printFilter.toString().contains("loglevel=VERBOSE")
     }
 
+    def "verify product flavors"() {
+        given: "Build with flavor dimensions enabled"
+        def runner = GradleRunner.create()
+                .forwardStdOutput(printFilter)
+                .withGradleVersion(gradleVersion)
+                .withProjectDir(projectRootDir)
+                .withEnvironment(localEnv)
+                .withArguments("--debug",
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PwithProductFlavors=true",
+                        testTask)
+
+        when: "run the build"
+        buildResult = runner.build()
+
+        then:
+        with(buildResult) {
+            task(":assembleRelease").outcome == SUCCESS
+            ['Amazon', 'Google'].each {
+                task(":transformClassesWithNewrelicTransformFor${it}Release").outcome == SUCCESS
+                task(":assemble${it}Release").outcome == SUCCESS
+                filteredOutput.contains("Map upload ignored for variant[${it.toLowerCase()}Debug]")
+                filteredOutput.contains("newrelicConfig${it}Release buildId[")
+                filteredOutput.contains("newrelicConfig${it}Debug buildId[")
+            }
+        }
+    }
+
+    def "verify plugin extension API"() {
+        given: "Configure the plugin using the extension API methods"
+        extensionsFile << """
+            newrelic {
+                uploadMapsForVariant 'release', 'qa'
+                excludeVariantInstrumentation 'debug'
+                }
+        """
+
+        def runner = GradleRunner.create()
+                .forwardStdOutput(printFilter)
+                .withGradleVersion(gradleVersion)
+                .withDebug(debuggable)
+                .withProjectDir(projectRootDir)
+                .withEnvironment(localEnv)
+                .withArguments("--debug",
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "clean", "assemble")
+
+        when: "run the build"
+        buildResult = runner.build()
+
+        then:
+        with(buildResult) {
+            task(":transformClassesWithNewrelicTransformForDebug") == null
+            with(task(":transformClassesWithNewrelicTransformForRelease")) {
+                outcome == SUCCESS || outcome == UP_TO_DATE
+            }
+            with(task(":transformClassesWithNewrelicTransformForQa")) {
+                outcome == SUCCESS || outcome == UP_TO_DATE
+            }
+
+            ["debug", "release", "qa"].each { var ->
+                var = var.capitalize()
+                filteredOutput.contains("newrelicConfig${var} buildId[")
+                ["assemble${var}"].each { taskName ->
+                    with(task(":${taskName}")) {
+                        outcome == SUCCESS || outcome == UP_TO_DATE
+                    }
+                }
+            }
+
+            filteredOutput.contains("Excluding instrumentation of variant [debug]")
+            !filteredOutput.contains("Excluding instrumentation of variant [release]")
+            filteredOutput.contains("Map upload ignored for variant[debug]")
+        }
+    }
+
+    def "verify plugin extension DSL"() {
+        given: "Configure the plugin using the extension DSL"
+        extensionsFile << """
+            newrelic {
+                variantConfigurations {
+                    debug {
+                        instrument = false
+                        uploadMappingFile = true
+                    }
+                    qa {
+                        uploadMappingFile = false
+                    }
+                    release {
+                        uploadMappingFile = true
+                    }
+                }
+            }
+        """
+
+        def runner = GradleRunner.create()
+                .forwardStdOutput(printFilter)
+                .withDebug(debuggable)
+                .withGradleVersion(gradleVersion)
+                .withProjectDir(projectRootDir)
+                .withEnvironment(localEnv)
+                .withArguments("--debug",
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "clean", "assemble")
+
+        when: "run the build"
+        buildResult = runner.build()
+
+        then:
+        with(buildResult) {
+            ["debug", "release", "qa"].each { var ->
+                var = var.capitalize()
+                filteredOutput.contains("newrelicConfig${var} buildId[")
+                ["assemble${var}", "transformClassesWithNewrelicTransformFor${var}"].each { taskName ->
+                    with(task(":${taskName}")) {
+                        outcome == SUCCESS || outcome == UP_TO_DATE
+                    }
+                }
+            }
+
+            filteredOutput.contains("Maps will be tagged and uploaded for variants [release, qa]")
+            filteredOutput.contains("Excluding instrumentation of variant [debug]")
+            filteredOutput.contains("Map upload ignored for variant[debug]")
+            !filteredOutput.contains("Map upload ignored for variant[release]")
+        }
+    }
 
     def cleanup() {
+        extensionsFile?.delete()
         with(new File(projectRootDir, ".gradle/configuration-cache")) {
             it.deleteDir()
         }
