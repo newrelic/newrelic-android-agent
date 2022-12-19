@@ -24,7 +24,8 @@ class PluginIntegrationSpec extends Specification {
     static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
 
-    static final agentVersion = '6.9.2'     // update as needed
+    // update as needed
+    static final agentVersion = System.getProperty("newrelic.agent.version", '6.+')
     static final agpVersion = BuildHelper.minSupportedAGPConfigCacheVersion.version
     static final gradleVersion = BuildHelper.minSupportedAGPConfigCacheVersion.version
 
@@ -37,7 +38,7 @@ class PluginIntegrationSpec extends Specification {
     BuildResult buildResult
 
     @Shared
-    boolean debuggable = true
+    boolean debuggable = false
 
     @Shared
     def testTask = 'assembleRelease'
@@ -58,8 +59,6 @@ class PluginIntegrationSpec extends Specification {
     }
 
     def setupSpec() {
-        cleanup()
-
         given: "verify M2 repo location"
         localEnv += System.getenv()
         if (localEnv["M2_REPO"] == null) {
@@ -67,7 +66,8 @@ class PluginIntegrationSpec extends Specification {
             if (!(m2.exists() && m2.canRead())) {
                 GradleRunner.create()
                         .withProjectDir(rootDir)
-                        .withArguments("publish")
+                        .withArguments("-Pnewrelic.agent.version=${agentVersion}",
+                                "publish")
                         .build()
                 if (!(m2.exists() && m2.canRead())) {
                     throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
@@ -106,7 +106,7 @@ class PluginIntegrationSpec extends Specification {
                 outcome == SUCCESS
             }
 
-            output.contains("Android Gradle plugin version: ")
+            output.contains("Android Gradle plugin version:")
             output.contains("Gradle version:")
             output.contains("Java version:")
         }
@@ -570,20 +570,27 @@ class PluginIntegrationSpec extends Specification {
 
         then:
         with(buildResult) {
+            task(":transformClassesWithNewrelicTransformForDebug") == null
+            with(task(":transformClassesWithNewrelicTransformForRelease")) {
+                outcome == SUCCESS || outcome == UP_TO_DATE
+            }
+            with(task(":transformClassesWithNewrelicTransformForQa")) {
+                outcome == SUCCESS || outcome == UP_TO_DATE
+            }
+
             ["debug", "release", "qa"].each { var ->
                 var = var.capitalize()
                 filteredOutput.contains("newrelicConfig${var} buildId[")
-                ["assemble${var}", "transformClassesWithNewrelicTransformFor${var}"].each { taskName ->
+                ["assemble${var}"].each { taskName ->
                     with(task(":${taskName}")) {
                         outcome == SUCCESS || outcome == UP_TO_DATE
                     }
                 }
             }
 
-            filteredOutput.contains("Maps will be tagged and uploaded for variants [release, qa]")
             filteredOutput.contains("Excluding instrumentation of variant [debug]")
+            !filteredOutput.contains("Excluding instrumentation of variant [release]")
             filteredOutput.contains("Map upload ignored for variant[debug]")
-            !filteredOutput.contains("Map upload ignored for variant[release]")
         }
     }
 

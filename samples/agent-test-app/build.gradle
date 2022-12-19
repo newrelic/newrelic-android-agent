@@ -208,12 +208,12 @@ if (project.plugins.hasPlugin("newrelic")) {
             uploadMapsForVariant 'release', 'qa'
 
             // do not instrument these variant builds
-            // excludeVariantInstrumentation 'qa'
+            excludeVariantInstrumentation 'debug'
 
             // do not instrument these specific packages
             excludePackageInstrumentation 'com.newrelic'
 
-            if (GradleVersion.version(newrelic.agent.version).version >= GradleVersion.version("6.6.0").version) {
+            try {
                 variantConfigurations {
                     debug {
                         // mappingFile = 'build/outputs/dexguard/mapping/debug/debug-mapping.txt'
@@ -227,6 +227,8 @@ if (project.plugins.hasPlugin("newrelic")) {
                         // mappingFile = 'build/outputs/dexguard/mapping/bundle/release/mapping.txt'
                     }
                 }
+            } catch(Exception) {
+                logger.info("DSL not implemented")
             }
         }
     }
