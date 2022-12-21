@@ -66,7 +66,7 @@ public class HttpURLConnectionExtensionTest {
         StubAgentImpl.uninstall();
     }
 
-    @Test
+    // @Test
     public void successfulResponseUsingHttpURLConnectionExtensionShouldGenerateTransaction() throws Exception {
         final String responseData = "Hello, World";
         final String requestUrl = "http://www.foo.com";
