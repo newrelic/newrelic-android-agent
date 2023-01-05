@@ -82,7 +82,7 @@ public class AgentDataController {
         } else {
             sessionAttributes.put(AnalyticsAttribute.SESSION_TIME_SINCE_LOAD_ATTRIBUTE, sessionDuration / 1000.00f);
         }
-
+        sessionAttributes.put("obfuscated", Agent.getIsObfuscated());
         sessionAttributes.putAll(exceptionAttributes);   // will overwrite any of the above with passed attributes
 
         Set<Map<String, Object>> agentData = new HashSet<>();
