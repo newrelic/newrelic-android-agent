@@ -31,6 +31,7 @@ import com.newrelic.agent.android.util.SafeJsonPrimitive;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -90,7 +91,7 @@ public class Crash extends HarvestableObject {
         this.exceptionInfo = new ExceptionInfo(cause);
         this.threads = extractThreads(cause);
         this.activityHistory = TraceMachine.getActivityHistory();
-        this.sessionAttributes = sessionAttributes;
+        this.sessionAttributes = getCrashSessionAttributes(sessionAttributes);
         this.events = events;
         this.analyticsEnabled = analyticsEnabled;
         this.uploadCount = 0;
@@ -139,7 +140,7 @@ public class Crash extends HarvestableObject {
     }
 
     public void setSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
-        this.sessionAttributes = sessionAttributes;
+        this.sessionAttributes = getCrashSessionAttributes(sessionAttributes);
     }
 
     public Set<AnalyticsAttribute> getSessionAttributes() {
@@ -148,6 +149,19 @@ public class Crash extends HarvestableObject {
 
     public void setAnalyticsEvents(Collection<AnalyticsEvent> events) {
         this.events = events;
+    }
+
+    public boolean getIsObfuscated() {
+        return Agent.getIsObfuscated();
+    }
+
+    public Set<AnalyticsAttribute> getCrashSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
+        if(sessionAttributes == null) {
+            return null;
+        }
+        Set<AnalyticsAttribute> attrs = new HashSet<>(sessionAttributes);
+        attrs.add(new AnalyticsAttribute("obfuscated", this.getIsObfuscated()));
+        return Collections.unmodifiableSet(attrs);
     }
 
     @Override

@@ -116,7 +116,8 @@ public class CrashTests {
         crash = new Crash(new RuntimeException("testCrashAnalytics"), sessionAttributes, events, true);
         JsonObject json = crash.asJsonObject();
         Assert.assertTrue("Should contain analytics struct", json.has("sessionAttributes") && json.has("analyticsEvents"));
-        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size());
+        // We add 1 to the sessionAttributes size since 'OBFUSCATED' is only added as a session attribute on crash
+        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size() + 1);
         Assert.assertEquals("Should contain analytics events", json.getAsJsonArray("analyticsEvents").size(), events.size());
 
         crash = new Crash(new RuntimeException("testCrashAnalytics"), null, null, true);
@@ -124,7 +125,8 @@ public class CrashTests {
         crash.setAnalyticsEvents(events);
         json = crash.asJsonObject();
         Assert.assertTrue("Should contain analytics structs", json.has("sessionAttributes") && json.has("analyticsEvents"));
-        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size());
+        // We add 1 to the sessionAttributes size since 'OBFUSCATED' is only added as a session attribute on crash
+        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size() + 1);
         Assert.assertEquals("Should contain analytics events", json.getAsJsonArray("analyticsEvents").size(), events.size());
     }
 
@@ -202,8 +204,20 @@ public class CrashTests {
 
         JsonObject json = crashFromJson.asJsonObject();
         Assert.assertTrue("Should contain analytics structs", json.has("sessionAttributes") && json.has("analyticsEvents"));
-        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size());
+        // We add 1 to the sessionAttributes size since 'OBFUSCATED' is only added as a session attribute on crash
+        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size() + 1);
         Assert.assertEquals("Should contain analytics events", json.getAsJsonArray("analyticsEvents").size(), events.size());
+    }
+
+    @Test
+    public void testObfuscated() {
+        crash = new Crash(new RuntimeException("testObfuscated"));
+
+        JsonObject json = crash.asJsonObject();
+        JsonObject sessionAttributesObj = json.getAsJsonObject("sessionAttributes");
+        Assert.assertTrue("Should contain obfuscated in session attributes", sessionAttributesObj.has("obfuscated"));
+        // NewRelicConfig.java has 'OBFUSCATED' set as true
+        Assert.assertTrue("Obfuscated should be set to true", sessionAttributesObj.getAsJsonPrimitive("obfuscated").getAsBoolean()) ;
     }
 
     private static class TestCrash extends Crash {
