@@ -25,7 +25,7 @@ import java.util.Set;
 
 /**
  * Information used in the {@code data} phase of harvesting.
- * <p>
+ *
  * The following entities are included in HarvestData:
  * <ul>
  *     <li>A {@link DataToken} which holds application identifying information.</li>
@@ -33,6 +33,11 @@ import java.util.Set;
  *     <li>The time since last harvest.</li>
  *     <li>{@link HttpTransactions} which contains HTTP request metrics.</li>
  *     <li>{@link MachineMeasurements} for resource metrics such as CPU and Memory.</li>
+ *     <li>{@link ActivityTraces} which contains interactions.</li>
+ *     <li>{@link AgentHealth} unused.</li>
+ *     <li>{@link AnalyticsAttribute} all session attribytes.</li>
+ *     <li>{@link AnalyticsEvent} all events collected, empty if event cache time > harvest period.</li>
+ *     </li>
  * </ul>
  */
 public class HarvestData extends HarvestableArray {
@@ -64,16 +69,33 @@ public class HarvestData extends HarvestableArray {
     /**
      * Creates JSON suitable for a harvest {@code data} post.
      *
-     * @return A {@code JsonArray} suitable vor a harvest {@code data} post.
+     * @return A {@code JsonArray} suitable for a harvest {@code data} post.
      */
     @Override
     public JsonArray asJsonArray() {
         JsonArray array = new JsonArray();
+
+        /**
+         * The JSON payload is an array of nine elements:
+         *
+         * DATA = [
+         *  DATA_TOKEN,
+         *  DEVICE_INFORMATION,
+         *  TIME_SINCE_LAST_HARVEST,
+         *  HTTP_TRANSACTIONS,
+         *  METRICS,
+         *  HTTP_ERROR_TRACES,      // DEPRECATED
+         *  ACTIVITY_TRACES,
+         *  SESSION_ATTRIBUTES,
+         *  ANALYTICS_EVENT ]
+         **/
+
         array.add(dataToken.asJson());
         array.add(deviceInformation.asJson());
         array.add(new JsonPrimitive(harvestTimeDelta));
         array.add(httpTransactions.asJson());
         array.add(machineMeasurements.asJson());
+        array.add(new JsonArray()); // must be empty per the harvest data spec
 
         JsonElement activityTracesElement = activityTraces.asJson();
 
