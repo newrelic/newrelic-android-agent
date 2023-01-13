@@ -39,5 +39,5 @@ jobs:
             SIGNING_KEY_ID: ${{ secrets.SIGNINGKEYID }}
             SIGNING_PASSWORD: ${{ secrets.SIGNINGPASSWORD }}
             SIGNING_KEY: ${{ secrets.SIGNINGKEY }}
-          run: ./gradlew clean publish --max-workers 1
+          run: ./gradlew clean publishToSonatype --max-workers 1
 
