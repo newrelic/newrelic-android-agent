@@ -1,9 +1,10 @@
-name: Publish release version explicitly
+name: Sonatype Deployment
 
 on:
-  release:
-    types:
-      - published
+  push:
+    branches: [ "develop", "main" ]
+  pull_request:
+    branches: [ "develop", "main" ]
 
 jobs:
   assemble_project:
