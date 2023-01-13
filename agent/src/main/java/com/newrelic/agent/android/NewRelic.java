@@ -286,12 +286,12 @@ public final class NewRelic {
                 AndroidAgentImpl.init(context, agentConfiguration);
                 started = true;
 
-                if (log.getLevel() >= AgentLog.AUDIT) {
+                if (log.getLevel() >= AgentLog.DEBUG) {
                     StackTraceElement[] stack = Thread.currentThread().getStackTrace();
                     // the frame we're looking for is 3 levels up from current
                     if (stack.length > 3) {
                         StackTraceElement elem = stack[3];
-                        log.audit("Agent started from " + elem.getClassName() + "." + elem.getMethodName() + ":" + elem.getLineNumber());
+                        log.debug("Agent started from " + elem.getClassName() + "." + elem.getMethodName() + ":" + elem.getLineNumber());
                     }
                 }
 

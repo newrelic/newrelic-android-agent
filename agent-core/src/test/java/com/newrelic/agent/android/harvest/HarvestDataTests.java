@@ -51,6 +51,7 @@ public class HarvestDataTests {
 
     @Before
     public void setUpFeatureFlags() {
+        FeatureFlag.resetFeatures();
         FeatureFlag.enableFeature(FeatureFlag.DefaultInteractions);
         FeatureFlag.enableFeature(FeatureFlag.HttpResponseBodyCapture);
     }
@@ -94,6 +95,7 @@ public class HarvestDataTests {
         harvestData.setSessionAttributes(sessionAttributes);
 
         // Analytic Events
+        long eventCreationTime = System.currentTimeMillis();
         Set<AnalyticsEvent> events = Providers.provideSessionEvents();
         harvestData.setAnalyticsEvents(events);
 
@@ -104,16 +106,17 @@ public class HarvestDataTests {
         // Convert the string back into a JSON array and validate the contents
         JsonArray array = JsonParser.parseString(harvestJson).getAsJsonArray();
 
-        Assert.assertEquals(9, array.size());
+        Assert.assertEquals(10, array.size());
         JsonArray dataTokenElement = array.get(0).getAsJsonArray();
         JsonArray deviceInfoElement = array.get(1).getAsJsonArray();
         double timeSinceHarvestElement = array.get(2).getAsDouble();
         JsonArray httpTransactionsElement = array.get(3).getAsJsonArray();
         JsonArray metricsElement = array.get(4).getAsJsonArray();
-        JsonArray activityTracesElement = array.get(5).getAsJsonArray();
-        JsonArray agentHealthElement = array.get(6).getAsJsonArray();
-        JsonObject sessionAttributesElement = array.get(7).getAsJsonObject();
-        JsonArray analyticsEventsElement = array.get(8).getAsJsonArray();
+        JsonArray httpErrorsElement = array.get(5).getAsJsonArray();
+        JsonArray activityTracesElement = array.get(6).getAsJsonArray();
+        JsonArray agentHealthElement = array.get(7).getAsJsonArray();
+        JsonObject sessionAttributesElement = array.get(8).getAsJsonObject();
+        JsonArray analyticsEventsElement = array.get(9).getAsJsonArray();
 
         // Validate data token
         Assert.assertEquals(2, dataTokenElement.size());
@@ -137,6 +140,9 @@ public class HarvestDataTests {
 
         // Validate the metrics
         Assert.assertEquals(6, metricsElement.size());
+
+        // Validate the element formerly holding HTTP errors
+        Assert.assertEquals(0, httpErrorsElement.size());
 
         // Validate the activity traces
         Assert.assertEquals(0, activityTracesElement.size());
@@ -171,7 +177,7 @@ public class HarvestDataTests {
         Assert.assertNotNull(eventAttr4);
         Assert.assertNotNull(eventAttr5);
 
-        //Assert.assertEquals(eventTimestamp, eventAttr1.getAsInt());
+        Assert.assertEquals(eventCreationTime, eventAttr1.getAsLong(), 1000L);
         Assert.assertEquals("CustomEvent", eventAttr2.getAsString());
         Assert.assertEquals("Custom", eventAttr3.getAsString());
         Assert.assertEquals("Mobile", eventAttr4.getAsString());
@@ -285,11 +291,11 @@ public class HarvestDataTests {
         // Convert the string back into a JSON array and validate the contents
         JsonArray array = JsonParser.parseString(harvestJson).getAsJsonArray();
 
-        Assert.assertEquals(7, array.size());
+        Assert.assertEquals(8, array.size());
         JsonArray activityTracesElement = array.get(6).getAsJsonArray();
 
         // Validate the activity traces
-        Assert.assertEquals(0, activityTracesElement.size());
+        Assert.assertEquals(2, activityTracesElement.size());
     }
 
     private class TestHarvest extends Harvest {

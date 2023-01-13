@@ -11,6 +11,7 @@ import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.util.Encoder;
 
+import java.lang.reflect.Field;
 import java.util.List;
 
 public class Agent {
@@ -65,6 +66,22 @@ public class Agent {
         }
 
         return buildId;
+    }
+
+    public static boolean getIsObfuscated() {
+
+        boolean isObfuscated = false;
+        try {
+            ClassLoader classLoader = Agent.class.getClassLoader();
+            Class newRelicConfigClass = classLoader.loadClass("com.newrelic.agent.android.NewRelicConfig");
+            Field field = newRelicConfigClass.getDeclaredField("OBFUSCATED");
+            field.setAccessible(true);
+            isObfuscated = (Boolean) field.get(null);
+            field.setAccessible(false);
+        } catch (Exception e) {
+            AgentLogManager.getAgentLog().error("Unable to get obfuscated flag in crash");
+        }
+        return isObfuscated;
     }
 
     public static String getCrossProcessId() {

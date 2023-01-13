@@ -40,7 +40,7 @@ dependencies {
 
 project.tasks.withType(Test).configureEach {
     useJUnitPlatform()
-    ["integrationTests", "regressionTests", "newrelic.agent.args"].each {
+    ["integrationTests", "regressionTests", "newrelic.agent.args", "newrelic.agent.version"].each {
         if (project.hasProperty(it)) {
             systemProperty it, project.property(it)
         }

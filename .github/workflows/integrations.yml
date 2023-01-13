@@ -3,10 +3,19 @@ name: Android Integration Workflows
 on:
   release:
     types: [created]
+  push:
+    branches: [ "develop", "main" ]
   pull_request:
+    branches: [ "develop", "main" ]
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'NewRelic Android agent version to test'
+        default: '6.+'
+        required: false
 
 jobs:
-  integration-tests:
+  integration-plugin:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -15,9 +24,17 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
-          cache: gradle
-
+          cache: 'gradle'
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build with Gradle
         run: ./gradlew plugins:gradle:check -PintegrationTests
+      - name: Zip artifact for deployment
+        run: zip integration-plugin-report.zip * -r
+        working-directory: plugins/gradle/build/reports/tests/test
+      - name: 'Upload Test Report'
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-plugin-report
+          path: 'plugins/gradle/build/reports/tests/test/integration-plugin-report.zip'

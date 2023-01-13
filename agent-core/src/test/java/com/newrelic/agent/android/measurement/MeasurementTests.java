@@ -70,4 +70,39 @@ public class MeasurementTests {
             Assert.assertEquals("Attempted to modify finished Measurement", e.getMessage());
         }
     }
+
+    @Test
+    public void testCustomMeasurement() {
+        CustomMetricMeasurement measurement = new CustomMetricMeasurement();
+
+        measurement.setName("Custom measurement"); // What does a Measurement name really look like?
+
+        Assert.assertEquals("Custom measurement", measurement.getName());
+
+        measurement.setThreadInfo(new ThreadInfo() {
+            @Override
+            public long getId() {
+                return 42;
+            }
+
+            @Override
+            public String getName() {
+                return "test thread";
+            }
+        });
+
+        Assert.assertEquals(42, measurement.getThreadInfo().getId());
+        Assert.assertEquals("test thread", measurement.getThreadInfo().getName());
+    }
+
+    @Test
+    public void testThreadInfo() {
+        CustomMetricMeasurement measurement = new CustomMetricMeasurement();
+        measurement.setThreadInfo(ThreadInfo.fromThread(Thread.currentThread()));
+        CustomMetricMeasurement measurement2 = new CustomMetricMeasurement();
+        measurement2.setThreadInfo(new ThreadInfo());
+
+        Assert.assertEquals(measurement.getThreadInfo().getId(), measurement2.getThreadInfo().getId());
+
+    }
 }

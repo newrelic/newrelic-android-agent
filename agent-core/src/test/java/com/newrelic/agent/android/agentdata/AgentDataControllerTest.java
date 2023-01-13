@@ -149,6 +149,7 @@ public class AgentDataControllerTest {
         for (AnalyticsAttribute sessionAttr : AnalyticsControllerImpl.getInstance().getSessionAttributes()) {
             Assert.assertTrue("Should contain essential session attributes", attributeMap.containsKey(sessionAttr.getName()));
         }
+        Assert.assertTrue("Should contain obfuscated state", attributeMap.containsKey("obfuscated"));
     }
 
     @Test

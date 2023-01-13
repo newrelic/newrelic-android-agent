@@ -15,9 +15,9 @@ import org.gradle.api.tasks.Nested
  */
 abstract class NewRelicExtension {
 
-    List<String> variantExclusionList = []          // ['Debug', 'Staging']
-    List<String> variantMapUploadList = ['release'] // ['Release', 'ProdRelease', 'Staging']
-    List<String> packageExclusionList = []          // ['android.*', 'androidx.*']
+    protected List<String> variantExclusionList = []          // ['Debug', 'Staging']
+    protected List<String> variantMapUploadList = []          // ['Release', 'ProdRelease', 'Staging']
+    protected List<String> packageExclusionList = []          // ['android.*', 'androidx.*']
 
     boolean enabled = true
     boolean instrumentTests = false
@@ -43,16 +43,17 @@ abstract class NewRelicExtension {
      * newRelic {
      *      variantConfigurations {
      *          debug {
-     *              instrument false
-     *              uploadMappingFile true
-     *              mappingFile 'build/outputs/mapping/qa/mapping.txt'
+     *              instrument = false
+     *              uploadMappingFile = true
      *          }
      *          release {
      *              uploadMappingFile = true
      *              mappingFile = 'build/outputs/mapping/release/mapping.txt'
      *          }
      *          ... {
-     *              mappingFile = 'build/outputs/mapping/<...>/mapping.txt' *
+     *              instrument = true
+     *              uploadMappingFile = true
+     *              mappingFile = 'build/outputs/mapping/<variantName>/mapping.txt'
      *          }
      *      }
      * }
@@ -60,13 +61,16 @@ abstract class NewRelicExtension {
      */
 
     @Nested
-    def variantConfigurations(final Closure closure) {
-        variantConfigurations.configure(closure)
-    }
-
-    @Nested
     void variantConfigurations(Action<? super NamedDomainObjectContainer<VariantConfiguration>> action) {
         action.execute(variantConfigurations);
+        variantConfigurations.each { config ->
+            if (!config.instrument) {
+                variantExclusionList.add(config.name.toLowerCase())
+            }
+            if (config.uploadMappingFile) {
+                variantMapUploadList.add(config.name.toLowerCase())
+            }
+        }
     }
 
     @Deprecated
@@ -76,13 +80,9 @@ abstract class NewRelicExtension {
 
         // update variants configs with these values
         variantMapUploadList.each { variantName ->
-            try {
-                variantConfigurations.getByName(variantName) {
+            variantConfigurations.findByName(variantName)?.with {
                     uploadMappingFile = true
                 }
-            } catch (UnknownDomainObjectException) {
-                // ignored
-            }
         }
     }
 
@@ -92,14 +92,10 @@ abstract class NewRelicExtension {
         variantExclusionList.addAll(e.collect { i -> i.toString().toLowerCase() })
 
         // update variants configs with these values
-        variantMapUploadList.each { variantName ->
-            try {
-                variantConfigurations.getByName(variantName) {
+        variantExclusionList.each { variantName ->
+            variantConfigurations.findByName(variantName)?.with {
                     instrument = false
                 }
-            } catch (UnknownDomainObjectException) {
-                // ignored
-            }
         }
     }
 
@@ -109,17 +105,16 @@ abstract class NewRelicExtension {
         packageExclusionList.addAll(e.collect { i -> i.toString().toLowerCase() })
 
         variantMapUploadList.each { variantName ->
-            try {
-                variantConfigurations.getByName(variantName) {
+            variantConfigurations.findByName(variantName)?.with {
                     instrument = true
                 }
-            } catch (UnknownDomainObjectException) {
-                // ignored
-            }
         }
     }
 
     boolean shouldExcludeVariant(String variantName) {
+        variantConfigurations.findByName(variantName.toLowerCase())?.with {
+            return instrument
+        }
         return variantExclusionList.contains(variantName.toLowerCase())
     }
 
@@ -128,6 +123,9 @@ abstract class NewRelicExtension {
     }
 
     boolean shouldIncludeMapUpload(String variantName) {
+        variantConfigurations.findByName(variantName.toLowerCase())?.with {
+            return uploadMappingFile
+        }
         return variantMapUploadList.contains(variantName.toLowerCase())
     }
 }
