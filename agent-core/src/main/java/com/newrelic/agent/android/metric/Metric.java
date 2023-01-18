@@ -148,7 +148,7 @@ public class Metric extends HarvestableObject {
     }
 
     public double getSumOfSquares() {
-        return sumOfSquares == null ? 0.0 : sumOfSquares;
+        return (sumOfSquares == null || sumOfSquares < 0) ? 0.0 : sumOfSquares;
     }
 
     public long getCount() {
@@ -156,7 +156,7 @@ public class Metric extends HarvestableObject {
     }
 
     public double getExclusive() {
-        return exclusive == null ? 0.0 : exclusive;
+        return (exclusive == null || exclusive < 0) ? 0.0 : exclusive;
     }
 
     public void addExclusive(double value) {
@@ -188,15 +188,15 @@ public class Metric extends HarvestableObject {
     }
 
     public double getMin() {
-        return min == null ? 0.0 : min;
+        return (min == null || min < 0) ? 0.0 : min;
     }
 
     public double getMax() {
-        return max == null ? 0.0 : max;
+        return (max == null || max < 0) ? 0.0 : max;
     }
 
     public double getTotal() {
-        return total == null ? 0.0 : total;
+        return (total == null || total < 0) ? 0.0 : total;
     }
 
 

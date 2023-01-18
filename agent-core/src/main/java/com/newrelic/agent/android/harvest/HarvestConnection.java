@@ -141,7 +141,8 @@ public class HarvestConnection implements HarvestErrorCodes {
             } else if (connection.getURL().getFile().contains(COLLECTOR_DATA_URI)) {
                 name = name.replace(MetricNames.TAG_SUBDESTINATION, "data");
             }
-            StatsEngine.get().sampleMetricDataUsage(name, byteBuffer.array().length, connection.getContentLength());
+            float byteReceived = harvestResponse.getResponseBody() == null ? 0 : harvestResponse.getResponseBody().length();
+            StatsEngine.get().sampleMetricDataUsage(name, byteBuffer.array().length, byteReceived);
         } catch (IOException e) {
             log.error("Failed to retrieve collector response: " + e.getMessage());
             recordCollectorError(e);
