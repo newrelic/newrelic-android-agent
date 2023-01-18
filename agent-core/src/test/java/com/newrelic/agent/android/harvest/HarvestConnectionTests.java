@@ -91,6 +91,9 @@ public class HarvestConnectionTests {
         // Check Response Code
         Assert.assertTrue(response.getResponseCode().isError());
         Assert.assertEquals(HarvestResponse.Code.UNAUTHORIZED, response.getResponseCode());
+
+        // Check Response Body
+        Assert.assertNotEquals(response.getResponseBody().length(), -1);
     }
 
     @Test
