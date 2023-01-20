@@ -32,12 +32,12 @@ jobs:
             java-version: '11'
             distribution: 'temurin'
             cache: 'gradle'
-        - name: Publish to sonatype
+        - name: Publish to sonatype and close the staging repo
           env:
             SONATYPE_USERNAME: ${{ secrets.SONATYPEUSERNAME }}
             SONATYPE_PASSWORD: ${{ secrets.SONATYPEPASSWORD }}
             SIGNING_KEY_ID: ${{ secrets.SIGNINGKEYID }}
             SIGNING_PASSWORD: ${{ secrets.SIGNINGPASSWORD }}
             SIGNING_KEY: ${{ secrets.SIGNINGKEY }}
-          run: ./gradlew clean publishToSonatype --max-workers 1
+          run: ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1
 

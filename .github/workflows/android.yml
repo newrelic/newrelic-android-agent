@@ -21,4 +21,10 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
+      env:
+        SONATYPE_USERNAME: ${{ secrets.SONATYPEUSERNAME }}
+        SONATYPE_PASSWORD: ${{ secrets.SONATYPEPASSWORD }}
+        SIGNING_KEY_ID: ${{ secrets.SIGNINGKEYID }}
+        SIGNING_PASSWORD: ${{ secrets.SIGNINGPASSWORD }}
+        SIGNING_KEY: ${{ secrets.SIGNINGKEY }}
       run: ./gradlew build
