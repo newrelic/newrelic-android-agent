@@ -6,29 +6,11 @@
 apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
-def optionalOf = { key, defaultValue -> rootProject.hasProperty(key) ? rootProject[key] : defaultValue }
-
-def isSnapshotDeploy = (
-        (optionalOf("newrelic.version.build", 'SNAPSHOT') != 'SNAPSHOT') &&
-                (optionalOf("sonatypeUsername", null) != null) &&
-                (optionalOf("sonatypePassword", null) != null))
-
 publishing {
     repositories {
         maven {
             name "artifacts"
             url uri(rootProject.mavenLocal)
-        }
-
-        if (isSnapshotDeploy) {
-            maven {
-                name "snapshots"
-                url "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-                credentials {
-                    username = findProperty('sonatypeUsername')
-                    password = findProperty('sonatypePassword')
-                }
-            }
         }
     }
 

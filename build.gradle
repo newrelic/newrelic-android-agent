@@ -26,7 +26,7 @@ buildscript {
         if (project.fullReport) {
             classpath 'gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:' + versions.java.spotbugs
         }
-        classpath 'io.github.gradle-nexus:publish-plugin:1.1.0'
+        classpath 'io.github.gradle-nexus:publish-plugin:' + versions.java.nexus
     }
 }
 
@@ -79,7 +79,7 @@ deployableProjects.each {
                 attributes(
                         "Created-By": "New Relic, Inc.",
                         "Built-Date": project.buildDate
-                    )
+                )
             }
         }
 
@@ -128,11 +128,15 @@ project.tasks.register("cleanRoot", Delete) {
 
 clean.finalizedBy cleanRoot
 
-nexusPublishing {
-    repositories {
-        sonatype {
-            username = findProperty("sonatypeUsername")
-            password = findProperty("sonatypePassword")
+def sonatypeUsername = System.getenv("SONATYPE_USERNAME")
+def sonatypePassword = System.getenv("SONATYPE_PASSWORD")
+if (sonatypeUsername != null && sonatypePassword != null) {
+    nexusPublishing {
+        repositories {
+            sonatype {
+                username = sonatypeUsername
+                password = sonatypePassword
+            }
         }
     }
 }

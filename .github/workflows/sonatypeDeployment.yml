@@ -2,9 +2,15 @@ name: Sonatype Deployment
 
 on:
   push:
-    branches: [ "develop", "main" ]
+    branches: ["main", "release/*"]
   pull_request:
-    branches: [ "develop", "main" ]
+    branches: ["develop", "main", "release/*"]
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'NewRelic Android agent deployment'
+        default: '6.+'
+        required: false
 
 jobs:
   assemble_project:
