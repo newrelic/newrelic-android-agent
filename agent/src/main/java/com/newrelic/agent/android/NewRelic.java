@@ -569,6 +569,92 @@ public final class NewRelic {
     }
 
     /**
+     * Network Failures
+     */
+
+    /**
+     * Record network failure passing arguments as a map of attributes
+     *
+     * @param attributes
+     */
+    public static void noticeNetworkFailure(Map<String, Object> attributes) {
+
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "noticeNetworkFailure(Map Attribute)"));
+        try {
+            noticeNetworkFailure(
+                    (String) attributes.get("url"),
+                    (String) attributes.get("httpMethod"),
+                    Long.parseLong((String) attributes.get("startTimeMs")),
+                    Long.parseLong((String) attributes.get("endTimeMs")),
+                    NetworkFailure.fromErrorCode(Integer.parseInt((String) attributes.get("errorCode"))),
+                    (String) attributes.get("message"),
+                    (Map<String, Object>) attributes.get("traceAttributes"));
+
+        } catch (NumberFormatException e) {
+            log.error(e.getMessage());
+            recordHandledException(e);
+        }
+    }
+
+    public static void noticeNetworkFailure(String url, String httpMethod, long startTime, long endTime, NetworkFailure failure, String message) {
+        noticeNetworkFailure(url, httpMethod, startTime, endTime, failure, message, null);
+    }
+
+    public static void noticeNetworkFailure(String url, String httpMethod, long startTime, long endTime, NetworkFailure failure) {
+        noticeNetworkFailure(url, httpMethod, startTime, endTime, failure, "", null);
+    }
+
+    public static void noticeNetworkFailure(String url, String httpMethod, long startTime, long endTime, Exception e) {
+        checkEmpty(url, "noticeHttpException: url must not be empty.");
+
+        NetworkFailure failure = NetworkFailure.exceptionToNetworkFailure(e);
+        noticeNetworkFailure(url, httpMethod, startTime, endTime, failure, e.getMessage());
+    }
+
+    /**
+     * Deprecated Network Failure methods (no httpMethod)
+     */
+    @Deprecated
+    public static void noticeNetworkFailure(String url, long startTime, long endTime, NetworkFailure failure) {
+        noticeNetworkFailure(url, UNKNOWN_HTTP_REQUEST_TYPE, startTime, endTime, failure);
+    }
+
+    @Deprecated
+    public static void noticeNetworkFailure(String url, long startTime, long endTime, Exception e) {
+        noticeNetworkFailure(url, UNKNOWN_HTTP_REQUEST_TYPE, startTime, endTime, e);
+    }
+
+    public static void noticeNetworkFailure(String url,
+                                            String httpMethod,
+                                            long startTimeMs,
+                                            long endTimeMs,
+                                            NetworkFailure failure,
+                                            String message, Map<String, Object> traceAttributes) {
+
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "_noticeNetworkFailure"));
+
+        float totalTime = endTimeMs - startTimeMs;
+
+        if (!checkNegative((int) totalTime, "_noticeNetworkFailure: the startTimeMs is later than the endTimeMs, resulting in a negative total time.")) {
+
+            // Convert to fractional seconds.
+            totalTime /= 1000.0f;
+
+            Map<String, String> params = new HashMap<String, String>();
+            params.put(Constants.Transactions.CONTENT_LENGTH, "0");
+            params.put(Constants.Transactions.CONTENT_TYPE, "text/html");
+
+            TransactionData transactionData = new TransactionData(url, httpMethod, Agent.getActiveNetworkCarrier(),
+                    totalTime, NetworkFailure.Unknown.getErrorCode(), failure.getErrorCode(),
+                    0, 0, null, Agent.getActiveNetworkWanType(), null, message, params, traceAttributes);
+
+            TaskQueue.queue(new HttpTransactionMeasurement(transactionData));
+        }
+    }
+
+    /**
      * Distributed Tracing
      */
 
