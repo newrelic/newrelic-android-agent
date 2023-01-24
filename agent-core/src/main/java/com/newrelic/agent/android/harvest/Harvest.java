@@ -77,7 +77,10 @@ public class Harvest {
             AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
         }
 
-        instance.getHarvestTimer().tickNow();
+        HarvestTimer harvestTimer = instance.getHarvestTimer();
+        if (harvestTimer != null) {
+            harvestTimer.tickNow();
+        }
     }
 
     /**
