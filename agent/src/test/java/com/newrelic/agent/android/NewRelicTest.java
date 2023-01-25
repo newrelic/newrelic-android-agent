@@ -370,11 +370,12 @@ public class NewRelicTest {
         long now = System.currentTimeMillis();
         long later = now + 1000;
 
+        NewRelic.noticeNetworkFailure(APP_URL, now, later, NetworkFailure.exceptionToNetworkFailure(new RuntimeException("networkFailure")));
         TaskQueue.synchronousDequeue();
         HarvestData harvestData = TestHarvest.getInstance().getHarvestData();
         HttpTransactions transactions = harvestData.getHttpTransactions();
 
-        Assert.assertEquals("Should contain 0 transaction", 0, transactions.count());
+        Assert.assertEquals("Should contain 1 transaction", 1, transactions.count());
     }
 
     @Test
@@ -479,14 +480,15 @@ public class NewRelicTest {
         Map<String, Object> traceAttributes = traceContext.asTraceAttributes();
         NewRelic.enableFeature(FeatureFlag.DistributedTracing);
 
+        NewRelic.noticeNetworkFailure(APP_URL, "get", now, later, NetworkFailure.exceptionToNetworkFailure(new RuntimeException("networkFailure")), "", traceAttributes);
         TaskQueue.synchronousDequeue();
 
         HarvestData harvestData = TestHarvest.getInstance().getHarvestData();
         HttpTransactions transactions = harvestData.getHttpTransactions();
 
-        Assert.assertEquals("Should contain 0 transaction", 0, transactions.count());
+        Assert.assertEquals("Should contain 1 transaction", 1, transactions.count());
 
-        Assert.assertEquals("Should contain 1 MobileRequestError event", 0, eventManager.size());
+        Assert.assertEquals("Should contain 1 MobileRequestError event", 1, eventManager.size());
         Assert.assertEquals("Should contain 3 trace Attributes", 3, traceAttributes.size());
         for (HttpTransaction txn : transactions.getHttpTransactions()) {
             Assert.assertEquals(traceContext.asTraceAttributes().get(DistributedTracing.NR_ID_ATTRIBUTE), traceAttributes.get(DistributedTracing.NR_ID_ATTRIBUTE));
@@ -548,11 +550,20 @@ public class NewRelicTest {
         final long tLater = tNow + 1000;
         final NetworkFailure failure = NetworkFailure.exceptionToNetworkFailure(new MalformedURLException("networkFailure"));
 
+        NewRelic.noticeNetworkFailure(new HashMap<String, Object>() {{
+            put("url", APP_URL);
+            put("httpMethod", "get");
+            put("errorCode", String.valueOf(failure.getErrorCode()));
+            put("startTimeMs", String.valueOf(tNow));
+            put("endTimeMs", String.valueOf(tLater));
+            put("message", failure.toString());
+        }});
+
         TaskQueue.synchronousDequeue();
         HarvestData harvestData = TestHarvest.getInstance().getHarvestData();
         HttpTransactions transactions = harvestData.getHttpTransactions();
 
-        Assert.assertEquals("Should contain 0 transaction", 0, transactions.count());
+        Assert.assertEquals("Should contain 1 transaction", 1, transactions.count());
     }
 
     @Test
