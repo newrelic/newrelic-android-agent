@@ -14,6 +14,7 @@ on:
 
 jobs:
   assemble_project:
+    name: Assemble project
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -27,7 +28,7 @@ jobs:
       run: ./gradlew clean assemble --no-daemon
 
   publish_release:
-      name: Publish Artifacts
+      name: Publish artifacts
       needs: [assemble_project]
       runs-on: ubuntu-latest
       steps:
@@ -40,10 +41,10 @@ jobs:
             cache: 'gradle'
         - name: Publish to sonatype and close the staging repo
           env:
-            SONATYPE_USERNAME: ${{ secrets.SONATYPEUSERNAME }}
-            SONATYPE_PASSWORD: ${{ secrets.SONATYPEPASSWORD }}
-            SIGNING_KEY_ID: ${{ secrets.SIGNINGKEYID }}
-            SIGNING_PASSWORD: ${{ secrets.SIGNINGPASSWORD }}
-            SIGNING_KEY: ${{ secrets.SIGNINGKEY }}
+            ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPEUSERNAME }}
+            ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPEPASSWORD }}
+            ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.SIGNINGKEYID }}
+            ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNINGPASSWORD }}
+            ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNINGKEY }}
           run: ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1
 

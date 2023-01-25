@@ -52,9 +52,9 @@ publishing {
 
 signing {
     useInMemoryPgpKeys(
-            rootProject.ext["signingKeyId"],
-            rootProject.ext["signingKey"],
-            rootProject.ext["signingPassword"]
+            project.findProperty("signingKeyId"),
+            project.findProperty("signingKey"),
+            project.findProperty("signingPassword")
     )
     sign publishing.publications.mavenJava
     required {

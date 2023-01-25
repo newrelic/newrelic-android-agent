@@ -128,9 +128,7 @@ project.tasks.register("cleanRoot", Delete) {
 
 clean.finalizedBy cleanRoot
 
-def sonatypeUsername = System.getenv("SONATYPE_USERNAME")
-def sonatypePassword = System.getenv("SONATYPE_PASSWORD")
-if (sonatypeUsername != null && sonatypePassword != null) {
+if (project.findProperty("sonatypeUsername") != null && project.findProperty("sonatypePassword") != null) {
     nexusPublishing {
         repositories {
             sonatype {
