@@ -6,6 +6,8 @@
 description 'The New Relic Android Agent'
 
 apply plugin: 'base'
+apply plugin: 'maven-publish'
+apply plugin: 'io.github.gradle-nexus.publish-plugin'
 
 def deployableProjects = [":agent", ":instrumentation", ":plugins:gradle"]
 
@@ -25,6 +27,7 @@ buildscript {
         if (project.fullReport) {
             classpath 'gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:' + versions.java.spotbugs
         }
+        classpath 'io.github.gradle-nexus:publish-plugin:' + versions.java.nexus
     }
 }
 
@@ -75,7 +78,7 @@ deployableProjects.each {
                 attributes(
                         "Created-By": "New Relic, Inc.",
                         "Built-Date": project.buildDate
-                    )
+                )
             }
         }
 
@@ -123,3 +126,14 @@ project.tasks.register("cleanRoot", Delete) {
 }
 
 clean.finalizedBy cleanRoot
+
+if (project.findProperty("sonatypeUsername") != null && project.findProperty("sonatypePassword") != null) {
+    nexusPublishing {
+        repositories {
+            sonatype {
+                username = sonatypeUsername
+                password = sonatypePassword
+            }
+        }
+    }
+}

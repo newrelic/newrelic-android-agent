@@ -6,29 +6,11 @@
 apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
-def optionalOf = { key, defaultValue -> rootProject.hasProperty(key) ? rootProject[key] : defaultValue }
-
-def isSnapshotDeploy = (
-        (optionalOf("newrelic.version.build", 'SNAPSHOT') != 'SNAPSHOT') &&
-                (optionalOf("sonatypeUsername", null) != null) &&
-                (optionalOf("sonatypePassword", null) != null))
-
 publishing {
     repositories {
         maven {
             name "artifacts"
             url uri(rootProject.mavenLocal)
-        }
-
-        if (isSnapshotDeploy) {
-            maven {
-                name "snapshots"
-                url "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-                credentials {
-                    username = findProperty('sonatypeUsername')
-                    password = findProperty('sonatypePassword')
-                }
-            }
         }
     }
 
@@ -36,6 +18,8 @@ publishing {
         mavenJava(MavenPublication) {
             groupId 'com.newrelic.agent.android'
             version project.versions.agent
+            artifact javadocJar
+            artifact sourcesJar
 
             pom {
                 name = 'com.newrelic.agent.android'
@@ -67,6 +51,11 @@ publishing {
 }
 
 signing {
+    useInMemoryPgpKeys(
+            project.findProperty("signingKeyId"),
+            project.findProperty("signingKey"),
+            project.findProperty("signingPassword")
+    )
     sign publishing.publications.mavenJava
     required {
         gradle.taskGraph.hasTask("publishAllPublicationsToArtifactsRepository") ||

@@ -34,6 +34,7 @@ buildscript {
                         gson      : '2.2.4',
                         guava     : '18.0',
                         commons_io: '2.8.0',
+                        nexus     : '1.1.0'
                 ],
 
                 test : [
