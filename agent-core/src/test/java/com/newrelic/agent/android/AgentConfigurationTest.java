@@ -117,4 +117,16 @@ public class AgentConfigurationTest {
         agentConfiguration.setApplicationFramework(ApplicationFramework.Flutter);
         Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Flutter);
     }
+
+    @Test
+    public void shouldParseCapacitorApplicationFramework() {
+        agentConfiguration.setApplicationFramework(ApplicationFramework.Capacitor);
+        Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Capacitor);
+    }
+
+    @Test
+    public void shouldParseXamarinApplicationFramework() {
+        agentConfiguration.setApplicationFramework(ApplicationFramework.Xamarin);
+        Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Xamarin);
+    }
 }
