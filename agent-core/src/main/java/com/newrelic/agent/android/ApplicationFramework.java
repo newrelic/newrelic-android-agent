@@ -9,5 +9,7 @@ public enum ApplicationFramework {
     Native,
     ReactNative,
     Cordova,
-    Flutter
+    Flutter,
+    Capacitor,
+    Xamarin
 }
