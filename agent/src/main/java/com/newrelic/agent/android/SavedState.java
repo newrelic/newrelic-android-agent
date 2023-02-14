@@ -11,12 +11,15 @@ import android.content.SharedPreferences;
 
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
+import com.newrelic.agent.android.harvest.DataToken;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestAdapter;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -87,17 +90,31 @@ public class SavedState extends HarvestAdapter {
 
     public void saveHarvestConfiguration(HarvestConfiguration newConfiguration) {
         // If the new configuration is the same as the current, skip saving.
-        if (configuration.equals(newConfiguration))
+        if (configuration.equals(newConfiguration)) {
             return;
+        }
 
-        if (!newConfiguration.getDataToken().isValid())
-            newConfiguration.setData_token(configuration.getData_token());
+        DataToken newDataToken = newConfiguration.getDataToken();
+        if (!newDataToken.isValid()) {
+            log.debug("Invalid data token: " + newConfiguration.getDataToken());
+            DataToken confDataToken = configuration.getDataToken();
+            if (confDataToken.isValid()) {
+                newConfiguration.setData_token(confDataToken.asIntArray());
+            }
+        }
 
         log.info("Saving configuration: " + newConfiguration);
 
-        final String newDataToken = newConfiguration.getDataToken().toJsonString();
-        log.debug("!! saving data token: " + newDataToken);
-        save(PREF_DATA_TOKEN, newDataToken);
+        DataToken dataToken = newConfiguration.getDataToken();
+        if (dataToken.isValid()) {
+            final String newDataTokenStr = dataToken.toJsonString();
+            log.info("Saving data token: " + newDataTokenStr);
+            save(PREF_DATA_TOKEN, newDataTokenStr);
+        } else {
+            log.error("Refusing to save invalid data token: " + dataToken);
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN);
+        }
+
         save(PREF_CROSS_PROCESS_ID, newConfiguration.getCross_process_id());
         save(PREF_SERVER_TIMESTAMP, newConfiguration.getServer_timestamp());
         save(PREF_HARVEST_INTERVAL, (long) newConfiguration.getData_report_period());
@@ -110,6 +127,7 @@ public class SavedState extends HarvestAdapter {
         save(PREF_PRIORITY_ENCODING_KEY, newConfiguration.getPriority_encoding_key());
         save(PREF_ACCOUNT_ID, newConfiguration.getAccount_id());
         save(PREF_APPLICATION_ID, newConfiguration.getApplication_id());
+
         saveActivityTraceMinUtilization((float) newConfiguration.getActivity_trace_min_utilization());
 
         // Reload the configuration
@@ -117,15 +135,19 @@ public class SavedState extends HarvestAdapter {
     }
 
     public void loadHarvestConfiguration() {
-        if (has(PREF_DATA_TOKEN))
+        if (has(PREF_DATA_TOKEN)) {
             configuration.setData_token(getDataToken());
+            if (!configuration.getDataToken().isValid()) {
+                configuration.setData_token(new int[]{0, 0});
+            }
+        }
         if (has(PREF_CROSS_PROCESS_ID))
             configuration.setCross_process_id(getCrossProcessId());
         if (has(PREF_PRIORITY_ENCODING_KEY))
             configuration.setPriority_encoding_key(getPriorityEncodingKey());
         if (has(PREF_ACCOUNT_ID))
             configuration.setAccount_id(getAccountId());
-        if(has(PREF_APPLICATION_ID))
+        if (has(PREF_APPLICATION_ID))
             configuration.setApplication_id(getApplicationId());
         if (has(PREF_SERVER_TIMESTAMP))
             configuration.setServer_timestamp(getServerTimestamp());
@@ -147,10 +169,6 @@ public class SavedState extends HarvestAdapter {
             configuration.setActivity_trace_min_utilization(getActivityTraceMinUtilization());
         if (has(PREF_PRIORITY_ENCODING_KEY))
             configuration.setPriority_encoding_key(getPriorityEncodingKey());
-        if (has(PREF_ACCOUNT_ID))
-            configuration.setAccount_id(getAccountId());
-        if (has(PREF_APPLICATION_ID))
-            configuration.setApplication_id(getApplicationId());
 
         log.info("Loaded configuration: " + configuration);
     }
@@ -372,25 +390,31 @@ public class SavedState extends HarvestAdapter {
         int[] dataToken = new int[2];
         String dataTokenString = getString(PREF_DATA_TOKEN);
 
-        if (dataTokenString == null)
+        if (dataTokenString == null || dataTokenString.isEmpty()) {
             return null;
+        }
 
         try {
             JSONTokener tokener = new JSONTokener(dataTokenString);
-            if (tokener == null)
+            if (tokener == null) {
                 return null;
+            }
 
             JSONArray array = (JSONArray) tokener.nextValue();
-
-            if (array == null)
+            if (array == null) {
                 return null;
+            }
 
             dataToken[0] = array.getInt(0);
             dataToken[1] = array.getInt(1);
+
+            return dataToken;
+
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        return dataToken;
+
+        return null;
     }
 
     // Harvest configuration
@@ -538,7 +562,7 @@ public class SavedState extends HarvestAdapter {
     public ApplicationFramework getFramework() {
         ApplicationFramework applicationFramework = ApplicationFramework.Native;
         try {
-            applicationFramework =  ApplicationFramework.valueOf(getString(PREF_PLATFORM));
+            applicationFramework = ApplicationFramework.valueOf(getString(PREF_PLATFORM));
         } catch (IllegalArgumentException e) {
         }
         return applicationFramework;

@@ -9,6 +9,8 @@ import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 
 import junit.framework.Assert;
@@ -74,6 +76,7 @@ public class SavedStateTest {
         HarvestConfiguration harvestConfig = new HarvestConfiguration();
         savedState.loadHarvestConfiguration();
         Assert.assertEquals(savedState.getHarvestConfiguration(), harvestConfig);
+        Assert.assertNull(savedState.getDataToken());
     }
 
     @Test
@@ -83,9 +86,9 @@ public class SavedStateTest {
         connectionInfo.getApplicationInformation().setAppName("crunchy");
         connectionInfo.getDeviceInformation().setDeviceId("dummy_id");
         savedState.saveConnectInformation(connectionInfo);
-        Assert.assertTrue(savedState.getConnectInformation().getApplicationInformation().getAppVersion().equals("9.9"));
-        Assert.assertTrue(savedState.getConnectInformation().getApplicationInformation().getAppName().equals("crunchy"));
-        Assert.assertTrue(savedState.getDeviceId().equals("dummy_id"));
+        Assert.assertEquals("9.9", savedState.getConnectInformation().getApplicationInformation().getAppVersion());
+        Assert.assertEquals("crunchy", savedState.getConnectInformation().getApplicationInformation().getAppName());
+        Assert.assertEquals("dummy_id", savedState.getDeviceId());
     }
 
     @Test
@@ -110,7 +113,7 @@ public class SavedStateTest {
     @Test
     public void testSaveAppToken() throws Exception {
         savedState.saveConnectionToken(ENABLED_APP_TOKEN_PROD);
-        Assert.assertTrue(savedState.getConnectionToken().equals(String.valueOf(ENABLED_APP_TOKEN_PROD.hashCode())));
+        Assert.assertEquals(savedState.getConnectionToken(), String.valueOf(ENABLED_APP_TOKEN_PROD.hashCode()));
     }
 
     @Test
@@ -193,6 +196,38 @@ public class SavedStateTest {
         Assert.assertEquals("Should return 2 elements", 2, dataToken.length);
         Assert.assertEquals(111, dataToken[0]);
         Assert.assertEquals(111, dataToken[1]);
+    }
+
+    @Test
+    public void testInvalidDataToken() throws Exception {
+        HarvestConfiguration harvestConfig = Providers.provideHarvestConfiguration();
+
+        harvestConfig.setData_token(new int[]{0, 0});
+        savedState.clear();
+        savedState.saveHarvestConfiguration(harvestConfig);
+        int[] dataToken = savedState.getDataToken();
+        Assert.assertNull("Should return invalid datatoken", dataToken);
+        Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().keySet().contains(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN));
+
+        StatsEngine.SUPPORTABILITY.getStatsMap().clear();
+
+        harvestConfig.setData_token(null);
+        savedState.clear();
+        savedState.saveHarvestConfiguration(harvestConfig);
+        Assert.assertNull("Should return invalid datatoken", dataToken);
+        Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().keySet().contains(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN));
+    }
+
+    @Test
+    public void testInvalidDataTokenWithValidConfig() throws Exception {
+        HarvestConfiguration harvestConfig = Providers.provideHarvestConfiguration();
+
+        harvestConfig.setData_token(null);
+        savedState.getHarvestConfiguration().setData_token(new int[]{1,2});
+        savedState.saveHarvestConfiguration(harvestConfig);
+        int[] dataToken = savedState.getDataToken();
+        Assert.assertEquals(1, dataToken[0]);
+        Assert.assertEquals(2, dataToken[1]);
     }
 
     @Test

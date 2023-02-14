@@ -70,7 +70,7 @@ public class HarvestConfiguration {
     }
 
     public void setDefaultValues() {
-        setData_token(new int[2]);
+        setData_token(new int[]{0,0});
         setCollect_network_errors(true);
         setCross_process_id(null);
         setData_report_period(DEFAULT_REPORT_PERIOD);
@@ -98,13 +98,16 @@ public class HarvestConfiguration {
     public void reconfigure(HarvestConfiguration configuration) {
         setCollect_network_errors(configuration.isCollect_network_errors());
 
-        if (configuration.getCross_process_id() != null)
+        if (configuration.getCross_process_id() != null) {
             setCross_process_id(configuration.getCross_process_id());
+        }
 
         setData_report_period(configuration.getData_report_period());
 
-        if (configuration.getDataToken().isValid())
+        DataToken confDataToken = configuration.getDataToken();
+        if (confDataToken != null && confDataToken.isValid()) {
             setData_token(configuration.getData_token());
+        }
 
         setError_limit(configuration.getError_limit());
         setReport_max_transaction_age(configuration.getReport_max_transaction_age());
@@ -113,10 +116,10 @@ public class HarvestConfiguration {
         setServer_timestamp(configuration.getServer_timestamp());
         setStack_trace_limit(configuration.getStack_trace_limit());
         setActivity_trace_min_utilization(configuration.getActivity_trace_min_utilization());
-
         setActivity_trace_max_report_attempts(configuration.getActivity_trace_max_report_attempts());
-        if (configuration.getAt_capture() != null)
+        if (configuration.getAt_capture() != null) {
             setAt_capture(configuration.getAt_capture());
+        }
         setPriority_encoding_key(configuration.getPriority_encoding_key());
         setAccount_id(configuration.getAccount_id());
         setApplication_id(configuration.getApplication_id());
@@ -139,8 +142,9 @@ public class HarvestConfiguration {
     }
 
     public DataToken getDataToken() {
-        if (data_token == null)
-            return null;
+        if (data_token == null) {
+            return new DataToken(0, 0);
+        }
         return new DataToken(data_token[0], data_token[1]);
     }
 
@@ -308,7 +312,7 @@ public class HarvestConfiguration {
         int thatMinUtil = (int) that.activity_trace_min_utilization * 100;
         if (thisMinUtil != thatMinUtil) return false;
 
-        @SuppressWarnings("UnnecessaryLocalVariable") // Shut up, idea!
+        @SuppressWarnings("UnnecessaryLocalVariable")
         boolean dataTokenEqual = Arrays.equals(data_token, that.data_token);
         return dataTokenEqual;
 
