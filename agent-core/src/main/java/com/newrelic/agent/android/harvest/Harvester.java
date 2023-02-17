@@ -145,6 +145,8 @@ public class Harvester {
 
             // Successfully connected!
             transition(State.CONNECTED);
+            execute();
+
             return;
         }
 
