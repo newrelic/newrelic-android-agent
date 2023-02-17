@@ -54,10 +54,12 @@ public class SavedStateTest {
         Agent.setImpl(agentImpl);
 
         // By default, SavedState is created as clone's of the app's ConnectInformation
-        SavedState savedState = spy(agentImpl.getSavedState());
+        savedState = spy(agentImpl.getSavedState());
         ConnectInformation savedConnInfo = new ConnectInformation(appInfo, devInfo);
+
         when(savedState.getConnectionToken()).thenReturn(String.valueOf(agentConfig.getApplicationToken().hashCode()));
         when(savedState.getConnectInformation()).thenReturn(savedConnInfo);
+
         agentImpl.setSavedState(savedState);
         agentImpl.getSavedState().clear();
     }
@@ -85,6 +87,8 @@ public class SavedStateTest {
         connectionInfo.getApplicationInformation().setAppVersion("9.9");
         connectionInfo.getApplicationInformation().setAppName("crunchy");
         connectionInfo.getDeviceInformation().setDeviceId("dummy_id");
+
+        SavedState savedState = new SavedState(spyContext.getContext());
         savedState.saveConnectInformation(connectionInfo);
         Assert.assertEquals("9.9", savedState.getConnectInformation().getApplicationInformation().getAppVersion());
         Assert.assertEquals("crunchy", savedState.getConnectInformation().getApplicationInformation().getAppName());
@@ -122,6 +126,8 @@ public class SavedStateTest {
         DeviceInformation deviceInformation = Providers.provideDeviceInformation();
         applicationInformation.setAppName("Changed app name");
         applicationInformation.setAppVersion("new version");
+
+        SavedState savedState = new SavedState(spyContext.getContext());
         savedState.saveConnectInformation(new ConnectInformation(applicationInformation, deviceInformation));
         // saveDeviceInformation already reloads data, but...
         savedState.loadConnectInformation();
@@ -441,5 +447,33 @@ public class SavedStateTest {
         SavedState spy = spy(savedState);
         spy.onHarvestDisabled();
         verify(spy).saveDisabledVersion(anyString());
+    }
+
+    @Test
+    public void testOnHarvestComplete() throws InterruptedException {
+        when(savedState.getDataTokenTTL()).thenReturn(2L);
+
+        savedState.saveHarvestConfiguration(Providers.provideHarvestConfiguration());
+        savedState.loadHarvestConfiguration();
+        Assert.assertTrue(savedState.has("dataToken"));
+        Assert.assertTrue(savedState.has("dataTokenExpiration"));
+
+        Thread.sleep(10);
+
+        savedState.onHarvestComplete();
+        Assert.assertFalse(savedState.has("dataToken"));
+        Assert.assertFalse(savedState.has("dataTokenExpiration"));
+    }
+
+    @Test
+    public void testDataTokenExpiration() {
+        Assert.assertTrue(savedState.getDataTokenTTL() > 0);
+
+        Assert.assertFalse(savedState.has("dataToken"));
+        Assert.assertFalse(savedState.has("dataTokenExpiration"));
+        savedState.saveHarvestConfiguration(Providers.provideHarvestConfiguration());
+        savedState.loadHarvestConfiguration();
+        Assert.assertTrue(savedState.has("dataToken"));
+        Assert.assertTrue(savedState.has("dataTokenExpiration"));
     }
 }

@@ -25,6 +25,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONTokener;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -43,6 +44,7 @@ public class SavedState extends HarvestAdapter {
     private final String PREF_ACCOUNT_ID = "account_id";
     private final String PREF_APPLICATION_ID = "application_id";
     private final String PREF_DATA_TOKEN = "dataToken";
+    private final String PREF_DATA_TOKEN_EXPIRATION = "dataTokenExpiration";
     private final String PREF_CONNECT_HASH = "connectHash";
     private final String PREF_STACK_TRACE_LIMIT = "stackTraceLimit";
     private final String PREF_RESPONSE_BODY_LIMIT = "responseBodyLimit";
@@ -80,6 +82,9 @@ public class SavedState extends HarvestAdapter {
     private final SharedPreferences.Editor editor;
     private final Lock lock = new ReentrantLock();
 
+    // refresh the dat atoken every 2 weeks
+    private final long DATA_TOKEN_TTL_MS = TimeUnit.MILLISECONDS.convert(14, TimeUnit.DAYS);
+
     @SuppressLint("CommitPrefEdits")
     public SavedState(Context context) {
         prefs = context.getSharedPreferences(getPreferenceFileName(context.getPackageName()), 0);
@@ -94,8 +99,8 @@ public class SavedState extends HarvestAdapter {
             return;
         }
 
-        DataToken newDataToken = newConfiguration.getDataToken();
-        if (!newDataToken.isValid()) {
+        DataToken dataToken = newConfiguration.getDataToken();
+        if (!dataToken.isValid()) {
             log.debug("Invalid data token: " + newConfiguration.getDataToken());
             DataToken confDataToken = configuration.getDataToken();
             if (confDataToken.isValid()) {
@@ -105,11 +110,12 @@ public class SavedState extends HarvestAdapter {
 
         log.info("Saving configuration: " + newConfiguration);
 
-        DataToken dataToken = newConfiguration.getDataToken();
+        dataToken = newConfiguration.getDataToken();
         if (dataToken.isValid()) {
             final String newDataTokenStr = dataToken.toJsonString();
             log.info("Saving data token: " + newDataTokenStr);
             save(PREF_DATA_TOKEN, newDataTokenStr);
+            save(PREF_DATA_TOKEN_EXPIRATION, System.currentTimeMillis() + getDataTokenTTL());
         } else {
             log.error("Refusing to save invalid data token: " + dataToken);
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN);
@@ -141,34 +147,48 @@ public class SavedState extends HarvestAdapter {
                 configuration.setData_token(new int[]{0, 0});
             }
         }
-        if (has(PREF_CROSS_PROCESS_ID))
+        if (has(PREF_CROSS_PROCESS_ID)) {
             configuration.setCross_process_id(getCrossProcessId());
-        if (has(PREF_PRIORITY_ENCODING_KEY))
+        }
+        if (has(PREF_PRIORITY_ENCODING_KEY)) {
             configuration.setPriority_encoding_key(getPriorityEncodingKey());
-        if (has(PREF_ACCOUNT_ID))
+        }
+        if (has(PREF_ACCOUNT_ID)) {
             configuration.setAccount_id(getAccountId());
-        if (has(PREF_APPLICATION_ID))
+        }
+        if (has(PREF_APPLICATION_ID)) {
             configuration.setApplication_id(getApplicationId());
-        if (has(PREF_SERVER_TIMESTAMP))
+        }
+        if (has(PREF_SERVER_TIMESTAMP)) {
             configuration.setServer_timestamp(getServerTimestamp());
-        if (has(PREF_HARVEST_INTERVAL))
+        }
+        if (has(PREF_HARVEST_INTERVAL)) {
             configuration.setData_report_period((int) getHarvestIntervalInSeconds());
-        if (has(PREF_MAX_TRANSACTION_AGE))
+        }
+        if (has(PREF_MAX_TRANSACTION_AGE)) {
             configuration.setReport_max_transaction_age((int) getMaxTransactionAgeInSeconds());
-        if (has(PREF_MAX_TRANSACTION_COUNT))
+        }
+        if (has(PREF_MAX_TRANSACTION_COUNT)) {
             configuration.setReport_max_transaction_count((int) getMaxTransactionCount());
-        if (has(PREF_STACK_TRACE_LIMIT))
+        }
+        if (has(PREF_STACK_TRACE_LIMIT)) {
             configuration.setStack_trace_limit(getStackTraceLimit());
-        if (has(PREF_RESPONSE_BODY_LIMIT))
+        }
+        if (has(PREF_RESPONSE_BODY_LIMIT)) {
             configuration.setResponse_body_limit(getResponseBodyLimit());
-        if (has(PREF_COLLECT_NETWORK_ERRORS))
+        }
+        if (has(PREF_COLLECT_NETWORK_ERRORS)) {
             configuration.setCollect_network_errors(isCollectingNetworkErrors());
-        if (has(PREF_ERROR_LIMIT))
+        }
+        if (has(PREF_ERROR_LIMIT)) {
             configuration.setError_limit(getErrorLimit());
-        if (has(PREF_ACTIVITY_TRACE_MIN_UTILIZATION))
+        }
+        if (has(PREF_ACTIVITY_TRACE_MIN_UTILIZATION)) {
             configuration.setActivity_trace_min_utilization(getActivityTraceMinUtilization());
-        if (has(PREF_PRIORITY_ENCODING_KEY))
+        }
+        if (has(PREF_PRIORITY_ENCODING_KEY)) {
             configuration.setPriority_encoding_key(getPriorityEncodingKey());
+        }
 
         log.info("Loaded configuration: " + configuration);
     }
@@ -222,44 +242,63 @@ public class SavedState extends HarvestAdapter {
 
     public void loadConnectInformation() {
         final ApplicationInformation applicationInformation = new ApplicationInformation();
-        if (has(PREF_APP_NAME))
+
+        if (has(PREF_APP_NAME)) {
             applicationInformation.setAppName(getAppName());
-        if (has(PREF_APP_VERSION))
+        }
+        if (has(PREF_APP_VERSION)) {
             applicationInformation.setAppVersion(getAppVersion());
-        if (has(PREF_APP_BUILD))
+        }
+        if (has(PREF_APP_BUILD)) {
             applicationInformation.setAppBuild(getAppBuild());
-        if (has(PREF_PACKAGE_ID))
+        }
+        if (has(PREF_PACKAGE_ID)) {
             applicationInformation.setPackageId(getPackageId());
-        if (has(PREF_VERSION_CODE))
+        }
+        if (has(PREF_VERSION_CODE)) {
             applicationInformation.setVersionCode(getVersionCode());
+        }
 
         final DeviceInformation deviceInformation = new DeviceInformation();
-        if (has(PREF_AGENT_NAME))
+        if (has(PREF_AGENT_NAME)) {
             deviceInformation.setAgentName(getAgentName());
-        if (has(PREF_AGENT_VERSION))
+        }
+        if (has(PREF_AGENT_VERSION)) {
             deviceInformation.setAgentVersion(getAgentVersion());
-        if (has(PREF_DEVICE_ARCHITECTURE))
+        }
+        if (has(PREF_DEVICE_ARCHITECTURE)) {
             deviceInformation.setArchitecture(getDeviceArchitecture());
-        if (has(PREF_DEVICE_ID))
+        }
+        if (has(PREF_DEVICE_ID)) {
             deviceInformation.setDeviceId(getDeviceId());
-        if (has(PREF_DEVICE_MODEL))
+        }
+        if (has(PREF_DEVICE_MODEL)) {
             deviceInformation.setModel(getDeviceModel());
-        if (has(PREF_DEVICE_MANUFACTURER))
+        }
+        if (has(PREF_DEVICE_MANUFACTURER)) {
             deviceInformation.setManufacturer(getDeviceManufacturer());
-        if (has(PREF_DEVICE_RUN_TIME))
+        }
+        if (has(PREF_DEVICE_RUN_TIME)) {
             deviceInformation.setRunTime(getDeviceRunTime());
-        if (has(PREF_DEVICE_SIZE))
+        }
+        if (has(PREF_DEVICE_SIZE)) {
             deviceInformation.setSize(getDeviceSize());
-        if (has(PREF_OS_NAME))
+        }
+        if (has(PREF_OS_NAME)) {
             deviceInformation.setOsName(getOsName());
-        if (has(PREF_OS_BUILD))
+        }
+        if (has(PREF_OS_BUILD)) {
             deviceInformation.setOsBuild(getOsBuild());
-        if (has(PREF_OS_VERSION))
+        }
+        if (has(PREF_OS_VERSION)) {
             deviceInformation.setOsVersion(getOsVersion());
-        if (has(PREF_PLATFORM))
+        }
+        if (has(PREF_PLATFORM)) {
             deviceInformation.setApplicationFramework(getFramework());
-        if (has(PREF_PLATFORM_VERSION))
+        }
+        if (has(PREF_PLATFORM_VERSION)) {
             deviceInformation.setApplicationFrameworkVersion(getPlatformVersion());
+        }
 
         connectInformation.setApplicationInformation(applicationInformation);
         connectInformation.setDeviceInformation(deviceInformation);
@@ -273,7 +312,7 @@ public class SavedState extends HarvestAdapter {
         return connectInformation;
     }
 
-    private boolean has(String key) {
+    boolean has(String key) {
         return prefs.contains(key);
     }
 
@@ -284,6 +323,13 @@ public class SavedState extends HarvestAdapter {
 
     @Override
     public void onHarvestComplete() {
+        if (has(PREF_DATA_TOKEN_EXPIRATION)) {
+            long tsExpiration = getLong(PREF_DATA_TOKEN_EXPIRATION);
+            if ((tsExpiration > 0) && (System.currentTimeMillis() >= tsExpiration)) {
+                remove(PREF_DATA_TOKEN);
+                remove(PREF_DATA_TOKEN_EXPIRATION);
+            }
+        }
     }
 
     @Override
@@ -587,7 +633,21 @@ public class SavedState extends HarvestAdapter {
         }
     }
 
+    public void remove(final String key) {
+        lock.lock();
+        try {
+            editor.remove(key).apply();
+        } catch (Exception ignored) {
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public boolean hasConnectionToken(final String appToken) {
         return getInt(PREF_CONNECT_HASH) == appToken.hashCode();
+    }
+
+    long getDataTokenTTL() {
+        return DATA_TOKEN_TTL_MS;
     }
 }
