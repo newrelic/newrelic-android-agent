@@ -130,7 +130,7 @@ public class HarvestTests {
         addHarvestData(harvester.getHarvestData());
         harvester.execute();
         Thread.sleep(100);
-        Assert.assertEquals(Harvester.State.CONNECTED, harvester.getCurrentState());
+        Assert.assertEquals(Harvester.State.DISCONNECTED, harvester.getCurrentState());
     }
 
     @Test
@@ -180,10 +180,9 @@ public class HarvestTests {
         harvester.addHarvestListener(testAdapter);
         harvester.transition(Harvester.State.CONNECTED);
         harvester.execute();
-        Assert.assertTrue(testAdapter.didError());
-        Assert.assertTrue("Should contain 408 supportability metric",
-                StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_COLLECTOR +
-                        "Harvest/Error/" + HarvestResponse.Code.REQUEST_TIMEOUT));
+        Assert.assertTrue(testAdapter.didDisconnect());
+        Assert.assertTrue("Should contain invalid data token supportability metric",
+                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN));
     }
 
     @Test
@@ -199,9 +198,9 @@ public class HarvestTests {
         harvester.addHarvestListener(testAdapter);
         harvester.transition(Harvester.State.CONNECTED);
         harvester.execute();
-        Assert.assertTrue(testAdapter.didError());
-        Assert.assertTrue("Should contain 429 supportability metric",
-                StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/" + HarvestResponse.Code.TOO_MANY_REQUESTS));
+        Assert.assertTrue(testAdapter.didDisconnect());
+        Assert.assertTrue("Should contain invalid data token supportability metric",
+                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN));
     }
 
 
@@ -519,7 +518,7 @@ public class HarvestTests {
 
         // Harvester should remain connected even after a bad Agent ID is set.
         // This may change in the future
-        Assert.assertEquals(Harvester.State.CONNECTED, harvester.getCurrentState());
+        Assert.assertEquals(Harvester.State.DISCONNECTED, harvester.getCurrentState());
     }
 
     @Test
@@ -612,6 +611,7 @@ public class HarvestTests {
         private boolean harvested;
         private boolean errored;
         private boolean disabled;
+        private boolean disconnected;
 
         @Override
         public void onHarvestStart() {
@@ -638,6 +638,11 @@ public class HarvestTests {
             disabled = true;
         }
 
+        @Override
+        public void onHarvestDisconnected() {
+            disconnected = true;
+        }
+
         private boolean didStart() {
             return started;
         }
@@ -656,6 +661,10 @@ public class HarvestTests {
 
         private boolean disabled() {
             return disabled;
+        }
+
+        private boolean didDisconnect() {
+            return disconnected;
         }
     }
 

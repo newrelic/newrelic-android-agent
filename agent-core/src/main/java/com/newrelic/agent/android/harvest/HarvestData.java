@@ -156,9 +156,9 @@ public class HarvestData extends HarvestableArray {
     }
 
     public void setDataToken(DataToken dataToken) {
-        if (dataToken == null)
-            return;
-        this.dataToken = dataToken;
+        if (dataToken != null) {
+            this.dataToken = dataToken;
+        }
     }
 
     public void setDeviceInformation(DeviceInformation deviceInformation) {

@@ -73,7 +73,7 @@ public class Harvester {
 
     /**
      * This method is executed when Harvester is in the {@link State#UNINITIALIZED} state.
-     * <p/>
+     *
      * Initialization should be performed in this state.
      */
     protected void uninitialized() {
@@ -100,7 +100,7 @@ public class Harvester {
 
     /**
      * This method is executed when Harvester is in the {@link State#DISCONNECTED} state.
-     * <p/>
+     *
      * This state attempts to connect to the collector and handles {@code connect} error conditions.
      */
     protected void disconnected() {
@@ -145,6 +145,8 @@ public class Harvester {
 
             // Successfully connected!
             transition(State.CONNECTED);
+            execute();
+
             return;
         }
 
@@ -193,13 +195,21 @@ public class Harvester {
         // Stay in DISCONNECTED state
     }
 
-
     /**
      * This method is executed when Harvester is in the {@link State#CONNECTED} state.
-     * <p/>
+     *
      * This state performs {@code data} posts to the collector.
      */
     protected void connected() {
+        if (!harvestData.isValid()) {
+            log.error("Harvester: invalid data token! Agent must reconnect prior to upload.");
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN);
+            harvestData.getDataToken().clear();
+            fireOnHarvestSendFailed();
+            transition(State.DISCONNECTED);
+            return;
+        }
+
         log.info("Harvester: connected");
         log.info("Harvester: Sending [" + harvestData.getHttpTransactions().count() + "] HTTP transactions.");
         log.info("Harvester: Sending [" + harvestData.getActivityTraces().count() + "] activity traces.");

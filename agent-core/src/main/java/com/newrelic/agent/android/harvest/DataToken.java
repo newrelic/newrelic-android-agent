@@ -18,6 +18,7 @@ public class DataToken extends HarvestableArray {
 
     public DataToken() {
         super();
+        clear();
     }
 
     public DataToken(final int accountId, final int agentId) {
@@ -65,5 +66,9 @@ public class DataToken extends HarvestableArray {
                 "accountId=" + accountId +
                 ", agentId=" + agentId +
                 '}';
+    }
+
+    public int[] asIntArray() {
+        return new int[]{accountId, agentId};
     }
 }

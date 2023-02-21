@@ -156,7 +156,7 @@ public class Crash extends HarvestableObject {
     }
 
     public Set<AnalyticsAttribute> getCrashSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
-        if(sessionAttributes == null) {
+        if (sessionAttributes == null) {
             return null;
         }
         Set<AnalyticsAttribute> attrs = new HashSet<>(sessionAttributes);
@@ -199,7 +199,7 @@ public class Crash extends HarvestableObject {
         data.add("analyticsEvents", eventArray);
 
         final DataToken dataToken = Harvest.getHarvestConfiguration().getDataToken();
-        if (dataToken != null) {
+        if (dataToken != null && dataToken.isValid()) {
             data.add("dataToken", dataToken.asJsonArray());
         }
 

@@ -9,6 +9,8 @@ import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 
 import junit.framework.Assert;
@@ -52,10 +54,12 @@ public class SavedStateTest {
         Agent.setImpl(agentImpl);
 
         // By default, SavedState is created as clone's of the app's ConnectInformation
-        SavedState savedState = spy(agentImpl.getSavedState());
+        savedState = spy(agentImpl.getSavedState());
         ConnectInformation savedConnInfo = new ConnectInformation(appInfo, devInfo);
+
         when(savedState.getConnectionToken()).thenReturn(String.valueOf(agentConfig.getApplicationToken().hashCode()));
         when(savedState.getConnectInformation()).thenReturn(savedConnInfo);
+
         agentImpl.setSavedState(savedState);
         agentImpl.getSavedState().clear();
     }
@@ -74,6 +78,7 @@ public class SavedStateTest {
         HarvestConfiguration harvestConfig = new HarvestConfiguration();
         savedState.loadHarvestConfiguration();
         Assert.assertEquals(savedState.getHarvestConfiguration(), harvestConfig);
+        Assert.assertNull(savedState.getDataToken());
     }
 
     @Test
@@ -82,10 +87,12 @@ public class SavedStateTest {
         connectionInfo.getApplicationInformation().setAppVersion("9.9");
         connectionInfo.getApplicationInformation().setAppName("crunchy");
         connectionInfo.getDeviceInformation().setDeviceId("dummy_id");
+
+        SavedState savedState = new SavedState(spyContext.getContext());
         savedState.saveConnectInformation(connectionInfo);
-        Assert.assertTrue(savedState.getConnectInformation().getApplicationInformation().getAppVersion().equals("9.9"));
-        Assert.assertTrue(savedState.getConnectInformation().getApplicationInformation().getAppName().equals("crunchy"));
-        Assert.assertTrue(savedState.getDeviceId().equals("dummy_id"));
+        Assert.assertEquals("9.9", savedState.getConnectInformation().getApplicationInformation().getAppVersion());
+        Assert.assertEquals("crunchy", savedState.getConnectInformation().getApplicationInformation().getAppName());
+        Assert.assertEquals("dummy_id", savedState.getDeviceId());
     }
 
     @Test
@@ -110,7 +117,7 @@ public class SavedStateTest {
     @Test
     public void testSaveAppToken() throws Exception {
         savedState.saveConnectionToken(ENABLED_APP_TOKEN_PROD);
-        Assert.assertTrue(savedState.getConnectionToken().equals(String.valueOf(ENABLED_APP_TOKEN_PROD.hashCode())));
+        Assert.assertEquals(savedState.getConnectionToken(), String.valueOf(ENABLED_APP_TOKEN_PROD.hashCode()));
     }
 
     @Test
@@ -119,6 +126,8 @@ public class SavedStateTest {
         DeviceInformation deviceInformation = Providers.provideDeviceInformation();
         applicationInformation.setAppName("Changed app name");
         applicationInformation.setAppVersion("new version");
+
+        SavedState savedState = new SavedState(spyContext.getContext());
         savedState.saveConnectInformation(new ConnectInformation(applicationInformation, deviceInformation));
         // saveDeviceInformation already reloads data, but...
         savedState.loadConnectInformation();
@@ -193,6 +202,38 @@ public class SavedStateTest {
         Assert.assertEquals("Should return 2 elements", 2, dataToken.length);
         Assert.assertEquals(111, dataToken[0]);
         Assert.assertEquals(111, dataToken[1]);
+    }
+
+    @Test
+    public void testInvalidDataToken() throws Exception {
+        HarvestConfiguration harvestConfig = Providers.provideHarvestConfiguration();
+
+        harvestConfig.setData_token(new int[]{0, 0});
+        savedState.clear();
+        savedState.saveHarvestConfiguration(harvestConfig);
+        int[] dataToken = savedState.getDataToken();
+        Assert.assertNull("Should return invalid datatoken", dataToken);
+        Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().keySet().contains(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN));
+
+        StatsEngine.SUPPORTABILITY.getStatsMap().clear();
+
+        harvestConfig.setData_token(null);
+        savedState.clear();
+        savedState.saveHarvestConfiguration(harvestConfig);
+        Assert.assertNull("Should return invalid datatoken", dataToken);
+        Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().keySet().contains(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN));
+    }
+
+    @Test
+    public void testInvalidDataTokenWithValidConfig() throws Exception {
+        HarvestConfiguration harvestConfig = Providers.provideHarvestConfiguration();
+
+        harvestConfig.setData_token(null);
+        savedState.getHarvestConfiguration().setData_token(new int[]{1,2});
+        savedState.saveHarvestConfiguration(harvestConfig);
+        int[] dataToken = savedState.getDataToken();
+        Assert.assertEquals(1, dataToken[0]);
+        Assert.assertEquals(2, dataToken[1]);
     }
 
     @Test
@@ -406,5 +447,33 @@ public class SavedStateTest {
         SavedState spy = spy(savedState);
         spy.onHarvestDisabled();
         verify(spy).saveDisabledVersion(anyString());
+    }
+
+    @Test
+    public void testOnHarvestComplete() throws InterruptedException {
+        when(savedState.getDataTokenTTL()).thenReturn(2L);
+
+        savedState.saveHarvestConfiguration(Providers.provideHarvestConfiguration());
+        savedState.loadHarvestConfiguration();
+        Assert.assertTrue(savedState.has("dataToken"));
+        Assert.assertTrue(savedState.has("dataTokenExpiration"));
+
+        Thread.sleep(10);
+
+        savedState.onHarvestComplete();
+        Assert.assertFalse(savedState.has("dataToken"));
+        Assert.assertFalse(savedState.has("dataTokenExpiration"));
+    }
+
+    @Test
+    public void testDataTokenExpiration() {
+        Assert.assertTrue(savedState.getDataTokenTTL() > 0);
+
+        Assert.assertFalse(savedState.has("dataToken"));
+        Assert.assertFalse(savedState.has("dataTokenExpiration"));
+        savedState.saveHarvestConfiguration(Providers.provideHarvestConfiguration());
+        savedState.loadHarvestConfiguration();
+        Assert.assertTrue(savedState.has("dataToken"));
+        Assert.assertTrue(savedState.has("dataTokenExpiration"));
     }
 }

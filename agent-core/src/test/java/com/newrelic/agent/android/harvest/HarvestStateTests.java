@@ -5,6 +5,9 @@
 
 package com.newrelic.agent.android.harvest;
 
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -69,6 +72,22 @@ public class HarvestStateTests {
         Assert.assertEquals(Harvester.State.DISABLED, harvester.getCurrentState());
     }
 
+    @Test
+    public void testInvalidDataToken() {
+        TestHarvester harvester = new TestHarvester();
+        harvester.setHarvestData(new HarvestData());
+
+        harvester.transition(Harvester.State.CONNECTED);
+        Assert.assertEquals(harvester.getCurrentState(), Harvester.State.CONNECTED);
+
+        harvester.getHarvestData().getDataToken().clear(); // invalidate the data token
+        harvester.connected();
+
+        Assert.assertTrue(harvester.stateChanged);
+        Assert.assertEquals(harvester.getCurrentState(), Harvester.State.DISCONNECTED);
+        Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().keySet().contains(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN));
+    }
+
     // Increases visibility of methods for testing.
     private class TestHarvester extends Harvester {
         @Override
@@ -90,10 +109,6 @@ public class HarvestStateTests {
 
         @Override
         protected void disconnected() {
-        }
-
-        @Override
-        protected void connected() {
         }
 
         @Override

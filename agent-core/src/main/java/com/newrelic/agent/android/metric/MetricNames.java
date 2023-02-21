@@ -44,7 +44,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
 
-    public static final String SUPPORTABILITY_CRASH = "Supportability/AgentHealth/Crash/";
+    public static final String SUPPORTABILITY_CRASH = SUPPORTABILITY_AGENT + "Crash/";
     public static final String SUPPORTABILITY_CRASH_RECURSIVE_HANDLER = SUPPORTABILITY_CRASH + "UncaughtExceptionHandler/Recursion";
     public static final String SUPPORTABILITY_CRASH_UNCAUGHT_HANDLER = SUPPORTABILITY_AGENT + "UncaughtExceptionHandler/<name>";
     public static final String SUPPORTABILITY_CRASH_UPLOAD_TIME = SUPPORTABILITY_CRASH + "UploadTime";
@@ -56,7 +56,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_CRASH_SIZE_UNCOMPRESSED = SUPPORTABILITY_CRASH + "Size/Uncompressed";
     public static final String SUPPORTABILITY_CRASH_INVALID_BUILDID = SUPPORTABILITY_CRASH + "InvalidBuildId";
 
-    public static final String SUPPORTABILITY_HEX = "Supportability/AgentHealth/HEx/";
+    public static final String SUPPORTABILITY_HEX = SUPPORTABILITY_AGENT + "HEx/";
     public static final String SUPPORTABILITY_HEX_UPLOAD_TIME = SUPPORTABILITY_HEX + "UploadTime";
     public static final String SUPPORTABILITY_HEX_UPLOAD_TIMEOUT = SUPPORTABILITY_HEX + "UploadTimeOut";
     public static final String SUPPORTABILITY_HEX_UPLOAD_THROTTLED = SUPPORTABILITY_HEX + "UploadThrottled";
@@ -72,6 +72,9 @@ public class MetricNames {
     public static final String SUPPORTABILITY_NDK_REPORTS_ANR = SUPPORTABILITY_NDK + "Reports/ANR";
     public static final String SUPPORTABILITY_NDK_REPORTS_EXCEPTION = SUPPORTABILITY_NDK + "Reports/NativeException";
     public static final String SUPPORTABILITY_NDK_REPORTS_FLUSH = SUPPORTABILITY_NDK + "Reports/Flush";
+
+    public static final String SUPPORTABILITY_DATA_TOKEN = SUPPORTABILITY_AGENT + "DataToken/";
+    public static final String SUPPORTABILITY_INVALID_DATA_TOKEN = SUPPORTABILITY_DATA_TOKEN + "Invalid";
 
     public static final String TAG_NAME = "<name>";
     public static final String TAG_STATE = "<state>";
