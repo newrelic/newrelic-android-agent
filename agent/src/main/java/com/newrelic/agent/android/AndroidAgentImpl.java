@@ -468,18 +468,41 @@ public class AndroidAgentImpl implements
         final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
         final EventManager eventManager = analyticsController.getEventManager();
 
-        // Emit a supportability metric that records the number of events recorded versus ejected
-        // during this session
+        if (!NewRelic.isShutdown) {
+            // Emit a supportability metric that records the number of events recorded versus ejected
+            // during this session
+            int eventsRecorded = eventManager.getEventsRecorded();
+            int eventsEjected = eventManager.getEventsEjected();
 
-        int eventsRecorded = eventManager.getEventsRecorded();
-        int eventsEjected = eventManager.getEventsEjected();
-
-        Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
-                eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
+            Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
+                    eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
+        }
 
         if (finalSendData) {
             if (isUIThread()) {
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_HARVEST_ON_MAIN_THREAD);
+            }
+
+            if (NewRelic.isShutdown) {
+                //clear harvestData
+                HarvestData harvestData = Harvest.getInstance().getHarvestData();
+                harvestData.reset();
+
+                //clear activity traces
+                TraceMachine.clearActivityHistory();
+
+                //clear analytics
+                analyticsController.clear();
+
+                //clear measurementEngine
+                MeasurementEngine measurementEngine = new MeasurementEngine();
+                measurementEngine.clear();
+
+                //Clear StateEngine and only add shutdown metric
+                StatsEngine.reset();
+                String name = MetricNames.SUPPORTABILITY_SHUTDOWN
+                        .replace(MetricNames.TAG_FRAMEWORK, getDeviceInformation().getApplicationFramework().name());
+                StatsEngine.get().inc(name);
             }
 
             Harvest.harvestNow(true);
