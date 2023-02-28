@@ -281,6 +281,21 @@ public class NewRelicTest {
         Assert.assertEquals(harvestData.getDataToken().getAgentId(), 0);
     }
 
+    @Test
+    public void testAgentStatesBetweenStartShutdown() throws Exception {
+        //Mannually stop agent
+        NewRelic.started = false;
+        NewRelic.shutdown();
+        Assert.assertFalse(NewRelic.isShutdown);
+
+        //Manually start agent, as cannot call NewRelic.start()
+        NewRelic.started = true;
+        NewRelic.shutdown();
+
+        Assert.assertFalse(NewRelic.started);
+        Assert.assertTrue(NewRelic.isShutdown);
+    }
+
     /**
      * Needs PowerMock to test final/static classes:
      **/

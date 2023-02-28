@@ -16,6 +16,7 @@ import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
+import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.hybrid.StackTrace;
 import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -329,6 +330,13 @@ public final class NewRelic {
     public static void shutdown() {
         if (started) {
             try {
+                //Clear StateEngine and only add shutdown metric
+                DeviceInformation deviceInformation = Agent.getImpl().getDeviceInformation();
+                StatsEngine.reset();
+                String name = MetricNames.SUPPORTABILITY_SHUTDOWN
+                        .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name());
+                StatsEngine.get().inc(name);
+                
                 isShutdown = true;
                 Agent.getImpl().stop();
             } finally {

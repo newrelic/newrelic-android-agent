@@ -483,26 +483,9 @@ public class AndroidAgentImpl implements
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_HARVEST_ON_MAIN_THREAD);
             }
 
+            //clear all existing data during shutdown process
             if (NewRelic.isShutdown) {
-                //clear harvestData
-                HarvestData harvestData = Harvest.getInstance().getHarvestData();
-                harvestData.reset();
-
-                //clear activity traces
-                TraceMachine.clearActivityHistory();
-
-                //clear analytics
-                analyticsController.clear();
-
-                //clear measurementEngine
-                MeasurementEngine measurementEngine = new MeasurementEngine();
-                measurementEngine.clear();
-
-                //Clear StateEngine and only add shutdown metric
-                StatsEngine.reset();
-                String name = MetricNames.SUPPORTABILITY_SHUTDOWN
-                        .replace(MetricNames.TAG_FRAMEWORK, getDeviceInformation().getApplicationFramework().name());
-                StatsEngine.get().inc(name);
+                clearExistingData();
             }
 
             Harvest.harvestNow(true);
@@ -706,6 +689,33 @@ public class AndroidAgentImpl implements
             return Thread.getDefaultUncaughtExceptionHandler().getClass().getName();
         } catch (Exception e) {
             return "unknown";
+        }
+    }
+
+    private void clearExistingData() {
+        try {
+            //clear harvestData
+            if (Harvest.getInstance() != null) {
+                HarvestData harvestData = Harvest.getInstance().getHarvestData();
+                harvestData.reset();
+            }
+
+            //clear activity traces
+            TraceMachine.clearActivityHistory();
+
+            //clear analytics
+            AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+            if (analyticsController != null) {
+                analyticsController.clear();
+            }
+
+            //clear measurementEngine
+            MeasurementEngine measurementEngine = new MeasurementEngine();
+            if (measurementEngine != null) {
+                measurementEngine.clear();
+            }
+        } catch (Exception ex) {
+            log.error("There is an error while clean data during shutdown process: " + ex.getLocalizedMessage());
         }
     }
 
