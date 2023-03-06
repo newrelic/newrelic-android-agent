@@ -333,10 +333,8 @@ public final class NewRelic {
                 //Clear StateEngine and only add shutdown metric
                 DeviceInformation deviceInformation = Agent.getImpl().getDeviceInformation();
                 StatsEngine.reset();
-                String name = MetricNames.SUPPORTABILITY_SHUTDOWN
-                        .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name());
-                StatsEngine.get().inc(name);
-                
+                StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_SHUTDOWN);
+
                 isShutdown = true;
                 Agent.getImpl().stop();
             } finally {

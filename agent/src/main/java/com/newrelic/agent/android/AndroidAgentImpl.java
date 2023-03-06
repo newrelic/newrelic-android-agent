@@ -695,7 +695,7 @@ public class AndroidAgentImpl implements
     private void clearExistingData() {
         try {
             //clear harvestData
-            if (Harvest.getInstance() != null) {
+            if (Harvest.getInstance() != null && Harvest.getInstance().getHarvestData() != null) {
                 HarvestData harvestData = Harvest.getInstance().getHarvestData();
                 harvestData.reset();
             }

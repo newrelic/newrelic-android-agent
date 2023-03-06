@@ -93,6 +93,6 @@ public class MetricNames {
     public static final String APP_LAUNCH_COLD = METRIC_APP_LAUNCH + "Cold";
     public static final String APP_LAUNCH_HOT = METRIC_APP_LAUNCH + "Hot";
 
-    public static final String SUPPORTABILITY_SHUTDOWN = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/shutdown";
+    public static final String SUPPORTABILITY_SHUTDOWN = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/Shutdown";
 
 }
