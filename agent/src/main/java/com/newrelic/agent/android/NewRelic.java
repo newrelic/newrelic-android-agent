@@ -271,7 +271,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "start"));
 
         if (isShutdown) {
-            log.warn("NewRelic agent has shut down, relaunch your application to restart the agent.");
+            log.error("NewRelic agent has shut down, relaunch your application to restart the agent.");
             return;
         }
 
@@ -331,7 +331,6 @@ public final class NewRelic {
         if (started) {
             try {
                 //Clear StateEngine and only add shutdown metric
-                DeviceInformation deviceInformation = Agent.getImpl().getDeviceInformation();
                 StatsEngine.reset();
                 StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_SHUTDOWN);
 
