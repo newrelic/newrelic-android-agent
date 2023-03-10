@@ -328,12 +328,13 @@ public final class NewRelic {
      * Shut down the agent until the app is restarted or start() is called.
      */
     public static void shutdown() {
+        //Clear StatsEngine and only add shutdown metric
+        StatsEngine.reset();
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "shutdown"));
+
         if (started) {
             try {
-                //Clear StateEngine and only add shutdown metric
-                StatsEngine.reset();
-                StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_SHUTDOWN);
-
                 isShutdown = true;
                 Agent.getImpl().stop();
             } finally {
