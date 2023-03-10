@@ -13,10 +13,12 @@ import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.EventListener;
 import com.newrelic.agent.android.api.common.TransactionData;
-import com.newrelic.agent.android.api.v1.Defaults;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
+import com.newrelic.agent.android.harvest.DeviceInformation;
+import com.newrelic.agent.android.hybrid.StackTrace;
+import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
@@ -29,11 +31,6 @@ import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
-import com.newrelic.agent.android.hybrid.StackTrace;
-import com.newrelic.agent.android.hybrid.data.DataController;
-
-import org.apache.http.Header;
-import org.apache.http.HttpResponse;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -56,6 +53,7 @@ public final class NewRelic {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
     protected static final AgentConfiguration agentConfiguration = new AgentConfiguration();
     protected static boolean started = false;
+    protected static boolean isShutdown = false;
 
     protected boolean loggingEnabled = true;
     protected int logLevel = AgentLog.INFO;
@@ -272,6 +270,11 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "start"));
 
+        if (isShutdown) {
+            log.error("NewRelic agent has shut down, relaunch your application to restart the agent.");
+            return;
+        }
+
         if (started) {
             log.debug("NewRelic is already running.");
             return;
@@ -319,6 +322,27 @@ public final class NewRelic {
      */
     public static boolean isStarted() {
         return started;
+    }
+
+    /**
+     * Shut down the agent until the app is restarted or start() is called.
+     */
+    public static void shutdown() {
+        //Clear StatsEngine and only add shutdown metric
+        StatsEngine.reset();
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "shutdown"));
+
+        if (started) {
+            try {
+                isShutdown = true;
+                Agent.getImpl().stop();
+            } finally {
+                Agent.setImpl(NullAgentImpl.instance);
+                started = false;
+                log.warn("Agent is shut down.");
+            }
+        }
     }
 
     /*

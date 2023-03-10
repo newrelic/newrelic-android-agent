@@ -468,18 +468,24 @@ public class AndroidAgentImpl implements
         final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
         final EventManager eventManager = analyticsController.getEventManager();
 
-        // Emit a supportability metric that records the number of events recorded versus ejected
-        // during this session
+        if (!NewRelic.isShutdown) {
+            // Emit a supportability metric that records the number of events recorded versus ejected
+            // during this session
+            int eventsRecorded = eventManager.getEventsRecorded();
+            int eventsEjected = eventManager.getEventsEjected();
 
-        int eventsRecorded = eventManager.getEventsRecorded();
-        int eventsEjected = eventManager.getEventsEjected();
-
-        Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
-                eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
+            Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
+                    eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
+        }
 
         if (finalSendData) {
             if (isUIThread()) {
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_HARVEST_ON_MAIN_THREAD);
+            }
+
+            //clear all existing data during shutdown process
+            if (NewRelic.isShutdown) {
+                clearExistingData();
             }
 
             Harvest.harvestNow(true);
@@ -683,6 +689,33 @@ public class AndroidAgentImpl implements
             return Thread.getDefaultUncaughtExceptionHandler().getClass().getName();
         } catch (Exception e) {
             return "unknown";
+        }
+    }
+
+    private void clearExistingData() {
+        try {
+            //clear harvestData
+            if (Harvest.getInstance() != null && Harvest.getInstance().getHarvestData() != null) {
+                HarvestData harvestData = Harvest.getInstance().getHarvestData();
+                harvestData.reset();
+            }
+
+            //clear activity traces
+            TraceMachine.clearActivityHistory();
+
+            //clear analytics
+            AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+            if (analyticsController != null) {
+                analyticsController.clear();
+            }
+
+            //clear measurementEngine
+            MeasurementEngine measurementEngine = new MeasurementEngine();
+            if (measurementEngine != null) {
+                measurementEngine.clear();
+            }
+        } catch (Exception ex) {
+            log.error("There is an error while clean data during shutdown process: " + ex.getLocalizedMessage());
         }
     }
 

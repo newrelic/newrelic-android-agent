@@ -751,7 +751,7 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
         return attribute;
     }
 
-    private void clear() {
+    public void clear() {
         log.audit("AnalyticsControllerImpl.clear(): system[" + systemAttributes.size() +
                 "] user[" + userAttributes.size() + "] events[" + eventManager.size() + "]");
 

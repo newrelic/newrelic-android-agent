@@ -265,6 +265,37 @@ public class NewRelicTest {
         Assert.assertTrue("Should start agent", NewRelic.isStarted());
     }
 
+    @Test
+    public void testShutdown() throws Exception {
+        //Manually shutdown agent, as agent cannot be started
+        NewRelic.isShutdown = true;
+        Agent.getImpl().stop();
+
+        //check all the harvestData
+        HarvestData harvestData = Harvest.getInstance().getHarvestData();
+        Assert.assertEquals(harvestData.getHttpTransactions().count(), 0);
+        Assert.assertEquals(harvestData.getActivityTraces().count(), 0);
+        Assert.assertEquals(harvestData.getAnalyticsEvents().size(), 0);
+        Assert.assertEquals(harvestData.getAgentHealth().asJsonArray().size(), 0);
+        Assert.assertEquals(harvestData.getDataToken().getAccountId(), 0);
+        Assert.assertEquals(harvestData.getDataToken().getAgentId(), 0);
+    }
+
+    @Test
+    public void testAgentStatesBetweenStartShutdown() throws Exception {
+        //Mannually stop agent
+        NewRelic.started = false;
+        NewRelic.shutdown();
+        Assert.assertFalse(NewRelic.isShutdown);
+
+        //Manually start agent, as cannot call NewRelic.start()
+        NewRelic.started = true;
+        NewRelic.shutdown();
+
+        Assert.assertFalse(NewRelic.started);
+        Assert.assertTrue(NewRelic.isShutdown);
+    }
+
     /**
      * Needs PowerMock to test final/static classes:
      **/
