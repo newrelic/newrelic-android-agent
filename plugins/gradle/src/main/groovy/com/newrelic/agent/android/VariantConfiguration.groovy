@@ -25,15 +25,15 @@ abstract class VariantConfiguration {
         return name;
     }
 
-    void instrument(boolean state) {
+    void setInstrument(boolean state) {
         this.instrument = state
     }
 
-    void uploadMappingFile(boolean state) {
+    void setUploadMappingFile(boolean state) {
         this.uploadMappingFile = state
     }
 
-    void mappingFile(String mappingFile) {
+    void setMappingFile(String mappingFile) {
         this.mappingFile = file(mappingFile)
     }
 
