@@ -5,6 +5,14 @@
 
 package com.newrelic.agent.android.agentdata;
 
+import static org.junit.Assert.assertFalse;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
+
 import com.google.flatbuffers.FlatBufferBuilder;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
@@ -31,13 +39,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.HttpsURLConnection;
-
-import static org.junit.Assert.assertFalse;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
 
 public class AgentDataSenderTest {
     private static ExecutorService executor = Executors.newCachedThreadPool(new NamedThreadFactory("agentDataUploader"));
@@ -120,7 +121,8 @@ public class AgentDataSenderTest {
         AgentDataSender agentDataSender = spy(new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration));
         HttpURLConnection connection = spy(agentDataSender.getConnection());
 
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_OK);
+        doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+
         agentDataSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 200 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_HEX_UPLOAD_TIME));
 
@@ -161,7 +163,7 @@ public class AgentDataSenderTest {
         AgentDataSender agentDataSender = spy(new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration));
         HttpURLConnection connection = spy(agentDataSender.getConnection());
 
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT);
+        doReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT).when(connection).getResponseCode();
         agentDataSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 408 supportability metric",
                 StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_HEX_UPLOAD_TIMEOUT));
@@ -173,7 +175,8 @@ public class AgentDataSenderTest {
         AgentDataSender agentDataSender = spy(new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration));
         HttpURLConnection connection = spy(agentDataSender.getConnection());
 
-        when(connection.getResponseCode()).thenReturn(429);
+        doReturn(429).when(connection).getResponseCode();
+
         agentDataSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 429 supportability metric",
                 StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_HEX_UPLOAD_THROTTLED));

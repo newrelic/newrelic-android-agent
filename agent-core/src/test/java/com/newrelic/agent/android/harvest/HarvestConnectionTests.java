@@ -128,8 +128,6 @@ public class HarvestConnectionTests {
 
     @Test
     public void testSendDisabledAppToken() {
-        // Can't use staging collector
-        connection.setCollectorHost("mobile-collector.newrelic.com");
         connection.setApplicationToken(DISABLED_APP_TOKEN_STAGING);
         connection.useSsl(true);
 
