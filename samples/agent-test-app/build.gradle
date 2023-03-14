@@ -73,6 +73,10 @@ if (useDexguard) {
     apply plugin: 'dexguard'
 }
 
+wrapper {
+    gradleVersion = versions.gradle
+}
+
 apply plugin: 'newrelic'
 
 android {
