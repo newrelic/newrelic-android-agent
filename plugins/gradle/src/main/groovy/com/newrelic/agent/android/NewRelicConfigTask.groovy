@@ -15,6 +15,8 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 
+// https://developer.android.com/studio/releases/gradle-plugin-api-updates#support_for_adding_generated_classes_to_your_app
+
 abstract class NewRelicConfigTask extends DefaultTask {
     final private String NEWLN = BuildHelper.NEWLN
     final private String CONFIG_CLASS = "com/newrelic/agent/android/NewRelicConfig.java"

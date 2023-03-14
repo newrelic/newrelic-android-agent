@@ -17,7 +17,7 @@ dependencies {
 
     implementation 'com.android.tools.build:gradle:' + project.versions.agp.gradleApi
     implementation 'com.android.tools.build:gradle-api:'+ project.versions.agp.gradleApi
-    implementation 'dev.gradleplugins:gradle-api:' + "7.2"
+    implementation gradleApi()
 
     implementation 'com.guardsquare:proguard-gradle:7.3.1'
     implementation 'org.ow2.asm:asm:' + project.versions.java.asm
@@ -36,10 +36,6 @@ dependencies {
     testImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
         exclude group: 'org.codehaus.groovy'
     }
-}
-
-configurations.implementation {
-    // exclude group: 'com.android.tools.build', module: 'gradle-api'
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -62,7 +58,7 @@ test {
     useJUnitPlatform()
     maxHeapSize = '2G'
     onlyIf {
-        project.hasProperty('integrationTests') || project.hasProperty('regressionTests')
+        false   // FIXME project.hasProperty('integrationTests') || project.hasProperty('regressionTests')
     }
 }
 

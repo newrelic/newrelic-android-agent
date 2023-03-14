@@ -19,6 +19,8 @@ import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 
+// FIXME https://github.com/android/gradle-recipes/blob/agp-7.0/Kotlin/getMappingFile/app/build.gradle.kts
+
 abstract class NewRelicMapUploadTask extends DefaultTask {
 
     @Internal

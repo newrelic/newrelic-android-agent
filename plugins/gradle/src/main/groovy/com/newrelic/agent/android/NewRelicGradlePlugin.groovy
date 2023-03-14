@@ -79,7 +79,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             pluginExtension = project.extensions.create(PLUGIN_EXTENSION_NAME, NewRelicExtension, project.getObjects())
             newrelicTransform = new NewRelicTransform(project, pluginExtension)
 
-            if (project.hasProperty("android") && pluginExtension.isEnabled()) {
+            if (project.hasProperty("android") && pluginExtension.getEnabled()) {
 
                 project.afterEvaluate {
 
