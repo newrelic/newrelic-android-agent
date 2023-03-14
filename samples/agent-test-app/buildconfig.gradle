@@ -38,7 +38,7 @@ buildscript {
                         plugin    : hasOptional('newrelic.agp.version', "4.2.1"),
                         targetSdk : 30,
                         compileSdk: 29,
-                        minSdk    : 26,
+                        minSdk    : 24,
                         supportLib: "28.+"
                 ],
 
