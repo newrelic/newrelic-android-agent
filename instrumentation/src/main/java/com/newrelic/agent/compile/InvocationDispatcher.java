@@ -23,6 +23,7 @@ import org.objectweb.asm.ClassWriter;
 import org.slf4j.Logger;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
@@ -63,9 +64,7 @@ public class InvocationDispatcher implements InvocationHandler {
 
                     put(proxyInvocationKey, new InvocationHandler() {
                         @Override
-                        public Object invoke(Object proxy,
-                                             java.lang.reflect.Method method,
-                                             Object[] args) {
+                        public Object invoke(Object proxy, Method method, Object[] args) {
                             String filename = (String) args[0];
                             byte[] bytes = (byte[]) args[1];
 
@@ -198,7 +197,7 @@ public class InvocationDispatcher implements InvocationHandler {
                 log.debug("[InvocationDispatcher] class [" + className + "]");
 
                 // Exclude both the agent code and our dependant libraries
-                if (className.startsWith(Constants.NR_PACKAGE_NAME)) {
+                if (className.equals(Constants.NEWRELIC_CLASS_NAME)) {
                     cv = new NewRelicClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidSDKPackage(className)) {
                     // In this case, instrument activity/fragment related classes only.
