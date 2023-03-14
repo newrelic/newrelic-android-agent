@@ -14,7 +14,7 @@ import com.newrelic.agent.android.crash.Crash;
 import com.newrelic.agent.android.crash.CrashReporter;
 import com.google.gson.JsonObject;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.junit.After;
 import org.junit.Before;

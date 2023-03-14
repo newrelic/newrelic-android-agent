@@ -14,7 +14,7 @@ import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.measurement.BaseMeasurement;
 import com.newrelic.agent.android.measurement.MeasurementType;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.junit.Before;
 import org.junit.Test;
