@@ -5,16 +5,15 @@
 
 package com.newrelic.agent.android.distributedtracing;
 
-import junit.framework.TestCase;
-
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
-public class W3CTraceContextTest extends TestCase {
+public class W3CTraceContextTest{
 
     private TraceContext.W3CTraceContext traceContext;
 
-    @Override
+    @Before
     public void setUp() throws Exception {
         traceContext = new TraceContext.W3CTraceContext(null);
     }
