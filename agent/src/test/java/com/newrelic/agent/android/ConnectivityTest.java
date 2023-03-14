@@ -14,10 +14,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.annotation.Config;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(sdk = Config.OLDEST_SDK)
 public class ConnectivityTest {
     private Context contextSpy = new SpyContext().getContext();
 
