@@ -5,8 +5,6 @@
 
 package com.newrelic.agent.android
 
-import org.jetbrains.annotations.NotNull
-
 class PrintFilter extends StringWriter {
     def filteredLog = new StringBuffer()
     def buf = getBuffer()
@@ -17,7 +15,7 @@ class PrintFilter extends StringWriter {
     }
 
     @Override
-    void write(@NotNull char[] cbuf, int off, int len) {
+    void write(char[] cbuf, int off, int len) {
         super.write(cbuf, off, len)
         if (cbuf[len - 1] == '\n') {
             buf.findAll(~/\[newrelic[\.\]].*\n/).each {
