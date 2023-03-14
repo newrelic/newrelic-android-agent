@@ -119,7 +119,7 @@ public final class ClassTransformer {
      * in createTransformClassAdapter, currently "(Ljava/lang/String;[B)[B")
      *
      * @param classPathname Used to discern resource type and logging
-     * @param bytes         Array of bytes contianing class
+     * @param bytes Array of bytes containing the class bytecode
      * @return Array of transformed bytes if class was processed; otherwise returns original
      * array of bytes if transformation is disabled or class could not be transformed.
      */
