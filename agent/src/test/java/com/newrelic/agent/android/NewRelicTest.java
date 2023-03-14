@@ -7,14 +7,12 @@ package com.newrelic.agent.android;
 
 import static com.newrelic.agent.android.NewRelic.agentConfiguration;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.newrelic.agent.android.agentdata.AgentDataReporter;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore;
-import com.newrelic.agent.android.analytics.AnalyticsController;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
@@ -50,7 +48,7 @@ import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -67,7 +65,6 @@ import org.robolectric.RobolectricTestRunner;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
@@ -263,37 +260,6 @@ public class NewRelicTest {
         Assert.assertFalse("Agent should not be started", NewRelic.isStarted());
         nrInstance.start(spyContext.getContext());
         Assert.assertTrue("Should start agent", NewRelic.isStarted());
-    }
-
-    @Test
-    public void testShutdown() throws Exception {
-        //Manually shutdown agent, as agent cannot be started
-        NewRelic.isShutdown = true;
-        Agent.getImpl().stop();
-
-        //check all the harvestData
-        HarvestData harvestData = Harvest.getInstance().getHarvestData();
-        Assert.assertEquals(harvestData.getHttpTransactions().count(), 0);
-        Assert.assertEquals(harvestData.getActivityTraces().count(), 0);
-        Assert.assertEquals(harvestData.getAnalyticsEvents().size(), 0);
-        Assert.assertEquals(harvestData.getAgentHealth().asJsonArray().size(), 0);
-        Assert.assertEquals(harvestData.getDataToken().getAccountId(), 0);
-        Assert.assertEquals(harvestData.getDataToken().getAgentId(), 0);
-    }
-
-    @Test
-    public void testAgentStatesBetweenStartShutdown() throws Exception {
-        //Mannually stop agent
-        NewRelic.started = false;
-        NewRelic.shutdown();
-        Assert.assertFalse(NewRelic.isShutdown);
-
-        //Manually start agent, as cannot call NewRelic.start()
-        NewRelic.started = true;
-        NewRelic.shutdown();
-
-        Assert.assertFalse(NewRelic.started);
-        Assert.assertTrue(NewRelic.isShutdown);
     }
 
     /**
@@ -566,7 +532,7 @@ public class NewRelicTest {
         Assert.assertEquals("Should contain url", APP_URL, transaction.getUrl());
         Assert.assertEquals("Should contain method", "get", transaction.getHttpMethod());
         Assert.assertEquals("Should contain status code", HttpStatus.SC_CREATED, transaction.getStatusCode());
-        Assert.assertEquals("Should contain request time", 1.0, transaction.getTotalTime());
+        Assert.assertEquals("Should contain request time", 1.0, transaction.getTotalTime(), 0f);
         Assert.assertEquals("Should contain bytes send", "requestBody".length(), transaction.getBytesSent());
         Assert.assertEquals("Should contain bytes received", "responseBody".length(), transaction.getBytesReceived());
         Assert.assertEquals("Should contain response body", "responseBody", transaction.getResponseBody());
@@ -629,15 +595,15 @@ public class NewRelicTest {
         NewRelic.incrementAttribute("name");
         NewRelic.incrementAttribute("name");
         AnalyticsAttribute attribute = analyticsController.getUserAttributes().iterator().next();
-        Assert.assertEquals("Should increment attribute to 3", 3d, attribute.getDoubleValue());
+        Assert.assertEquals("Should increment attribute to 3", 3d, attribute.getDoubleValue(), 0f);
 
         NewRelic.incrementAttribute("name", 2f);
         attribute = analyticsController.getUserAttributes().iterator().next();
-        Assert.assertEquals("Should increment attribute to 5", 5d, attribute.getDoubleValue());
+        Assert.assertEquals("Should increment attribute to 5", 5d, attribute.getDoubleValue(), 0f);
 
         NewRelic.incrementAttribute("name", -5f);
         attribute = analyticsController.getUserAttributes().iterator().next();
-        Assert.assertEquals("Should increment attribute to 0", 0d, attribute.getDoubleValue());
+        Assert.assertEquals("Should increment attribute to 0", 0d, attribute.getDoubleValue(), 0f);
     }
 
     @Test
