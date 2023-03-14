@@ -3,14 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-description 'The New Relic Android Agent'
-
-apply plugin: 'base'
-apply plugin: 'maven-publish'
-apply plugin: 'io.github.gradle-nexus.publish-plugin'
-
-def deployableProjects = [":agent", ":instrumentation", ":plugins:gradle"]
-
 buildscript {
     apply from: "${rootDir}/buildconfig.gradle"
 
@@ -20,18 +12,20 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://oss.sonatype.org/content/repositories/comnewrelic-${project.versions.agent}" }
     }
-
-    dependencies {
-        classpath 'com.android.tools.build:gradle:' + versions.agp.plugin
-        classpath 'com.github.jengelman.gradle.plugins:shadow:' + versions.java.shadow
-        if (project.fullReport) {
-            classpath 'gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:' + versions.java.spotbugs
-        }
-        classpath 'io.github.gradle-nexus:publish-plugin:' + versions.java.nexus
-    }
 }
 
-task checkJavaVersion {
+plugins {
+    id("com.github.johnrengelman.shadow")
+    id("base")
+}
+
+description 'The New Relic Android Agent'
+
+wrapper {
+    gradleVersion = project.versions.gradle
+}
+
+project.tasks.register("checkJavaVersion") {
     def localVersion = System.properties['java.version']
     if (localVersion.toString().isEmpty()) {
         throw new GradleException("Version not specified:")
@@ -70,6 +64,8 @@ subprojects { project ->
         logger.quiet("[newrelic] Applying static analysis tools to project[$project.name]")
     }
 }
+
+def deployableProjects = [":agent", ":instrumentation", ":plugins:gradle"]
 
 deployableProjects.each {
     project(it) {
