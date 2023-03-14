@@ -9,18 +9,18 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import junit.framework.TestCase;
-
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.util.HashMap;
 
-public class TracePayloadTest extends TestCase {
+public class TracePayloadTest {
 
     private TraceContext traceContext;
     private TracePayload tracePayload;
 
-    @Override
+    @Before
     public void setUp() throws Exception {
         TraceConfiguration.setInstance(new TraceConfiguration("1", "22", "333"));
         traceContext = TraceContext.createTraceContext(new HashMap<String, String>() {{
@@ -30,25 +30,31 @@ public class TracePayloadTest extends TestCase {
         tracePayload = traceContext.tracePayload;
     }
 
+    @Test
     public void testCreateTracePayload() {
         Assert.assertNotNull(traceContext.tracePayload);
     }
 
+    @Test
     public void testAsJson() {
         Assert.assertTrue(isValidTraceHeaderValue(tracePayload.asBase64Json()));
     }
 
+    @Test
     public void testAsBase64Json() {
     }
 
+    @Test
     public void testGetTraceId() {
         Assert.assertEquals(traceContext.getTraceId(), tracePayload.getTraceId());
     }
 
+    @Test
     public void testGetHeaderName() {
         Assert.assertEquals(TracePayload.TRACE_PAYLOAD_HEADER, tracePayload.getHeaderName());
     }
 
+    @Test
     public void testGetHeaderValue() {
         Assert.assertTrue(isValidTraceHeaderValue(tracePayload.getHeaderValue()));
     }
