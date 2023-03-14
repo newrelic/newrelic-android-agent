@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-apply plugin: 'java'
-apply plugin: 'com.github.johnrengelman.shadow'
+plugins {
+    id("com.github.johnrengelman.shadow")
+    id("java")
+}
 
 version = project.versions.agent
 archivesBaseName = "instrumentation"
@@ -67,11 +69,10 @@ tasks.register("compileStampedAgent", JavaCompile) {
     source = buildGenPath
     include 'com/newrelic/agent/InstrumentationAgent.java'
     classpath = sourceSets.main.compileClasspath
-    destinationDir = sourceSets.main.output.classesDirs.first()
+    destinationDirectory = sourceSets.main.output.classesDirs.first()
     options.sourcepath = sourceSets.main.allJava.getSourceDirectories()
     options.listFiles = true
 }
-
 
 /*
  * Finalize instrumentation.jar
@@ -106,6 +107,20 @@ shadowJar {
  * Set dependencies
  */
 project.afterEvaluate() {
+    tasks.withType(Jar).configureEach {
+        dependsOn("compileStampedAgent")
+    }
+
+    ["publishMavenJavaPublicationToMavenLocal", "publishMavenJavaPublicationToArtifactsRepository"].each { taskName ->
+        tasks.named(taskName).configure {
+            dependsOn(jar)
+        }
+    }
+
+    tasks.named("compileTestJava").configure {
+        dependsOn("compileStampedAgent")
+    }
+
     classes.finalizedBy compileStampedAgent
 
     tasks.register("generateMapFile", JavaExec) {
@@ -147,7 +162,6 @@ publishing {
         }
     }
 }
-
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
