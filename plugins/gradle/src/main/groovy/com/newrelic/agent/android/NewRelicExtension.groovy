@@ -31,7 +31,7 @@ abstract class NewRelicExtension {
         })
     }
 
-    boolean isEnabled() {
+    boolean getEnabled() {
         return enabled
     }
 
@@ -81,8 +81,8 @@ abstract class NewRelicExtension {
         // update variants configs with these values
         variantMapUploadList.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                    uploadMappingFile = true
-                }
+                uploadMappingFile = true
+            }
         }
     }
 
@@ -94,8 +94,8 @@ abstract class NewRelicExtension {
         // update variants configs with these values
         variantExclusionList.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                    instrument = false
-                }
+                instrument = false
+            }
         }
     }
 
@@ -106,8 +106,8 @@ abstract class NewRelicExtension {
 
         variantMapUploadList.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                    instrument = true
-                }
+                instrument = true
+            }
         }
     }
 

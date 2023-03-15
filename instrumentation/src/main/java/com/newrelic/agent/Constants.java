@@ -82,6 +82,7 @@ public class Constants {
         add("androidx/sqlite/");
         add("com/google/gson/");
         add("org/json/");
+        add("com/newrelic/agent/android/test");
     }};
 
     /**

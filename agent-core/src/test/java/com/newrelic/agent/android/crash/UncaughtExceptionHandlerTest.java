@@ -77,7 +77,7 @@ public class UncaughtExceptionHandlerTest {
         crashReporter.setEnabled(false);
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
         verify(uncaughtExceptionHandler, atLeastOnce()).chainExceptionHandler(
-                Mockito.isNull(Thread.UncaughtExceptionHandler.class), any(Thread.class), any(Throwable.class));
+                Mockito.<Thread.UncaughtExceptionHandler>isNull(), any(Thread.class), any(Throwable.class));
 
         uncaughtExceptionHandler = spy(new UncaughtExceptionHandler(crashReporter));
         crashReporter.setEnabled(true);
@@ -147,7 +147,7 @@ public class UncaughtExceptionHandlerTest {
 
         verify(asm, atLeastOnce()).uiHidden();
         verify(uncaughtExceptionHandler, atLeastOnce()).chainExceptionHandler(
-                Mockito.isNull(Thread.UncaughtExceptionHandler.class), any(Thread.class), any(Throwable.class));
+                Mockito.<Thread.UncaughtExceptionHandler>isNull(), any(Thread.class), any(Throwable.class));
 
     }
 

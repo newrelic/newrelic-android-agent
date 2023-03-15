@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.android.agentdata;
 
+import static org.junit.Assert.assertTrue;
+
 import com.google.flatbuffers.FlatBufferBuilder;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
@@ -27,9 +29,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-
-import static junit.framework.TestCase.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 public class AgentDataReporterTest {
     private static AgentConfiguration agentConfiguration;
@@ -99,10 +98,10 @@ public class AgentDataReporterTest {
         agentConfiguration.setReportHandledExceptions(false);
 
         TestAgentDataReporter testAgentDataReporter = new TestAgentDataReporter(agentConfiguration);
-        assertFalse("AgentDataReporter should be disabled on init", testAgentDataReporter.isEnabled());
+        Assert.assertFalse("AgentDataReporter should be disabled on init", testAgentDataReporter.isEnabled());
 
         testAgentDataReporter.start();
-        assertFalse("AgentDataReporter should not be started", testAgentDataReporter.isRunning());
+        Assert.assertFalse("AgentDataReporter should not be started", testAgentDataReporter.isRunning());
     }
 
     @Test

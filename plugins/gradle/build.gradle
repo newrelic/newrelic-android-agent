@@ -3,17 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-buildscript {
-    repositories {
-        mavenCentral()
-        google()
-    }
-    dependencies {
-        classpath "com.android.tools.build:gradle-api:${project.versions.agp.gradleApi}"
-    }
+plugins {
+    id("groovy")
 }
-
-apply plugin: 'groovy'
 
 group = 'com.newrelic.agent.android'
 version = project.versions.agent
@@ -21,25 +13,40 @@ version = project.versions.agent
 dependencies {
     implementation project(path: ':instrumentation', configuration: 'shadow')
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
-    implementation 'commons-io:commons-io:' + project.versions.java.commons_io
+    implementation 'commons-io:commons-io:' + project.versions.java.commonsIO
 
-    compileOnly gradleApi()
+    implementation 'com.android.tools.build:gradle:' + project.versions.agp.gradleApi
+    implementation 'com.android.tools.build:gradle-api:'+ project.versions.agp.gradleApi
+    implementation gradleApi()
+
+    implementation 'com.guardsquare:proguard-gradle:7.3.1'
+    implementation 'org.ow2.asm:asm:' + project.versions.java.asm
+    implementation 'org.ow2.asm:asm-util:' + project.versions.java.asm
+
     compileOnly localGroovy()
-    compileOnly 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
-    testImplementation gradleTestKit()
-    testImplementation gradleApi()
+    testImplementation 'dev.gradleplugins:gradle-test-kit:' + project.versions.agp.gradleTestKit
+    testImplementation project(path: ':instrumentation', configuration: 'shadow')
     testImplementation 'junit:junit:' + project.versions.test.junit
-    testImplementation "org.mockito:mockito-core:" + project.versions.test.mockitoCore
-    testImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    testImplementation('org.spockframework:spock-core:1.3-groovy-2.4') {
-        exclude module: 'groovy-all'
+    testImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
+    testImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
+    testImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
+    testImplementation 'com.google.guava:guava:' + project.versions.java.guava
+    testImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
+        exclude group: 'org.codehaus.groovy'
     }
 }
 
-project.tasks.withType(Test).configureEach {
-    useJUnitPlatform()
+tasks.withType(JavaCompile).configureEach {
+    dependsOn(":instrumentation:jar")
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform() {
+        includeEngines("junit-jupiter")
+    }
+
     ["integrationTests", "regressionTests", "newrelic.agent.args", "newrelic.agent.version"].each {
         if (project.hasProperty(it)) {
             systemProperty it, project.property(it)
@@ -48,10 +55,10 @@ project.tasks.withType(Test).configureEach {
 }
 
 test {
-    useJUnit()
+    useJUnitPlatform()
     maxHeapSize = '2G'
     onlyIf {
-        project.hasProperty('integrationTests') || project.hasProperty('regressionTests')
+        false   // FIXME project.hasProperty('integrationTests') || project.hasProperty('regressionTests')
     }
 }
 

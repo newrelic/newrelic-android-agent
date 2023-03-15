@@ -5,17 +5,18 @@
 
 package com.newrelic.agent.android.instrumentation;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.Measurements;
 import com.newrelic.agent.android.TaskQueue;
-import com.newrelic.agent.android.api.common.WanType;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
 import com.newrelic.agent.android.test.mock.TestHarvest;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.TestUtil;
-import com.newrelic.agent.android.util.Util;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -28,7 +29,6 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,9 +36,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 @SuppressWarnings("deprecation")
 public class DefaultHttpClientInstrumentationTest {

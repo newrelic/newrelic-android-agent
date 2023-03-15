@@ -5,6 +5,12 @@
 
 package com.newrelic.agent.android;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
@@ -13,22 +19,13 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 
-import junit.framework.Assert;
-
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.annotation.Config;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(sdk = Config.OLDEST_SDK)
 public class SavedStateTest {
 
     private final static String ENABLED_APP_TOKEN_PROD = "AA9a2d52a0ed09d8ca54e6317d9c92074f2e9b307b";
@@ -155,7 +152,7 @@ public class SavedStateTest {
         Assert.assertEquals("Should contain string", "string", savedState.getString("string"));
         Assert.assertEquals("Should contain boolean", true, savedState.getBoolean("boolean"));
         Assert.assertEquals("Should contain int", 9999, savedState.getInt("int"));
-        Assert.assertEquals("Should contain float", 0.0f, savedState.getFloat("float"));
+        Assert.assertEquals("Should contain float", 0.0f, savedState.getFloat("float"), 0f);
         Assert.assertEquals("Should contain long", Long.valueOf(1).longValue(), savedState.getLong("long"));
     }
 
@@ -186,7 +183,7 @@ public class SavedStateTest {
     @Test
     public void testGetFloat() throws Exception {
         savedState.save("float", Float.NaN);
-        Assert.assertEquals("Should save float", 0.0f, savedState.getFloat("float"));
+        Assert.assertEquals("Should save float", 0.0f, savedState.getFloat("float"), 0f);
     }
 
     @Test
