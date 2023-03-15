@@ -1,0 +1,67 @@
+/*
+ * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+//
+// global names and versions as extra properties
+//
+buildscript {
+    def hasOptional = { key, defaultValue -> rootProject.hasProperty(key) ? rootProject[key] : defaultValue }
+
+    ext {
+        newrelic = [
+                agent: [
+                        version : hasOptional('newrelic.agent.version', '6.+'),
+                        snapshot: hasOptional('newrelic.agent.snapshot', null),
+                        ndk     : hasOptional('newrelic.ndk.version', '1.+')
+                ]
+        ]
+
+        newrelic.deps = [
+                agent : "com.newrelic.agent.android:android-agent:" + newrelic.agent.version,
+                plugin: "com.newrelic.agent.android:agent-gradle-plugin:" + newrelic.agent.version,
+                ndk   : "com.newrelic.agent.android:agent-ndk:" + newrelic.agent.ndk,
+        ]
+
+        versions = [
+                agent: newrelic.agent.version,
+
+                java : [
+                        minVersion: JavaVersion.VERSION_1_8,
+                        shadow    : '6.1.0',
+                        spotbugs  : '4.0.+',
+                        gson      : '2.2.4',
+                        guava     : '18.0',
+                        commons_io: '2.8.0',
+                        nexus     : '1.1.0'
+                ],
+
+                test : [
+                        junit       : '4.12',
+                        mockitoCore : '2.28.2',
+                        robolectric : '4.6.+',
+                        androidxCore: '1.4.+',
+                ],
+
+                agp  : [
+                        // https://developer.android.com/studio/releases/platforms
+                        plugin    : '4.1.0',    // Gradle 6.5
+                        minSdk    : 24,         // Android 7.0
+                        compileSdk: 24,         // Android 7.0
+                        targetSdk : 27,         // Android 8.1
+                        buildTools: '27.0.2',
+                        gradleApi : '4.1.0',
+                ],
+
+        ]
+
+        buildDate = new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        mavenLocal = new File(rootProject.buildDir, ".m2/repository")
+        legacyDistDir = new File(rootProject.projectDir, "dist")
+
+        fullReport = hasOptional('fullReport', false)
+    }
+
+    logger.debug("[newrelic] rootProject.ext] $rootProject.ext.properties")
+}

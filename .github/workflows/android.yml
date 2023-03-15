@@ -2,15 +2,13 @@ name: Android CI
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "develop", "main" ]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: [ "develop", "main" ]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: set up JDK 11
