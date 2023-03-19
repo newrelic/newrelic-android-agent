@@ -7,6 +7,7 @@ pluginManagement {
     ext {
         versions = [
                 agp     : '7.0.2',
+                kotlin  : '1.6.+',
                 shadow  : '7.1.2',
                 nexus   : '1.1.0',
                 spotbugs: '5.0.13'
@@ -27,6 +28,7 @@ pluginManagement {
         id("com.android.library") version "${versions.agp}"
         id("com.github.johnrengelman.shadow") version "${versions.shadow}"
         id("com.github.spotbugs") version "${versions.spotbugs}"
+        id("org.jetbrains.kotlin.jvm") version "${versions.kotlin}" apply false
     }
 }
 

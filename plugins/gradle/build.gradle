@@ -5,10 +5,26 @@
 
 plugins {
     id("groovy")
+    id("org.jetbrains.kotlin.jvm")
 }
 
 group = 'com.newrelic.agent.android'
 version = project.versions.agent
+
+sourceSets {
+    main.java.srcDirs += "src/main/kotlin"
+}
+
+compileGroovy {
+    dependsOn tasks.getByPath('compileKotlin')
+    classpath += files(compileKotlin.destinationDir)
+}
+
+compileKotlin {
+    classpath += files(compileGroovy.destinationDir)
+}
+
+classes.dependsOn compileKotlin
 
 dependencies {
     implementation project(path: ':instrumentation', configuration: 'shadow')
@@ -16,7 +32,7 @@ dependencies {
     implementation 'commons-io:commons-io:' + project.versions.java.commonsIO
 
     implementation 'com.android.tools.build:gradle:' + project.versions.agp.gradleApi
-    implementation 'com.android.tools.build:gradle-api:'+ project.versions.agp.gradleApi
+    implementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
     implementation gradleApi()
 
     implementation 'com.guardsquare:proguard-gradle:7.3.1'
@@ -27,7 +43,7 @@ dependencies {
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
     testImplementation 'dev.gradleplugins:gradle-test-kit:' + project.versions.agp.gradleTestKit
-    testImplementation project(path: ':instrumentation', configuration: 'shadow')
+    testImplementation project(path: ':instrumentation', configuration: 'default')
     testImplementation 'junit:junit:' + project.versions.test.junit
     testImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
     testImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
@@ -39,6 +55,10 @@ dependencies {
 }
 
 tasks.withType(JavaCompile).configureEach {
+    dependsOn(":instrumentation:jar")
+}
+
+tasks.named("compileKotlin").configure {
     dependsOn(":instrumentation:jar")
 }
 
