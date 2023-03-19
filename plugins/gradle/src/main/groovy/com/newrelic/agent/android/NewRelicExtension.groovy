@@ -7,32 +7,42 @@ package com.newrelic.agent.android
 
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
+import org.gradle.api.Project
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Nested
 
 /**
  * NewRelic Android Agent plugin configuration
  */
 abstract class NewRelicExtension {
+    public static final String PLUGIN_EXTENSION_NAME = "newrelic"
 
     protected List<String> variantExclusionList = []          // ['Debug', 'Staging']
     protected List<String> variantMapUploadList = []          // ['Release', 'ProdRelease', 'Staging']
     protected List<String> packageExclusionList = []          // ['android.*', 'androidx.*']
 
-    boolean enabled = true
-    boolean instrumentTests = false
-    boolean variantMapsEnabled = true
+    Property<Boolean> enabled
+    Property<Boolean> instrumentTests
+    Property<Boolean> variantMapsEnabled
 
     NamedDomainObjectContainer<VariantConfiguration> variantConfigurations
 
+    static NewRelicExtension register(Project project) {
+        return project.extensions.create(PLUGIN_EXTENSION_NAME, NewRelicExtension, project.getObjects())
+    }
+
     NewRelicExtension(ObjectFactory objectFactory) {
+        this.enabled = objectFactory.property(Boolean.class).convention(true)
+        this.instrumentTests = objectFactory.property(Boolean.class).convention(false)
+        this.variantMapsEnabled = objectFactory.property(Boolean.class).convention(true)
         this.variantConfigurations = objectFactory.domainObjectContainer(VariantConfiguration, { name ->
             objectFactory.newInstance(VariantConfiguration.class, name)
         })
     }
 
     boolean getEnabled() {
-        return enabled
+        return enabled.get()
     }
 
     /*
@@ -116,6 +126,10 @@ abstract class NewRelicExtension {
             return instrument
         }
         return variantExclusionList.contains(variantName.toLowerCase())
+    }
+
+    boolean shouldIncludeVariant(String variantName) {
+        !shouldExcludeVariant(variantName)
     }
 
     boolean shouldInstrumentTests() {
