@@ -59,7 +59,7 @@ class BuildHelper {
     final ExtensionContainer extensions
     final ObjectFactory objects
 
-    final String agpVersion
+    String agpVersion
 
     final AppExtension android
     final AndroidComponentsExtension androidComponents
@@ -113,14 +113,14 @@ class BuildHelper {
                     "}")
         }
 
-        if (GradleVersion.version(agpVersion) < GradleVersion.version(minSupportedAGPVersion)) {
+        if (GradleVersion.version(getAgpVersion()) < GradleVersion.version(BuildHelper.minSupportedAGPVersion)) {
             throw new HaltBuildException("The New Relic plugin is not compatible with Android Gradle plugin version ${agpVersion}."
                     + NEWLN
-                    + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported.")
+                    + "AGP versions ${BuildHelper.minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported.")
         }
 
-        if (GradleVersion.version(agpVersion) > GradleVersion.version(currentSupportedAGPVersion)) {
-            def enableWarning = hasOptional(PROP_WARNING_AGP, true).toString().toLowerCase()
+        if (GradleVersion.version(getAgpVersion()) > GradleVersion.version(BuildHelper.currentSupportedAGPVersion)) {
+            def enableWarning = hasOptional(BuildHelper.PROP_WARNING_AGP, true).toString().toLowerCase()
             if ((enableWarning != 'false') && (enableWarning != '0')) {
                 warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${agpVersion}."
                         + NEWLN
@@ -307,19 +307,13 @@ class BuildHelper {
             return provider
         } catch (Exception e) {
             logger.error(e)
-            return objects.property(String).orElse(System.getProperty(key))
         }
+
+        return objects.property(String).orElse(System.getProperty(key))
     }
 
     def shouldApplyLegacyTransform() {
-        try {
-            getAndroidComponents().with {
-                getPluginVersion().with {
-                    return major < 7
-                }
-            }
-        } catch (Exception) {}
-        true
+        variantAdapter instanceof VariantAdapter.AGP4xAdapter
     }
 
     /**

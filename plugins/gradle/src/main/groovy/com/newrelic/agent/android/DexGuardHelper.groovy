@@ -24,6 +24,7 @@ class DexGuardHelper {
     final Project project
     final Logger logger
     final def extension
+
     String currentVersion
     def enabled
 
