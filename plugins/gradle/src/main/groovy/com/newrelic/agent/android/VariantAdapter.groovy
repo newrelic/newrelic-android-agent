@@ -57,7 +57,7 @@ abstract class VariantAdapter {
      * @return VariantAdapter
      */
     static VariantAdapter register(BuildHelper buildHelper) {
-        if (GradleVersion.current() < GradleVersion.version("77.2")) {
+        if (GradleVersion.current() < GradleVersion.version("7.4")) {
             return new AGP4xAdapter(buildHelper)
         } else {
             return new AGP7Adapter.AGP70Adapter(buildHelper)
