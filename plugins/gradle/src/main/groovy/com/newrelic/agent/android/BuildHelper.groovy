@@ -109,13 +109,13 @@ class BuildHelper {
                     "}")
         }
 
-        if (GradleVersion.version(agpVersion).baseVersion < GradleVersion.version(minSupportedAGPVersion)) {
+        if (GradleVersion.version(agpVersion) < GradleVersion.version(minSupportedAGPVersion)) {
             throw new BuildCancelledException("The New Relic plugin is not compatible with Android Gradle plugin version ${agpVersion}."
                     + NEWLN
                     + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported.")
         }
 
-        if (GradleVersion.version(agpVersion).baseVersion > GradleVersion.version(currentSupportedAGPVersion)) {
+        if (GradleVersion.version(agpVersion) > GradleVersion.version(currentSupportedAGPVersion)) {
             def enableWarning = hasOptional(PROP_WARNING_AGP, true).toString().toLowerCase()
             if ((enableWarning != 'false') && (enableWarning != '0')) {
                 warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${agpVersion}."

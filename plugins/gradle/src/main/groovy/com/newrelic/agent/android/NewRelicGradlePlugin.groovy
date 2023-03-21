@@ -83,8 +83,8 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
                 project.afterEvaluate {
 
-                    LOGGER.debug("Android Gradle plugin version: " + buildHelper.agpVersion.version)
-                    LOGGER.debug("Gradle version: " + buildHelper.currentGradleVersion.version)
+                    LOGGER.debug("Android Gradle plugin version: " + buildHelper.agpVersion)
+                    LOGGER.debug("Gradle version: " + buildHelper.currentGradleVersion)
                     LOGGER.debug("Java version: " + buildHelper.getSystemPropertyProvider('java.version').get())
 
                     LOGGER.debug("Gradle configuration cache supported: " + buildHelper.configurationCacheSupported())
@@ -158,7 +158,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
     // called during config phase
     protected configureDexGuardTasks(Project project) {
-        LOGGER.debug("Dexguard version: " + buildHelper.dexguardHelper.version)
+        LOGGER.debug("Dexguard version: " + buildHelper.dexguardHelper)
 
         if (buildHelper.dexguardHelper.isDexGuard9()) {
             return configureDexGuard9Tasks(project)
@@ -499,7 +499,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             return Proguard.Provider.DEXGUARD
         }
 
-        if (buildHelper.agpVersion < GradleVersion.version("3.3")) {
+        if (GradleVersion.version(buildHelper.agpVersion) < GradleVersion.version("3.3")) {
             return Proguard.Provider.PROGUARD_603
         }
 
@@ -513,7 +513,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
 
         // Gradle 3.4+ uses proguard by default, unless enabled by properties above
-        if (buildHelper.agpVersion < GradleVersion.version("3.4")) {
+        if (GradleVersion.version(buildHelper.agpVersion) < GradleVersion.version("3.4")) {
             return Proguard.Provider.PROGUARD_603
         }
 
