@@ -26,8 +26,8 @@ class PluginIntegrationSpec extends Specification {
 
     // update as needed
     static final agentVersion = System.getProperty("newrelic.agent.version", '6.+')
-    static final agpVersion = BuildHelper.minSupportedAGPConfigCacheVersion.version
-    static final gradleVersion = BuildHelper.minSupportedAGPConfigCacheVersion.version
+    static final agpVersion = BuildHelper.minSupportedAGPConfigCacheVersion
+    static final gradleVersion = BuildHelper.minSupportedAGPConfigCacheVersion
 
     def extensionsFile = new File(projectRootDir, "nr-extension.gradle")
 
@@ -284,12 +284,12 @@ class PluginIntegrationSpec extends Specification {
     def "verify min supported Gradle version without config cache"() {
         given: "Build with the lowest supported Gradle/AGP version"
         def runner = GradleRunner.create()
-                .withGradleVersion(BuildHelper.minSupportedGradleVersion.version)
+                .withGradleVersion(BuildHelper.minSupportedGradleVersion)
                 .withProjectDir(projectRootDir)
                 .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion.version}",
+                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         testTask)
         when:
@@ -306,7 +306,7 @@ class PluginIntegrationSpec extends Specification {
     def "verify unsupported configuration cache Gradle version"() {
         given: "Try to cache the task with an unsupported Gradle version"
         def runner = GradleRunner.create()
-                .withGradleVersion(BuildHelper.minSupportedGradleConfigCacheVersion.version)
+                .withGradleVersion(BuildHelper.minSupportedGradleConfigCacheVersion)
                 .withProjectDir(projectRootDir)
                 .withEnvironment(localEnv)
                 .withArguments(
@@ -326,12 +326,12 @@ class PluginIntegrationSpec extends Specification {
     def "verify cached map uploads"() {
         given: "Rerun the cached the task"
         def runner = GradleRunner.create()
-                .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion.version)
+                .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion)
                 .withProjectDir(projectRootDir)
                 .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion.version}",
+                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "--configuration-cache",
                         "newrelicMapUploadMinifyReleaseWithR8")
@@ -356,12 +356,12 @@ class PluginIntegrationSpec extends Specification {
         }
         and:
         def runner = GradleRunner.create()
-                .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion.version)
+                .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion)
                 .withProjectDir(projectRootDir)
                 .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion.version}",
+                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "--configuration-cache",
                         "newrelicMapUploadMinifyReleaseWithR8")
@@ -376,12 +376,12 @@ class PluginIntegrationSpec extends Specification {
     def "verify min config cache supported agp/gradle"() {
         given: "Cache the task"
         def runner = GradleRunner.create()
-                .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion.version)
+                .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion)
                 .withProjectDir(projectRootDir)
                 .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion.version}",
+                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "--configuration-cache",
                         "newRelicConfigRelease")

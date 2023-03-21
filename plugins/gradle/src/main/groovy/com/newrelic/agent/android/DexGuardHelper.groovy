@@ -10,7 +10,7 @@ import org.gradle.api.logging.Logger
 import org.gradle.util.GradleVersion
 
 class DexGuardHelper {
-    static final GradleVersion minSupported = GradleVersion.version('8.1.0')
+    static final String minSupported = "8.1.0"
 
     static final String PLUGIN_EXTENSION_NAME = "dexguard"
     static final String DEXGUARD_TASK = "dexguard"
@@ -26,7 +26,7 @@ class DexGuardHelper {
 
     final def enabled
     final def extension
-    final GradleVersion version
+    final String version
 
     /**
      * Must be called after project has been evaluated (project.afterEvaluate())
@@ -40,8 +40,8 @@ class DexGuardHelper {
             this.enabled = project.plugins.hasPlugin(PLUGIN_EXTENSION_NAME)
             if (this.enabled) {
                 this.extension = project.extensions.getByName(PLUGIN_EXTENSION_NAME)
-                this.version = GradleVersion.version(this.extension.version)
-                if (this.version < minSupported) {
+                this.version = this.extension.version
+                if (GradleVersion.version(this.version) < GradleVersion.version(minSupported)) {
                     logger.warn("The New Relic plugin may not be compatible with DexGuard version ${this.version}.")
                 }
             }
@@ -51,11 +51,11 @@ class DexGuardHelper {
     }
 
     boolean isDexGuard9() {
-        return enabled && (version && version >= GradleVersion.version("9.0"))
+        return enabled && (version && GradleVersion.version(version) >= GradleVersion.version("9.0"))
     }
 
     boolean isLegacyDexGuard() {
-        return enabled && (!version || version < GradleVersion.version("9.0"))
+        return enabled && (!version || GradleVersion.version(version) < GradleVersion.version("9.0"))
     }
 
     def getDefaultMapPath(def variant) {
