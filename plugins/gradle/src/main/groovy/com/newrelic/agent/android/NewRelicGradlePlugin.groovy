@@ -4,9 +4,11 @@
  */
 
 package com.newrelic.agent.android
+// gradle-api 7.2
 
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
+import com.newrelic.agent.compile.HaltBuildException
 import com.newrelic.agent.util.BuildId
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -14,7 +16,6 @@ import org.gradle.api.UnknownTaskException
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
-import org.gradle.api.tasks.StopActionException
 import org.gradle.util.GradleVersion
 
 class NewRelicGradlePlugin implements Plugin<Project> {
@@ -24,12 +25,8 @@ class NewRelicGradlePlugin implements Plugin<Project> {
     public static final String DEX_PROGUARD = "proguard"
     public static final String DEX_R8 = "r8"
 
-    private NewRelicExtension pluginExtension
-    private NewRelicTransform newrelicTransform
+    private NewRelicExtension plugin
     private BuildHelper buildHelper
-
-    private def variantList
-    private def buildIdMap
 
     @Override
     void apply(Project project) {
@@ -38,10 +35,87 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         // bind the instrumentation agent's logger to the plugin's logger
         InstrumentationAgent.LOGGER = LOGGER
 
-        buildHelper = new BuildHelper(project)
+        plugin = NewRelicExtension.register(project)
+        if (!plugin.getEnabled()) {
+            return
+        }
 
-        def agentArgs = ""
+        buildHelper = BuildHelper.register(project)
+
+        project.configure(project) {
+            // Gradle now has a complete task execution graph for the requested tasks
+
+            if (plugin.getEnabled()) {
+
+                project.afterEvaluate {
+                    buildHelper.variantAdapter.configure(plugin)
+
+                    logBuildMetrics()
+
+                    // set global enable flag
+                    BuildId.setVariantMapsEnabled(plugin.variantMapsEnabled.get())
+
+                    def buildMap = getDefaultBuildMap()
+
+                    try {
+                        // FIXME
+                        if (checkDexGuard(project)) {
+                            buildHelper.withDexGuardHelper(new DexGuardHelper(project))
+                            configureDexGuardTasks(project)
+                        }
+
+                        configureConfigTasks(project)
+                        configureTransformTasks(project)
+
+                        configureMapUploadTasks(project)
+                        // FIXME
+
+                        // add extension to project's ext data
+                        project.ext.newrelic = plugin
+
+                        LOGGER.debug("New Relic plugin loaded.")
+
+                    } catch (MissingPropertyException e) {
+                        LOGGER.warn("Not supported: " + e)
+                    }
+                }
+
+            } else {
+                LOGGER.info("New Relic Agent is disabled.")
+            }
+        }
+    }
+
+    void logBuildMetrics() {
+        LOGGER.info("New Relic Agent version: " + buildHelper.agentVersion)
+
+        LOGGER.debug("Android Gradle plugin version: " + buildHelper.agpVersion)
+        LOGGER.debug("Gradle version: " + buildHelper.gradleVersion)
+        LOGGER.debug("Java version: " + buildHelper.getSystemPropertyProvider('java.version').get())
+        LOGGER.debug("Gradle configuration cache supported: " + buildHelper.configurationCacheSupported())
+        LOGGER.debug("Gradle configuration cache enabled: " + buildHelper.configurationCacheEnabled())
+
+        if (checkInstantApps(buildHelper.project)) {
+            LOGGER.debug("InstantApp detected.")
+        }
+
+        if (checkDexGuard(buildHelper.project)) {
+            LOGGER.info("DexGuard detected.")
+        }
+
+        if (buildHelper.shouldApplyLegacyTransform()) {
+            def agentArgs = parseLegacyAgentArgs(buildHelper.project)
+            LOGGER.debug("AGP TransformAPI: registering NewRelicTransform(" + agentArgs + ")")
+        }
+
+        // TODO Turn this into a metric payload and persist for agent to pick up
+        // LOGGER.info("BuildMetrics[${buildHelper.buildMetricsAsJson()}]")
+    }
+
+    // TODO refactor this out
+    private parseLegacyAgentArgs(Project project) {
         def prop = buildHelper.getSystemPropertyProvider(InstrumentationAgent.NR_AGENT_ARGS_KEY)
+        def agentArgs = ""
 
         if (prop.present) {
             agentArgs = prop.get()
@@ -65,76 +139,14 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             LOGGER.error(argsError.message)
         }
 
-        if (!project.hasProperty("android")) {
-            throw new StopActionException("The New Relic agent plugin depends on the Android plugin." + BuildHelper.NEWLN +
-                    "Please apply the Android plugin before the New Relic agent: " + BuildHelper.NEWLN +
-                    "apply plugin: 'com.android.application' ('com.android.library', 'com.android.feature' or 'com.android.dynamic-feature')" + BuildHelper.NEWLN +
-                    "apply plugin: 'newrelic'")
-        }
-
-        project.configure(project) {
-
-            LOGGER.info("New Relic Agent version: " + InstrumentationAgent.getVersion())
-
-            pluginExtension = project.extensions.create(PLUGIN_EXTENSION_NAME, NewRelicExtension, project.getObjects())
-            newrelicTransform = new NewRelicTransform(project, pluginExtension)
-
-            if (project.hasProperty("android") && pluginExtension.getEnabled()) {
-
-                project.afterEvaluate {
-
-                    LOGGER.debug("Android Gradle plugin version: " + buildHelper.agpVersion)
-                    LOGGER.debug("Gradle version: " + buildHelper.currentGradleVersion)
-                    LOGGER.debug("Java version: " + buildHelper.getSystemPropertyProvider('java.version').get())
-
-                    LOGGER.debug("Gradle configuration cache supported: " + buildHelper.configurationCacheSupported())
-                    LOGGER.debug("Gradle configuration cache enabled: " + buildHelper.configurationCacheEnabled())
-
-                    try {
-                        // set global enable flag
-                        BuildId.setVariantMapsEnabled(pluginExtension.variantMapsEnabled)
-
-                        variantList = getProjectVariants(project)
-                        buildIdMap = getDefaultBuildMap(project)
-
-                        if (checkInstantApps(project)) {
-                            LOGGER.debug("InstantApp detected.")
-                        }
-
-                        if (checkDexGuard(project)) {
-                            LOGGER.info("DexGuard detected.")
-                            buildHelper.withDexGuardHelper(new DexGuardHelper(project))
-                            configureDexGuardTasks(project)
-                        }
-
-                        configureConfigTasks(project)
-                        configureTransformTasks(project)
-                        configureMapUploadTasks(project)
-
-                        // add extension to project's ext data
-                        project.ext.newrelic = pluginExtension
-
-                        LOGGER.debug("New Relic plugin loaded.")
-
-                    } catch (MissingPropertyException e) {
-                        LOGGER.warn("Not supported: " + e)
-                    }
-                }
-
-                // Register the New Relic transformer
-                LOGGER.debug("TransformAPI: registering NewRelicTransform(" + agentArgs + ")")
-                android.registerTransform(newrelicTransform)
-
-            } else {
-                LOGGER.info("New Relic Agent is disabled.")
-            }
-        }
+        agentArgs
     }
 
+    // FIXME Migrate to DexguardHelper
     // called during config phase
     protected configureDexGuard9Tasks(Project project) {
-        variantList.each { variant ->
-            if (pluginExtension.shouldIncludeMapUpload(variant.name)) {
+        getProjectVariants().each { variant ->
+            if (plugin.shouldIncludeMapUpload(variant.name)) {
                 def variantNameCap = variant.name.capitalize()
                 DexGuardHelper.dexguard9Tasks.each { taskName ->
                     try {
@@ -156,16 +168,19 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
     }
 
+    // FIXME Migrate to DexguardHelper
     // called during config phase
     protected configureDexGuardTasks(Project project) {
-        LOGGER.debug("Dexguard version: " + buildHelper.dexguardHelper)
+        LOGGER.debug("Dexguard version: " + buildHelper.dexguardHelper.currentVersion)
 
         if (buildHelper.dexguardHelper.isDexGuard9()) {
             return configureDexGuard9Tasks(project)
         }
 
-        variantList.each { variant ->
+        // FIXME
+        getProjectVariants().each { variant ->
             def variantNameCap = variant.name.capitalize()
+            /* AGP4 */
             try {
                 // throws if DexGuard not present
                 def dexguardTask = project.tasks.getByName("${DexGuardHelper.DEXGUARD_TASK}${variantNameCap}")
@@ -191,7 +206,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     injectMapUploadFinalizer(project, dexguardTask, variant, null)
                 }
 
-                def javaCompileTask = BuildHelper.getVariantCompileTask(variant)
+                def javaCompileTask = BuildHelper.getVariantCompileTaskProvider(variant)
                 if (javaCompileTask) {
                     javaCompileTask.finalizedBy classRewriterTask
                     LOGGER.info("Task [" + dexguardTask.getName() +
@@ -205,12 +220,16 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                 // task for this variant not available
                 LOGGER.debug("configureDexGuard: " + e)
             }
+            /* AGP4 */
         }
     }
 
+    // FIXME replace with variant API task
     // called during config phase
     protected def injectMapUploadFinalizer(Project project, def targetTask, def variant, Closure closure) {
-        if (pluginExtension.shouldIncludeMapUpload(variant.name)) {
+
+        if (plugin.shouldIncludeMapUpload(variant.name)) {
+
             try {
                 def targetNameCap = targetTask.name.capitalize()
                 def mappingFile = buildHelper.getVariantMappingFile(variant)
@@ -259,6 +278,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
     }
 
+    // FIXME replace with variant API task
     // called during config phase
     protected def injectMapUploadFinalizer(Project project, String targetTaskName, def variant) {
         try {
@@ -273,45 +293,50 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
     }
 
+    // FIXME replace with variant API task
     // called during config phase
     protected void configureTransformTasks(Project project) {
-        try {
-            def transformer = NewRelicTransform.TRANSFORMER_NAME.capitalize()
-            variantList.each { variant ->
-                final boolean shouldExcludeVariant = pluginExtension.shouldExcludeVariant(variant.name) ||
-                        pluginExtension.shouldExcludeVariant(variant.buildType.name)
+        if (buildHelper.shouldApplyLegacyTransform()) {
+            try {
+                def transformer = NewRelicTransform.TRANSFORMER_NAME.capitalize()
 
-                if (shouldExcludeVariant) {
-                    LOGGER.info("Excluding instrumentation of variant [" + variant.name + "]")
-                }
+                getProjectVariants().each {
+                    final boolean shouldExcludeVariant = plugin.shouldExcludeVariant(variant.name) ||
+                            plugin.shouldExcludeVariant(variant.buildType.name)
 
-                def variantNameCap = variant.name.capitalize()
-                def triggerTasks = ["transformClassesWith${transformer}For${variantNameCap}"]
+                    if (shouldExcludeVariant) {
+                        LOGGER.info("Excluding instrumentation of variant [" + variant.name + "]")
+                    }
 
-                triggerTasks.each { targetTaskName ->
-                    try {
-                        project.tasks.getByName(targetTaskName) { targetTask ->
-                            if (targetTask.transform && targetTask.transform instanceof NewRelicTransform) {
-                                /* Will be disabled until AGP8 support is added:
-                                targetTask.doFirst {
-                                    targetTask.transform.withTransformState(variant.name, shouldExcludeVariant)
+                    def variantNameCap = variant.name.capitalize()
+                    def triggerTasks = ["transformClassesWith${transformer}For${variantNameCap}"]
+
+                    triggerTasks.each { targetTaskName ->
+                        try {
+                            project.tasks.getByName(targetTaskName) { targetTask ->
+                                if (targetTask.transform && targetTask.transform instanceof NewRelicTransform) {
+                                    /* Will be disabled until AGP8 support is added:
+                                    targetTask.doFirst {
+                                        targetTask.transform.withTransformState(variant.name, shouldExcludeVariant)
+                                    }
+                                    */
+                                } else {
+                                    LOGGER.error("Could not set state on transform task [${targetTask.name}]")
                                 }
-                                */
-                            } else {
-                                LOGGER.error("Could not set state on transform task [${targetTask.name}]")
                             }
+                        } catch (Exception e) {
+                            // task for this variant not available. Log if not excluded
+                            LOGGER.debug("configureTransformTasks: " + e)
                         }
-                    } catch (Exception e) {
-                        // task for this variant not available. Log if not excluded
-                        LOGGER.debug("configureTransformTasks: " + e)
                     }
                 }
+            } catch (UnknownTaskException) {
+                // ignored: task doesn't exist if proguard not enabled
             }
-        } catch (UnknownTaskException) {
-            // ignored: task doesn't exist if proguard not enabled
         }
     }
 
+    // FIXME replace with variant API task
     // called during config phase
     protected void configureMapUploadTasks(Project project) {
         try {
@@ -325,21 +350,23 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                 return
             }
 
-            def enabledVariantTypeNames = pluginExtension.variantMapUploadList ?: ['release']
+            def enabledVariantTypeNames = plugin.variantMapUploadList ?: ['release']
 
             // do all the variants if variantMapsEnabled, or only those provided in the extension. Default is *release*.
-            if (!pluginExtension.variantMapsEnabled || enabledVariantTypeNames == null) {
+            if (!plugin.variantMapsEnabled.get() || enabledVariantTypeNames == null) {
                 LOGGER.debug("configureMapUploadTasks: all variants")
                 enabledVariantTypeNames = []
             } else {
                 LOGGER.debug("Maps will be tagged and uploaded for variants ${enabledVariantTypeNames}")
             }
 
-            variantList.each { variant ->
+            // FIXME
+            getProjectVariants().each { variant ->
                 if (enabledVariantTypeNames.isEmpty() ||
                         enabledVariantTypeNames.contains(variant.name.toLowerCase()) ||
                         enabledVariantTypeNames.contains(variant.buildType.name.toLowerCase())) {
-                    def buildType = getBuildTypeFromVariant(variant)
+
+                    def buildType = buildHelper.variantAdapter.getBuildType(variant.name)
 
                     if (buildType && buildType.minifyEnabled) {
                         def variantNameCap = variant.name.capitalize()
@@ -364,6 +391,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
     }
 
+    // FIXME replace with variant API task
     // called during config phase
     protected void configureConfigTasks(Project project) {
         try {
@@ -372,14 +400,16 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                 return
             }
 
-            variantList.each { variant ->
+            getProjectVariants().each { variant ->
+
                 def buildId = BuildId.getBuildId(variant.name)
                 def variantNameCap = variant.name.capitalize()
                 LOGGER.debug("newrelicConfig${variantNameCap} buildId[${buildId}]")
                 try {
-                    // Branch on Gradle version
                     def buildConfigTask = buildHelper.getVariantBuildConfigTask(variant)
 
+                    // FIXME https://developer.android.com/studio/releases/gradle-plugin-api-updates#support_for_adding_generated_classes_to_your_app
+                    // https://github.com/android/gradle-recipes/blob/agp-7.2/Kotlin/addToAllClasses/app/build.gradle.kts
                     if (buildConfigTask) {
                         def genSrcFolder = project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.dirName}")
                         def taskProvider = project.tasks.register("newrelicConfig${variantNameCap}", NewRelicConfigTask) { configTask ->
@@ -402,7 +432,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                         try {
                             variant.addJavaSourceFoldersToModel(genSrcFolder.get().asFile)
                         } catch (Exception e) {
-                            LOGGER.error("" + e.message)
+                            LOGGER.warn("" + e.message)
                         }
 
                         // must manually update the Kotlin compile tasks sourcesets (per variant)
@@ -425,6 +455,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     // task for this variant not available
                     LOGGER.warn("configureConfigTasks: " + e.message)
                 }
+
             }
         } catch (MissingPropertyException e) {
             // has no android closure or applicationVariants property
@@ -455,44 +486,28 @@ class NewRelicGradlePlugin implements Plugin<Project> {
      *
      * Currently, all variants use the same build ID
      *
-     * @param project
      * @return Map of variant to build ID
      */
-    protected Map<String, String> getDefaultBuildMap(Project project) {
-        Map<String, String> buildIdCache = [:]
-        getProjectVariants(project).each { variant ->
-            buildIdCache.putIfAbsent(variant.name, BuildId.getBuildId(variant.name))
+    protected Map<String, String> getDefaultBuildMap() {
+        def buildIdCache = [:] as HashMap<String, String>
+
+        getProjectVariants().each { variant ->
+            buildIdCache.put(variant.name, BuildId.getBuildId(variant.name))
         }
 
         return buildIdCache
     }
 
-    private getProjectVariants(Project project) {
-        def variants = []
-
-        try {
-            def android = project.getProperties().get("android")
-            if (android != null) {
-                if (android.hasProperty("applicationVariants")) {
-                    variants = android.applicationVariants
-                } else if (android.hasProperty("featureVariants")) {
-                    variants = android.featureVariants
-                } else if (android.hasProperty("libraryVariants")) {
-                    variants = android.libraryVariants
-                }
-            }
-
-        } catch (MissingPropertyException) {
-            // has no android closure or variants property
-            LOGGER.warn("getProjectVariants: " + e)
-        }
-        catch (Exception e) {
-            LOGGER.warn("getProjectVariants: " + e)
-        }
-
-        return variants
+    // FIXME
+    private def getProjectVariants() {
+        return buildHelper.variantAdapter.variants.get().values()
     }
 
+    /**
+     * Returns literal name of obfuscation compiler
+     * @param project
+     * @return Compiler name (R8, Proguard_603 or DexGuard)
+     */
     String getMapProvider(Project project) {
 
         if (buildHelper.dexguardHelper.enabled) {
@@ -521,7 +536,8 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         return Proguard.Provider.DEFAULT
     }
 
-    private getBuildTypeFromVariant(def variant) {
+    // FIXME
+    private def getBuildTypeFromVariant(def variant) {
         try {
             return variant.buildType
         } catch (Exception e) {

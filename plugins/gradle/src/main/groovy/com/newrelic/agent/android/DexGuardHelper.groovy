@@ -10,7 +10,7 @@ import org.gradle.api.logging.Logger
 import org.gradle.util.GradleVersion
 
 class DexGuardHelper {
-    static final String minSupported = "8.1.0"
+    static final String minSupportedVersion = "8.1.0"
 
     static final String PLUGIN_EXTENSION_NAME = "dexguard"
     static final String DEXGUARD_TASK = "dexguard"
@@ -23,10 +23,13 @@ class DexGuardHelper {
 
     final Project project
     final Logger logger
-
-    final def enabled
     final def extension
-    final String version
+    String currentVersion
+    def enabled
+
+    static DexGuardHelper register(Project project) {
+        return new DexGuardHelper(project)
+    }
 
     /**
      * Must be called after project has been evaluated (project.afterEvaluate())
@@ -40,9 +43,9 @@ class DexGuardHelper {
             this.enabled = project.plugins.hasPlugin(PLUGIN_EXTENSION_NAME)
             if (this.enabled) {
                 this.extension = project.extensions.getByName(PLUGIN_EXTENSION_NAME)
-                this.version = this.extension.version
-                if (GradleVersion.version(this.version) < GradleVersion.version(minSupported)) {
-                    logger.warn("The New Relic plugin may not be compatible with DexGuard version ${this.version}.")
+                this.currentVersion = GradleVersion.version(this.extension.currentVersion)
+                if (GradleVersion.version(getCurrentVersion()) < GradleVersion.version(DexGuardHelper.minSupportedVersion)) {
+                    logger.warn("The New Relic plugin may not be compatible with DexGuard version ${this.currentVersion}.")
                 }
             }
         } catch (Exception e) {
@@ -51,11 +54,11 @@ class DexGuardHelper {
     }
 
     boolean isDexGuard9() {
-        return enabled && (version && GradleVersion.version(version) >= GradleVersion.version("9.0"))
+        return enabled && (currentVersion && GradleVersion.version(currentVersion) >= GradleVersion.version("9.0"))
     }
 
     boolean isLegacyDexGuard() {
-        return enabled && (!version || GradleVersion.version(version) < GradleVersion.version("9.0"))
+        return enabled && (!currentVersion || GradleVersion.version(currentVersion) < GradleVersion.version("9.0"))
     }
 
     def getDefaultMapPath(def variant) {
