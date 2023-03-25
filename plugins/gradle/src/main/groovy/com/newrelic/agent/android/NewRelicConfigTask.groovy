@@ -10,15 +10,10 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.Internal
-import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
-
-// https://developer.android.com/studio/releases/gradle-plugin-api-updates#support_for_adding_generated_classes_to_your_app
+import org.gradle.api.tasks.*
 
 abstract class NewRelicConfigTask extends DefaultTask {
-    final private String NEWLN = BuildHelper.NEWLN
+    final static String NAME = "newrelicConfig"
     final private String CONFIG_CLASS = "com/newrelic/agent/android/NewRelicConfig.java"
 
     @Input
@@ -30,36 +25,38 @@ abstract class NewRelicConfigTask extends DefaultTask {
     @Input
     abstract Property<Boolean> getMinifyEnabled()
 
+    @Input
+    @Optional
+    abstract Property<String> getBuildMetrics()
+
     @OutputDirectory
     abstract DirectoryProperty getSourceOutputDir()
-
-    private final String configClassBody =
-            "package com.newrelic.agent.android;" + NEWLN +
-                    "final class NewRelicConfig {" + NEWLN +
-                    "\tstatic final String VERSION = \"@version@\";" + NEWLN +
-                    "\tstatic final String BUILD_ID = \"@buildId@\";" + NEWLN +
-                    "\tstatic final Boolean OBFUSCATED = @obfuscated@;" + NEWLN +
-                    "\tstatic final String MAP_PROVIDER = \"@provider@\";" + NEWLN +
-                    "\tpublic static String getBuildId() {" + NEWLN +
-                    "\t\treturn BUILD_ID;" + NEWLN +
-                    "\t}" + NEWLN +
-                    "}" + NEWLN
 
     @TaskAction
     def newRelicConfigTask() {
         try {
-            def obfuscated = minifyEnabled.present && minifyEnabled.get()
             def f = getSourceOutputDir().file(CONFIG_CLASS).get().asFile
 
-            f.parentFile.mkdirs()
-            f.text = configClassBody
-                    .replaceAll("@version@", InstrumentationAgent.getVersion())
-                    .replaceAll("@buildId@", buildId.get())
-                    .replaceAll("@obfuscated@", obfuscated ? "true" : "false")
-                    .replaceAll("@provider@", mapProvider.get())
+            f.with {
+                parentFile.mkdirs()
+                text = """
+                    package com.newrelic.agent.android;
+
+                    final class NewRelicConfig {
+                        static final String VERSION = "${InstrumentationAgent.getVersion()}";
+                        static final String BUILD_ID = "${buildId.get()}";
+                        static final Boolean MINIFIED = ${minifyEnabled.getOrElse(false)};
+                        static final String MAP_PROVIDER = "${mapProvider.get()}";
+                        static final String METRICS = "${buildMetrics.getOrElse("")}";
+                        public static String getBuildId() {
+                            return BUILD_ID;
+                        }
+                    }
+                    """.stripIndent()
+            }
 
         } catch (Exception e) {
-            logger.error("Error encountered while configuring the New Relic agent: ", e)
+            logger.error("Error encountered while configuring the New Relic plugin: ", e)
         }
     }
 

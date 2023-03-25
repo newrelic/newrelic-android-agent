@@ -8,20 +8,23 @@ package com.newrelic.agent.android
 import com.android.build.api.variant.AndroidComponentsExtension
 import com.android.build.gradle.AppExtension
 import com.newrelic.agent.InstrumentationAgent
+import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.compile.HaltBuildException
-import groovy.json.JsonOutput
+import com.newrelic.agent.util.BuildId
+import groovy.transform.CompileDynamic
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.api.UnknownTaskException
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
-import org.gradle.api.model.ObjectFactory
-import org.gradle.api.plugins.ExtensionContainer
 import org.gradle.api.plugins.ExtraPropertiesExtension
 import org.gradle.api.provider.Provider
-import org.gradle.api.tasks.TaskProvider
 import org.gradle.util.GradleVersion
 
 import java.util.concurrent.atomic.AtomicReference
 
+@CompileDynamic
 class BuildHelper {
 
     /**
@@ -43,6 +46,9 @@ class BuildHelper {
     static final String PROP_WARNING_AGP = "newrelic.warning.agp"
     static final String PROP_HALT_ON_ERROR = "newrelic.halt-on-error"
 
+    static final String DEX_PROGUARD = "proguard"
+    static final String DEX_R8 = "r8"
+
     public static final String agentVersion = InstrumentationAgent.version
 
     public final String gradleVersion = GradleVersion.current().version
@@ -56,56 +62,51 @@ class BuildHelper {
     public static String NEWLN = "\r\n"
 
     final Project project
-    final ExtensionContainer extensions
-    final ObjectFactory objects
-
-    final String agpVersion
-
+    final NewRelicExtension extension
     final AppExtension android
     final AndroidComponentsExtension androidComponents
     final ExtraPropertiesExtension extraProperties
-    final VariantAdapter variantAdapter
 
+    VariantAdapter variantAdapter
+    String agpVersion
     Logger logger
     DexGuardHelper dexguardHelper
 
-    static final AtomicReference<BuildHelper> instance = new AtomicReference<BuildHelper>(null)
+    static final AtomicReference<BuildHelper> INSTANCE = new AtomicReference<BuildHelper>(null)
 
     static BuildHelper register(Project project) {
-        BuildHelper.instance.compareAndSet(null, new BuildHelper(project))
-        return BuildHelper.instance.get()
+        BuildHelper.INSTANCE.compareAndSet(null, new BuildHelper(project))
+        return BuildHelper.INSTANCE.get()
     }
 
     BuildHelper(Project project) {
         this.project = project
         this.logger = NewRelicGradlePlugin.LOGGER
-        this.extensions = project.extensions
-        this.objects = project.objects
-        this.dexguardHelper = new DexGuardHelper(project)
+        this.dexguardHelper = DexGuardHelper.register(this)
 
         try {
-            this.extraProperties = extensions.getByType(ExtraPropertiesExtension.class) as ExtraPropertiesExtension
-            this.android = extensions.getByType(AppExtension.class) as AppExtension
-            this.androidComponents = extensions.getByType(AndroidComponentsExtension.class) as AndroidComponentsExtension
+            this.extension = project.extensions.getByType(NewRelicExtension.class) as NewRelicExtension
+            this.extraProperties = project.extensions.getByType(ExtraPropertiesExtension.class) as ExtraPropertiesExtension
+            this.android = project.extensions.getByType(AppExtension.class) as AppExtension
+            this.androidComponents = project.extensions.getByType(AndroidComponentsExtension.class) as AndroidComponentsExtension
 
-        } catch (GradleException e) {
+            this.agpVersion = getAndNormalizeAGPVersion()
+
+            // warn or throw if we can't instrument this build
+            validatePluginSettings()
+
+            NEWLN = getSystemPropertyProvider("line.separator").get()
+
+            this.variantAdapter = VariantAdapter.register(this)
+
+        } catch (Exception e) {
             throw new HaltBuildException(e)
         }
-
-        this.agpVersion = getAndNormalizeAGPVersion()
-
-        // warn or throw if we can't instrument this build
-        validatePluginSettings()
-
-        this.variantAdapter = VariantAdapter.register(this)
-
-        BuildHelper.NEWLN = getSystemPropertyProvider("line.separator").get()
-
     }
 
-    void validatePluginSettings() {
+    void validatePluginSettings() throws GradleException {
         if (!getAndroid()) {
-            throw new HaltBuildException("The New Relic agent plugin depends on the Android plugin." + NEWLN +
+            throw new GradleException("The New Relic agent plugin depends on the Android plugin." + NEWLN +
                     "Please apply an Android plugin before the New Relic agent: " + NEWLN +
                     "plugins {" + NEWLN +
                     "   id 'com.android.[application, library, feature, dynamic-feature]'" + NEWLN +
@@ -113,25 +114,25 @@ class BuildHelper {
                     "}")
         }
 
-        if (GradleVersion.version(agpVersion) < GradleVersion.version(minSupportedAGPVersion)) {
-            throw new HaltBuildException("The New Relic plugin is not compatible with Android Gradle plugin version ${agpVersion}."
+        if (GradleVersion.version(getAgpVersion()) < GradleVersion.version(BuildHelper.minSupportedAGPVersion)) {
+            throw new GradleException("The New Relic plugin is not compatible with Android Gradle plugin version ${agpVersion}."
                     + NEWLN
                     + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported.")
         }
 
-        if (GradleVersion.version(agpVersion) > GradleVersion.version(currentSupportedAGPVersion)) {
-            def enableWarning = hasOptional(PROP_WARNING_AGP, true).toString().toLowerCase()
+        if (GradleVersion.version(getAgpVersion()) > GradleVersion.version(BuildHelper.currentSupportedAGPVersion)) {
+            def enableWarning = hasOptional(BuildHelper.PROP_WARNING_AGP, true).toString().toLowerCase()
             if ((enableWarning != 'false') && (enableWarning != '0')) {
-                warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${agpVersion}."
+                warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${getAgpVersion()}."
                         + NEWLN
-                        + "AGP versions ${BuildHelper.minSupportedAGPVersion} - ${BuildHelper.currentSupportedAGPVersion} are officially supported.")
+                        + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported.")
             }
         }
 
         if (GradleVersion.version(getGradleVersion()) < GradleVersion.version(BuildHelper.minSupportedGradleVersion)) {
-            warnOrHalt("The New Relic plugin may not be compatible with Gradle version ${gradleVersion}."
+            warnOrHalt("The New Relic plugin may not be compatible with Gradle version ${getGradleVersion()}."
                     + NEWLN
-                    + "Gradle versions ${BuildHelper.minSupportedGradleVersion} and higher are officially supported.")
+                    + "Gradle versions ${minSupportedGradleVersion} and higher are officially supported.")
         }
     }
 
@@ -153,20 +154,20 @@ class BuildHelper {
                 }
             }
 
-        } catch (MissingPropertyException e2) {
+        } catch (MissingPropertyException) {
             // pluginVersion not available
             try {
                 // AGP 3.6.+: com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
-                final Class versionClass = BuildHelper.class.getClassLoader().loadClass("com.android.Version");
-                reportedAgpVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString();
+                final Class versionClass = BuildHelper.class.getClassLoader().loadClass("com.android.Version")
+                reportedAgpVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString()
 
             } catch (ClassNotFoundException e) {
                 try {
                     logger.error("AGP 3.6.+: $e")
 
                     // AGP 3.4 - 3.5.+: com.android.builder.model.Version.ANDROID_GRADLE_PLUGIN_VERSION
-                    final Class versionClass = BuildHelper.class.getClassLoader().loadClass("com.android.builder.model.Version");
-                    reportedAgpVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString();
+                    final Class versionClass = BuildHelper.class.getClassLoader().loadClass("com.android.builder.model.Version")
+                    reportedAgpVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString()
 
                 } catch (ClassNotFoundException e1) {
                     logger.error("AGP 3.4 - 3.5.+: $e1")
@@ -189,95 +190,9 @@ class BuildHelper {
         return reportedAgpVersion
     }
 
-    TaskProvider getVariantCompileTaskProvider(def variant) {
-        try {
-            def provider = variant.getJavaCompileProvider()
-            if (provider) {
-                return provider
-            }
-        } catch (Exception e) {
-            logger.error("getVariantCompileTask: $e")
-        }
-
-        return variant.javaCompiler
-    }
-
-    def getProviderDefaultMapPath(def variant) {
-        if (dexguardHelper.enabled) {
-            return dexguardHelper.getDefaultMapPath(variant)
-        }
-
+    RegularFileProperty getDefaultMapPathProvider(String variantDirName) {
         // Proguard/R8/DG8 report through AGP to this location
-        return project.layout.projectDirectory.file("${project.layout.buildDirectory}/outputs/mapping/${variant.dirName}/mapping.txt")
-    }
-
-    TaskProvider getVariantBuildConfigTask(def variant) {
-        TaskProvider provider
-        try {
-            provider = variantAdapter.getBuildConfigProvider(variant.name)
-        } catch (Exception e) {
-            logger.error("getVariantBuildConfigTask: $e")
-        }
-
-        return provider
-    }
-
-    /**
-     * Returns a File object representing the variant's mapping file
-     * This can be null for Dexguard 8.5.+
-     *
-     * If the extention's variantConfiguration is present, use that map file
-     * if one is provided
-     *
-     * @param variant
-     * @return File(variantMappingFile)
-     */
-    def getVariantMappingFile(def variant) {
-        // First look in the plugin extension's variantConfiguration for overriding values:
-        try {
-            NewRelicExtension extension = extensions.getByName(NewRelicGradlePlugin.PLUGIN_EXTENSION_NAME)
-            def variantConfiguration = extension.variantConfigurations.findByName(variant.name)
-
-            if (variantConfiguration && variantConfiguration.mappingFile) {
-                def variantMappingFile = variantConfiguration.mappingFile
-                        .replace("<name>", variant.name)
-                        .replace("<dirName>", variant.dirName)
-
-                if (variantMappingFile) {
-                    project.layout.projectDirectory.file(variantMappingFile)
-                }
-            }
-        } catch (Exception) {
-            // ignore
-        }
-
-        /*
-        if (variant.respondsTo("getMappingFileProvider")) {
-            FileCollection mappingFileProvider = variant.mappingFileProvider.getOrNull()
-
-            // We will warn about not finding a mapping file later, so there's no need to warn here
-            if (mappingFileProvider == null || mappingFileProvider.isEmpty()) {
-                return null
-            }
-            return mappingFileProvider.first()
-        }
-        */
-
-
-        try {
-            def provider = variant.getMappingFileProvider()
-            if (provider && provider.get()) {
-                def fileCollection = provider.get()
-                if (!fileCollection.empty) {
-                    return fileCollection.singleFile
-                }
-            }
-        } catch (Exception e) {
-            logger.error("getVariantMappingFile: Map provider not found in variant [$variant.name]")
-        }
-
-        // If all else fails, default to default map locations
-        return getProviderDefaultMapPath(variant)
+        return project.objects.fileProperty().set("${project.layout.buildDirectory}/outputs/mapping/${variantDirName}/mapping.txt")
     }
 
     def withDexGuardHelper(final def dexguardHelper) {
@@ -306,20 +221,14 @@ class BuildHelper {
             }
             return provider
         } catch (Exception e) {
-            logger.error(e)
-            return objects.property(String).orElse(System.getProperty(key))
+            logger.error("getSystemPropertyProvider: ${e.message}")
         }
+
+        return project.objects.property(String).orElse(System.getProperty(key))
     }
 
-    def shouldApplyLegacyTransform() {
-        try {
-            getAndroidComponents().with {
-                getPluginVersion().with {
-                    return major < 7
-                }
-            }
-        } catch (Exception) {}
-        true
+    def isUsingLegacyTransform() {
+        variantAdapter instanceof VariantAdapter.AGP4Adapter
     }
 
     /**
@@ -331,7 +240,7 @@ class BuildHelper {
     void warnOrHalt(final String msg) {
         def haltOnWarning = hasOptional(BuildHelper.PROP_HALT_ON_ERROR, false).toString().toLowerCase()
         if ((haltOnWarning != 'false') && (haltOnWarning != '0')) {
-            throw new HaltBuildException(msg)
+            throw new GradleException(msg)
         }
         logger.warn(msg)
     }
@@ -351,13 +260,11 @@ class BuildHelper {
         ]
     }
 
-    String buildMetricsAsJson() {
-        try {
-            JsonOutput.toJson(buildMetrics())
-        } catch (Throwable) {
-            ""
-        }
+    def configureVariantModel() {
+        finalizeMapUploadTasks()
     }
+
+    // gettors to assist in mocking
 
     String getGradleVersion() {
         return gradleVersion
@@ -374,4 +281,150 @@ class BuildHelper {
     AndroidComponentsExtension getAndroidComponents() {
         return androidComponents
     }
+
+    boolean checkDexGuard() {
+        return project.plugins.hasPlugin("dexguard")
+    }
+
+    boolean checkInstantApps() {
+        return project.plugins.hasPlugin("com.android.instantapp") ||
+                project.plugins.hasPlugin("com.android.feature") ||
+                project.plugins.hasPlugin("com.android.dynamic-feature")
+    }
+
+    boolean checkLibrary() {
+        return project.plugins.hasPlugin("com.android.library")
+    }
+
+    /**
+     * Returns literal name of obfuscation compiler
+     * @param project
+     * @return Compiler name (R8, Proguard_603 or DexGuard)
+     */
+    String getMapCompilerName() {
+
+        if (dexguardHelper.enabled) {
+            return Proguard.Provider.DEXGUARD
+        }
+
+        if (GradleVersion.version(agpVersion) < GradleVersion.version("3.3")) {
+            return Proguard.Provider.PROGUARD_603
+        }
+
+        // Gradle 3.3 was experimental R8, driven by properties
+        if (checkLibrary() && project.hasProperty("android.enableR8.libraries")) {
+            return (project.getProperty("android.enableR8.libraries").toLowerCase().equals("false") ? Proguard.Provider.PROGUARD_603 : Proguard.Provider.R8)
+        }
+
+        if (project.hasProperty("android.enableR8")) {
+            return (project.getProperty("android.enableR8").toLowerCase().equals("false") ? Proguard.Provider.PROGUARD_603 : Proguard.Provider.R8)
+        }
+
+        // Gradle 3.4+ uses proguard by default, unless enabled by properties above
+        if (GradleVersion.version(agpVersion) < GradleVersion.version("3.4")) {
+            return Proguard.Provider.PROGUARD_603
+        }
+
+        // Gradle 3.4+ uses r8 by default, unless disabled by properties above
+        return Proguard.Provider.DEFAULT
+    }
+
+    def injectMapUploadFinalizer(Task targetTask, String variantName, Closure closure) {
+        try {
+            def targetNameCap = targetTask.getName().capitalize()
+            def mapUploadTaskName = "${NewRelicMapUploadTask.NAME}}${targetNameCap}"
+            def mapUploadTaskProvider = project.tasks.named(mapUploadTaskName, NewRelicMapUploadTask)
+
+            if (mapUploadTaskProvider.isPresent()) {
+                mapUploadTaskProvider.configure { mapUploadTask ->
+                    try {
+                        // update the map file iif needed
+                        if (closure) {
+                            mapUploadTask.mappingFile.set(closure(mapUploadTask.mappingFile.getAsFile().get()))
+                        }
+
+                        // connect config task buildId to map upload task
+                        project.tasks.named("${NewRelicConfigTask.NAME}${variantName.capitalize()}").configure { configTask ->
+                            mapUploadTask.dependsOn configTask
+                        }
+
+                    } catch (Exception e) {
+                        mapUploadTask.buildId = BuildId.getBuildId(variantName)
+                        logger.error("injectMapUploadFinalizer: $e")
+                    }
+
+                    mapUploadTask.dependsOn targetTask
+                }
+            }
+
+            targetTask.finalizedBy mapUploadTaskProvider
+
+            return mapUploadTaskProvider
+
+        } catch (Exception e) {
+            // task for this variant not available
+            logger.error("injectMapUploadFinalizer: $e")
+        }
+    }
+
+    def injectMapUploadFinalizer(String targetTaskName, String variantName) {
+        try {
+            def provider = project.tasks.named("${targetTaskName}${variantName.capitalize()}") { targetTask ->
+                return injectMapUploadFinalizer(targetTask, variantName, { File mappingFile ->
+                    logger.debug("[injectMapUploadFinalizer] Injecting NewRelicMapUploadTask[${mappingFile}] as finalizer to ${targetTask.name}")
+                    mappingFile
+                })
+            }
+        } catch (UnknownTaskException ignored) {
+            // task for this variant not available
+        }
+    }
+
+
+    // called during config phase
+    void finalizeMapUploadTasks() {
+        try {
+            // library projects do not produce maps
+            if (checkLibrary()) {
+                return
+            }
+
+            // dexguard maps are handled separately
+            if (dexguardHelper.enabled) {
+                return
+            }
+
+            // do all the variants if variantMapsEnabled, or only those provided in the extension. Default is *release*.
+            if (!extension.variantMapsEnabled.get() || extension.variantMapUploadList.isEmpty()) {
+                logger.debug("Maps will be tagged and uploaded for all variants")
+            } else {
+                logger.debug("Maps will be tagged and uploaded for variants ${extension.variantMapUploadList}")
+            }
+
+            // FIXME move to variantadapter
+            variantAdapter.getVariantValues().each { variant ->
+                if (variantAdapter.shouldUploadVariantMap(variant.name)) {
+                    def buildType = variantAdapter.getBuildTypeProvider(variant.name)
+
+                    if (buildType.isPresent() && buildType.get().minifyEnabled) {
+                        [DEX_PROGUARD, DEX_R8].each { dexName ->
+                            ["transformClassesAndResourcesWith${dexName.capitalize()}For",
+                             "minify${variant.name.capitalize()}With${dexName.capitalize()}"].each { taskName ->
+                                injectMapUploadFinalizer(taskName, variant.name)
+                            }
+                        }
+
+                    } else {
+                        logger.debug("Map upload ignored: build type[$variant.buildType.name] is not minified.")
+                    }
+                } else {
+                    logger.debug("Map upload ignored for variant[$variant.name]")
+                }
+            }
+        } catch (Exception e) {
+            // ignored: task doesn't exist if proguard not enabled
+            logger.warn("finalizeMapUploadTasks: $e")
+        }
+    }
+
 }
