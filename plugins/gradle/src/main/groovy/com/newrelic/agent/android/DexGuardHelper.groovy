@@ -5,7 +5,8 @@
 
 package com.newrelic.agent.android
 
-import org.gradle.api.Project
+import org.gradle.api.UnknownTaskException
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
 import org.gradle.util.GradleVersion
 
@@ -18,17 +19,19 @@ class DexGuardHelper {
     static final String DEXGUARD_APK_TASK = "dexguardApk"
     static final String DEXGUARD_AAB_TASK = "dexguardAab"
     static final String DEXGUARD_PLUGIN_ORDER_ERROR_MSG = "The New Relic plugin must be applied *after* the DexGuard plugin in the project Gradle build file."
+    static final String DEXGUARD_DESUGAR_TASK = "transformClassesWithDesugarFor"
 
     static final def dexguard9Tasks = [DEXGUARD_APK_TASK, DEXGUARD_AAB_TASK]
 
-    final Project project
+    final BuildHelper buildHelper
     final Logger logger
     final def extension
-    String currentVersion
-    def enabled
 
-    static DexGuardHelper register(Project project) {
-        return new DexGuardHelper(project)
+    String currentVersion
+    def enabled = false
+
+    static DexGuardHelper register(BuildHelper buildHelper) {
+        return new DexGuardHelper(buildHelper)
     }
 
     /**
@@ -36,17 +39,17 @@ class DexGuardHelper {
      *
      * @param project
      */
-    DexGuardHelper(Project project) {
-        this.project = project
-        this.logger = NewRelicGradlePlugin.LOGGER
+    DexGuardHelper(BuildHelper buildHelper) {
+        this.buildHelper = buildHelper
+        this.logger = buildHelper.logger
+
         try {
-            this.enabled = project.plugins.hasPlugin(PLUGIN_EXTENSION_NAME)
-            if (this.enabled) {
-                this.extension = project.extensions.getByName(PLUGIN_EXTENSION_NAME)
-                this.currentVersion = GradleVersion.version(this.extension.currentVersion)
+            this.extension = project.extensions.getByName(PLUGIN_EXTENSION_NAME)?.with() { ext ->
+                this.currentVersion = GradleVersion.version(ext.currentVersion)
                 if (GradleVersion.version(getCurrentVersion()) < GradleVersion.version(DexGuardHelper.minSupportedVersion)) {
                     logger.warn("The New Relic plugin may not be compatible with DexGuard version ${this.currentVersion}.")
                 }
+                this.enabled = true
             }
         } catch (Exception e) {
             // version not found in configs
@@ -57,17 +60,97 @@ class DexGuardHelper {
         return enabled && (currentVersion && GradleVersion.version(currentVersion) >= GradleVersion.version("9.0"))
     }
 
-    boolean isLegacyDexGuard() {
-        return enabled && (!currentVersion || GradleVersion.version(currentVersion) < GradleVersion.version("9.0"))
-    }
-
-    def getDefaultMapPath(def variant) {
+    /**
+     * Returns a RegularFile property representing the correct mapping file location
+     * @param variantDirName
+     * @return RegularFileProperty
+     */
+    RegularFileProperty getDefaultMapPathProvider(String variantDirName) {
         if (isDexGuard9()) {
             // caller must replace target with [apk, bundle]
-            return project.file("${project.buildDir}/outputs/dexguard/mapping/<target>/${variant.dirName}/mapping.txt")
+            return buildHelper.project.objects.fileProperty().set("${buildHelper.project.buildDir}/outputs/dexguard/mapping/<target>/${variantDirName}/mapping.txt")
         }
 
         // Legacy DG report through AGP to this location (unless overridden in dexguard.project settings)
-        return project.file("${project.buildDir}/outputs/mapping/${variant.dirName}/mapping.txt")
+        return buildHelper.project.objects.fileProperty().set("${buildHelper.project.buildDir}/outputs/mapping/${variantDirName}/mapping.txt")
     }
+
+    protected configureDexGuard9Task(def variantName) {
+            def variantNameCap = variantName.capitalize()
+            DexGuardHelper.dexguard9Tasks.each { taskName ->
+                try {
+                    buildHelper.project.tasks.named("${taskName}${variantNameCap}").configure {
+                        buildHelper.injectMapUploadFinalizer(task, variantName, { File mappingFile ->
+                            if (task.name.startsWith(DexGuardHelper.DEXGUARD_APK_TASK)) {
+                                buildHelper.project.objects.fileProperty().set(mappingFile.getAbsolutePath().replace("<target>", "apk"))
+                            } else if (task.name.startsWith(DexGuardHelper.DEXGUARD_AAB_TASK)) {
+                                buildHelper.project.objects.fileProperty().set(mappingFile.getAbsolutePath().replace("<target>", "bundle"))
+                            }
+                        })
+                    }
+
+                } catch (Exception e) {
+                    // DexGuard task hasn't been created
+                    logger.error("configureDexGuard: " + e)
+                    logger.error(DexGuardHelper.DEXGUARD_PLUGIN_ORDER_ERROR_MSG)
+                }
+        }
+    }
+
+    protected configureDexGuardTasks() {
+        logger.debug("Dexguard version: " + buildHelper.dexguardHelper.currentVersion)
+
+        if (isDexGuard9()) {
+            buildHelper.variantAdapter.getVariantValues().each { variant -> configureDexGuard9Tasks(variant.name) }
+            return
+        }
+
+        // FIXME
+        buildHelper.variantAdapter.getVariantValues().each { variant ->
+            def variantNameCap = variant.name.capitalize()
+            /* AGP4 */
+            try {
+                // throws if DexGuard not present
+                def dexguardTask = buildHelper.project.tasks.named("${DexGuardHelper.DEXGUARD_TASK}${variantNameCap}")
+                def classRewriterTask = buildHelper.project.tasks.register("${NewRelicClassRewriterTask.NAME}${variantNameCap}",
+                        NewRelicClassRewriterTask) {
+                    it.variantName.set(variant.name)
+                }
+
+                def desugarTaskName = "${DexGuardHelper.DEXGUARD_DESUGAR_TASK}${variantNameCap}"
+                try {
+                    project.tasks.named(desugarTaskName) {
+                        finalizedBy classRewriterTask
+                    }
+
+                } catch (UnknownTaskException ignored) {
+                    // not desugaring, ignore
+
+                } catch (Exception e) {
+                    logger.debug("configureDexGuardTasks: Desugaring task [" + desugarTaskName + "]: " + e)
+
+                } finally {
+                    dexguardTask.configure { task->
+                        task.dependsOn(classRewriterTask)
+                        injectMapUploadFinalizer(buildHelper.project, task, variant, null)
+                    }
+                }
+
+                def javaCompileTask = buildHelper.variantAdapter.getJavaCompileProvider(variant.name).configure {
+                    finalizedBy classRewriterTask
+                    logger.info("Task [" + dexguardTask.getName() +
+                            "] has been configured for New Relic instrumentation.")
+                }
+
+                // bundleRelease -> dexguardBundleBundle -> dexguardRelease
+                injectMapUploadFinalizer(project, "${DexGuardHelper.DEXGUARD_BUNDLE_TASK}${variantNameCap}", variant)
+
+            } catch (UnknownTaskException e) {
+                // task for this variant not available
+                logger.debug("configureDexGuardTasks: " + e)
+            }
+            /* AGP4 */
+        }
+    }
+
 }

@@ -6,17 +6,20 @@
 package com.newrelic.agent.android
 
 import com.newrelic.agent.compile.ClassTransformer
+import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 
-abstract class NewRelicClassRewriterTask extends NewRelicTask {
+abstract class NewRelicClassRewriterTask extends DefaultTask {
+    final static String NAME = "newrelicClassRewriter"
 
     @Input
-    def inputVariant
+    abstract Property<String> getVariantName()
 
     @Input
     @Optional
@@ -27,22 +30,23 @@ abstract class NewRelicClassRewriterTask extends NewRelicTask {
         long tStart = System.currentTimeMillis();
 
         try {
-            def javaCompileTask = BuildHelper.getInstance().getVariantCompileTask(inputVariant)
-            def destinationDir = (inputPath == null) ? javaCompileTask.destinationDir : inputPath
+            def javaCompileProvider = BuildHelper.INSTANCE.get().variantAdapter.getJavaCompileProvider(variantName)
+            def destinationDir = (inputPath == null) ? javaCompileProvider.get().destinationDir : inputPath
             def inputDir = destinationDir
 
             logger.info("[NewRelicClassRewriterTask] inputDir[" + inputDir + "]")
             logger.info("[NewRelicClassRewriterTask] destinationDir[" + destinationDir + "]")
 
-            ClassTransformer classTransformer = new ClassTransformer(inputDir, destinationDir)
-            classTransformer.withWriteMode(ClassTransformer.WriteMode.modified);
-            classTransformer.usingVariant(inputVariant.name)
-            if (javaCompileTask) {
-                javaCompileTask.classpath.each {
-                    classTransformer.addClasspath(it)
+            ClassTransformer classTransformer = new ClassTransformer(inputDir, destinationDir).tap {
+                javaCompileProvider.configure { javaCompileTask ->
+                    javaCompileTask.classpath.each {
+                        addClasspath(it)
+                    }
                 }
+                withWriteMode(ClassTransformer.WriteMode.modified)
+                usingVariant(variantName)
+                doTransform();
             }
-            classTransformer.doTransform();
 
         } catch (Exception e) {
             logger.error("[NewRelicClassRewriterTask] Error encountered while instrumenting class files: ", e)
