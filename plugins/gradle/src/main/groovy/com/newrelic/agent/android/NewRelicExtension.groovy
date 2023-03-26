@@ -152,7 +152,7 @@ abstract class NewRelicExtension {
     }
 
     boolean shouldInstrumentTests() {
-        return instrumentTests
+        return instrumentTests.get()
     }
 
     boolean shouldIncludeMapUpload(String variantName) {

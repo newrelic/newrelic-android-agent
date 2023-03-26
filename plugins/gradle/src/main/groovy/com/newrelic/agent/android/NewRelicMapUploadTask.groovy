@@ -61,25 +61,18 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
 
             if (mappingFile.isPresent()) {
                 // we know where map should be (Gradle tells us)
-                def mapFilePath = mappingFile.getAsFile().get()
+                def mapFilePath = mappingFile.get().getAsFile()
 
-                if (mapFilePath) {
-                    if (mapFilePath.exists()) {
-                        logger.debug("Map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
-                        if (buildId.present) {
-                            agentOptions.put(Proguard.MAPPING_FILE_KEY, mapFilePath.absolutePath)
-                            agentOptions.put(Proguard.MAPPING_PROVIDER_KEY, mapProvider.get())
-                            agentOptions.put(Proguard.VARIANT_KEY, variantName.get())
-                            agentOptions.put(BuildId.BUILD_ID_KEY, buildId.get())
+                if (mapFilePath?.exists()) {
+                    logger.debug("Map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
+                    agentOptions.put(Proguard.MAPPING_FILE_KEY, mapFilePath.absolutePath)
+                    agentOptions.put(Proguard.MAPPING_PROVIDER_KEY, mapProvider.get())
+                    agentOptions.put(Proguard.VARIANT_KEY, variantName.get())
+                    agentOptions.put(BuildId.BUILD_ID_KEY, buildId.get())
 
-                            new Proguard(NewRelicGradlePlugin.LOGGER, agentOptions).findAndSendMapFile()
-
-                        } else {
-                            logger.error("No build ID for variant [${variantName.get()}]")
-                        }
-                    } else {
-                        logger.debug("No map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
-                    }
+                    new Proguard(NewRelicGradlePlugin.LOGGER, agentOptions).findAndSendMapFile()
+                } else {
+                    logger.debug("No map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
                 }
 
             } else {

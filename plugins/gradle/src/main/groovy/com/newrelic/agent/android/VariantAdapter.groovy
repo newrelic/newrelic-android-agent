@@ -5,12 +5,12 @@
 
 package com.newrelic.agent.android
 
-
 import com.android.build.api.artifact.MultipleArtifact
 import com.android.build.api.artifact.SingleArtifact
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.LibraryExtension
 import com.newrelic.agent.util.BuildId
+import org.gradle.api.InvalidUserDataException
 import org.gradle.api.UnknownTaskException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
@@ -56,7 +56,7 @@ abstract class VariantAdapter {
     abstract RegularFileProperty getMappingFileProvider(String variantName)
 
     def withVariant(String variantName) {
-        variants.getOrNull().get(variantName, null)
+        variants.getOrNull().get(variantName)
     }
 
     boolean shouldInstrumentVariant(def variantName) {
@@ -84,10 +84,18 @@ abstract class VariantAdapter {
      * @return VariantAdapter
      */
     static VariantAdapter register(BuildHelper buildHelper) {
-        if (GradleVersion.current() < GradleVersion.version("7.4")) {
+        if (GradleVersion.version(buildHelper.getGradleVersion()) < GradleVersion.version("7.4")) {
             return new AGP4Adapter(buildHelper)
         } else {
             return new AGP7Adapter.AGP70Adapter(buildHelper)
+        }
+    }
+
+    TaskProvider registerOrNamed(String name, Class clazz) {
+        try {
+            return buildHelper.project.tasks.register(name, clazz)
+        } catch (InvalidUserDataException e) {
+            return buildHelper.project.tasks.named(name, clazz)
         }
     }
 
@@ -176,11 +184,7 @@ abstract class VariantAdapter {
                                 onlyIf {
                                     // Execute the task only if the given spec is satisfied. The spec will
                                     // be evaluated at task execution time, not during configuration.
-                                    true    // mappingFileProperty.getAsFile().get().exists()
-                                }
-
-                                mapUploadTask.configure {
-                                    dependsOn targetTask
+                                    mappingFileProperty.get().asFile.exists()
                                 }
                             }
                         }
@@ -235,58 +239,56 @@ abstract class VariantAdapter {
                 def variantNameCap = variant.name.capitalize()
                 def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.dirName}")
                 def taskName = "${NewRelicConfigTask.NAME}${variantNameCap}"
+                def configTaskProvider = registerOrNamed(taskName, NewRelicConfigTask)
 
                 try {
-                    def configTaskProvider = buildHelper.project.tasks.register(taskName, NewRelicConfigTask)
-
-                    try {
-                        /**
-                         * Update the variant model
-                         * @see{https://android.googlesource.com/platform/tools/build/+/master/gradle/src/main/groovy/com/android/build/gradle/api/BaseVariant.java}*
-                         */
-                        def provider = variant.registerJavaGeneratingTask(configTaskProvider, genSrcFolder.get().asFile)
-                    } catch (Exception e) {
-                        logger.error("getConfigProvider: $e")
-                    }
-
-                    try {
-                        variant.addJavaSourceFoldersToModel(genSrcFolder.get().asFile)
-                    } catch (Exception e) {
-                        logger.warn("getConfigProvider: $e")
-                    }
-
-                    // must manually update the Kotlin compile tasks source sets (per variant)
-                    try {
-                        buildHelper.project.tasks.named("compile${variantNameCap}Kotlin") {
-                            dependsOn configTaskProvider
-                            source buildHelper.project.objects.sourceDirectorySet(configTaskProvider.getName(),
-                                    configTaskProvider.getName()).srcDir(genSrcFolder)
-                        }
-                    } catch (UnknownTaskException ignored) {
-                        // Kotlin source not present
-                    }
-
-                    buildConfigProvider.configure {
-                        finalizedBy configTaskProvider
-                    }
-
-                    return configTaskProvider
-
+                    /**
+                     * Update the variant model
+                     * @see{https://android.googlesource.com/platform/tools/build/+/master/gradle/src/main/groovy/com/android/build/gradle/api/BaseVariant.java}*
+                     */
+                    variant.registerJavaGeneratingTask(configTaskProvider, genSrcFolder.get().asFile)
                 } catch (Exception e) {
-                    // task for this variant not available
-                    logger.warn("getConfigProvider: " + e.message)
-                    return buildHelper.project.tasks.named(taskName)
+                    logger.error("getConfigProvider: $e")
                 }
+
+                try {
+                    variant.addJavaSourceFoldersToModel(genSrcFolder.get().asFile)
+                } catch (Exception e) {
+                    logger.warn("getConfigProvider: $e")
+                }
+
+                // must manually update the Kotlin compile tasks source sets (per variant)
+                try {
+                    buildHelper.project.tasks.named("compile${variantNameCap}Kotlin") {
+                        dependsOn configTaskProvider
+                        source buildHelper.project.objects.sourceDirectorySet(configTaskProvider.getName(),
+                                configTaskProvider.getName()).srcDir(genSrcFolder)
+                    }
+                } catch (UnknownTaskException ignored) {
+                    // Kotlin source not present
+                }
+
+                buildConfigProvider.configure {
+                    finalizedBy configTaskProvider
+                }
+
+                return configTaskProvider
+
             } else {
-                logger.error("buildConfig NOT finalized: buildConfig task was not found")
+                logger.error("getConfigProvider: buildConfig NOT finalized: buildConfig task was not found")
             }
 
+            logger.error("getConfigProvider: configClass not provided!")
             null
         }
 
         @Override
         TaskProvider getMapUploadProvider(String variantName) {
-            return buildHelper.project.tasks.register("${NewRelicMapUploadTask.NAME}${variantName.capitalize()}", NewRelicMapUploadTask)
+            try {
+                return buildHelper.project.tasks.register("${NewRelicMapUploadTask.NAME}${variantName.capitalize()}", NewRelicMapUploadTask)
+            } catch (Exception e) {
+                return buildHelper.project.tasks.named("${NewRelicMapUploadTask.NAME}${variantName.capitalize()}", NewRelicMapUploadTask)
+            }
         }
 
         @Override
@@ -300,7 +302,7 @@ abstract class VariantAdapter {
 
                 return buildHelper.project.tasks.named("${NAME}${transformerName}For${variantNameCap}")
             } catch (UnknownTaskException ignored) {
-                logger.warn("getTransformProvider: $ignored")
+
             }
         }
 
@@ -339,7 +341,7 @@ abstract class VariantAdapter {
                 }
 
                 try {
-                    def provider = variant.getMappingFileProvider
+                    def provider = variant.getMappingFileProvider()
                     if (provider.isPresent()) {
                         def fileCollection = provider.get()
                         if (!fileCollection.empty) {
@@ -354,7 +356,6 @@ abstract class VariantAdapter {
                 return buildHelper.getDefaultMapPathProvider(variant.dirName)
             }
         }
-
     }
 
     static class AGP7Adapter extends VariantAdapter {
@@ -375,12 +376,13 @@ abstract class VariantAdapter {
                     }
                 }
 
-                TaskProvider<ClassTransformWrapperTask> classesTaskProvider = buildHelper.project.tasks.register("newrelicTransformClasses${variant.name.capitalize()}", ClassTransformWrapperTask.class)
+                TaskProvider<ClassTransformWrapperTask> classesTaskProvider = registerOrGet("newrelicTransformClasses${variant.name.capitalize()}", ClassTransformWrapperTask.class)
+
                 variant.artifacts.use(classesTaskProvider)
                         .wiredWith({ it.getAllClasses() }, { it.getOutput() })
                         .toTransform(MultipleArtifact.ALL_CLASSES_DIRS.INSTANCE)
 
-                TaskProvider<ClassTransformWrapperTask> jarsTaskProvider = buildHelper.project.tasks.register("newrelicTransformJars${variant.name.capitalize()}", ClassTransformWrapperTask.class)
+                TaskProvider<ClassTransformWrapperTask> jarsTaskProvider = registerOrGet.register("newrelicTransformJars${variant.name.capitalize()}", ClassTransformWrapperTask.class)
                 variant.artifacts.use(jarsTaskProvider)
                         .wiredWith({ it.getAllJars() }, { it.getOutput() })
                         .toTransform(MultipleArtifact.ALL_CLASSES_JARS.INSTANCE)
@@ -412,7 +414,7 @@ abstract class VariantAdapter {
 
         @Override
         TaskProvider getConfigProvider(String variantName) {
-            return buildHelper.project.tasks.register("${NewRelicConfigTask.NAME}}${variantName.capitalize()}")
+            return buildHelper.project.tasks.register("${NewRelicConfigTask.NAME}}${variantName.capitalize()}", NewRelicConfigTask)
         }
 
         @Override

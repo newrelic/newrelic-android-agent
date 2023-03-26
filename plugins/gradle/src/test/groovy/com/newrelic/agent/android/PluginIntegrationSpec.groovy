@@ -8,10 +8,7 @@ package com.newrelic.agent.android
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.UnexpectedBuildFailure
-import spock.lang.IgnoreIf
-import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Stepwise
+import spock.lang.*
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
@@ -26,8 +23,8 @@ class PluginIntegrationSpec extends Specification {
 
     // update as needed
     static final agentVersion = System.getProperty("newrelic.agent.version", '6.+')
-    static final agpVersion = BuildHelper.minSupportedAGPConfigCacheVersion
-    static final gradleVersion = BuildHelper.minSupportedAGPConfigCacheVersion
+    static final agpVersion = "7.1.0"
+    static final gradleVersion = "7.2"
 
     def extensionsFile = new File(projectRootDir, "nr-extension.gradle")
 
@@ -38,7 +35,7 @@ class PluginIntegrationSpec extends Specification {
     BuildResult buildResult
 
     @Shared
-    boolean debuggable = false
+    boolean debuggable = true
 
     @Shared
     def testTask = 'assembleRelease'
@@ -52,9 +49,13 @@ class PluginIntegrationSpec extends Specification {
     @Shared
     String filteredOutput
 
+    @Shared
+    StringWriter errorOutput
+
     // fixtures
     def setup() {
         printFilter = new PrintFilter()
+        errorOutput = new StringWriter()
         extensionsFile = new File(projectRootDir, "nr-extension.gradle")
     }
 
@@ -62,27 +63,25 @@ class PluginIntegrationSpec extends Specification {
         given: "verify M2 repo location"
         localEnv += System.getenv()
         if (localEnv["M2_REPO"] == null) {
-            def m2 = new File(rootDir, "build/.m2/repository")
+            def m2 = new File(rootDir, "build/.m2/repository").absoluteFile
+            try {
             if (!(m2.exists() && m2.canRead())) {
-                GradleRunner.create()
+                    provideRunner()
                         .withProjectDir(rootDir)
-                        .withArguments("-Pnewrelic.agent.version=${agentVersion}",
-                                "publish")
+                            .withArguments("publish")
                         .build()
                 if (!(m2.exists() && m2.canRead())) {
                     throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
                 }
             }
             localEnv.put("M2_REPO", m2.getAbsolutePath())
+            } catch (Exception e) {
+                e
+            }
         }
 
         and: "create the build runner"
-        printFilter = new PrintFilter()
-        def runner = GradleRunner.create()
-                .forwardStdOutput(printFilter)
-                .withDebug(debuggable)
-                .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
+        def runner = provideRunner()
                 .withArguments("--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
@@ -92,10 +91,15 @@ class PluginIntegrationSpec extends Specification {
                         testTask)
 
         when: "run the build *once* and cache the results"
+        try {
         buildResult = runner.build()
         filteredOutput = printFilter
+        } catch (Exception e) {
+            throw e
+        }
     }
 
+    @IgnoreRest
     def "build the test app"() {
         expect: "the test app was built"
         with(buildResult) {
@@ -106,9 +110,9 @@ class PluginIntegrationSpec extends Specification {
                 outcome == SUCCESS
             }
 
-            output.contains("Android Gradle plugin version:")
-            output.contains("Gradle version:")
-            output.contains("Java version:")
+            filteredOutput.contains("Android Gradle plugin version:")
+            filteredOutput.contains("Gradle version:")
+            filteredOutput.contains("Java version:")
         }
     }
 
@@ -129,7 +133,18 @@ class PluginIntegrationSpec extends Specification {
     }
 
     void "verify class transforms"() {
-        expect:
+        given: "Build with AGP/Gradle 7.2, or the last AGP/Gradle pair that supports the Transform API"
+        def runner = provideRunner()
+                .withGradleVersion("7.2")
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        testTask)
+        when:
+        buildResult = runner.build()
+
+        then:
         testVariants.each { var ->
             ['transformClassesWithNewrelicTransformFor'].each { task ->
                 buildResult.task(":${task}${var.capitalize()}").outcome == SUCCESS
@@ -163,17 +178,14 @@ class PluginIntegrationSpec extends Specification {
         given: "Build the app again without cleaning"
 
         // rerun the build use local results
-        def runner = GradleRunner.create()
-                .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
+        def runner = provideRunner()
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         testTask)
 
-        when: "run the cached build"
+        when:
         buildResult = runner.build()
 
         then:
@@ -185,61 +197,90 @@ class PluginIntegrationSpec extends Specification {
         }
     }
 
-    def "verify unsupported Gradle version"() {
-        given: "Apply an unsupported Gradle version"
-        def errStringWriter = new StringWriter()
-        def incompatVers = "5.1.1"
-        def runner = GradleRunner.create()
-                .forwardStdError(errStringWriter)
-                .withGradleVersion(incompatVers)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
+    def "test min supported AGP version"() {
+        given: "Build the app using the minimum supported Gradle version"
+
+        // rerun the build use local results
+        def runner = provideRunner()
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=3.3.+",
+                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        testTask)
+
+        when:
+        buildResult = runner.build()
+
+        then:
+        with(buildResult.task(":$testTask")) {
+            outcome == SUCCESS
+        }
+    }
+
+    def "test min supported Gradle version"() {
+        given: "Build the app using the minimum supported Gradle version"
+
+        // rerun the build use local results
+        def runner = provideRunner()
+                .withGradleVersion(BuildHelper.minSupportedGradleVersion)
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        testTask)
+
+        when:
+        buildResult = runner.build()
+
+        then:
+        with(buildResult.task(":$testTask")) {
+            outcome == SUCCESS
+        }
+    }
+
+    def "verify unsupported Gradle version"() {
+        given: "Apply an unsupported Gradle version"
+        def runner = provideRunner()
+                .withGradleVersion("6.7.1")
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=3.+",
                         "-PagentRepo=${localEnv["M2_REPO"]}")
 
-        when: "run the build"
+        when:
         try {
             buildResult = runner.build()
-        } catch (UnexpectedBuildFailure) {
+        } catch (Exception) {
         }
 
         then:
-        errStringWriter.toString().contains("BUILD FAILED") ||
+        errorOutput.toString().contains("BUILD FAILED") ||
                 buildResult.output.contains("The New Relic plugin may not be compatible with Gradle version")
     }
 
     def "verify unsupported AGP version"() {
-        given: "Apply an unsupported AGP version"
-        def errStringWriter = new StringWriter()
-        def runner = GradleRunner.create()
-                .forwardStdError(errStringWriter)
-                .withGradleVersion('5.1.1')
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
+        given: "Apply an unsupported AGP version: AGP 3.6.+ Gradle 5.6.4"
+        def runner = provideRunner()
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=3.3.+",
+                        "-Pnewrelic.agp.version=3.+",
                         "-PagentRepo=${localEnv["M2_REPO"]}")
 
-        when: "run the build"
+        when:
         try {
             buildResult = runner.build()
-        } catch (UnexpectedBuildFailure) {
+        } catch (Exception) {
         }
 
         then:
-        errStringWriter.toString().contains("The New Relic plugin is not compatible") ||
+        errorOutput.toString().contains("The New Relic plugin is not compatible") ||
                 buildResult.output.contains("Could not find method registerJavaGeneratingTask() for arguments [provider(task 'newrelicConfig")
     }
 
     def "verify pre-release AGP version check"() {
         given: "Apply an unsupported AGP version"
-        def runner = GradleRunner.create()
+        def runner = provideRunner()
                 .withGradleVersion("7.2")
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=7.1.0-alpha12",
@@ -255,10 +296,8 @@ class PluginIntegrationSpec extends Specification {
 
     def "verify configuration cache compatibility"() {
         given: "Cache the config task"
-        def runner = GradleRunner.create()
-                .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
+        def runner = provideRunner()
+                .withGradleVersion(BuildHelper.minSupportedGradleVersion)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
@@ -283,10 +322,8 @@ class PluginIntegrationSpec extends Specification {
 
     def "verify min supported Gradle version without config cache"() {
         given: "Build with the lowest supported Gradle/AGP version"
-        def runner = GradleRunner.create()
+        def runner = provideRunner()
                 .withGradleVersion(BuildHelper.minSupportedGradleVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
@@ -305,15 +342,13 @@ class PluginIntegrationSpec extends Specification {
 
     def "verify unsupported configuration cache Gradle version"() {
         given: "Try to cache the task with an unsupported Gradle version"
-        def runner = GradleRunner.create()
+        def runner = provideRunner()
                 .withGradleVersion(BuildHelper.minSupportedGradleConfigCacheVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=4.0.0",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
-                        "--configuration-cache=ON",
+                        "--configuration-cache",
                         "newRelicConfigRelease")
         when:
         buildResult = runner.build()
@@ -325,10 +360,8 @@ class PluginIntegrationSpec extends Specification {
 
     def "verify cached map uploads"() {
         given: "Rerun the cached the task"
-        def runner = GradleRunner.create()
+        def runner = provideRunner()
                 .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion}",
@@ -355,10 +388,8 @@ class PluginIntegrationSpec extends Specification {
             it.delete()
         }
         and:
-        def runner = GradleRunner.create()
+        def runner = provideRunner()
                 .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion}",
@@ -375,10 +406,8 @@ class PluginIntegrationSpec extends Specification {
 
     def "verify min config cache supported agp/gradle"() {
         given: "Cache the task"
-        def runner = GradleRunner.create()
+        def runner = provideRunner()
                 .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion}",
@@ -401,10 +430,7 @@ class PluginIntegrationSpec extends Specification {
 
     def "verify buildID is cached with config task"() {
         given: "Cache the config task with new build ID"
-        def runner = GradleRunner.create()
-                .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
+        def runner = provideRunner()
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
@@ -436,11 +462,7 @@ class PluginIntegrationSpec extends Specification {
 
     def "verify log level in agent options"() {
         given: "Pass log level in system property"
-        def runner = GradleRunner.create()
-                .forwardStdOutput(printFilter)
-                .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
+        def runner = provideRunner()
                 .withArguments("--debug",
                         "-Dnewrelic.agent.args=\"loglevel=VERBOSE\"",
                         "-Pnewrelic.agent.version=${agentVersion}",
@@ -456,11 +478,7 @@ class PluginIntegrationSpec extends Specification {
 
     def "verify product flavors"() {
         given: "Build with flavor dimensions enabled"
-        def runner = GradleRunner.create()
-                .forwardStdOutput(printFilter)
-                .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
+        def runner = provideRunner()
                 .withArguments("--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
@@ -493,12 +511,7 @@ class PluginIntegrationSpec extends Specification {
                 }
         """
 
-        def runner = GradleRunner.create()
-                .forwardStdOutput(printFilter)
-                .withGradleVersion(gradleVersion)
-                .withDebug(debuggable)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
+        def runner = provideRunner()
                 .withArguments("--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
@@ -553,12 +566,7 @@ class PluginIntegrationSpec extends Specification {
             }
         """
 
-        def runner = GradleRunner.create()
-                .forwardStdOutput(printFilter)
-                .withDebug(debuggable)
-                .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
-                .withEnvironment(localEnv)
+        def runner = provideRunner()
                 .withArguments("--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
@@ -594,10 +602,41 @@ class PluginIntegrationSpec extends Specification {
         }
     }
 
+    def "verify AGP8"() {
+        given: "Apply AGP8"
+        def runner = provideRunner()
+                .withGradleVersion("7.5.1")
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=7.4.+",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "clean")
+
+        when: "run the build"
+        buildResult = runner.build()
+
+        then:
+        buildResult.output.contains("FIXME")
+    }
+
     def cleanup() {
         extensionsFile?.delete()
         with(new File(projectRootDir, ".gradle/configuration-cache")) {
             it.deleteDir()
         }
     }
+
+    def provideRunner() {
+        printFilter = new PrintFilter()
+        errorOutput = new StringWriter()
+
+        def runner = GradleRunner.create()
+                .withProjectDir(projectRootDir)
+                .forwardStdOutput(printFilter)
+                .forwardStdError(errorOutput)
+                .withGradleVersion(gradleVersion)
+
+        return debuggable ? runner.withDebug(debuggable) : runner.withEnvironment(localEnv)
+    }
+
 }

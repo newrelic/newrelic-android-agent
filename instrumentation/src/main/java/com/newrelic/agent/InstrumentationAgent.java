@@ -29,7 +29,7 @@ public final class InstrumentationAgent extends Constants {
     public static final String VERSION = "replaceme";
 
     public static org.slf4j.Logger LOGGER = new Logger() {};
-    private static Map<String, String> agentOptions = Collections.emptyMap();
+    private static Map<String, String> agentOptions = new HashMap<String, String>();
 
     public static Throwable withAgentArgs(String agentArgs) {
         try {
