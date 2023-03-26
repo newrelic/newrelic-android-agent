@@ -52,8 +52,9 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                 logger.info("[TransformTask]    File[${relativePath.replace(File.separatorChar, '/' as char)}]")
             }
             /* TODO */
-            def classTransformer = new ClassTransformer(directory.asFile, output.get().asFile)
-            classTransformer.withWriteMode(ClassTransformer.WriteMode.always).transformDirectory(directory.asFile)
+            new ClassTransformer(directory.asFile, output.get().asFile)
+                    .withWriteMode(ClassTransformer.WriteMode.always)
+                    .transformDirectory(directory.asFile)
             /**/
         }
 
@@ -61,8 +62,9 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
             logger.info("[TransformTask] JarFile[${file.asFile.getAbsolutePath()}]")
             try (JarFile jar = new JarFile(file.asFile)) {
                 /* TODO */
-                def classTransformer = new ClassTransformer(jar, output.get().asFile)
-                classTransformer.withWriteMode(ClassTransformer.WriteMode.always).transformArchive(file.asFile)
+                new ClassTransformer(jar, output.get().asFile)
+                        .withWriteMode(ClassTransformer.WriteMode.always)
+                        .transformArchive(file.asFile)
                 /**/
             }
         }
