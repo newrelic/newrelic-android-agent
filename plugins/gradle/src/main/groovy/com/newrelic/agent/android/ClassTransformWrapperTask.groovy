@@ -19,8 +19,7 @@ import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
 
 abstract class ClassTransformWrapperTask extends DefaultTask {
-
-    final static String TRANSFORMER_NAME = "newrelicTransform"
+    final static String NAME = "newrelicTransform"
 
     @InputFiles
     @Optional
@@ -37,7 +36,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
     void transformClasses() {
         long tStart = System.currentTimeMillis()
 
-        logger.info("[${TRANSFORMER_NAME}] Starting")
+        logger.info("[${NAME}] Starting")
         logger.info("[TransformTask] Output[${getOutput().get().getAsFile().getAbsolutePath()}]")
 
         OutputStream jarOutput = new JarOutputStream(
