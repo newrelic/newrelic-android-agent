@@ -77,8 +77,6 @@ wrapper {
     gradleVersion = versions.gradle
 }
 
-apply plugin: 'newrelic'
-
 android {
     compileSdkVersion versions.agp.compileSdk
 
@@ -196,6 +194,10 @@ if (project.plugins.hasPlugin("dexguard")) {
 // NewRelic agent
 //
 
+if (project.applyPlugin) {
+    apply plugin: 'newrelic'
+}
+
 if (project.plugins.hasPlugin("newrelic")) {
 
     // this allows integration testing
@@ -231,7 +233,7 @@ if (project.plugins.hasPlugin("newrelic")) {
                         // mappingFile = 'build/outputs/dexguard/mapping/bundle/release/mapping.txt'
                     }
                 }
-            } catch(Exception) {
+            } catch (Exception) {
                 logger.info("DSL not implemented")
             }
         }

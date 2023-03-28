@@ -51,6 +51,8 @@ buildscript {
                 kotlin  : hasOptional('newrelic.kotlin.version', '1.5.+')
         ]
 
+        // used to control whether the plugin is applied when projects are created by tests
+        applyPlugin = hasOptional('applyPlugin', true)
     }
 
     logger.debug "[newrelic] $project.ext.properties"

@@ -14,7 +14,7 @@ import org.gradle.api.tasks.*
 
 abstract class NewRelicConfigTask extends DefaultTask {
     final static String NAME = "newrelicConfig"
-    final private String CONFIG_CLASS = "com/newrelic/agent/android/NewRelicConfig.java"
+    final static String CONFIG_CLASS = "com/newrelic/agent/android/NewRelicConfig.java"
 
     @Input
     abstract Property<String> getBuildId()        // variant buildId

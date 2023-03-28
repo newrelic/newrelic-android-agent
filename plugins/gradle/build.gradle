@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import org.gradle.api.internal.classpath.ModuleRegistry
+import org.gradle.api.internal.project.ProjectInternal
+
 plugins {
     id("groovy")
     id("org.jetbrains.kotlin.jvm")
@@ -35,14 +38,17 @@ dependencies {
     implementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
     implementation gradleApi()
 
-    implementation 'com.guardsquare:proguard-gradle:7.3.1'
+    implementation 'com.guardsquare:proguard-gradle:' + project.versions.java.proguard
     implementation 'org.ow2.asm:asm:' + project.versions.java.asm
     implementation 'org.ow2.asm:asm-util:' + project.versions.java.asm
 
     compileOnly localGroovy()
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
-    testImplementation 'dev.gradleplugins:gradle-test-kit:' + project.versions.agp.gradleTestKit
+    testImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
+    testImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+
+    testImplementation gradleTestKit()
     testImplementation project(path: ':instrumentation', configuration: 'default')
     testImplementation 'junit:junit:' + project.versions.test.junit
     testImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
@@ -52,6 +58,14 @@ dependencies {
     testImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
         exclude group: 'org.codehaus.groovy'
     }
+
+    def toolingApiBuildersJar = (project as ProjectInternal).services.get(ModuleRegistry.class)
+            .getModule("gradle-tooling-api-builders")
+            .classpath
+            .asFiles
+            .first()
+
+    testRuntimeOnly(files(toolingApiBuildersJar))
 }
 
 tasks.withType(JavaCompile).configureEach {

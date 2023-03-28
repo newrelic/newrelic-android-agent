@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application' version '7.4.2' apply true
+}
+
+android {
+    namespace 'com.example.newrelic-plugin-test'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.example.newrelic-plugin-test"
+        minSdk 24
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        qa {
+            minifyEnabled false
+        }
+        staging {
+            minifyEnabled true
+        }
+        prod {
+            minifyEnabled true
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+}

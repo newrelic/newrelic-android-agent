@@ -1,2 +1,3 @@
-/build
+build/
+userHome/
 **/dexguard-license.txt

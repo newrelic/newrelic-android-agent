@@ -11,7 +11,7 @@ import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.compile.HaltBuildException
 import com.newrelic.agent.util.BuildId
-import groovy.transform.CompileDynamic
+import groovy.json.JsonOutput
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -24,7 +24,6 @@ import org.gradle.util.GradleVersion
 
 import java.util.concurrent.atomic.AtomicReference
 
-@CompileDynamic
 class BuildHelper {
 
     /**
@@ -190,9 +189,14 @@ class BuildHelper {
         return reportedAgpVersion
     }
 
+    /**
+     * Proguard/R8/DG8 report through AGP to this location
+     * @param variantDirName Variant directory name used in file template
+     * @return RegularFileProperty
+     */
     RegularFileProperty getDefaultMapPathProvider(String variantDirName) {
-        // Proguard/R8/DG8 report through AGP to this location
-        return project.objects.fileProperty().set("${project.layout.buildDirectory}/outputs/mapping/${variantDirName}/mapping.txt")
+        def f = project.layout.buildDirectory.file("outputs/mapping/${variantDirName}/mapping.txt")
+        return project.objects.fileProperty().value(f.get())
     }
 
     def withDexGuardHelper(final def dexguardHelper) {
@@ -227,6 +231,9 @@ class BuildHelper {
         return project.objects.property(String).orElse(System.getProperty(key))
     }
 
+    /**
+     * @return true if AGP 4.x Gradle components are present
+     */
     def isUsingLegacyTransform() {
         variantAdapter instanceof VariantAdapter.AGP4Adapter
     }
@@ -255,9 +262,19 @@ class BuildHelper {
                 agp        : agpVersion,
                 gradle     : gradleVersion,
                 java       : getSystemPropertyProvider('java.version').get(),
+            //  kotlin     : getSystemPropertyProvider('kotlin.version').get(),
                 dexguard   : [enabled: dexguardHelper.enabled, version: dexguardHelper.currentVersion],
                 configCache: [supported: configurationCacheSupported(), enabled: configurationCacheEnabled()],
         ]
+    }
+
+    String buildMetricsAsJson() {
+        try {
+            // JsonOutput.toJson(buildMetrics().toMapString())
+            JsonOutput.toJson(buildMetrics())
+        } catch (Throwable) {
+            ""
+        }
     }
 
     def configureVariantModel() {

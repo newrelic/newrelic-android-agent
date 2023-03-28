@@ -46,7 +46,7 @@ class DexGuardHelper {
         try {
             this.extension = project.extensions.getByName(PLUGIN_EXTENSION_NAME)?.with() { ext ->
                 this.currentVersion = GradleVersion.version(ext.currentVersion)
-                if (GradleVersion.version(getCurrentVersion()) < GradleVersion.version(DexGuardHelper.minSupportedVersion)) {
+                if (GradleVersion.version(getCurrentVersion()) < GradleVersion.version(minSupportedVersion)) {
                     logger.warn("The New Relic plugin may not be compatible with DexGuard version ${this.currentVersion}.")
                 }
                 this.enabled = true
@@ -57,7 +57,7 @@ class DexGuardHelper {
     }
 
     boolean isDexGuard9() {
-        return enabled && (currentVersion && GradleVersion.version(currentVersion) >= GradleVersion.version("9.0"))
+        return enabled && (getCurrentVersion() && GradleVersion.version(getCurrentVersion()) >= GradleVersion.version("9.0"))
     }
 
     /**
@@ -68,32 +68,32 @@ class DexGuardHelper {
     RegularFileProperty getDefaultMapPathProvider(String variantDirName) {
         if (isDexGuard9()) {
             // caller must replace target with [apk, bundle]
-            return buildHelper.project.objects.fileProperty().set("${buildHelper.project.buildDir}/outputs/dexguard/mapping/<target>/${variantDirName}/mapping.txt")
+            return buildHelper.project.objects.fileProperty().value(buildHelper.project.layout.buildDir.file("/outputs/dexguard/mapping/<target>/${variantDirName}/mapping.txt"))
         }
 
         // Legacy DG report through AGP to this location (unless overridden in dexguard.project settings)
-        return buildHelper.project.objects.fileProperty().set("${buildHelper.project.buildDir}/outputs/mapping/${variantDirName}/mapping.txt")
+        return buildHelper.project.objects.fileProperty().value(buildHelper.project.layout.buildDir.file("/outputs/mapping/${variantDirName}/mapping.txt"))
     }
 
     protected configureDexGuard9Task(def variantName) {
-            def variantNameCap = variantName.capitalize()
-            DexGuardHelper.dexguard9Tasks.each { taskName ->
-                try {
-                    buildHelper.project.tasks.named("${taskName}${variantNameCap}").configure {
-                        buildHelper.injectMapUploadFinalizer(task, variantName, { File mappingFile ->
-                            if (task.name.startsWith(DexGuardHelper.DEXGUARD_APK_TASK)) {
-                                buildHelper.project.objects.fileProperty().set(mappingFile.getAbsolutePath().replace("<target>", "apk"))
-                            } else if (task.name.startsWith(DexGuardHelper.DEXGUARD_AAB_TASK)) {
-                                buildHelper.project.objects.fileProperty().set(mappingFile.getAbsolutePath().replace("<target>", "bundle"))
-                            }
-                        })
-                    }
-
-                } catch (Exception e) {
-                    // DexGuard task hasn't been created
-                    logger.error("configureDexGuard: " + e)
-                    logger.error(DexGuardHelper.DEXGUARD_PLUGIN_ORDER_ERROR_MSG)
+        def variantNameCap = variantName.capitalize()
+        DexGuardHelper.dexguard9Tasks.each { taskName ->
+            try {
+                buildHelper.project.tasks.named("${taskName}${variantNameCap}").configure {
+                    buildHelper.injectMapUploadFinalizer(task, variantName, { File mappingFile ->
+                        if (task.name.startsWith(DexGuardHelper.DEXGUARD_APK_TASK)) {
+                                buildHelper.project.objects.fileProperty().value(mappingFile.getAbsolutePath().replace("<target>", "apk"))
+                        } else if (task.name.startsWith(DexGuardHelper.DEXGUARD_AAB_TASK)) {
+                                buildHelper.project.objects.fileProperty().value(mappingFile.getAbsolutePath().replace("<target>", "bundle"))
+                        }
+                    })
                 }
+
+            } catch (Exception e) {
+                // DexGuard task hasn't been created
+                logger.error("configureDexGuard: " + e)
+                logger.error(DexGuardHelper.DEXGUARD_PLUGIN_ORDER_ERROR_MSG)
+            }
         }
     }
 
@@ -130,7 +130,7 @@ class DexGuardHelper {
                     logger.debug("configureDexGuardTasks: Desugaring task [" + desugarTaskName + "]: " + e)
 
                 } finally {
-                    dexguardTask.configure { task->
+                    dexguardTask.configure { task ->
                         task.dependsOn(classRewriterTask)
                         injectMapUploadFinalizer(buildHelper.project, task, variant, null)
                     }
