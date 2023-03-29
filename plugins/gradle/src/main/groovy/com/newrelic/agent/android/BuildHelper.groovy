@@ -7,18 +7,19 @@ package com.newrelic.agent.android
 
 import com.android.build.api.variant.AndroidComponentsExtension
 import com.android.build.gradle.AppExtension
+
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
-import com.newrelic.agent.compile.HaltBuildException
 import com.newrelic.agent.util.BuildId
 import groovy.json.JsonOutput
-import org.gradle.api.GradleException
+import org.gradle.api.BuildCancelledException
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.UnknownTaskException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
 import org.gradle.api.plugins.ExtraPropertiesExtension
+import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.provider.Provider
 import org.gradle.util.GradleVersion
 
@@ -74,7 +75,8 @@ class BuildHelper {
     static final AtomicReference<BuildHelper> INSTANCE = new AtomicReference<BuildHelper>(null)
 
     static BuildHelper register(Project project) {
-        BuildHelper.INSTANCE.compareAndSet(null, new BuildHelper(project))
+        BuildHelper.INSTANCE.set(new BuildHelper(project))
+        // compareAndSet(null, new BuildHelper(project))
         return BuildHelper.INSTANCE.get()
     }
 
@@ -98,14 +100,14 @@ class BuildHelper {
 
             this.variantAdapter = VariantAdapter.register(this)
 
-        } catch (Exception e) {
-            throw new HaltBuildException(e)
+        } catch (UnknownPluginException e) {
+            throw new BuildCancelledException(e)
         }
     }
 
-    void validatePluginSettings() throws GradleException {
-        if (!getAndroid()) {
-            throw new GradleException("The New Relic agent plugin depends on the Android plugin." + NEWLN +
+    void validatePluginSettings() throws UnknownPluginException {
+        if (!getAndroidExtension()) {
+            throw new UnknownPluginException("The New Relic agent plugin depends on the Android plugin." + NEWLN +
                     "Please apply an Android plugin before the New Relic agent: " + NEWLN +
                     "plugins {" + NEWLN +
                     "   id 'com.android.[application, library, feature, dynamic-feature]'" + NEWLN +
@@ -114,7 +116,7 @@ class BuildHelper {
         }
 
         if (GradleVersion.version(getAgpVersion()) < GradleVersion.version(BuildHelper.minSupportedAGPVersion)) {
-            throw new GradleException("The New Relic plugin is not compatible with Android Gradle plugin version ${agpVersion}."
+            throw new UnknownPluginException("The New Relic plugin is not compatible with Android Gradle plugin version ${agpVersion}."
                     + NEWLN
                     + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported.")
         }
@@ -146,7 +148,7 @@ class BuildHelper {
         String reportedAgpVersion = "unknown"
 
         try {
-            getAndroidComponents().getPluginVersion().with {
+            getAndroidComponentsExtension().getPluginVersion().with {
                 reportedAgpVersion = major + "." + minor + "." + micro
                 if (previewType) {
                     reportedAgpVersion = reportedAgpVersion + "-" + previewType + preview
@@ -247,7 +249,7 @@ class BuildHelper {
     void warnOrHalt(final String msg) {
         def haltOnWarning = hasOptional(BuildHelper.PROP_HALT_ON_ERROR, false).toString().toLowerCase()
         if ((haltOnWarning != 'false') && (haltOnWarning != '0')) {
-            throw new GradleException(msg)
+            throw new UnknownPluginException(msg)
         }
         logger.warn(msg)
     }
@@ -262,7 +264,7 @@ class BuildHelper {
                 agp        : agpVersion,
                 gradle     : gradleVersion,
                 java       : getSystemPropertyProvider('java.version').get(),
-            //  kotlin     : getSystemPropertyProvider('kotlin.version').get(),
+                //  kotlin     : getSystemPropertyProvider('kotlin.version').get(),
                 dexguard   : [enabled: dexguardHelper.enabled, version: dexguardHelper.currentVersion],
                 configCache: [supported: configurationCacheSupported(), enabled: configurationCacheEnabled()],
         ]
@@ -278,7 +280,7 @@ class BuildHelper {
     }
 
     def configureVariantModel() {
-        finalizeMapUploadTasks()
+        // finalizeMapUploadTasks()
     }
 
     // gettors to assist in mocking
@@ -291,11 +293,11 @@ class BuildHelper {
         return agpVersion
     }
 
-    AppExtension getAndroid() {
+    AppExtension getAndroidExtension() {
         return android
     }
 
-    AndroidComponentsExtension getAndroidComponents() {
+    AndroidComponentsExtension getAndroidComponentsExtension() {
         return androidComponents
     }
 
@@ -346,49 +348,47 @@ class BuildHelper {
         return Proguard.Provider.DEFAULT
     }
 
-    def injectMapUploadFinalizer(Task targetTask, String variantName, Closure closure) {
+    // Shared between this class and DexGuardHelper:
+    void wiredWithMapUploadFinalizer(Task targetTask, String variantName, Closure closure) {
         try {
             def targetNameCap = targetTask.getName().capitalize()
-            def mapUploadTaskName = "${NewRelicMapUploadTask.NAME}}${targetNameCap}"
-            def mapUploadTaskProvider = project.tasks.named(mapUploadTaskName, NewRelicMapUploadTask)
+            def variantNameCap = variantName.capitalize()
+            def mapUploadTaskName = "${NewRelicMapUploadTask.NAME}${variantNameCap}"
 
-            if (mapUploadTaskProvider.isPresent()) {
-                mapUploadTaskProvider.configure { mapUploadTask ->
-                    try {
-                        // update the map file iif needed
-                        if (closure) {
-                            mapUploadTask.mappingFile.set(closure(mapUploadTask.mappingFile.getAsFile().get()))
-                        }
-
-                        // connect config task buildId to map upload task
-                        project.tasks.named("${NewRelicConfigTask.NAME}${variantName.capitalize()}").configure { configTask ->
-                            mapUploadTask.dependsOn configTask
-                        }
-
-                    } catch (Exception e) {
-                        mapUploadTask.buildId = BuildId.getBuildId(variantName)
-                        logger.error("injectMapUploadFinalizer: $e")
+            // FIXME code smell
+            project.tasks.named(mapUploadTaskName, NewRelicMapUploadTask.class).configure { mapUploadTask ->
+                try {
+                    // update the map file iif needed
+                    if (closure) {
+                        mapUploadTask.mappingFile.set(closure(mapUploadTask.mappingFile.getAsFile().get()))
                     }
 
-                    mapUploadTask.dependsOn targetTask
+                    // connect config task buildId to map upload task
+                    project.tasks.named("${NewRelicConfigTask.NAME}${variantNameCap}").configure { configTask ->
+                        // FIXME mapUploadTask.dependsOn configTask
+                    }
+
+                } catch (Exception e) {
+                    mapUploadTask.buildId = BuildId.getBuildId(variantName)
+                    logger.error("wiredWithMapUploadFinalizer: $e")
                 }
+
+                // FIXME mapUploadTask.dependsOn targetTask
             }
 
             targetTask.finalizedBy mapUploadTaskProvider
 
-            return mapUploadTaskProvider
-
         } catch (Exception e) {
-            // task for this variant not available
-            logger.error("injectMapUploadFinalizer: $e")
+            // task for this variant not available or other configuration error
+            logger.error("wiredWithMapUploadFinalizer: $e")
         }
     }
 
-    def injectMapUploadFinalizer(String targetTaskName, String variantName) {
+    void wiredWithTaskFinalizers(String targetTaskName, String variantName) {
         try {
-            def provider = project.tasks.named("${targetTaskName}${variantName.capitalize()}") { targetTask ->
-                return injectMapUploadFinalizer(targetTask, variantName, { File mappingFile ->
-                    logger.debug("[injectMapUploadFinalizer] Injecting NewRelicMapUploadTask[${mappingFile}] as finalizer to ${targetTask.name}")
+            project.tasks.named(targetTaskName).configure { targetTask ->
+                wiredWithMapUploadFinalizer(targetTask, variantName, { File mappingFile ->
+                    logger.debug("wiredWithTaskFinalizers: Task[${targetTask.name}] is finalized by NewRelicMapUploadTask[${mappingFile}]")
                     mappingFile
                 })
             }
@@ -397,51 +397,36 @@ class BuildHelper {
         }
     }
 
+    /* FIXME: now called from variantAdapter
+     * called during config phase: presumes the task model has been created
+     */
 
-    // called during config phase
     void finalizeMapUploadTasks() {
-        try {
-            // library projects do not produce maps
-            if (checkLibrary()) {
-                return
-            }
-
-            // dexguard maps are handled separately
-            if (dexguardHelper.enabled) {
-                return
-            }
-
-            // do all the variants if variantMapsEnabled, or only those provided in the extension. Default is *release*.
-            if (!extension.variantMapsEnabled.get() || extension.variantMapUploadList.isEmpty()) {
-                logger.debug("Maps will be tagged and uploaded for all variants")
-            } else {
-                logger.debug("Maps will be tagged and uploaded for variants ${extension.variantMapUploadList}")
-            }
-
-            // FIXME move to variantadapter
-            variantAdapter.getVariantValues().each { variant ->
-                if (variantAdapter.shouldUploadVariantMap(variant.name)) {
-                    def buildType = variantAdapter.getBuildTypeProvider(variant.name)
-
-                    if (buildType.isPresent() && buildType.get().minifyEnabled) {
-                        [DEX_PROGUARD, DEX_R8].each { dexName ->
-                            ["transformClassesAndResourcesWith${dexName.capitalize()}For",
-                             "minify${variant.name.capitalize()}With${dexName.capitalize()}"].each { taskName ->
-                                injectMapUploadFinalizer(taskName, variant.name)
-                            }
-                        }
-
-                    } else {
-                        logger.debug("Map upload ignored: build type[$variant.buildType.name] is not minified.")
-                    }
-                } else {
-                    logger.debug("Map upload ignored for variant[$variant.name]")
-                }
-            }
-        } catch (Exception e) {
-            // ignored: task doesn't exist if proguard not enabled
-            logger.warn("finalizeMapUploadTasks: $e")
+        // dexguard maps are handled separately by the helper
+        if (dexguardHelper.enabled) {
+            return
         }
+
+        // do all the variants if variantMapsEnabled, or only those provided in the extension. Default is *release*.
+        if (!extension.variantMapsEnabled.get() || extension.variantMapUploadList.isEmpty()) {
+            logger.debug("Maps will be tagged and uploaded for all variants")
+        } else {
+            logger.debug("Maps will be tagged and uploaded for variants ${extension.variantMapUploadList}")
+        }
+    }
+
+    def getMapUploadTaskDependencies(def variantName) {
+        def buildType = variantAdapter.getBuildTypeProvider(variantName)
+        def taskList = []
+
+        if (buildType.getOrElse(true).minified) {
+            [DEX_PROGUARD, DEX_R8].each { dexName ->
+                ["transformClassesAndResourcesWith${dexName.capitalize()}For${variantName.capitalize()}",
+                 "minify${variantName.capitalize()}With${dexName.capitalize()}"].each { taskList << it }
+            }
+        }
+
+        taskList
     }
 
 }

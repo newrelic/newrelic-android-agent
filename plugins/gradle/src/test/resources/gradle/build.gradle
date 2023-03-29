@@ -1,5 +1,12 @@
+/*
+ * Copyright (c) 2023 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 plugins {
     id 'com.android.application' version '7.4.2' apply true
+    id 'com.android.library' version '7.4.2' apply false
+    id 'org.jetbrains.kotlin.android' version '1.8.0' apply false
 }
 
 android {
@@ -40,7 +47,24 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 dependencies {
+    implementation 'androidx.core:core-ktx:1.7.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+
+    testImplementation 'junit:junit:4.13.2'
+
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+if (project.plugins.hasPlugin("newrelic")) {
+    def testExtension = project.file("nr-extension.gradle")
+    if (testExtension.exists()) {
+        apply from: testExtension.absolutePath
+    }
 }
