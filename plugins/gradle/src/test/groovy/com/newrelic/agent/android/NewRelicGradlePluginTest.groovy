@@ -32,34 +32,6 @@ class NewRelicGradlePluginTest extends PluginTest {
     }
 
     @Test
-    void configureDexGuard9Tasks() {
-    }
-
-    @Test
-    void configureDexGuardTasks() {
-    }
-
-    @Test
-    void injectMapUploadFinalizer() {
-    }
-
-    @Test
-    void testInjectMapUploadFinalizer() {
-    }
-
-    @Test
-    void configureTransformTasks() {
-    }
-
-    @Test
-    void configureMapUploadTasks() {
-    }
-
-    @Test
-    void configureConfigTasks() {
-    }
-
-    @Test
     void checkDexGuard() {
     }
 
@@ -70,7 +42,7 @@ class NewRelicGradlePluginTest extends PluginTest {
     @Test
     void getDefaultBuildMap() {
         def buildIdMap = plugin.getDefaultBuildMap() as HashMap<String, String>
-        Assert.assertTrue(plugin.extension.variantMapsEnabled.get())
+        Assert.assertTrue(plugin.pluginExtension.variantMapsEnabled.get())
         Assert.assertTrue(BuildId.variantMapsEnabled)
         Assert.assertEquals(plugin.buildHelper.variantAdapter.getVariantNames().size(), buildIdMap.size())
         buildIdMap.keySet().each() { variantName ->

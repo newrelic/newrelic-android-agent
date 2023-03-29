@@ -6,11 +6,10 @@
 package com.newrelic.agent.android
 
 import com.android.build.api.AndroidPluginVersion
-import com.newrelic.agent.compile.HaltBuildException
+import com.newrelic.agent.android.obfuscation.Proguard
 import groovy.json.JsonSlurper
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.compile.JavaCompile
 import org.junit.Assert
 import org.junit.jupiter.api.BeforeEach
@@ -36,7 +35,7 @@ class BuildHelperTest extends PluginTest {
     @Test
     void validatePluginExtension() {
         try {
-            Mockito.when(buildHelper.getAndroid()).thenReturn(null)
+            Mockito.when(buildHelper.getAndroidExtension()).thenReturn(null)
             buildHelper.validatePluginSettings()
             Assert.fail("AGP Plugin validation failed")
         } catch (RuntimeException e) {
@@ -96,10 +95,10 @@ class BuildHelperTest extends PluginTest {
 
     @Test
     void getAGPVersion() {
-        def ext = Mockito.spy(buildHelper.androidComponents)
+        def ext = Mockito.spy(buildHelper.androidComponentsExtension)
         def pluginVersion = new AndroidPluginVersion(8, 1)
 
-        Mockito.when(buildHelper.getAndroidComponents()).thenReturn(ext)
+        Mockito.when(buildHelper.getAndroidComponentsExtension()).thenReturn(ext)
         Mockito.when(ext.getPluginVersion()).thenReturn(pluginVersion)
         Assert.assertEquals("8.1.0", buildHelper.getAndNormalizeAGPVersion())
 
@@ -186,9 +185,9 @@ class BuildHelperTest extends PluginTest {
         buildHelper = Mockito.spy(new BuildHelper(project))
         Mockito.when(buildHelper.getGradleVersion()).thenReturn("7.999")
 
-        def ext = Mockito.spy(buildHelper.androidComponents)
-        def waah = buildHelper.androidComponents.selector().withName("waah")
-        Mockito.when(buildHelper.getAndroidComponents()).thenReturn(ext)
+        def ext = Mockito.spy(buildHelper.androidComponentsExtension)
+        def waah = buildHelper.androidComponentsExtension.selector().withName("waah")
+        Mockito.when(buildHelper.getAndroidComponentsExtension()).thenReturn(ext)
         Mockito.when(ext.selector()).thenReturn(waah)
 
         // FIXME buildHelper.variantAdapter = VariantAdapter.register(buildHelper)
@@ -249,4 +248,40 @@ class BuildHelperTest extends PluginTest {
         Assert.assertTrue(configCache.containsKey("enabled"))
     }
 
+    @Test
+    void injectMapUploadFinalizer() {
+        // FIXME
+    }
+
+    @Test
+    void testInjectMapUploadFinalizer() {
+        // FIXME
+    }
+
+    @Test
+    void configureTransformTasks() {
+        // FIXME
+    }
+
+    @Test
+    void configureMapUploadTasks() {
+        // FIXME
+    }
+
+    @Test
+    void configureConfigTasks() {
+        // FIXME
+    }
+
+    @Test
+    void getMapProvider() {
+        Assert.assertEquals(buildHelper.getMapCompilerName(), Proguard.Provider.DEFAULT)
+
+        buildHelper.dexguardHelper.enabled = true
+        Assert.assertEquals(buildHelper.getMapCompilerName(), Proguard.Provider.DEXGUARD)
+
+        buildHelper.dexguardHelper.enabled = false
+        buildHelper.agpVersion = "3.2"
+        Assert.assertEquals(buildHelper.getMapCompilerName(), Proguard.Provider.PROGUARD_603)
+    }
 }

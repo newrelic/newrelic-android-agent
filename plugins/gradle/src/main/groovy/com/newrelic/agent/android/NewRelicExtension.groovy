@@ -35,7 +35,11 @@ abstract class NewRelicExtension {
     NamedDomainObjectContainer<VariantConfiguration> variantConfigurations
 
     static NewRelicExtension register(Project project) {
-        return project.extensions.create(PLUGIN_EXTENSION_NAME, NewRelicExtension, project)
+        try {
+            return project.extensions.create(PLUGIN_EXTENSION_NAME, NewRelicExtension, project)
+        } catch (Exception) {
+            return project.extensions.getByType(NewRelicExtension.class) as NewRelicExtension
+        }
     }
 
     @Inject

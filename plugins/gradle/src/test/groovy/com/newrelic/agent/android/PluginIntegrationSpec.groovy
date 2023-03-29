@@ -65,16 +65,16 @@ class PluginIntegrationSpec extends Specification {
         if (localEnv["M2_REPO"] == null) {
             def m2 = new File(rootDir, "build/.m2/repository").absoluteFile
             try {
-            if (!(m2.exists() && m2.canRead())) {
-                    provideRunner()
-                        .withProjectDir(rootDir)
-                            .withArguments("publish")
-                        .build()
                 if (!(m2.exists() && m2.canRead())) {
-                    throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
+                    provideRunner()
+                            .withProjectDir(rootDir)
+                            .withArguments("publish")
+                            .build()
+                    if (!(m2.exists() && m2.canRead())) {
+                        throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
+                    }
                 }
-            }
-            localEnv.put("M2_REPO", m2.getAbsolutePath())
+                localEnv.put("M2_REPO", m2.getAbsolutePath())
             } catch (Exception e) {
                 e
             }
@@ -82,7 +82,7 @@ class PluginIntegrationSpec extends Specification {
 
         and: "create the build runner"
         def runner = provideRunner()
-                .withArguments("--debug",
+                .withArguments(// "--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-Pcompiler=r8",
@@ -92,8 +92,8 @@ class PluginIntegrationSpec extends Specification {
 
         when: "run the build *once* and cache the results"
         try {
-        buildResult = runner.build()
-        filteredOutput = printFilter
+            buildResult = runner.build()
+            filteredOutput = printFilter
         } catch (Exception e) {
             throw e
         }
