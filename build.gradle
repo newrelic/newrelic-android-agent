@@ -28,6 +28,7 @@ buildscript {
             classpath 'gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:' + versions.java.spotbugs
         }
         classpath 'io.github.gradle-nexus:publish-plugin:' + versions.java.nexus
+        classpath 'com.dicedmelon.gradle:jacoco-android:0.1.5'
     }
 }
 
