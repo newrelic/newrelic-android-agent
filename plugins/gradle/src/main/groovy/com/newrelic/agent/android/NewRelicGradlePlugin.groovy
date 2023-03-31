@@ -7,6 +7,7 @@ package com.newrelic.agent.android
 
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.util.BuildId
+import jdk.tools.jlink.plugin.PluginException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.LogLevel
@@ -100,6 +101,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
         if (buildHelper.checkDexGuard()) {
             LOGGER.info("DexGuard detected.")
+            throw new PluginException("DexGuard is not yet supported in this version of the New Relic Android Gradle plugin. Sit tight, it won't be long!")
         }
 
         LOGGER.info("BuildMetrics[${buildHelper.buildMetrics().toMapString()}]")
