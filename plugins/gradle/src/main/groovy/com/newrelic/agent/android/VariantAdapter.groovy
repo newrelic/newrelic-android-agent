@@ -5,13 +5,14 @@
 
 package com.newrelic.agent.android
 
-
 // Gradle 7.2
-import com.android.build.gradle.LibraryExtension
-import com.android.build.gradle.AppExtension
-import com.android.build.api.artifact.SingleArtifact
+
 import com.android.build.api.artifact.MultipleArtifact
+import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.variant.AndroidComponentsExtension
+import com.android.build.api.variant.VariantSelector
+import com.android.build.gradle.AppExtension
+import com.android.build.gradle.LibraryExtension
 
 // Gradle 7.4
 // import com.android.build.api.variant.CanMinifyCode
@@ -19,6 +20,7 @@ import com.android.build.api.variant.AndroidComponentsExtension
 // import com.android.build.api.variant.ScopedArtifacts;
 
 import com.newrelic.agent.util.BuildId
+
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.UnknownTaskException
 import org.gradle.api.file.RegularFileProperty
@@ -63,24 +65,6 @@ abstract class VariantAdapter {
 
     abstract RegularFileProperty getMappingFileProvider(String variantName)
 
-    static class BuildTypeAdapter {
-        final String name
-        final String flavor
-        final Boolean minified
-
-        BuildTypeAdapter(String name, Boolean isMinified) {
-            this.name = name
-            this.flavor = ""
-            this.minified = isMinified
-        }
-
-        BuildTypeAdapter(String name, String flavor, Boolean isMinified) {
-            this.name = name
-            this.flavor = flavor
-            this.minified = isMinified
-        }
-    }
-
     def withVariant(String variantName) {
         variants.get().get(variantName.toLowerCase())
     }
@@ -123,8 +107,8 @@ abstract class VariantAdapter {
         def configProvider = getConfigProvider(variantName)
 
         configProvider.configure { configTask ->
-            def objects = buildHelper.project.objects
-            def buildId = objects.property(String).value(BuildId.getBuildId(variantName))
+            def objectFactory = buildHelper.project.objects
+            def buildId = objectFactory.property(String).value(BuildId.getBuildId(variantName))
             def buildType = getBuildTypeProvider(variantName)
             def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.dirName}")
 
@@ -132,9 +116,11 @@ abstract class VariantAdapter {
 
             configTask.buildId = buildId
             configTask.sourceOutputDir.convention(genSrcFolder)
-            configTask.mapProvider = objects.property(String).value(buildHelper.getMapCompilerName())
-            configTask.minifyEnabled = objects.property(Boolean).value(buildType.getOrElse(true).minified)
-            configTask.buildMetrics = objects.property(String).value(buildHelper.buildMetrics().toString())
+            configTask.mapProvider = objectFactory.property(String).value(buildHelper.getMapCompilerName())
+            configTask.minifyEnabled = objectFactory.property(Boolean).value(buildType.getOrElse(true).minified)
+            configTask.buildMetrics = objectFactory.property(String).value(buildHelper.buildMetrics().toString())
+
+            withVariant(variantName).sources.assets?.addGeneratedSourceDirectory(configTask, genSrcFolder)
         }
 
         return configProvider
@@ -144,14 +130,10 @@ abstract class VariantAdapter {
         def mapUploadProvider = getMapUploadProvider(variantName)
 
         mapUploadProvider.configure { mapUploadTask ->
-            // FIXME mapUploadTask.dependsOn configProvider
-
-            def mappingFileProperty = getMappingFileProvider(variantName)
-
             mapUploadTask.buildId = buildId
             mapUploadTask.variantName = variantName
             mapUploadTask.mapProvider = getMappingProvider(variantName)
-            mapUploadTask.mappingFile = mappingFileProperty
+            mapUploadTask.mappingFile = getMappingFileProvider(variantName)
             mapUploadTask.projectRoot = buildHelper.project.layout.projectDirectory
 
             onlyIf {
@@ -159,7 +141,25 @@ abstract class VariantAdapter {
                 // be evaluated at task execution time, not during configuration.
                 true // FIXME mappingFileProperty.get().asFile.exists()
             }
+
+            // FIXME
+            mapUploadTask.outputs.upToDateWhen { false }
+
+            withVariant(variantName)?.tap { variant ->
+                mapUploadTask.mappingFiles = buildHelper.project.provider {
+                    buildHelper.project.files(variant.artifacts.get(SingleArtifact.OBFUSCATION_MAPPING_FILE))
+                }
+
+                buildHelper.getMapUploadTaskDependencies(variant.name).get().each { taskProvider ->
+                    //  buildHelper.wiredWithTaskFinalizers(taskName, variant.name)
+                    taskProvider.configure {
+                        mapUploadTask.mappingFileProperty = it.flatMap { it.outputFile }
+                    }
+                }
+            }
         }
+
+        mapUploadProvider.get()
 
         return mapUploadProvider
     }
@@ -172,7 +172,7 @@ abstract class VariantAdapter {
         if (GradleVersion.version(buildHelper.getGradleVersion()) < GradleVersion.version("7.0")) {
             return new AGP4Adapter(buildHelper)
         } else {
-            return new AGP7Adapter.AGP70Adapter(buildHelper)
+            return new AGP70Adapter(buildHelper)
         }
     }
 
@@ -186,7 +186,7 @@ abstract class VariantAdapter {
     TaskProvider registerOrNamed(String name, Class clazz) {
         try {
             return buildHelper.project.tasks.register(name, clazz)
-        } catch (InvalidUserDataException e) {
+        } catch (InvalidUserDataException ignored) {
             return buildHelper.project.tasks.named(name, clazz)
         }
     }
@@ -195,14 +195,15 @@ abstract class VariantAdapter {
      * Create and provide lazy-configuration for our data model
      */
     def assembleDataModel(String variantName) {
-        wiredWithTransformProvider(variant.name, getTransformProvider(variant.name))
+        wiredWithTransformProvider(variantName, getTransformProvider(variantName))
         wiredWithConfigProvider(variantName)
 
         if (shouldUploadVariantMap(variantName)) {
             // wire up map upload task(s)
             wiredWithMapUploadProvider(variantName)
-            buildHelper.getMapUploadTaskDependencies(variant.name).each { taskName ->
-                buildHelper.wiredWithTaskFinalizers(taskName, variantName)
+
+            buildHelper.getMapUploadTaskDependencies(variant.name).get().each { taskProvider ->
+                buildHelper.wiredWithTaskProvider(taskProvider, variantName)
             }
         }
     }
@@ -238,8 +239,9 @@ abstract class VariantAdapter {
                         if (shouldUploadVariantMap(variant.name)) {
                             // wire up map upload task(s)
                             wiredWithMapUploadProvider(variant.name)
-                            buildHelper.getMapUploadTaskDependencies(variant.name).each { taskName ->
-                                buildHelper.wiredWithTaskFinalizers(taskName, variant.name)
+
+                            buildHelper.getMapUploadTaskDependencies(variant.name).get().each { taskProvider ->
+                                buildHelper.wiredWithTaskProvider(taskProvider, variant.name)
                             }
                         }
                     }
@@ -309,7 +311,7 @@ abstract class VariantAdapter {
                 def variantNameCap = variant.name.capitalize()
                 def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.dirName}")
                 def taskName = "${NewRelicConfigTask.NAME}${variantNameCap}"
-                def configTaskProvider = registerOrNamed(taskName, NewRelicConfigTask)
+                def configTaskProvider = registerOrNamed(taskName, NewRelicConfigTask.class)
 
                 try {
                     /**
@@ -360,7 +362,7 @@ abstract class VariantAdapter {
 
         @Override
         TaskProvider getMapUploadProvider(String variantName) {
-            return registerOrNamed("${NewRelicMapUploadTask.NAME}${variantName.capitalize()}", NewRelicMapUploadTask)
+            return registerOrNamed("${NewRelicMapUploadTask.NAME}${variantName.capitalize()}", NewRelicMapUploadTask.class)
         }
 
         /**
@@ -410,11 +412,11 @@ abstract class VariantAdapter {
         }
     }
 
-    static class AGP7Adapter extends VariantAdapter {
-        final def androidComponents
-        final def variantSelector
+    static class AGP70Adapter extends VariantAdapter {
+        final AndroidComponentsExtension androidComponents
+        final VariantSelector variantSelector
 
-        AGP7Adapter(BuildHelper buildHelper) {
+        AGP70Adapter(BuildHelper buildHelper) {
             super(buildHelper)
 
             this.androidComponents = buildHelper.androidComponentsExtension as AndroidComponentsExtension
@@ -441,8 +443,9 @@ abstract class VariantAdapter {
                     if (shouldUploadVariantMap(variant.name)) {
                         // wire up map upload task(s)
                         wiredWithMapUploadProvider(variant.name)
-                        buildHelper.getMapUploadTaskDependencies(variant.name).each { taskName ->
-                            buildHelper.wiredWithTaskFinalizers(taskName, variant.name)
+
+                        buildHelper.getMapUploadTaskDependencies(variant.name).get().each { taskProvider ->
+                            buildHelper.wiredWithTaskProvider(taskProvider, variant.name)
                         }
                     }
                 }
@@ -452,17 +455,23 @@ abstract class VariantAdapter {
         @Override
         VariantAdapter configure(NewRelicExtension extension) {
             // Variants are locked and no longer mutable
+            getVariantValues().each { variant ->
+                if (shouldUploadVariantMap(variant.name)) {
+                    // wire up map upload task(s)
+                    wiredWithMapUploadProvider(variant.name)
+
+                    buildHelper.getMapUploadTaskDependencies(variant.name).get().each { taskProvider ->
+                        buildHelper.wiredWithTaskProvider(taskProvider, variant.name)
+                    }
+                }
+            }
+
             return this
         }
 
         @Override
         TaskProvider getTransformProvider(String variantName) {
-            def variant = withVariant(variantName)
-
-            return buildHelper.project.tasks.register("${ClassTransformWrapperTask.NAME}ClassesAndJars${variantName.capitalize()}", ClassTransformWrapperTask) {
-                // it.classDirectories.set(variant.artifacts.getAll(MultipleArtifact.ALL_CLASSES_DIRS.INSTANCE))
-                // classJars.set(variant.artifacts.getAll(MultipleArtifact.ALL_CLASSES_JARS.INSTANCE))
-            }
+            return registerOrNamed("${ClassTransformWrapperTask.NAME}ClassesAndJars${variantName.capitalize()}", ClassTransformWrapperTask)
         }
 
         @Override
@@ -482,7 +491,7 @@ abstract class VariantAdapter {
 
         @Override
         TaskProvider getConfigProvider(String variantName) {
-            return registerOrNamed("${NewRelicConfigTask.NAME}${variantName.capitalize()}", NewRelicConfigTask)
+            return registerOrNamed("${NewRelicConfigTask.NAME}${variantName.capitalize()}", NewRelicConfigTask.class)
         }
 
         @Override
@@ -492,7 +501,7 @@ abstract class VariantAdapter {
 
         @Override
         TaskProvider getMapUploadProvider(String variantName) {
-            return registerOrNamed("${NewRelicMapUploadTask.NAME}${variantName.capitalize()}", NewRelicMapUploadTask)
+            return registerOrNamed("${NewRelicMapUploadTask.NAME}${variantName.capitalize()}", NewRelicMapUploadTask.class)
         }
 
         @Override
@@ -504,65 +513,73 @@ abstract class VariantAdapter {
             def transformProvider = getTransformProvider(variantName)
             def variant = withVariant(variantName)
 
+            transformProvider.configure {
+                classJars.set(variant.artifacts.getAll(MultipleArtifact.ALL_CLASSES_JARS.INSTANCE))
+            }
+
             variant.artifacts
                     .use(transformProvider)
                     .wiredWith({ it.getClassDirectories() }, { it.getOutput() })
                     .toTransform(MultipleArtifact.ALL_CLASSES_DIRS.INSTANCE)
+        }
+
+    }
+
+    static class AGP74Adapter extends AGP70Adapter {
+        AGP74Adapter(BuildHelper buildHelper) {
+            super(buildHelper)
+        }
+
+        /* TODO
+        @Override
+        TaskProvider getTransformProvider(String variantName) {
+            def provider = super.getTransformProvider(variantName)
+            variant.transformClassesWith(TraceClassVisitorFactory.class, InstrumentationScope.PROJECT) { params ->
+                params.getTruth().set(true)
+            }
+            variant.setAsmFramesComputationMode(FramesComputationMode.COMPUTE_FRAMES_FOR_ALL_CLASSES)
+
+            provider
+        }
+        /* TODO */
+
+        @Override
+        Provider<BuildTypeAdapter> getBuildTypeProvider(String variantName) {
+            def variant = withVariant(variantName)
+            def buildType = new BuildTypeAdapter(variant.buildType, true)  // FIXME (variant as CanMinifyCode).isMinifyEnabled())
+
+            return buildHelper.project.objects.property(Object).value(buildType)
+        }
+
+        @Override
+        def wireWithInstrumentationProvider(String variantName) {
+            def transformProvider = getTransformProvider(variantName)
 
             /* FIXME
-            TaskProvider<ClassTransformWrapperTask> jarsTaskProvider = registerOrNamed("${ClassTransformWrapperTask.NAME}Jars${variant.name.capitalize()}", ClassTransformWrapperTask.class)
-            variant.artifacts
-                    .use(jarsTaskProvider)
-                    .wiredWith({ it.getAllJars() }, { it.getOutput() })
-                    .toTransform(MultipleArtifact.ALL_CLASSES_JARS.INSTANCE)
-            */
-        }
-
-
-        static class AGP70Adapter extends AGP7Adapter {
-            AGP70Adapter(BuildHelper buildHelper) {
-                super(buildHelper)
-            }
-
-            /* TODO deprecated in 7.2
-            @Override
-            TaskProvider getTransformProvider(String variantName) {
-                this.getTransformProvider(variantName)
-                variant.transformClassesWith(TraceClassVisitorFactory.class, InstrumentationScope.PROJECT) { params ->
-                    params.getTruth().set(true)
-                }
-                variant.setAsmFramesComputationMode(FramesComputationMode.COMPUTE_FRAMES_FOR_ALL_CLASSES)
-                }
-            }
-            */
-
-            static class AGP74Adapter extends AGP7Adapter {
-                AGP74Adapter(BuildHelper buildHelper) {
-                    super(buildHelper)
-                }
-
-                /* FIXME All methods requires Gradle 7.4 */
-
-                @Override
-                Provider<BuildTypeAdapter> getBuildTypeProvider(String variantName) {
-                    def variant = withVariant(variantName)
-                    def buildType = new BuildTypeAdapter(variant.buildType, variant.minifiedEnabled)
-
-                    return buildHelper.project.objects.property(Object).value(buildType)
-                }
-
-                @Override
-                def wireWithInstrumentationProvider(String variantName) {
-                    def transformProvider = getTransformProvider(variantName)
-                    /* FIXME
-                    def variant = withVariant(variantName)
-                    variant.artifacts
-                            .forScope(ScopedArtifacts.Scope.PROJECT)
-                            .use(transformProvider)
-                            .toTransform(ScopedArtifact.CLASSES.INSTANCE, { it.getAllJars() }, { it.getAllClasses() }, { it.getOutput() })
-                    */
-                }
-            }
+            withVariant(variantName).artifacts
+                    .forScope(ScopedArtifacts.Scope.PROJECT)
+                    .use(transformProvider)
+                    .toTransform(ScopedArtifact.CLASSES.INSTANCE, { it.getClassJars() }, { it.getClassDirectories() }, { it.getOutput() })
+            / * FIXME */
         }
     }
+
+    static class BuildTypeAdapter {
+        final String name
+        final String flavor
+        final Boolean minified
+
+        BuildTypeAdapter(String name, Boolean isMinified) {
+            this.name = name
+            this.flavor = ""
+            this.minified = isMinified
+        }
+
+        BuildTypeAdapter(String name, String flavor, Boolean isMinified) {
+            this.name = name
+            this.flavor = flavor
+            this.minified = isMinified
+        }
+    }
+
 }

@@ -13,6 +13,7 @@ import org.gradle.api.Project
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
+import org.gradle.api.plugins.UnknownPluginException
 
 class NewRelicGradlePlugin implements Plugin<Project> {
     public static Logger LOGGER = Logging.getLogger(PLUGIN_EXTENSION_NAME)
@@ -55,8 +56,8 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                         configurePlugin(project)
                         LOGGER.debug("New Relic plugin loaded.")
 
-                    } catch (MissingPropertyException e) {
-                        LOGGER.warn("Not supported: " + e)
+                    } catch (Exception e) {
+                        throw new UnknownPluginException("Not supported: " + e)
                     }
                 }
             } else {

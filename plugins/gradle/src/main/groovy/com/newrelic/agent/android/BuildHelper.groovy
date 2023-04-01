@@ -7,7 +7,6 @@ package com.newrelic.agent.android
 
 import com.android.build.api.variant.AndroidComponentsExtension
 import com.android.build.gradle.AppExtension
-
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.util.BuildId
@@ -20,7 +19,9 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
 import org.gradle.api.plugins.ExtraPropertiesExtension
 import org.gradle.api.plugins.UnknownPluginException
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.util.GradleVersion
 
 import java.util.concurrent.atomic.AtomicReference
@@ -44,7 +45,7 @@ class BuildHelper {
      * */
 
     static final String PROP_WARNING_AGP = "newrelic.warning.agp"
-    static final String PROP_HALT_ON_ERROR = "newrelic.halt-on-error"
+    static final String PROP_HALT_ON_WARNING = "newrelic.halt-on-warning"
 
     static final String DEX_PROGUARD = "proguard"
     static final String DEX_R8 = "r8"
@@ -53,7 +54,7 @@ class BuildHelper {
 
     public final String gradleVersion = GradleVersion.current().version
 
-    static final String currentSupportedAGPVersion = "8.0"
+    static final String currentSupportedAGPVersion = "8.0.999"
     static final String minSupportedAGPVersion = '4.2.0'
     static final String minSupportedGradleVersion = '7.0.2'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
@@ -75,9 +76,8 @@ class BuildHelper {
     static final AtomicReference<BuildHelper> INSTANCE = new AtomicReference<BuildHelper>(null)
 
     static BuildHelper register(Project project) {
-        BuildHelper.INSTANCE.set(new BuildHelper(project))
-        // compareAndSet(null, new BuildHelper(project))
-        return BuildHelper.INSTANCE.get()
+        BuildHelper.INSTANCE.compareAndSet(null, new BuildHelper(project))
+        return INSTANCE.get()
     }
 
     BuildHelper(Project project) {
@@ -101,7 +101,7 @@ class BuildHelper {
             this.variantAdapter = VariantAdapter.register(this)
 
         } catch (UnknownPluginException e) {
-            throw new BuildCancelledException(e)
+            throw new BuildCancelledException(e.message)
         }
     }
 
@@ -126,7 +126,9 @@ class BuildHelper {
             if ((enableWarning != 'false') && (enableWarning != '0')) {
                 warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${getAgpVersion()}."
                         + NEWLN
-                        + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported.")
+                        + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported."
+                        + NEWLN
+                        + "To disable this warning, set '${BuildHelper.PROP_WARNING_AGP}=false'")
             }
         }
 
@@ -183,7 +185,7 @@ class BuildHelper {
             GradleVersion.version(reportedAgpVersion)
 
         } catch (IllegalArgumentException e) {
-            logger.warn("AGP version [$reportedAgpVersion] is not officially supported")
+            warnOrHalt("AGP version [$reportedAgpVersion] is not officially supported")
             def (_, version, qualifier) = (reportedAgpVersion =~ /^(\d{1,3}\.\d{1,3}\.\d{1,3})-(.*)$/)[0]
             reportedAgpVersion = version
         }
@@ -247,11 +249,13 @@ class BuildHelper {
      * @param Message to log or throw
      */
     void warnOrHalt(final String msg) {
-        def haltOnWarning = hasOptional(BuildHelper.PROP_HALT_ON_ERROR, false).toString().toLowerCase()
+        def haltOnWarning = hasOptional(BuildHelper.PROP_HALT_ON_WARNING, false).toString().toLowerCase()
         if ((haltOnWarning != 'false') && (haltOnWarning != '0')) {
             throw new UnknownPluginException(msg)
+        } else {
+            logger.warn(msg)
+            logger.warn("To treat warnings as fatal errors, set '${BuildHelper.PROP_HALT_ON_WARNING}=true'")
         }
-        logger.warn(msg)
     }
 
     def hasOptional(def key, Object defaultValue) {
@@ -277,10 +281,6 @@ class BuildHelper {
         } catch (Throwable) {
             ""
         }
-    }
-
-    def configureVariantModel() {
-        // finalizeMapUploadTasks()
     }
 
     // gettors to assist in mocking
@@ -384,10 +384,10 @@ class BuildHelper {
         }
     }
 
-    void wiredWithTaskFinalizers(String targetTaskName, String variantName) {
+    void wiredWithTaskProvider(TaskProvider targetTaskProvider, String variantName) {
         try {
-            project.tasks.named(targetTaskName).configure { targetTask ->
-                wiredWithMapUploadFinalizer(targetTask, variantName, { File mappingFile ->
+            targetTaskProvider.configure { targetTask ->
+                wiredWithMapUploadFinalizer(targetTask.name, variantName, { File mappingFile ->
                     logger.debug("wiredWithTaskFinalizers: Task[${targetTask.name}] is finalized by NewRelicMapUploadTask[${mappingFile}]")
                     mappingFile
                 })
@@ -397,32 +397,38 @@ class BuildHelper {
         }
     }
 
-    /* FIXME: now called from variantAdapter
-     * called during config phase: presumes the task model has been created
-     */
-
-    void finalizeMapUploadTasks() {
-        // dexguard maps are handled separately by the helper
-        if (dexguardHelper.enabled) {
-            return
-        }
-
-        // do all the variants if variantMapsEnabled, or only those provided in the extension. Default is *release*.
-        if (!extension.variantMapsEnabled.get() || extension.variantMapUploadList.isEmpty()) {
-            logger.debug("Maps will be tagged and uploaded for all variants")
-        } else {
-            logger.debug("Maps will be tagged and uploaded for variants ${extension.variantMapUploadList}")
+    void wiredWithTaskFinalizers(String targetTaskName, String variantName) {
+        try {
+            def provider = project.tasks.named(targetTaskName)
+            wiredWithTaskProvider(provider, variantName)
+        } catch (UnknownTaskException ignored) {
+            // task for this variant not available
         }
     }
 
-    def getMapUploadTaskDependencies(def variantName) {
+    ListProperty<TaskProvider> getMapUploadTaskDependencies(def variantName) {
+        def taskList = project.objects.listProperty(TaskProvider)
+
+        getMapUploadTaskNameDependencies(variantName).each { taskName ->
+            try {
+                taskList.add(project.tasks.named(taskName))
+            } catch (UnknownTaskException ignored) {
+            }
+        }
+
+        taskList
+    }
+
+    ListProperty<String> getMapUploadTaskNameDependencies(def variantName) {
         def buildType = variantAdapter.getBuildTypeProvider(variantName)
-        def taskList = []
+        def taskList = project.objects.listProperty(String)
 
         if (buildType.getOrElse(true).minified) {
             [DEX_PROGUARD, DEX_R8].each { dexName ->
                 ["transformClassesAndResourcesWith${dexName.capitalize()}For${variantName.capitalize()}",
-                 "minify${variantName.capitalize()}With${dexName.capitalize()}"].each { taskList << it }
+                 "minify${variantName.capitalize()}With${dexName.capitalize()}"].each { taskName ->
+                    taskList.add(taskName)
+                }
             }
         }
 

@@ -35,9 +35,9 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 public final class ClassTransformer {
-    private static final String MANIFEST_TRANSFORMED_BY_KEY = "Transformed-By";
-    private static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
-    private static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
+    public static final String MANIFEST_TRANSFORMED_BY_KEY = "Transformed-By";
+    public static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
+    public static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
 
     private final List<File> classes;
     private final Logger log;
@@ -371,13 +371,10 @@ public final class ClassTransformer {
         return didProcessArchive;
     }
 
-    public boolean verifyAndWriteManifest(JarFile jarFile, JarOutputStream jarOutputStream) throws IOException {
-        JarEntry manifest = new JarEntry(JarFile.MANIFEST_NAME);
-        jarOutputStream.putNextEntry(manifest);
-
+    public boolean verifyManifest(JarFile jarFile) throws IOException {
         Manifest realManifest = jarFile.getManifest();
+
         if (realManifest != null) {
-            realManifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
 
             Map<String, Attributes> entries = realManifest.getEntries();
             for (String entryKey : entries.keySet()) {
@@ -391,11 +388,26 @@ public final class ClassTransformer {
                 }
             }
 
-            realManifest.write(jarOutputStream);
+            realManifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
         }
 
-        jarOutputStream.flush();
-        jarOutputStream.closeEntry();
+        return true;
+    }
+
+    public boolean verifyAndWriteManifest(JarFile jarFile, JarOutputStream jarOutputStream) throws IOException {
+        if (!verifyManifest(jarFile)) {
+            return false;
+        }
+
+        Manifest manifest = jarFile.getManifest();
+        if (manifest == null) {
+            manifest = new Manifest();
+            JarEntry manifestJarEntry = new JarEntry(JarFile.MANIFEST_NAME);
+            manifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
+            jarOutputStream.putNextEntry(manifestJarEntry);
+            jarOutputStream.flush();
+            jarOutputStream.closeEntry();
+        }
 
         return true;
     }
