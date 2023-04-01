@@ -6,10 +6,11 @@
 package com.newrelic.agent.android
 
 import com.android.build.api.artifact.MultipleArtifact
-
 import org.gradle.api.UnknownTaskException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.util.GradleVersion
 
 class DexGuardHelper {
@@ -49,7 +50,7 @@ class DexGuardHelper {
             this.extension = project.extensions.getByName(PLUGIN_EXTENSION_NAME)?.with() { ext ->
                 this.currentVersion = GradleVersion.version(ext.currentVersion)
                 if (GradleVersion.version(getCurrentVersion()) < GradleVersion.version(minSupportedVersion)) {
-                    logger.warn("The New Relic plugin may not be compatible with DexGuard version ${this.currentVersion}.")
+                    buildHelper.warnOrHalt("The New Relic plugin may not be compatible with DexGuard version ${this.currentVersion}.")
                 }
                 this.enabled = true
             }
@@ -147,13 +148,16 @@ class DexGuardHelper {
         }
     }
 
-    def getMapUploadTaskDependencies(def variantName) {
+    ListProperty<TaskProvider> getMapUploadTaskDependencies(def variantName) {
         def buildType = variantAdapter.getBuildTypeProvider(variantName)
         def taskList = buildHelper.getMapUploadTaskDependencies(variantName)
 
         if (buildType.getOrElse(true).minified) {
             [DEXGUARD_TASK, DEXGUARD_BUNDLE_TASK, DEXGUARD_APK_TASK , DEXGUARD_AAB_TASK].each { taskName ->
-                 taskList << "${taskName}${variantName.capitalize()}"
+                 try {
+                     taskList.add(buildHelper.project.tasks.named("${taskName}${variantName.capitalize()}"))
+                 } catch (Exception ignored) {
+                 }
             }
         }
 

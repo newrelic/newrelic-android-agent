@@ -40,52 +40,75 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
         def outputFile = output.get().getAsFile()
 
         logger.debug("[TransformTask] ${NAME} Starting")
-        logger.debug("[TransformTask] Output[${getOutput().get().getAsFile().getAbsolutePath()}]")
+        logger.debug("[TransformTask] Output[${outputFile.getAbsolutePath()}]")
 
-        outputFile.mkdirs()
+        try (def outputFileStream = new FileOutputStream(outputFile);
+             def bufferedOutputStream = new BufferedOutputStream(outputFileStream)) {
 
-        new JarOutputStream(new BufferedOutputStream(new FileOutputStream(new File(outputFile, "classes.jar"))))
-                .withCloseable { jarOutputStream ->
-                    classDirectories.get().forEach { directory ->
-                        directory.asFile.traverse(type: FileType.FILES) { classFile ->
-                            String relativePath = directory.asFile.toURI().relativize(classFile.toURI()).getPath()
+            new JarOutputStream(bufferedOutputStream).withCloseable { jarOutputStream ->
+                classDirectories.get().forEach { directory ->
+                    directory.asFile.traverse(type: FileType.FILES) { classFile ->
+                        String relativePath = directory.asFile.toURI().relativize(classFile.toURI()).getPath()
+                        try {
+                            def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
 
-                            try {
-                                def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
-                                jarOutputStream.putNextEntry(jarEntry)
-                                new FileInputStream(classFile).withCloseable { fileInputStream ->
-                                    jarOutputStream << transformer.processClassBytes(classFile, fileInputStream)
-                                }
-                            } finally {
-                                jarOutputStream.closeEntry()
-                            }
-                        }
-                    }
-
-                    classJars.get().forEach { classJar ->
-                        try (JarFile jar = new JarFile(classJar.asFile)) {
-                            try {
-                                JarEntry manifest = new JarEntry(JarFile.MANIFEST_NAME)
-                                if (transformer.verifyAndWriteManifest(jar, jarOutputStream)) {
-                                    for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
-                                        JarEntry jarEntry = e.nextElement()
-                                        try {
-                                            jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
-                                            jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
-                                                jarOutputStream << transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream)
-                                            }
-                                        } finally {
-                                            jarOutputStream.closeEntry()
-                                        }
+                            jarOutputStream.putNextEntry(jarEntry)
+                            new FileInputStream(classFile).withCloseable { fileInputStream ->
+                                if (FileUtils.isClass(classFile)) {
+                                    transformer.processClassBytes(classFile, fileInputStream).withCloseable {
+                                        jarOutputStream << it
                                     }
+                                } else {
+                                    jarOutputStream << fileInputStream
                                 }
-                            } catch (IOException e) {
-                                // return Streams.copy(new FileInputStream(file.asFile), new FileOutputStream(outputFile)) > 0;
-                                e
                             }
+                        } catch (IOException ignored) {
+                            jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
+                                jarOutputStream << jarEntryInputStream
+                            }
+                        } finally {
+                            jarOutputStream.closeEntry()
                         }
                     }
                 }
+
+                classJars.get().forEach { classJar ->
+                    try (JarFile jar = new JarFile(classJar.asFile)) {
+                        try {
+                            def instrumentable = transformer.verifyManifest(jar)
+
+                            for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
+                                JarEntry jarEntry = e.nextElement()
+
+                                if (FileUtils.isClass(jarEntry.name)) {
+                                    try {
+                                        jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
+                                        jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
+                                            if (instrumentable) {
+                                                transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
+                                                    jarOutputStream << it
+                                                }
+                                            } else {
+                                                jarOutputStream << jarEntryInputStream
+                                            }
+                                        }
+                                    } catch (IOException ignored) {
+                                        jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
+                                            jarOutputStream << jarEntryInputStream
+                                        }
+                                    } finally {
+                                        jarOutputStream.closeEntry()
+                                    }
+                                }
+                            }
+
+                        } catch (IOException e) {
+                            logger.warn(e)
+                        }
+                    }
+                }
+            }
+        }
 
         logger.info("[$NAME] Finished in " + Double.valueOf((double) (
                 System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.")
