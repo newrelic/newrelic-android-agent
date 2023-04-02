@@ -21,6 +21,7 @@ version = project.versions.agent
 archivesBaseName = "android-agent"
 
 android {
+    namespace "com.newrelic.agent.android"
     compileSdkVersion project.versions.agp.compileSdk
 
     defaultConfig {

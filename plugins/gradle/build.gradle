@@ -14,6 +14,11 @@ plugins {
 group = 'com.newrelic.agent.android'
 version = project.versions.agent
 
+configurations {
+    agp7.extendsFrom(compileOnly)
+    agp8.extendsFrom(agp7)
+}
+
 sourceSets {
     main.java.srcDirs += "src/main/kotlin"
 }
@@ -34,9 +39,9 @@ dependencies {
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
     implementation 'commons-io:commons-io:' + project.versions.java.commonsIO
 
-    implementation 'com.android.tools.build:gradle:' + project.versions.agp.gradleApi
-    implementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    implementation gradleApi()
+    compileOnly 'com.android.tools.build:gradle:' + project.versions.agp.gradleApi
+    compileOnly 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    compileOnly gradleApi()
 
     implementation 'com.guardsquare:proguard-gradle:' + project.versions.java.proguard
     implementation 'org.ow2.asm:asm:' + project.versions.java.asm

@@ -6,12 +6,12 @@
 package com.newrelic.agent.android
 
 import com.newrelic.agent.compile.ClassTransformer
+import com.newrelic.agent.util.FileUtils
 import groovy.io.FileType
-import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.Directory
-import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.*
@@ -31,7 +31,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
     abstract ListProperty<RegularFile> getClassJars();
 
     @OutputFiles
-    abstract DirectoryProperty getOutput();
+    abstract RegularFileProperty getOutput();
 
     @TaskAction
     void transformClasses() {

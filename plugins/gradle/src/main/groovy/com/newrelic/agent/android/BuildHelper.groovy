@@ -54,9 +54,9 @@ class BuildHelper {
 
     public final String gradleVersion = GradleVersion.current().version
 
-    static final String currentSupportedAGPVersion = "8.0.999"
+    static final String currentSupportedAGPVersion = "8.1"
     static final String minSupportedAGPVersion = '4.2.0'
-    static final String minSupportedGradleVersion = '7.0.2'
+    static final String minSupportedGradleVersion = '7.4'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
     static final String minSupportedAGPConfigCacheVersion = '7.0.2'
 
@@ -256,6 +256,8 @@ class BuildHelper {
             logger.warn(msg)
             logger.warn("To treat warnings as fatal errors, set '${BuildHelper.PROP_HALT_ON_WARNING}=true'")
         }
+        logger.warn(msg)
+        logger.warn("To treat warnings as fatal errors, set '${BuildHelper.PROP_HALT_ON_WARNING}=true'")
     }
 
     def hasOptional(def key, Object defaultValue) {
@@ -358,14 +360,11 @@ class BuildHelper {
             // FIXME code smell
             project.tasks.named(mapUploadTaskName, NewRelicMapUploadTask.class).configure { mapUploadTask ->
                 try {
+                    targetTask.flatmap({ mapUploadTask.getMappingFile() })
+
                     // update the map file iif needed
                     if (closure) {
                         mapUploadTask.mappingFile.set(closure(mapUploadTask.mappingFile.getAsFile().get()))
-                    }
-
-                    // connect config task buildId to map upload task
-                    project.tasks.named("${NewRelicConfigTask.NAME}${variantNameCap}").configure { configTask ->
-                        // FIXME mapUploadTask.dependsOn configTask
                     }
 
                 } catch (Exception e) {
@@ -376,7 +375,7 @@ class BuildHelper {
                 // FIXME mapUploadTask.dependsOn targetTask
             }
 
-            targetTask.finalizedBy mapUploadTaskProvider
+            // FIXME targetTask.finalizedBy mapUploadTaskProvider
 
         } catch (Exception e) {
             // task for this variant not available or other configuration error
@@ -419,7 +418,7 @@ class BuildHelper {
         taskList
     }
 
-    ListProperty<String> getMapUploadTaskNameDependencies(def variantName) {
+    ListProperty<String> getMapUploadTaskNameDependencies(variantName) {
         def buildType = variantAdapter.getBuildTypeProvider(variantName)
         def taskList = project.objects.listProperty(String)
 
