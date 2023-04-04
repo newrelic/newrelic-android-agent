@@ -27,14 +27,21 @@ class VariantAdapterTest extends PluginTest {
     void setup() {
         // Create the instances needed to test this class
         ext = NewRelicExtension.register(project)
-        buildHelper = BuildHelper.register(project)
+        buildHelper = applyPlugin ?: BuildHelper.register(project)
         variantAdapter = buildHelper.variantAdapter
         variantAdapter.configure(ext)
+
+        Assert.assertFalse(variantAdapter.getVariantValues().isEmpty())
+    }
+
+    @Test
+    void getVariants() {
+        Assert.assertFalse(variantAdapter.getVariantValues().isEmpty())
     }
 
     @Test
     void getVariantNames() {
-        Assert.assertFalse(variantAdapter.getVariantNames().empty)
+        Assert.assertFalse(variantAdapter.getVariantNames().isEmpty())
         Assert.assertEquals(variantAdapter.getVariantNames(), variantAdapter.variants.get().keySet())
     }
 
@@ -91,12 +98,13 @@ class VariantAdapterTest extends PluginTest {
         variantAdapter.getVariantValues().each { variant ->
             def provider = variantAdapter.getMappingFileProvider(variant.name)
             Assert.assertTrue(provider instanceof RegularFileProperty)
-            Assert.assertTrue(provider.asFile.get().absolutePath.startsWith(project.layout.buildDirectory.asFile.get().absolutePath))
+            Assert.assertTrue(provider.get().asFile.absolutePath.startsWith(project.layout.buildDirectory.asFile.get().absolutePath))
         }
     }
 
     @Test
     void withVariant() {
+        Assert.assertFalse(variantAdapter.variantValues.isEmpty())
         variantAdapter.getVariantNames().each { variantName ->
             Assert.assertNotNull(variantAdapter.withVariant(variantName))
         }
@@ -105,6 +113,7 @@ class VariantAdapterTest extends PluginTest {
     @Test
     void register() {
         Assert.assertNotNull(VariantAdapter.register(buildHelper))
+        Assert.assertFalse(variantAdapter.variantValues.isEmpty())
     }
 
     @Test

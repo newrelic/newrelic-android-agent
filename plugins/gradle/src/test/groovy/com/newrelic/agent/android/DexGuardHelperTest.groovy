@@ -54,4 +54,16 @@ class DexGuardHelperTest extends PluginTest {
             }
         }
     }
+
+    @Test
+    void configureDexGuard9Tasks() {
+        // FIXME
+    }
+
+    @Test
+    void configureDexGuardTasks() {
+        // FIXME
+    }
+
+
 }

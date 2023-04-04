@@ -10,7 +10,7 @@ import org.gradle.api.Project
 import javax.inject.Inject
 
 abstract class VariantConfiguration {
-    final String name;
+    final String name
     final Project project
 
     boolean instrument
@@ -19,7 +19,7 @@ abstract class VariantConfiguration {
 
     @Inject
     VariantConfiguration(String name, Project project) {
-        this.name = name.toLowerCase();
+        this.name = name.toLowerCase()
         this.project = project
         this.instrument = true
         this.uploadMappingFile = false
@@ -27,7 +27,7 @@ abstract class VariantConfiguration {
     }
 
     String getName() {
-        return name;
+        return name
     }
 
     /**

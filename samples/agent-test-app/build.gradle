@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import org.gradle.util.GradleVersion
 
 // Top-level build file where you can add configuration options common to all sub-projects/modules.

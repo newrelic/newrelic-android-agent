@@ -7,11 +7,13 @@ package com.newrelic.agent.android
 
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.util.BuildId
+import jdk.tools.jlink.plugin.PluginException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
+import org.gradle.api.plugins.UnknownPluginException
 
 class NewRelicGradlePlugin implements Plugin<Project> {
     public static Logger LOGGER = Logging.getLogger(PLUGIN_EXTENSION_NAME)
@@ -42,22 +44,20 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             if (pluginExtension.getEnabled()) {
 
                 project.afterEvaluate {
+                    def buildMap = getDefaultBuildMap()
+
                     // set global enable flag
                     BuildId.setVariantMapsEnabled(pluginExtension.variantMapsEnabled.get())
-
-                    def buildMap = getDefaultBuildMap()
 
                     logBuildMetrics()
 
                     try {
                         buildHelper.variantAdapter.configure(pluginExtension)
-
                         configurePlugin(project)
-
                         LOGGER.debug("New Relic plugin loaded.")
 
-                    } catch (MissingPropertyException e) {
-                        LOGGER.warn("Not supported: " + e)
+                    } catch (Exception e) {
+                        throw new UnknownPluginException("Not supported: " + e)
                     }
                 }
             } else {
@@ -73,7 +73,15 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             buildHelper.dexguardHelper.configureDexGuardTasks(project)
         }
 
-        buildHelper.configureVariantModel()
+        pluginExtension.with {
+            // Do all the variants if variant maps are disabled, or only those provided
+            // in the extension. The default is ['release'].
+            if (!variantMapsEnabled.get() || variantMapUploadList.isEmpty()) {
+                LOGGER.debug("Maps will be tagged and uploaded for all variants")
+            } else {
+                LOGGER.debug("Maps will be tagged and uploaded for variants ${variantMapUploadList}")
+            }
+        }
 
         // add extension to project's ext data
         project.ext.newrelic = pluginExtension
@@ -94,6 +102,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
         if (buildHelper.checkDexGuard()) {
             LOGGER.info("DexGuard detected.")
+            throw new PluginException("DexGuard is not yet supported in this version of the New Relic Android Gradle plugin. Sit tight, it won't be long!")
         }
 
         LOGGER.info("BuildMetrics[${buildHelper.buildMetrics().toMapString()}]")
@@ -138,16 +147,11 @@ class NewRelicGradlePlugin implements Plugin<Project> {
     protected Map<String, String> getDefaultBuildMap() {
         def buildIdCache = [:] as HashMap<String, String>
 
-        getProjectVariants().each { variant ->
+        buildHelper.variantAdapter.getVariantValues().each { variant ->
             buildIdCache.put(variant.name, BuildId.getBuildId(variant.name))
         }
 
         return buildIdCache
-    }
-
-    // FIXME
-    private def getProjectVariants() {
-        return buildHelper.variantAdapter.getVariantValues()
     }
 
 }

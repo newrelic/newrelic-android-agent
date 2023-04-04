@@ -35,9 +35,9 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 public final class ClassTransformer {
-    private static final String MANIFEST_TRANSFORMED_BY_KEY = "Transformed-By";
-    private static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
-    private static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
+    public static final String MANIFEST_TRANSFORMED_BY_KEY = "Transformed-By";
+    public static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
+    public static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
 
     private final List<File> classes;
     private final Logger log;
@@ -94,7 +94,7 @@ public final class ClassTransformer {
     protected void doTransform() {
         long tStart = System.currentTimeMillis();
 
-            log.info("[ClassTransformer] Using build ID[" + BuildId.getBuildId(invocationDispatcher.getInstrumentationContext().getVariantName()) + "]");
+        log.info("[ClassTransformer] Using build ID[" + BuildId.getBuildId(invocationDispatcher.getInstrumentationContext().getVariantName()) + "]");
 
         for (File classFile : classes) {
             inputFile = FileUtils.isClass(classFile) ? classFile.getParentFile() : classFile;
@@ -159,7 +159,7 @@ public final class ClassTransformer {
      * @return ByteArrayInputStream containing transformed bytes if successful, or the original
      * bytes otherwise.
      **/
-    private ByteArrayInputStream processClassBytes(File classFile, InputStream classFileInputStream) throws IOException {
+    public ByteArrayInputStream processClassBytes(File classFile, InputStream classFileInputStream) throws IOException {
         byte[] classBytes = Streams.slurpBytes(classFileInputStream);
         byte[] transformedClassBytes = transformClassBytes(classFile.getPath(), classBytes);
         final ByteArrayInputStream processedClassBytesStream;
@@ -196,8 +196,8 @@ public final class ClassTransformer {
                 didProcessClass = transformDirectory(classFile);
 
             } else {
-
                 String classpath = classFile.getAbsolutePath();
+
                 if (classpath.startsWith(inputFile.getAbsolutePath())) {
                     classpath = classpath.substring(inputFile.getAbsolutePath().length() + 1);
                 }
@@ -283,38 +283,13 @@ public final class ClassTransformer {
         JarFile jarFile = null;
 
         try {
-            JarEntry manifest = new JarEntry(JarFile.MANIFEST_NAME);
-            boolean doTransform = true;
-
             jarFile = new JarFile(archiveFile);
             byteArrayOutputStream = new ByteArrayOutputStream();
             archiveFileInputStream = new FileInputStream(archiveFile);
             jarInputStream = new JarInputStream(archiveFileInputStream);
             jarOutputStream = new JarOutputStream(byteArrayOutputStream);
 
-            jarOutputStream.putNextEntry(manifest);
-
-            Manifest realManifest = jarFile.getManifest();
-            if (realManifest != null) {
-                realManifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
-
-                Map<String, Attributes> entries = realManifest.getEntries();
-                for (String entryKey : entries.keySet()) {
-                    Attributes attrs = realManifest.getAttributes(entryKey);
-                    for (Object attr : attrs.keySet()) {
-                        String attrKeyName = attr.toString();
-                        if (MANIFEST_SHA1_DIGEST_KEY.equals(attrKeyName) ||
-                                MANIFEST_SHA_256_DIGEST_KEY.equals(attrKeyName)) {
-                            doTransform = false;
-                        }
-                    }
-                }
-
-                realManifest.write(jarOutputStream);
-            }
-
-            jarOutputStream.flush();
-            jarOutputStream.closeEntry();
+            boolean doTransform = verifyAndWriteManifest(jarFile, jarOutputStream);
 
             if (!doTransform) {
                 log.info("[ClassTransformer] Skipping instrumentation of signed jar [" + archiveFile.getPath() + "]");
@@ -396,6 +371,47 @@ public final class ClassTransformer {
         return didProcessArchive;
     }
 
+    public boolean verifyManifest(JarFile jarFile) throws IOException {
+        Manifest realManifest = jarFile.getManifest();
+
+        if (realManifest != null) {
+
+            Map<String, Attributes> entries = realManifest.getEntries();
+            for (String entryKey : entries.keySet()) {
+                Attributes attrs = realManifest.getAttributes(entryKey);
+                for (Object attr : attrs.keySet()) {
+                    String attrKeyName = attr.toString();
+                    if (MANIFEST_SHA1_DIGEST_KEY.equals(attrKeyName) ||
+                            MANIFEST_SHA_256_DIGEST_KEY.equals(attrKeyName)) {
+                        return false;
+                    }
+                }
+            }
+
+            realManifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
+        }
+
+        return true;
+    }
+
+    public boolean verifyAndWriteManifest(JarFile jarFile, JarOutputStream jarOutputStream) throws IOException {
+        if (!verifyManifest(jarFile)) {
+            return false;
+        }
+
+        Manifest manifest = jarFile.getManifest();
+        if (manifest == null) {
+            manifest = new Manifest();
+            JarEntry manifestJarEntry = new JarEntry(JarFile.MANIFEST_NAME);
+            manifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
+            jarOutputStream.putNextEntry(manifestJarEntry);
+            jarOutputStream.flush();
+            jarOutputStream.closeEntry();
+        }
+
+        return true;
+    }
+
     public ClassTransformer asIdentityTransform(boolean identityTransform) {
         this.identityTransform = identityTransform;
         return this;
@@ -462,4 +478,5 @@ public final class ClassTransformer {
         }
     }
 
+    // boolean verifyAndWriteManifest()
 }
