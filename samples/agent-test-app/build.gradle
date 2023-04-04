@@ -83,6 +83,7 @@ wrapper {
 }
 
 android {
+    namespace "com.newrelic.agent.android.testapp"
     compileSdkVersion versions.agp.compileSdk
 
     defaultConfig {

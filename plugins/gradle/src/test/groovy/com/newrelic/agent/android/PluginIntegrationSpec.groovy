@@ -22,9 +22,9 @@ class PluginIntegrationSpec extends Specification {
     static final buildDir = new File(projectRootDir, "build")
 
     // update as needed
-    static final agentVersion = System.getProperty("newrelic.agent.version", '6.+')
-    static final agpVersion = "7.1.0"
-    static final gradleVersion = "7.2"
+    static final agentVersion = System.getProperty("newrelic.agent.version", '7.+')
+    static final agpVersion = "8.+"
+    static final gradleVersion = "8.0.1"
 
     def extensionsFile = new File(projectRootDir, "nr-extension.gradle")
 
@@ -102,6 +102,38 @@ class PluginIntegrationSpec extends Specification {
     @IgnoreRest
     def "build the test app"() {
         expect: "the test app was built"
+        with(buildResult) {
+            with(task(":clean")) {
+                outcome == SUCCESS || outcome == UP_TO_DATE
+            }
+            with(task(":$testTask")) {
+                outcome == SUCCESS
+            }
+
+            filteredOutput.contains("Android Gradle plugin version:")
+            filteredOutput.contains("Gradle version:")
+            filteredOutput.contains("Java version:")
+        }
+    }
+
+    @IgnoreRest
+    def "verify AGP8"() {
+        final agp8Version = "8.0.0-beta05"
+        final gradle8Version = "8.0.2"
+
+        given: "Apply AGP8"
+        def runner = provideRunner()
+                .withGradleVersion(gradle8Version)
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agp8Version}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "clean", testTask)
+
+        when: "run the build"
+        buildResult = runner.build()
+
+        then:
         with(buildResult) {
             with(task(":clean")) {
                 outcome == SUCCESS || outcome == UP_TO_DATE
@@ -600,23 +632,6 @@ class PluginIntegrationSpec extends Specification {
             !filteredOutput.contains("Excluding instrumentation of variant [release]")
             filteredOutput.contains("Map upload ignored for variant[debug]")
         }
-    }
-
-    def "verify AGP8"() {
-        given: "Apply AGP8"
-        def runner = provideRunner()
-                .withGradleVersion("7.5.1")
-                .withArguments(
-                        "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=7.4.+",
-                        "-PagentRepo=${localEnv["M2_REPO"]}",
-                        "clean")
-
-        when: "run the build"
-        buildResult = runner.build()
-
-        then:
-        buildResult.output.contains("FIXME")
     }
 
     def cleanup() {
