@@ -23,8 +23,8 @@ class PluginIntegrationSpec extends Specification {
 
     // update as needed
     static final agentVersion = System.getProperty("newrelic.agent.version", '7.+')
-    static final agpVersion = "8.+"
-    static final gradleVersion = "8.0.1"
+    static final agpVersion = "8.0.+"
+    static final gradleVersion = "8.0.2"
 
     def extensionsFile = new File(projectRootDir, "nr-extension.gradle")
 
@@ -75,18 +75,19 @@ class PluginIntegrationSpec extends Specification {
                     }
                 }
                 localEnv.put("M2_REPO", m2.getAbsolutePath())
-            } catch (Exception e) {
-                e
+            } catch (Exception ignored) {
             }
         }
 
         and: "create the build runner"
         def runner = provideRunner()
-                .withArguments(// "--debug",
+                .withArguments("--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PwithProductFlavors=true",
+                        "--stacktrace",
                         "clean",
                         testTask)
 
@@ -99,7 +100,6 @@ class PluginIntegrationSpec extends Specification {
         }
     }
 
-    @IgnoreRest
     def "build the test app"() {
         expect: "the test app was built"
         with(buildResult) {
@@ -117,37 +117,6 @@ class PluginIntegrationSpec extends Specification {
     }
 
     @IgnoreRest
-    def "verify AGP8"() {
-        final agp8Version = "8.0.0-beta05"
-        final gradle8Version = "8.0.2"
-
-        given: "Apply AGP8"
-        def runner = provideRunner()
-                .withGradleVersion(gradle8Version)
-                .withArguments(
-                        "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=${agp8Version}",
-                        "-PagentRepo=${localEnv["M2_REPO"]}",
-                        "clean", testTask)
-
-        when: "run the build"
-        buildResult = runner.build()
-
-        then:
-        with(buildResult) {
-            with(task(":clean")) {
-                outcome == SUCCESS || outcome == UP_TO_DATE
-            }
-            with(task(":$testTask")) {
-                outcome == SUCCESS
-            }
-
-            filteredOutput.contains("Android Gradle plugin version:")
-            filteredOutput.contains("Gradle version:")
-            filteredOutput.contains("Java version:")
-        }
-    }
-
     def "verify NewRelicConfig was injected"() {
         expect:
         testVariants.each { var ->
@@ -631,6 +600,37 @@ class PluginIntegrationSpec extends Specification {
             filteredOutput.contains("Excluding instrumentation of variant [debug]")
             !filteredOutput.contains("Excluding instrumentation of variant [release]")
             filteredOutput.contains("Map upload ignored for variant[debug]")
+        }
+    }
+
+    def "verify AGP8"() {
+        final agp8Version = "8.0.0-beta05"
+        final gradle8Version = "8.0.2"
+
+        given: "Apply AGP8"
+        def runner = provideRunner()
+                .withGradleVersion(gradle8Version)
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agp8Version}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "clean", testTask)
+
+        when: "run the build"
+        buildResult = runner.build()
+
+        then:
+        with(buildResult) {
+            with(task(":clean")) {
+                outcome == SUCCESS || outcome == UP_TO_DATE
+            }
+            with(task(":$testTask")) {
+                outcome == SUCCESS
+            }
+
+            filteredOutput.contains("Android Gradle plugin version:")
+            filteredOutput.contains("Gradle version:")
+            filteredOutput.contains("Java version:")
         }
     }
 

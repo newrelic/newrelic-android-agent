@@ -10,6 +10,7 @@ import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.util.BuildId
 import org.gradle.api.DefaultTask
+import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
@@ -24,7 +25,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
     @Input
     abstract Property<String> getVariantName()
 
-    @Input
+    @InputDirectory
     abstract DirectoryProperty getProjectRoot()
 
     @Input
@@ -34,7 +35,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
     abstract Property<String> getMapProvider()    // [proguard, r8, dexguard]
 
     @InputFile
-    abstract RegularFileProperty getMappingFile()
+    abstract RegularFileProperty getTaggedMappingFile()
 
     @InputFiles
     @Optional
@@ -62,9 +63,9 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
                 return
             }
 
-            if (mappingFile.isPresent()) {
+            if (taggedMappingFile.isPresent()) {
                 // we know where map should be (Gradle tells us)
-                def mapFilePath = mappingFile.get().getAsFile()
+                def mapFilePath = taggedMappingFile.get().getAsFile()
 
                 if (mapFilePath?.exists()) {
                     logger.debug("Map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
@@ -93,4 +94,28 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
         return NewRelicGradlePlugin.LOGGER
     }
 
+    static def getDependentTaskNames(final Project project, String variantNameCap) {
+        def taskSet = project.objects.setProperty(String)
+
+        taskSet.addAll([
+                "minify${variantNameCap}WithProguard",
+                "minify${variantNameCap}WithR8",
+
+                "transformClassesAndResourcesWithProguardFor${variantNameCap}",
+                "transformClassesAndResourcesWithR8For${variantNameCap}",
+
+                // FIXME Upload task can't really be dependent on all these
+                "write${variantNameCap}AppMetadata",
+                "merge${variantNameCap}Assets",
+                "compile${variantNameCap}ArtProfile",
+                "compress${variantNameCap}Assets",
+                "lintVitalReport${variantNameCap}",
+                "create${variantNameCap}ApkListingFileRedirect",
+                "extract${variantNameCap}NativeSymbolTables",
+                "merge${variantNameCap}NativeDebugMetadata",
+                "process${variantNameCap}Resources",
+        ])
+
+        taskSet
+    }
 }

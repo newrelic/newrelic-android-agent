@@ -9,18 +9,16 @@ import com.android.build.api.variant.AndroidComponentsExtension
 import com.android.build.gradle.AppExtension
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
-import com.newrelic.agent.util.BuildId
 import groovy.json.JsonOutput
 import org.gradle.api.BuildCancelledException
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.UnknownTaskException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
 import org.gradle.api.plugins.ExtraPropertiesExtension
 import org.gradle.api.plugins.UnknownPluginException
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.util.GradleVersion
 
@@ -76,7 +74,7 @@ class BuildHelper {
     static final AtomicReference<BuildHelper> INSTANCE = new AtomicReference<BuildHelper>(null)
 
     static BuildHelper register(Project project) {
-        BuildHelper.INSTANCE.compareAndSet(null, new BuildHelper(project))
+        INSTANCE.compareAndSet(null, new BuildHelper(project))
         return INSTANCE.get()
     }
 
@@ -110,13 +108,15 @@ class BuildHelper {
             throw new UnknownPluginException("The New Relic agent plugin depends on the Android plugin." + NEWLN +
                     "Please apply an Android plugin before the New Relic agent: " + NEWLN +
                     "plugins {" + NEWLN +
-                    "   id 'com.android.[application, library, feature, dynamic-feature]'" + NEWLN +
+                    "   id 'com.android.[application, library]'" + NEWLN +
                     "   id 'newrelic'" + NEWLN +
                     "}")
         }
 
+        def (_, tag, fullAgpVersion) = (getAndroidComponentsExtension().getPluginVersion() =~ /^(Android Gradle Plugin version )(.*)$/)[0]
+
         if (GradleVersion.version(getAgpVersion()) < GradleVersion.version(BuildHelper.minSupportedAGPVersion)) {
-            throw new UnknownPluginException("The New Relic plugin is not compatible with Android Gradle plugin version ${agpVersion}."
+            throw new UnknownPluginException("The New Relic plugin is not compatible with Android Gradle plugin version ${fullAgpVersion}."
                     + NEWLN
                     + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported.")
         }
@@ -124,7 +124,7 @@ class BuildHelper {
         if (GradleVersion.version(getAgpVersion()) > GradleVersion.version(BuildHelper.currentSupportedAGPVersion)) {
             def enableWarning = hasOptional(BuildHelper.PROP_WARNING_AGP, true).toString().toLowerCase()
             if ((enableWarning != 'false') && (enableWarning != '0')) {
-                warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${getAgpVersion()}."
+                warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${fullAgpVersion}."
                         + NEWLN
                         + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported."
                         + NEWLN
@@ -264,22 +264,23 @@ class BuildHelper {
         project.rootProject.hasProperty(key) ? project.rootProject[key] : defaultValue
     }
 
-    def buildMetrics() {
+    def getBuildMetrics() {
         [
                 agent      : agentVersion,
                 agp        : agpVersion,
                 gradle     : gradleVersion,
                 java       : getSystemPropertyProvider('java.version').get(),
-                //  kotlin     : getSystemPropertyProvider('kotlin.version').get(),
+                //      kotlin     : getSystemPropertyProvider('kotlin.version').get(),
                 dexguard   : [enabled: dexguardHelper.enabled, version: dexguardHelper.currentVersion],
                 configCache: [supported: configurationCacheSupported(), enabled: configurationCacheEnabled()],
+                variants   : variantAdapter.getBuildMetrics()
         ]
     }
 
-    String buildMetricsAsJson() {
+    String getBuildMetricsAsJson() {
         try {
             // JsonOutput.toJson(buildMetrics().toMapString())
-            JsonOutput.toJson(buildMetrics())
+            JsonOutput.toJson(getBuildMetrics())
         } catch (Throwable) {
             ""
         }
@@ -350,88 +351,47 @@ class BuildHelper {
         return Proguard.Provider.DEFAULT
     }
 
-    // Shared between this class and DexGuardHelper:
-    void wiredWithMapUploadFinalizer(Task targetTask, String variantName, Closure closure) {
-        try {
-            def targetNameCap = targetTask.getName().capitalize()
-            def variantNameCap = variantName.capitalize()
-            def mapUploadTaskName = "${NewRelicMapUploadTask.NAME}${variantNameCap}"
+    SetProperty<Task> getTaskSetFromNames(SetProperty<String> taskNameSet) {
+        def taskSet = project.objects.setProperty(Task)
 
-            // FIXME code smell
-            project.tasks.named(mapUploadTaskName, NewRelicMapUploadTask.class).configure { mapUploadTask ->
-                try {
-                    targetTask.flatmap({ mapUploadTask.getMappingFile() })
-
-                    // update the map file iif needed
-                    if (closure) {
-                        mapUploadTask.mappingFile.set(closure(mapUploadTask.mappingFile.getAsFile().get()))
-                    }
-
-                } catch (Exception e) {
-                    mapUploadTask.buildId = BuildId.getBuildId(variantName)
-                    logger.error("wiredWithMapUploadFinalizer: $e")
-                }
-
-                // FIXME mapUploadTask.dependsOn targetTask
-            }
-
-            // FIXME targetTask.finalizedBy mapUploadTaskProvider
-
-        } catch (Exception e) {
-            // task for this variant not available or other configuration error
-            logger.error("wiredWithMapUploadFinalizer: $e")
-        }
-    }
-
-    void wiredWithTaskProvider(TaskProvider targetTaskProvider, String variantName) {
-        try {
-            targetTaskProvider.configure { targetTask ->
-                wiredWithMapUploadFinalizer(targetTask.name, variantName, { File mappingFile ->
-                    logger.debug("wiredWithTaskFinalizers: Task[${targetTask.name}] is finalized by NewRelicMapUploadTask[${mappingFile}]")
-                    mappingFile
-                })
-            }
-        } catch (UnknownTaskException ignored) {
-            // task for this variant not available
-        }
-    }
-
-    void wiredWithTaskFinalizers(String targetTaskName, String variantName) {
-        try {
-            def provider = project.tasks.named(targetTaskName)
-            wiredWithTaskProvider(provider, variantName)
-        } catch (UnknownTaskException ignored) {
-            // task for this variant not available
-        }
-    }
-
-    ListProperty<TaskProvider> getMapUploadTaskDependencies(def variantName) {
-        def taskList = project.objects.listProperty(TaskProvider)
-
-        getMapUploadTaskNameDependencies(variantName).each { taskName ->
+        taskNameSet.get().each { taskName ->
             try {
-                taskList.add(project.tasks.named(taskName))
-            } catch (UnknownTaskException ignored) {
+                // FIXME
+                project.tasks.named(taskName).get().with { task ->
+                    taskSet.add(task)
+                }
+            } catch (Exception ignored) {
+                ignored
             }
         }
 
-        taskList
+        taskSet
     }
 
-    ListProperty<String> getMapUploadTaskNameDependencies(variantName) {
-        def buildType = variantAdapter.getBuildTypeProvider(variantName)
-        def taskList = project.objects.listProperty(String)
+    def wireDependencyTaskNamesToProvider(TaskProvider taskProvider, SetProperty<String> taskNames) {
+        return wireDependencyTaskSetToProvider(taskProvider, getTaskSetFromNames(taskNames))
+    }
 
-        if (buildType.getOrElse(true).minified) {
-            [DEX_PROGUARD, DEX_R8].each { dexName ->
-                ["transformClassesAndResourcesWith${dexName.capitalize()}For${variantName.capitalize()}",
-                 "minify${variantName.capitalize()}With${dexName.capitalize()}"].each { taskName ->
-                    taskList.add(taskName)
-                }
+    def wireDependencyTaskSetToProvider(TaskProvider taskProvider, SetProperty<Task> dependencyTasks) {
+        try {
+            // FIXME
+            project.tasks.named(taskProvider.name).get().with { task ->
+                wireDependencyTaskSetToTask(task, dependencyTasks)
             }
+        } catch (Exception ignored) {
+            ignored
         }
+    }
 
-        taskList
+    def wireDependencyTaskSetToTask(Task task, SetProperty<Task> dependencyTasks) {
+        try {
+            dependencyTasks.get().each { dependencyTask ->
+                dependencyTask.finalizedBy(task)
+                task.dependsOn(dependencyTask)
+            }
+        } catch (Exception ignored) {
+            ignored
+        }
     }
 
 }

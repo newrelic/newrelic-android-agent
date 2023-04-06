@@ -7,6 +7,7 @@ package com.newrelic.agent.android
 
 import com.newrelic.agent.InstrumentationAgent
 import org.gradle.api.DefaultTask
+import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
@@ -35,7 +36,7 @@ abstract class NewRelicConfigTask extends DefaultTask {
     @TaskAction
     def newRelicConfigTask() {
         try {
-            def f = getSourceOutputDir().file(CONFIG_CLASS).get().asFile
+            def f = sourceOutputDir.file(CONFIG_CLASS).get().asFile
 
             f.with {
                 parentFile.mkdirs()
@@ -65,4 +66,17 @@ abstract class NewRelicConfigTask extends DefaultTask {
     Logger getLogger() {
         return NewRelicGradlePlugin.LOGGER
     }
+
+    static def getDependentTaskNames(final Project project, String variantNameCap) {
+        def taskSet = project.objects.setProperty(String)
+
+        taskSet.addAll([
+                "javaPreCompile${variantNameCap}",
+                "compile${variantNameCap}JavaWithJavac",
+                "compile${variantNameCap}Kotlin"
+        ])
+
+        taskSet
+    }
+
 }

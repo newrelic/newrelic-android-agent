@@ -25,8 +25,10 @@ abstract class NewRelicExtension {
      * or product flavow
      */
     protected final List<String> variantExclusionList = []              // ['Debug', 'staging']
-    protected final List<String> variantMapUploadList = ['release']     // ['Release', 'ProdRelease', 'Staging']
-    protected final List<String> packageExclusionList = []              // ['android.*', 'androidx.*']
+    protected final List<String> variantMapUploadList = ['release']
+    // ['Release', 'ProdRelease', 'Staging']
+    protected final List<String> packageExclusionList = []
+    // ['android.*', 'androidx.*']
 
     Property<Boolean> enabled
     Property<Boolean> instrumentTests
@@ -148,7 +150,7 @@ abstract class NewRelicExtension {
         variantConfigurations.findByName(variantName.toLowerCase())?.with {
             return instrument
         }
-        return variantExclusionList.contains(variantName.toLowerCase())
+        return !variantExclusionList.findAll { variantName == it || variantName.endsWith(it.capitalize()) }.empty
     }
 
     boolean shouldIncludeVariant(String variantName) {
@@ -156,7 +158,7 @@ abstract class NewRelicExtension {
     }
 
     boolean shouldInstrumentTests() {
-        return instrumentTests.get()
+        return false    // FIXME instrumentTests.get()
     }
 
     boolean shouldIncludeMapUpload(String variantName) {

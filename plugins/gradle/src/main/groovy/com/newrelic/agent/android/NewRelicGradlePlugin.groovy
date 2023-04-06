@@ -38,7 +38,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         buildHelper = BuildHelper.register(project)
 
         project.configure(project) {
-            def agentArgs = parseLegacyAgentArgs(buildHelper.project)
+            def agentArgs = parseLegacyAgentArgs(project)
 
             // Gradle now has a complete task execution graph for the requested tasks
             if (pluginExtension.getEnabled()) {
@@ -105,7 +105,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             throw new PluginException("DexGuard is not yet supported in this version of the New Relic Android Gradle plugin. Sit tight, it won't be long!")
         }
 
-        LOGGER.info("BuildMetrics[${buildHelper.buildMetrics().toMapString()}]")
+        LOGGER.info("BuildMetrics[${buildHelper.getBuildMetrics().toMapString()}]")
     }
 
     private def parseLegacyAgentArgs(Project project) {
