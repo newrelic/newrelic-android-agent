@@ -212,7 +212,7 @@ class BuildHelperTest extends PluginTest {
 
     @Test
     void buildMetrics() {
-        def metrics = buildHelper.buildMetrics()
+        def metrics = buildHelper.getBuildMetrics()
         Assert.assertEquals(6, metrics.size())
         Assert.assertTrue(metrics.containsKey("agent"))
         Assert.assertTrue(metrics.containsKey("agp"))
@@ -224,7 +224,7 @@ class BuildHelperTest extends PluginTest {
 
     @Test
     void buildMetricsAsJson() {
-        def jsonStr = buildHelper.buildMetricsAsJson()
+        def jsonStr = buildHelper.getBuildMetricsAsJson()
         Assert.assertNotNull(jsonStr)
 
         def jsonObj = new JsonSlurper().parseText(jsonStr)

@@ -32,7 +32,7 @@ buildscript {
         agentRepo = hasOptional('agentRepo', null)
 
         versions = [
-                gradle: '7.2.1',
+                gradle: hasOptional("newrelic.gradle.version", "7.2.1"),
 
                 agp     : [
                         plugin    : hasOptional('newrelic.agp.version', "4.2.1"),

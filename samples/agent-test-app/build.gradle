@@ -62,6 +62,8 @@ repositories {
     google()
 }
 
+
+logger.quiet "[newrelic] [agent-test-app] Gradle version [${GradleVersion.current()}]"
 logger.quiet "[newrelic] [agent-test-app] AGP plugin version [${versions.agp.plugin}]"
 logger.quiet "[newrelic] [agent-test-app] withProductFlavors[${project.withProductFlavors.toBoolean()}]"
 logger.quiet "[newrelic] [agent-test-app] using dex compiler[$project.compiler]"
@@ -131,6 +133,7 @@ android {
                     minifyEnabled minify.toBoolean()
                 }
                 qa {
+                    proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
                     minifyEnabled minify.toBoolean()
                 }
                 release {
@@ -141,7 +144,7 @@ android {
         }
     }
 
-    if (withProductFlavors.toBoolean()) {
+    if (withProductFlavors && withProductFlavors.toBoolean()) {
         flavorDimensions "aosp"
         productFlavors {
             google {
@@ -200,7 +203,7 @@ if (project.plugins.hasPlugin("dexguard")) {
 // NewRelic agent
 //
 
-if (project.applyPlugin) {
+if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
     apply plugin: 'newrelic'
 }
 

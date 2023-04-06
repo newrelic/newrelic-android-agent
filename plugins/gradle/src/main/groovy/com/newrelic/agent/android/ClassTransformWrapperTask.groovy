@@ -6,7 +6,6 @@
 package com.newrelic.agent.android
 
 import com.newrelic.agent.compile.ClassTransformer
-import com.newrelic.agent.util.FileUtils
 import groovy.io.FileType
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.Directory
@@ -30,17 +29,16 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
     @Optional
     abstract ListProperty<RegularFile> getClassJars();
 
-    @OutputFiles
-    abstract RegularFileProperty getOutput();
+    @OutputFile
+    abstract RegularFileProperty getOutputJar();
 
     @TaskAction
     void transformClasses() {
         long tStart = System.currentTimeMillis()
         def transformer = new ClassTransformer()
-        def outputFile = output.get().getAsFile()
+        def outputFile = outputJar.get().getAsFile()
 
-        logger.debug("[TransformTask] ${NAME} Starting")
-        logger.debug("[TransformTask] Output[${outputFile.getAbsolutePath()}]")
+        logger.debug("[TransformTask]  ${NAME} starting: Task[${getName()}] Output[${outputFile.getAbsolutePath()}]")
 
         try (def outputFileStream = new FileOutputStream(outputFile);
              def bufferedOutputStream = new BufferedOutputStream(outputFileStream)) {
@@ -50,24 +48,20 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                     directory.asFile.traverse(type: FileType.FILES) { classFile ->
                         String relativePath = directory.asFile.toURI().relativize(classFile.toURI()).getPath()
                         try {
-                            def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
-
-                            jarOutputStream.putNextEntry(jarEntry)
                             new FileInputStream(classFile).withCloseable { fileInputStream ->
-                                if (FileUtils.isClass(classFile)) {
-                                    transformer.processClassBytes(classFile, fileInputStream).withCloseable {
-                                        jarOutputStream << it
-                                    }
-                                } else {
-                                    jarOutputStream << fileInputStream
+                                // FIXME mark stream position for rewind
+                                // jarOutputStream.
+
+                                def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
+                                jarOutputStream.putNextEntry(jarEntry)
+                                // FIXME Pass output stream directly
+                                transformer.processClassBytes(classFile, fileInputStream).withCloseable {
+                                    jarOutputStream << it
                                 }
+                                jarOutputStream.closeEntry()
                             }
                         } catch (IOException ignored) {
-                            jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
-                                jarOutputStream << jarEntryInputStream
-                            }
-                        } finally {
-                            jarOutputStream.closeEntry()
+                            ignored
                         }
                     }
                 }
@@ -77,27 +71,25 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                         try {
                             def instrumentable = transformer.verifyManifest(jar)
 
-                            for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
-                                JarEntry jarEntry = e.nextElement()
+                            if (!instrumentable) {
+                                return;
+                            }
 
-                                if (FileUtils.isClass(jarEntry.name)) {
+                            for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
+
+                                if (instrumentable) {
                                     try {
+                                        JarEntry jarEntry = e.nextElement()
                                         jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
                                         jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
-                                            if (instrumentable) {
-                                                transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
-                                                    jarOutputStream << it
-                                                }
-                                            } else {
-                                                jarOutputStream << jarEntryInputStream
+                                            // FIXME Pass output stream directly
+                                            transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
+                                                jarOutputStream << it
                                             }
                                         }
-                                    } catch (IOException ignored) {
-                                        jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
-                                            jarOutputStream << jarEntryInputStream
-                                        }
-                                    } finally {
                                         jarOutputStream.closeEntry()
+                                    } catch (IOException ignored) {
+                                        ignored
                                     }
                                 }
                             }
