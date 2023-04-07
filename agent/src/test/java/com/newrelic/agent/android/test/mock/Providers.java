@@ -228,6 +228,7 @@ public class Providers {
         harvestConfiguration.setResponse_body_limit(1111);
         harvestConfiguration.setAccount_id("12345");
         harvestConfiguration.setApplication_id("app-token");
+        harvestConfiguration.setTrusted_account_key("33");
         return harvestConfiguration;
     }
 

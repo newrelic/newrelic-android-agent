@@ -38,7 +38,7 @@ public class TraceConfiguration extends HarvestAdapter {
     public TraceConfiguration(HarvestConfiguration harvestConfiguration) {
         this(harvestConfiguration.getAccount_id(),
                 harvestConfiguration.getApplication_id(),
-                TraceContext.TRACE_FIELD_UNUSED);
+                harvestConfiguration.getTrusted_account_key());
     }
 
     public TraceConfiguration() {
@@ -57,5 +57,6 @@ public class TraceConfiguration extends HarvestAdapter {
     void setConfiguration(HarvestConfiguration harvestConfiguration) {
         applicationId = harvestConfiguration.getApplication_id();
         accountId = harvestConfiguration.getAccount_id();
+        trustedAccountId = harvestConfiguration.getTrusted_account_key();
     }
 }

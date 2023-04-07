@@ -31,6 +31,7 @@ public class TracePayload implements TraceHeader {
     static final String APP_ID_KEY = "ap";
     static final String GUID_KEY = "id";
     static final String TRACE_ID_KEY = "tr";
+    static final String TRUST_ACCOUNT_KEY = "tk";
     static final String TIMESTAMP_KEY = "ti";
 
     static final String CALLER_TYPE = "Mobile";
@@ -70,6 +71,7 @@ public class TracePayload implements TraceHeader {
             data.add(TRACE_ID_KEY, new JsonPrimitive(traceContext.traceId));
             data.add(GUID_KEY, new JsonPrimitive(spanId));
             data.add(TIMESTAMP_KEY, new JsonPrimitive(timestampMs));
+            data.add(TRUST_ACCOUNT_KEY, new JsonPrimitive(traceContext.traceConfiguration.trustedAccountId));
 
             payload.add(VERSION_KEY, version);
             payload.add(DATA_KEY, data);

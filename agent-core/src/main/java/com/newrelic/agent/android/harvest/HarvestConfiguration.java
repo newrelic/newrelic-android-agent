@@ -27,6 +27,7 @@ public class HarvestConfiguration {
     private final static String DEFAULT_PRIORITY_ENCODING_KEY = "d67afc830dab717fd163bfcb0b8b88423e9a1a3b";
     private final static String DEFAULT_ACCOUNT_ID = "";
     private final static String DEFAULT_APP_ID = "";
+    private final static String DEFAULT_TRUSTED_ACCOUNT_KEY = "";
 
     @SerializedName("collect_network_errors")
     private boolean collect_network_errors;
@@ -62,6 +63,8 @@ public class HarvestConfiguration {
     private String account_id;
     @SerializedName("application_id")
     private String application_id;
+    @SerializedName("trusted_account_key")
+    private String trusted_account_key;
 
     private static HarvestConfiguration defaultHarvestConfiguration;
 
@@ -70,7 +73,7 @@ public class HarvestConfiguration {
     }
 
     public void setDefaultValues() {
-        setData_token(new int[]{0,0});
+        setData_token(new int[]{0, 0});
         setCollect_network_errors(true);
         setCross_process_id(null);
         setData_report_period(DEFAULT_REPORT_PERIOD);
@@ -86,6 +89,7 @@ public class HarvestConfiguration {
         setPriority_encoding_key(DEFAULT_PRIORITY_ENCODING_KEY);
         setAccount_id(DEFAULT_ACCOUNT_ID);
         setApplication_id(DEFAULT_APP_ID);
+        setTrusted_account_key(DEFAULT_TRUSTED_ACCOUNT_KEY);
     }
 
     public static HarvestConfiguration getDefaultHarvestConfiguration() {
@@ -123,6 +127,7 @@ public class HarvestConfiguration {
         setPriority_encoding_key(configuration.getPriority_encoding_key());
         setAccount_id(configuration.getAccount_id());
         setApplication_id(configuration.getApplication_id());
+        setTrusted_account_key(configuration.getTrusted_account_key());
     }
 
     public void setCollect_network_errors(boolean collect_network_errors) {
@@ -278,6 +283,18 @@ public class HarvestConfiguration {
         this.account_id = account_id;
     }
 
+    public String getTrusted_account_key() {
+
+        if (trusted_account_key == null) {
+            return "";
+        }
+        return trusted_account_key;
+    }
+
+    public void setTrusted_account_key(String trusted_account_key) {
+        this.trusted_account_key = trusted_account_key;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -306,6 +323,8 @@ public class HarvestConfiguration {
         if (application_id == null && that.application_id != null) return false;
         if (application_id != null && that.application_id == null) return false;
         if (application_id != null && !application_id.equals(that.application_id)) return false;
+        if (trusted_account_key != null && !trusted_account_key.equals(that.trusted_account_key))
+            return false;
 
         // Round the double value to 2 places.
         int thisMinUtil = (int) activity_trace_min_utilization * 100;
@@ -339,6 +358,7 @@ public class HarvestConfiguration {
         result = 31 * result + (account_id != null ? account_id.hashCode() : 0);
         result = 31 * result + (application_id != null ? application_id.hashCode() : 0);
         result = 31 * result + (priority_encoding_key != null ? priority_encoding_key.hashCode() : 0);
+        result = 31 * result + (trusted_account_key != null ? trusted_account_key.hashCode() : 0);
         return result;
     }
 
@@ -362,6 +382,7 @@ public class HarvestConfiguration {
                 ", priority_encoding_key=" + priority_encoding_key +
                 ", account_id=" + account_id +
                 ", application_id=" + application_id +
+                ", trusted_account_key=" + trusted_account_key +
                 '}';
     }
 }

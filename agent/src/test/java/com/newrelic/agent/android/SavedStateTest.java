@@ -5,6 +5,12 @@
 
 package com.newrelic.agent.android;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
@@ -20,12 +26,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = Config.OLDEST_SDK)
@@ -229,7 +229,7 @@ public class SavedStateTest {
         HarvestConfiguration harvestConfig = Providers.provideHarvestConfiguration();
 
         harvestConfig.setData_token(null);
-        savedState.getHarvestConfiguration().setData_token(new int[]{1,2});
+        savedState.getHarvestConfiguration().setData_token(new int[]{1, 2});
         savedState.saveHarvestConfiguration(harvestConfig);
         int[] dataToken = savedState.getDataToken();
         Assert.assertEquals(1, dataToken[0]);
@@ -241,6 +241,13 @@ public class SavedStateTest {
         savedState.saveHarvestConfiguration(Providers.provideHarvestConfiguration());
         Assert.assertEquals("Should contain cross-process id", "x-process-id", savedState.getCrossProcessId());
     }
+
+    @Test
+    public void testGetTrustedAccountKey() throws Exception {
+        savedState.saveHarvestConfiguration(Providers.provideHarvestConfiguration());
+        Assert.assertEquals("Should contain Trusted Account Key", "33", savedState.getTrustedAccountKey());
+    }
+
 
     @Test
     public void testIsCollectingNetworkErrors() throws Exception {

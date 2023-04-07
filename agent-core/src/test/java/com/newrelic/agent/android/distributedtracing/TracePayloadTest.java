@@ -69,7 +69,7 @@ public class TracePayloadTest extends TestCase {
 
             Assert.assertTrue(jsonObject.has(TracePayload.DATA_KEY));
             JsonObject data = jsonObject.get(TracePayload.DATA_KEY).getAsJsonObject();
-            Assert.assertEquals(6, data.entrySet().size());
+            Assert.assertEquals(7, data.entrySet().size());
             Assert.assertNotNull(data);
             Assert.assertEquals(TracePayload.CALLER_TYPE, data.get(TracePayload.PAYLOAD_TYPE_KEY).getAsString());
             Assert.assertEquals(traceContext.getTraceId(), data.get(TracePayload.TRACE_ID_KEY).getAsString());
@@ -83,6 +83,7 @@ public class TracePayloadTest extends TestCase {
             Assert.assertNull(data.get("d.tr"));
             Assert.assertNull(data.get("d.id"));
             Assert.assertNull(data.get("d.ti"));
+            Assert.assertNull(data.get("d.tk"));
 
         } catch (Exception e) {
             Assert.fail("Not a valid Json string");

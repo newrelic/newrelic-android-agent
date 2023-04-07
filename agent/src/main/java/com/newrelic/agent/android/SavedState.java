@@ -43,6 +43,7 @@ public class SavedState extends HarvestAdapter {
     private final String PREF_PRIORITY_ENCODING_KEY = "encoding_key";
     private final String PREF_ACCOUNT_ID = "account_id";
     private final String PREF_APPLICATION_ID = "application_id";
+    private final String PREF_TRUSTED_ACCOUNT_KEY = "trusted_account_key";
     private final String PREF_DATA_TOKEN = "dataToken";
     private final String PREF_DATA_TOKEN_EXPIRATION = "dataTokenExpiration";
     private final String PREF_CONNECT_HASH = "connectHash";
@@ -133,6 +134,7 @@ public class SavedState extends HarvestAdapter {
         save(PREF_PRIORITY_ENCODING_KEY, newConfiguration.getPriority_encoding_key());
         save(PREF_ACCOUNT_ID, newConfiguration.getAccount_id());
         save(PREF_APPLICATION_ID, newConfiguration.getApplication_id());
+        save(PREF_TRUSTED_ACCOUNT_KEY, newConfiguration.getTrusted_account_key());
 
         saveActivityTraceMinUtilization((float) newConfiguration.getActivity_trace_min_utilization());
 
@@ -189,6 +191,11 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_PRIORITY_ENCODING_KEY)) {
             configuration.setPriority_encoding_key(getPriorityEncodingKey());
         }
+
+        if (has(PREF_TRUSTED_ACCOUNT_KEY)) {
+            configuration.setTrusted_account_key(getTrustedAccountKey());
+        }
+
 
         log.info("Loaded configuration: " + configuration);
     }
@@ -478,6 +485,10 @@ public class SavedState extends HarvestAdapter {
 
     public String getApplicationId() {
         return getString(PREF_APPLICATION_ID);
+    }
+
+    public String getTrustedAccountKey() {
+        return getString(PREF_TRUSTED_ACCOUNT_KEY);
     }
 
     public boolean isCollectingNetworkErrors() {
