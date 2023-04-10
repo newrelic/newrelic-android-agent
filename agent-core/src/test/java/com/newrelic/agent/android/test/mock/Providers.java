@@ -278,6 +278,7 @@ public class Providers {
         harvestConfiguration.setActivity_trace_min_utilization(0.3333);
         harvestConfiguration.setServer_timestamp(9876543210L);
         harvestConfiguration.setResponse_body_limit(1111);
+        harvestConfiguration.setTrusted_account_key("33");
         return harvestConfiguration;
     }
 
