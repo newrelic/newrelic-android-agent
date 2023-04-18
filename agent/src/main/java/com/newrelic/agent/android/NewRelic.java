@@ -351,7 +351,8 @@ public final class NewRelic {
      * return true.
      */
     private boolean isInstrumented() {
-        return false;
+        log.info("isInstrumented: checking for Mono instrumentation flag - " + Agent.getMonoInstrumentationFlag());
+        return Agent.getMonoInstrumentationFlag().equals("YES");
     }
 
     /****** Public APIs ******/

@@ -16,6 +16,7 @@ import java.util.List;
 
 public class Agent {
     public static final String VERSION = "#VERSION#";
+    public static final String MONO_INSTRUMENTATION_FLAG = "#MONO_INSTRUMENTATION_FLAG#";
     public static final String DEFAULT_BUILD_ID = "#DEFAULT_BUILD_ID#";
 
     private static final AgentImpl NULL_AGENT_IMPL = new NullAgentImpl();
@@ -44,21 +45,29 @@ public class Agent {
         return VERSION;
     }
 
+    public static String getMonoInstrumentationFlag() {
+        return MONO_INSTRUMENTATION_FLAG;
+    }
+
     public static String getBuildId() {
 
         synchronized (implLock) {
             if (buildId == null) {
                 String build_id = "";
 
-                try {
-                    // Since we're not in Android land, we cant't check
-                    // the SDK build level before making the call
-                    ClassLoader classLoader = Agent.class.getClassLoader();
-                    Class newRelicConfigClass = classLoader.loadClass("com.newrelic.agent.android.NewRelicConfig");
-                    build_id = newRelicConfigClass.getDeclaredField("BUILD_ID").get(null).toString();
-                } catch (Exception e) {
-                    AgentLogManager.getAgentLog().error("Agent.getBuildId() was unable to find a valid build Id. " +
-                            "Crashes and handled exceptions will not be accepted.");
+                if (getMonoInstrumentationFlag().equals("YES")) {
+                    build_id = DEFAULT_BUILD_ID;
+                } else {
+                    try {
+                        // Since we're not in Android land, we cant't check
+                        // the SDK build level before making the call
+                        ClassLoader classLoader = Agent.class.getClassLoader();
+                        Class newRelicConfigClass = classLoader.loadClass("com.newrelic.agent.android.NewRelicConfig");
+                        build_id = newRelicConfigClass.getDeclaredField("BUILD_ID").get(null).toString();
+                    } catch (Exception e) {
+                        AgentLogManager.getAgentLog().error("Agent.getBuildId() was unable to find a valid build Id. " +
+                                "Crashes and handled exceptions will not be accepted.");
+                    }
                 }
 
                 buildId = build_id;
