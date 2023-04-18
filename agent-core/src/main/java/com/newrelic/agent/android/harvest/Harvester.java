@@ -612,6 +612,7 @@ public class Harvester {
             for (HarvestLifecycleAware harvestAware : getHarvestListeners()) {
                 harvestAware.onHarvest();
             }
+            AgentLogManager.uploadLog();
         } catch (Exception e) {
             log.error("Error in fireOnHarvest", e);
             AgentHealth.noticeException(e);
