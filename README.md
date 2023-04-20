@@ -58,22 +58,20 @@ Prior to building the agent, update the repo's submodules from the command line
 
 The Android agent requires the following tools to build:
 
-|Dependency|         Version         | |
-|----------|:-----------------------:|-----|
-|Java|     JDK 8 or higher     ||
-|Android Gradle Plugin|      4.1 or higher      |AGP 7 requires JDK 11|
-|Gradle|          6.7.1          |AGP 7 requires Gradle 7 or higher|
-|NDK| 21.4.7075529 or higher  ||
-|CMake|          3.18           ||
-|minSDK|           24            ||
-|NDK| 21.4.7075529 or higher  ||
-|Cmake|    3.18.1 or higher     ||
+|Dependency|        Version         |                                             |
+|----------|:----------------------:|---------------------------------------------|
+|Java|    JDK 11 or higher    ||
+|Android Gradle Plugin|     7.0 or higher      | AGP 7 requires JDK 11, AGP 8 requires JDK 17 |
+|Gradle|    7.0.2 or higher     | AGP 8 requires Gradle 8 or higher           |
+|minSDK|           24           ||
+|NDK| 21.4.7075529 or higher ||
+|Cmake|    3.18.1 or higher    ||
 
 Tool dependencies must to be installed and configured for your environment prior to building.
 
 ### JDK
 
-The Android agent requires JDK 8 or higher to build. If used, `JAVA_HOME` should be set to this JDK version.
+The Android agent requires JDK 11 or higher to build. If used, `JAVA_HOME` should be set to this JDK version.
 
 ### Gradle 
 To build the `android-agent` JAR, run the following command from the project root directory:
@@ -127,11 +125,19 @@ The agent uses JUnit, Mockito and Robolectric to mock and test agent functionali
 | `instrumentation`| file://instrumentation/build/reports/tests/test/index.html  |
 
 ### `Integration Tests`
-
 | Module           |Reports|
 |------------------|---|
 | `plugins:gradle` |file://plugins/gradle/build/reports/tests/test/index.html|
 
+```./gradlew :plugins:gradle:check -P integrationTests```
+
+
+### `Integration Tests`
+| Module           |Reports|
+|------------------|---|
+| `plugins:gradle` |file://plugins/gradle/build/reports/tests/test/index.html|
+
+```./gradlew :plugins:gradle:check -P regressionTests```
 
 # Static Analysis Reports
 | Module |Reports|
@@ -141,12 +147,12 @@ The agent uses JUnit, Mockito and Robolectric to mock and test agent functionali
 
 # Coverage Reports 
 
-|Module|Reports|
-|---|---|
-|`agent`||
-|`agent-core`||
-|`instrumentation`||
-|`plugin`||
+|Module| Reports |
+|---|-----|
+|`agent`| tba |
+|`agent-core`| tba |
+|`instrumentation`| tba |
+|`plugin`| tba |
 
 
 # Debugging the agent

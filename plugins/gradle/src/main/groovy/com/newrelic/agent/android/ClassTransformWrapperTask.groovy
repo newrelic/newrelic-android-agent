@@ -9,6 +9,7 @@ import com.newrelic.agent.compile.ClassTransformer
 import groovy.io.FileType
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.Directory
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
@@ -20,17 +21,22 @@ import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
 
 abstract class ClassTransformWrapperTask extends DefaultTask {
-    final static String NAME = "newrelicTransform"
+    final static String NAME = "newrelicTransformClassesFor"
 
     @InputFiles
     abstract ListProperty<Directory> getClassDirectories();
+
+    @OutputFile
+    @Optional
+    abstract RegularFileProperty getOutputJar();
 
     @InputFiles
     @Optional
     abstract ListProperty<RegularFile> getClassJars();
 
-    @OutputFile
-    abstract RegularFileProperty getOutputJar();
+    @OutputFiles
+    @Optional
+    abstract DirectoryProperty getOutputDirectory();
 
     @TaskAction
     void transformClasses() {
@@ -44,21 +50,22 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
              def bufferedOutputStream = new BufferedOutputStream(outputFileStream)) {
 
             new JarOutputStream(bufferedOutputStream).withCloseable { jarOutputStream ->
+
                 classDirectories.get().forEach { directory ->
                     directory.asFile.traverse(type: FileType.FILES) { classFile ->
                         String relativePath = directory.asFile.toURI().relativize(classFile.toURI()).getPath()
                         try {
                             new FileInputStream(classFile).withCloseable { fileInputStream ->
-                                // FIXME mark stream position for rewind
-                                // jarOutputStream.
 
+                                /* JAR? */
                                 def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
                                 jarOutputStream.putNextEntry(jarEntry)
-                                // FIXME Pass output stream directly
                                 transformer.processClassBytes(classFile, fileInputStream).withCloseable {
                                     jarOutputStream << it
                                 }
                                 jarOutputStream.closeEntry()
+                                /* ELSE */
+
                             }
                         } catch (IOException ignored) {
                             ignored
@@ -76,18 +83,18 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                             }
 
                             for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
-
                                 if (instrumentable) {
                                     try {
+                                        /* JAR? */
                                         JarEntry jarEntry = e.nextElement()
                                         jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
                                         jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
-                                            // FIXME Pass output stream directly
                                             transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
                                                 jarOutputStream << it
                                             }
                                         }
                                         jarOutputStream.closeEntry()
+                                        /* ELSE */
                                     } catch (IOException ignored) {
                                         ignored
                                     }

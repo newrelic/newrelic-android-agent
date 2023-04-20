@@ -10,12 +10,9 @@ import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.util.BuildId
 import org.gradle.api.DefaultTask
-import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.*
 
@@ -36,10 +33,6 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
 
     @InputFile
     abstract RegularFileProperty getTaggedMappingFile()
-
-    @InputFiles
-    @Optional
-    abstract ListProperty<RegularFile> getMappingFiles()
 
     @TaskAction
     def newRelicMapUploadTask() {
@@ -94,26 +87,25 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
         return NewRelicGradlePlugin.LOGGER
     }
 
-    static def getDependentTaskNames(final Project project, String variantNameCap) {
-        def taskSet = project.objects.setProperty(String)
+    static Set<String> getDependentTaskNames(String variantNameCap) {
+        def taskSet = [] as Set
 
         taskSet.addAll([
+                "create${variantNameCap}ApkListingFileRedirect",
+                "lintVital${variantNameCap}",
+                "lintVitalAnalyze${variantNameCap}",
+                "lintVitalReport${variantNameCap}",
+                "merge${variantNameCap}Assets",
+                "merge${variantNameCap}NativeDebugMetadata",
+                "package${variantNameCap}",
+                "write${variantNameCap}AppMetadata",
+
+                /* FIXME Upload task can't really be dependent on all these
                 "minify${variantNameCap}WithProguard",
                 "minify${variantNameCap}WithR8",
-
                 "transformClassesAndResourcesWithProguardFor${variantNameCap}",
                 "transformClassesAndResourcesWithR8For${variantNameCap}",
-
-                // FIXME Upload task can't really be dependent on all these
-                "write${variantNameCap}AppMetadata",
-                "merge${variantNameCap}Assets",
-                "compile${variantNameCap}ArtProfile",
-                "compress${variantNameCap}Assets",
-                "lintVitalReport${variantNameCap}",
-                "create${variantNameCap}ApkListingFileRedirect",
-                "extract${variantNameCap}NativeSymbolTables",
-                "merge${variantNameCap}NativeDebugMetadata",
-                "process${variantNameCap}Resources",
+                /**/
         ])
 
         taskSet

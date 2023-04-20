@@ -25,10 +25,8 @@ abstract class NewRelicExtension {
      * or product flavow
      */
     protected final List<String> variantExclusionList = []              // ['Debug', 'staging']
-    protected final List<String> variantMapUploadList = ['release']
-    // ['Release', 'ProdRelease', 'Staging']
-    protected final List<String> packageExclusionList = []
-    // ['android.*', 'androidx.*']
+    protected final List<String> variantMapUploadList = ['release']     // ['Release', 'ProdRelease', 'Staging']
+    protected final List<String> packageExclusionList = []              // ['android.*', 'androidx.*']
 
     Property<Boolean> enabled
     Property<Boolean> instrumentTests

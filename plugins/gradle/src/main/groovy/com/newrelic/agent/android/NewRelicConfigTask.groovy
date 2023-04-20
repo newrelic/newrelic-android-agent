@@ -7,7 +7,6 @@ package com.newrelic.agent.android
 
 import com.newrelic.agent.InstrumentationAgent
 import org.gradle.api.DefaultTask
-import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
@@ -41,19 +40,19 @@ abstract class NewRelicConfigTask extends DefaultTask {
             f.with {
                 parentFile.mkdirs()
                 text = """
-                    package com.newrelic.agent.android;
-
-                    final class NewRelicConfig {
-                        static final String VERSION = "${InstrumentationAgent.getVersion()}";
-                        static final String BUILD_ID = "${buildId.get()}";
-                        static final Boolean MINIFIED = ${minifyEnabled.getOrElse(false)};
-                        static final String MAP_PROVIDER = "${mapProvider.get()}";
-                        static final String METRICS = "${buildMetrics.getOrElse("")}";
-                        public static String getBuildId() {
-                            return BUILD_ID;
+                        package com.newrelic.agent.android;
+    
+                        final class NewRelicConfig {
+                            static final String VERSION = "${InstrumentationAgent.getVersion()}";
+                            static final String BUILD_ID = "${buildId.get()}";
+                            static final Boolean MINIFIED = ${minifyEnabled.getOrElse(false)};
+                            static final String MAP_PROVIDER = "${mapProvider.get()}";
+                            static final String METRICS = "${buildMetrics.getOrElse("")}";
+                            public static String getBuildId() {
+                                return BUILD_ID;
+                            }
                         }
-                    }
-                    """.stripIndent()
+                        """.stripIndent()
             }
 
         } catch (Exception e) {
@@ -67,13 +66,11 @@ abstract class NewRelicConfigTask extends DefaultTask {
         return NewRelicGradlePlugin.LOGGER
     }
 
-    static def getDependentTaskNames(final Project project, String variantNameCap) {
-        def taskSet = project.objects.setProperty(String)
+    static def getDependentTaskNames(String variantNameCap) {
+        def taskSet = [] as Set
 
         taskSet.addAll([
-                "javaPreCompile${variantNameCap}",
-                "compile${variantNameCap}JavaWithJavac",
-                "compile${variantNameCap}Kotlin"
+                "generate${variantNameCap}BuildConfig",
         ])
 
         taskSet

@@ -118,7 +118,7 @@ class DexGuardHelper {
             try {
                 // throws if DexGuard not present
                 def dexguardTask = buildHelper.project.tasks.named("${DexGuardHelper.DEXGUARD_TASK}${variantNameCap}")
-                def classRewriterTask = buildHelper.variantAdapter.getTransformProvider(variant.name) {
+                def transformerTask = buildHelper.variantAdapter.getTransformProvider(variant.name) {
                     it.classDirectories.set(variant.artifacts.getAll(MultipleArtifact.ALL_CLASSES_DIRS.INSTANCE))
                     it.classJars.set(variant.artifacts.getAll(MultipleArtifact.ALL_CLASSES_JARS.INSTANCE))
                 }
@@ -126,8 +126,8 @@ class DexGuardHelper {
                 def desugarTaskName = "${DexGuardHelper.DEXGUARD_DESUGAR_TASK}${variantNameCap}"
                 try {
                     project.tasks.named(desugarTaskName) { task ->
-                        task.finalizedBy(classRewriterTask)
-                        task.dependsOn(classRewriterTask)
+                        task.finalizedBy(transformerTask)
+                        task.dependsOn(transformerTask)
                         injectMapUploadFinalizer(buildHelper.project, task, variant, null)
                     }
 
@@ -136,7 +136,7 @@ class DexGuardHelper {
                 }
 
                 buildHelper.variantAdapter.getJavaCompileProvider(variant.name).configure {
-                    finalizedBy classRewriterTask
+                    finalizedBy transformerTask
                     logger.info("Task [${dexguardTask.getName()}] has been configured for New Relic instrumentation.")
                 }
 
