@@ -26,27 +26,26 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
     @InputFiles
     abstract ListProperty<Directory> getClassDirectories();
 
-    @OutputFile
-    @Optional
-    abstract RegularFileProperty getOutputJar();
-
     @InputFiles
-    @Optional
     abstract ListProperty<RegularFile> getClassJars();
 
-    @OutputFiles
+    @OutputDirectory
     @Optional
     abstract DirectoryProperty getOutputDirectory();
+
+    @OutputFile
+    abstract RegularFileProperty getOutputJar();
 
     @TaskAction
     void transformClasses() {
         long tStart = System.currentTimeMillis()
         def transformer = new ClassTransformer()
-        def outputFile = outputJar.get().getAsFile()
+        File outputJarFile = outputJar.asFile.get()
 
-        logger.debug("[TransformTask]  ${NAME} starting: Task[${getName()}] Output[${outputFile.getAbsolutePath()}]")
+        logger.debug("[TransformTask] Task[${getName()}] starting: Output JAR[${outputJarFile.getAbsolutePath()}]")
+        outputJarFile.parentFile.mkdirs()
 
-        try (def outputFileStream = new FileOutputStream(outputFile);
+        try (def outputFileStream = new FileOutputStream(outputJarFile);
              def bufferedOutputStream = new BufferedOutputStream(outputFileStream)) {
 
             new JarOutputStream(bufferedOutputStream).withCloseable { jarOutputStream ->
@@ -56,19 +55,15 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                         String relativePath = directory.asFile.toURI().relativize(classFile.toURI()).getPath()
                         try {
                             new FileInputStream(classFile).withCloseable { fileInputStream ->
-
-                                /* JAR? */
                                 def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
                                 jarOutputStream.putNextEntry(jarEntry)
                                 transformer.processClassBytes(classFile, fileInputStream).withCloseable {
                                     jarOutputStream << it
                                 }
                                 jarOutputStream.closeEntry()
-                                /* ELSE */
-
                             }
                         } catch (IOException ignored) {
-                            ignored
+
                         }
                     }
                 }
@@ -85,7 +80,6 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                             for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
                                 if (instrumentable) {
                                     try {
-                                        /* JAR? */
                                         JarEntry jarEntry = e.nextElement()
                                         jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
                                         jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
@@ -94,9 +88,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                             }
                                         }
                                         jarOutputStream.closeEntry()
-                                        /* ELSE */
                                     } catch (IOException ignored) {
-                                        ignored
                                     }
                                 }
                             }
@@ -106,11 +98,12 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                         }
                     }
                 }
+
+                logger.info("[TransformTask] Finished in " + Double.valueOf((double) (
+                        System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.")
             }
         }
 
-        logger.info("[$NAME] Finished in " + Double.valueOf((double) (
-                System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.")
     }
 
     @Internal

@@ -26,18 +26,35 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
     abstract DirectoryProperty getProjectRoot()
 
     @Input
-    abstract Property<String> getBuildId()        // variant buildId
+    abstract Property<String> getBuildId()
+
+    // variant buildId
 
     @Input
-    abstract Property<String> getMapProvider()    // [proguard, r8, dexguard]
+    abstract Property<String> getMapProvider()
+
+    // [proguard, r8, dexguard]
 
     @InputFile
+    abstract RegularFileProperty getMappingFile()
+
+    @OutputFile
     abstract RegularFileProperty getTaggedMappingFile()
 
     @TaskAction
     def newRelicMapUploadTask() {
 
         try {
+            if (mappingFile.isPresent()) {
+                def infile = mappingFile.asFile.get()
+                def outfile = taggedMappingFile.asFile.get()
+                outfile.with {
+                    parentFile.mkdirs()
+                    text = infile.text + BuildHelper.NEWLN +
+                            Proguard.NR_MAP_PREFIX + buildId.get() + BuildHelper.NEWLN
+                }
+            }
+
             def propertiesFound = false
             def agentOptions = InstrumentationAgent.getAgentOptions()
             def filePattern = ~/${Proguard.NR_PROPERTIES}/
@@ -58,7 +75,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
 
             if (taggedMappingFile.isPresent()) {
                 // we know where map should be (Gradle tells us)
-                def mapFilePath = taggedMappingFile.get().getAsFile()
+                def mapFilePath = taggedMappingFile.asFile.get()
 
                 if (mapFilePath?.exists()) {
                     logger.debug("Map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
@@ -73,7 +90,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
                 }
 
             } else {
-                logger.warning("variant[${variantName.get()}] mappingFile is null")
+                logger.warning("variant[${variantName.get()}] taggedMappingFile is null")
             }
 
         } catch (Exception e) {
@@ -91,21 +108,15 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
         def taskSet = [] as Set
 
         taskSet.addAll([
-                "create${variantNameCap}ApkListingFileRedirect",
-                "lintVital${variantNameCap}",
                 "lintVitalAnalyze${variantNameCap}",
                 "lintVitalReport${variantNameCap}",
-                "merge${variantNameCap}Assets",
-                "merge${variantNameCap}NativeDebugMetadata",
-                "package${variantNameCap}",
-                "write${variantNameCap}AppMetadata",
-
-                /* FIXME Upload task can't really be dependent on all these
+                /*
+                "lintVital${variantNameCap}"
                 "minify${variantNameCap}WithProguard",
                 "minify${variantNameCap}WithR8",
                 "transformClassesAndResourcesWithProguardFor${variantNameCap}",
                 "transformClassesAndResourcesWithR8For${variantNameCap}",
-                /**/
+                */
         ])
 
         taskSet

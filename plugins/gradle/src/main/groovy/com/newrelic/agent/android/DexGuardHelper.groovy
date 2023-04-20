@@ -196,7 +196,7 @@ class DexGuardHelper {
                 try {
                     // update the map file iif needed
                     if (closure) {
-                        mapUploadTask.taggedMappingFile.set(closure(mapUploadTask.taggedMappingFile))
+                        mapUploadTask.mappingFile.set(closure(mapUploadTask.mappingFile))
                     }
 
                     if (!mapUploadTask.buildId.isPresent()) {

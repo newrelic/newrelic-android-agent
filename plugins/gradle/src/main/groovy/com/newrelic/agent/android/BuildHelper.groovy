@@ -10,6 +10,7 @@ import com.android.build.gradle.AppExtension
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
 import groovy.json.JsonOutput
+import kotlin.KotlinVersion
 import org.gradle.api.Action
 import org.gradle.api.BuildCancelledException
 import org.gradle.api.Project
@@ -269,7 +270,7 @@ class BuildHelper {
                 agp        : agpVersion,
                 gradle     : gradleVersion,
                 java       : getSystemPropertyProvider('java.version').get(),
-                //      kotlin     : getSystemPropertyProvider('kotlin.version').get(),
+                kotlin     : KotlinVersion.CURRENT,
                 dexguard   : [enabled: dexguardHelper.enabled, version: dexguardHelper.currentVersion],
                 configCache: [supported: configurationCacheSupported(), enabled: configurationCacheEnabled()],
                 variants   : variantAdapter.getBuildMetrics()
