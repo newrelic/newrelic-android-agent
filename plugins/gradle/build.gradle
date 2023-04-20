@@ -97,7 +97,7 @@ test {
     useJUnitPlatform()
     maxHeapSize = '2G'
     onlyIf {
-        false   // FIXME project.hasProperty('integrationTests') || project.hasProperty('regressionTests')
+        project.hasProperty('integrationTests') || project.hasProperty('regressionTests')
     }
 }
 

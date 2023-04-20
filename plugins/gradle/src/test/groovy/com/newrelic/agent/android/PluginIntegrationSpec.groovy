@@ -81,12 +81,13 @@ class PluginIntegrationSpec extends Specification {
 
         and: "create the build runner"
         def runner = provideRunner()
-                .withArguments("--debug",
+                .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
+                        "--debug",
                         "--stacktrace",
                         "clean",
                         testTask)
@@ -147,9 +148,8 @@ class PluginIntegrationSpec extends Specification {
 
         then:
         testVariants.each { var ->
-            ['transformClassesWithNewrelicTransformFor'].each { task ->
-                buildResult.task(":${task}${var.capitalize()}").outcome == SUCCESS
-            }
+            (buildResult.task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                    buildResult.task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
         }
     }
 
