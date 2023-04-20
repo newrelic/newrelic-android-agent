@@ -7,14 +7,12 @@ package com.newrelic.agent.android;
 
 import static com.newrelic.agent.android.NewRelic.agentConfiguration;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.newrelic.agent.android.agentdata.AgentDataReporter;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore;
-import com.newrelic.agent.android.analytics.AnalyticsController;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
@@ -24,11 +22,14 @@ import com.newrelic.agent.android.analytics.EventManagerImpl;
 import com.newrelic.agent.android.analytics.EventTransformAdapter;
 import com.newrelic.agent.android.analytics.NetworkEventTransformer;
 import com.newrelic.agent.android.analytics.NetworkRequestEvent;
+import com.newrelic.agent.android.background.ApplicationStateEvent;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceConfiguration;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
 import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.harvest.HarvestAdapter;
 import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
@@ -67,7 +68,6 @@ import org.robolectric.RobolectricTestRunner;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
@@ -294,6 +294,29 @@ public class NewRelicTest {
 
         Assert.assertFalse(NewRelic.started);
         Assert.assertTrue(NewRelic.isShutdown);
+    }
+
+    @Test
+    public void testHarvestBetweenForegraoundBackground() throws Exception {
+        //setup application foreground and background
+        ApplicationStateEvent e = new ApplicationStateEvent(ApplicationStateMonitor.getInstance());
+        AgentConfiguration agentConfig = new AgentConfiguration();
+        agentConfig.setApplicationToken(APP_TOKEN);
+        AndroidAgentImpl agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
+        Agent.setImpl(agentImpl);
+
+        //Mannually start the Harvest
+        NewRelic.started = true;
+        Harvest.start();
+        NewRelic.shutdown();
+
+        agentImpl.start();
+        agentImpl.applicationBackgrounded(e);
+        agentImpl.applicationForegrounded(e);
+
+        Harvest instance = Harvest.getInstance();
+        Assert.assertNull(instance.getHarvestData());
+        Assert.assertNull(instance.getHarvestConnection());
     }
 
     /**
@@ -1049,5 +1072,4 @@ public class NewRelicTest {
         }
         return null;
     }
-
 }

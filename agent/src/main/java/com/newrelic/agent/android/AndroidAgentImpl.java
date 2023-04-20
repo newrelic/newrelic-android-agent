@@ -586,7 +586,9 @@ public class AndroidAgentImpl implements
     @Override
     public void applicationForegrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application foregrounded");
-        start();
+        if (!NewRelic.isShutdown) {
+            start();
+        }
     }
 
     @Override
