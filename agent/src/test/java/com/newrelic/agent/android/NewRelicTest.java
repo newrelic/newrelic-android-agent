@@ -284,7 +284,7 @@ public class NewRelicTest {
 
     @Test
     public void testAgentStatesBetweenStartShutdown() throws Exception {
-        //Mannually stop agent
+        //Manually stop agent
         NewRelic.started = false;
         NewRelic.shutdown();
         Assert.assertFalse(NewRelic.isShutdown);
@@ -298,7 +298,7 @@ public class NewRelicTest {
     }
 
     @Test
-    public void testHarvestBetweenForegraoundBackground() throws Exception {
+    public void testHarvestBetweenForegroundBackground() throws Exception {
         //setup application foreground and background
         ApplicationStateEvent e = new ApplicationStateEvent(ApplicationStateMonitor.getInstance());
         AgentConfiguration agentConfig = new AgentConfiguration();
@@ -306,7 +306,7 @@ public class NewRelicTest {
         AndroidAgentImpl agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
         Agent.setImpl(agentImpl);
 
-        //Mannually start the Harvest
+        //Manually start the Harvest
         NewRelic.started = true;
         Harvest.start();
         NewRelic.shutdown();
