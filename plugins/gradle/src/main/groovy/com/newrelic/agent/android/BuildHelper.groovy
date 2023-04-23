@@ -206,7 +206,7 @@ class BuildHelper {
         return project.objects.fileProperty().value(f.get())
     }
 
-    def withDexGuardHelper(final def dexguardHelper) {
+    def withDexGuardHelper(final DexGuardHelper dexguardHelper) {
         this.dexguardHelper = dexguardHelper
     }
 
@@ -260,7 +260,7 @@ class BuildHelper {
         logger.warn("Set property '${PROP_HALT_ON_WARNING}=true' to treat warnings as fatal errors.")
     }
 
-    def hasOptional(def key, Object defaultValue) {
+    def hasOptional(String key, Object defaultValue) {
         project.rootProject.hasProperty(key) ? project.rootProject[key] : defaultValue
     }
 

@@ -15,9 +15,8 @@ import com.android.build.api.variant.Variant
 import com.android.build.api.variant.VariantSelector
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.LibraryExtension
-
+import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.util.BuildId
-
 import org.gradle.api.Action
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.UnknownTaskException
@@ -36,14 +35,14 @@ abstract class VariantAdapter {
     final BuildHelper buildHelper
     final protected ObjectFactory objectFactory
     final protected MapProperty<String, Object> variants
-    final protected MapProperty<String, Provider<BuildTypeAdapter>> buildTypes
+    final protected MapProperty<String, BuildTypeAdapter> buildTypes
     final protected MapProperty<String, Object> metrics
 
     protected VariantAdapter(BuildHelper buildHelper) {
         this.buildHelper = buildHelper
         this.objectFactory = buildHelper.project.objects
         this.variants = objectFactory.mapProperty(String, Object)
-        this.buildTypes = objectFactory.mapProperty(String, Object)
+        this.buildTypes = objectFactory.mapProperty(String, BuildTypeAdapter)
         this.metrics = objectFactory.mapProperty(String, Object)
     }
 
@@ -83,11 +82,11 @@ abstract class VariantAdapter {
     }
 
     Set<String> getVariantNames() {
-        return variants.getOrElse(Set.of()).keySet()
+        return variants.getOrElse(Map.of()).keySet()
     }
 
     Collection<Object> getVariantValues() {
-        return variants.getOrElse(Set.of()).values()
+        return variants.getOrElse(Map.of()).values()
     }
 
     def getBuildMetrics() {
@@ -110,7 +109,7 @@ abstract class VariantAdapter {
      */
     BuildTypeAdapter withBuildType(String variantName) {
         if (!buildTypes.getting(variantName).isPresent()) {
-            buildTypes.put(variantName, getBuildTypeProvider(variantName))
+            buildTypes.put(variantName, getBuildTypeProvider(variantName).get())
         }
         return buildTypes.getting(variantName).get()
     }
@@ -260,7 +259,7 @@ abstract class VariantAdapter {
                 (android as AppExtension).applicationVariants.each { variant ->
                     if (shouldInstrumentVariant(variant.name, variant.buildType.name)) {
                         variants.put(variant.name.toLowerCase(), variant)
-                        buildTypes.put(variant.name, getBuildTypeProvider(variant.name))
+                        buildTypes.put(variant.name, getBuildTypeProvider(variant.name).get())
                         assembleDataModel(variant.name)
                     }
                 }
@@ -268,7 +267,7 @@ abstract class VariantAdapter {
                 (android as LibraryExtension).libraryVariants.each { variant ->
                     if (shouldInstrumentVariant(variant.name, variant.buildType.name)) {
                         variants.put(variant.name.toLowerCase(), variant)
-                        buildTypes.put(variant.name, getBuildTypeProvider(variant.name))
+                        buildTypes.put(variant.name, getBuildTypeProvider(variant.name).get())
                         assembleDataModel(variant.name)
                     }
                 }
@@ -487,7 +486,7 @@ abstract class VariantAdapter {
                     def mapUploadTasks = NewRelicMapUploadTask.getDependentTaskNames(variant.name.capitalize())
                     buildHelper.wireTaskProviderToDependencyNames(mapUploadTasks) { dependencyTaskProvider ->
                         mapProvider.configure {
-                            it.dependsOn(dependencyTaskProvider)
+                            // it.dependsOn(dependencyTaskProvider)
                         }
                     }
                 }
@@ -650,7 +649,8 @@ abstract class VariantAdapter {
         @Override
         Provider<BuildTypeAdapter> getBuildTypeProvider(String variantName) {
             def variant = withVariant(variantName)
-            def isMinifyEnabled = variant.properties.getOrDefault('minifyEnabled', variant.properties.get("minifiedEnabled")) // really?
+            def isMinifyEnabled = variant.properties.getOrDefault('minifyEnabled', variant.properties.get("minifiedEnabled"))
+            // really?
             def buildTypeAdapter = new BuildTypeAdapter(variant.buildType, isMinifyEnabled, variant.flavorName)
 
             return buildHelper.project.objects.property(Object).value(buildTypeAdapter)
@@ -658,6 +658,10 @@ abstract class VariantAdapter {
 
         @Override
         def wiredWithTransformProvider(String variantName) {
+            if (GradleVersion.current() < GradleVersion.version("7.5")) {
+                return super.wiredWithTransformProvider(variantName)
+            }
+
             def transformProvider = getTransformProvider(variantName)
             withVariant(variantName).artifacts
                     .forScope(ScopedArtifacts.Scope.ALL)

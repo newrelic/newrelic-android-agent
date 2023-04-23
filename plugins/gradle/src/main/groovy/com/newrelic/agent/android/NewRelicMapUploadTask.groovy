@@ -26,14 +26,10 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
     abstract DirectoryProperty getProjectRoot()
 
     @Input
-    abstract Property<String> getBuildId()
-
-    // variant buildId
+    abstract Property<String> getBuildId()          // variant buildId
 
     @Input
-    abstract Property<String> getMapProvider()
-
-    // [proguard, r8, dexguard]
+    abstract Property<String> getMapProvider()      // [proguard, r8, dexguard]
 
     @InputFile
     abstract RegularFileProperty getMappingFile()
@@ -90,7 +86,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
                 }
 
             } else {
-                logger.warning("variant[${variantName.get()}] taggedMappingFile is null")
+                logger.warn("variant[${variantName.get()}] taggedMappingFile is null")
             }
 
         } catch (Exception e) {

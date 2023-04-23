@@ -36,13 +36,11 @@ class NewRelicTransform extends Transform {
         this.objectFactory = project.objects
         this.providers = project.providers
         this.contentTypes = ImmutableSet.of(
-                QualifiedContent.DefaultContentType.CLASSES
-        )
+                QualifiedContent.DefaultContentType.CLASSES as QualifiedContent.ContentType).toSet()
         this.contentScopes = ImmutableSet.of(
                 QualifiedContent.Scope.PROJECT,
                 QualifiedContent.Scope.EXTERNAL_LIBRARIES,
-                QualifiedContent.Scope.SUB_PROJECTS,
-        )
+                QualifiedContent.Scope.SUB_PROJECTS).toSet()
 
         logger.debug("project: " + project.name)
 

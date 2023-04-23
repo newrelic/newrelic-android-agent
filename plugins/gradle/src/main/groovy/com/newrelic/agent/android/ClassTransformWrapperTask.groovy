@@ -45,7 +45,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
         logger.debug("[TransformTask] Task[${getName()}] starting: Output JAR[${outputJarFile.getAbsolutePath()}]")
         outputJarFile.parentFile.mkdirs()
 
-        try (def outputFileStream = new FileOutputStream(outputJarFile);
+        try (def outputFileStream = new FileOutputStream(outputJarFile)
              def bufferedOutputStream = new BufferedOutputStream(outputFileStream)) {
 
             new JarOutputStream(bufferedOutputStream).withCloseable { jarOutputStream ->
@@ -74,7 +74,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                             def instrumentable = transformer.verifyManifest(jar)
 
                             if (!instrumentable) {
-                                return;
+                                return
                             }
 
                             for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
@@ -94,7 +94,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                             }
 
                         } catch (IOException e) {
-                            logger.warn(e)
+                            logger.warn(e.message)
                         }
                     }
                 }

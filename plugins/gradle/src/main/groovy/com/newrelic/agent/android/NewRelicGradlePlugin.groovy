@@ -71,7 +71,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
         if (buildHelper.checkDexGuard()) {
             buildHelper.withDexGuardHelper(DexGuardHelper.register(buildHelper))
-            buildHelper.dexguardHelper.configureDexGuardTasks(project)
+            buildHelper.dexguardHelper.configureDexGuardTasks()
         }
 
         pluginExtension.with {

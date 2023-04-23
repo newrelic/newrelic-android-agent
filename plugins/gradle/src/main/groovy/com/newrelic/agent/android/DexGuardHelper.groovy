@@ -7,6 +7,7 @@ package com.newrelic.agent.android
 
 import com.android.build.api.artifact.MultipleArtifact
 import com.newrelic.agent.util.BuildId
+import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.UnknownTaskException
 import org.gradle.api.file.RegularFileProperty
@@ -56,7 +57,7 @@ class DexGuardHelper {
                 }
                 this.enabled = true
             }
-        } catch (Exception e) {
+        } catch (Exception ignored) {
             // version not found in configs
         }
     }
@@ -73,35 +74,41 @@ class DexGuardHelper {
     RegularFileProperty getDefaultMapPathProvider(String variantDirName) {
         if (isDexGuard9()) {
             // caller must replace target with [apk, bundle]
-            return buildHelper.project.objects.fileProperty().value(buildHelper.project.layout.buildDir.file("/outputs/dexguard/mapping/<target>/${variantDirName}/mapping.txt"))
+            return buildHelper.project.objects.fileProperty().fileValue(buildHelper.project.layout.getBuildDirectory().file("/outputs/dexguard/mapping/<target>/${variantDirName}/mapping.txt"))
         }
 
         // Legacy DG report through AGP to this location (unless overridden in dexguard.project settings)
-        return buildHelper.project.objects.fileProperty().value(buildHelper.project.layout.buildDir.file("/outputs/mapping/${variantDirName}/mapping.txt"))
+        return buildHelper.project.objects.fileProperty().fileValue(buildHelper.project.layout.getBuildDirectory().file("/outputs/mapping/${variantDirName}/mapping.txt"))
     }
 
-    protected configureDexGuard9Task(variantName) {
+    protected configureDexGuard9Task(String variantName) {
         def variantNameCap = variantName.capitalize()
         DexGuardHelper.dexguard9Tasks.each { taskName ->
             try {
                 buildHelper.project.tasks.named("${taskName}${variantNameCap}").configure() { dependencyTask ->
-                    // FIXME
+                    /* FIXME
                     buildHelper.finalizeMapUploadTask(dependencyTask, variantName, { RegularFileProperty mappingFile ->
                         if (dependencyTask.name.startsWith(DexGuardHelper.DEXGUARD_APK_TASK)) {
-                            buildHelper.project.objects.fileProperty().set(mappingFile.getAsFile().getAbsolutePath().replace("<target>", "apk"))
+                            buildHelper.project.objects.fileProperty().fileValue(mappingFile.getAsFile().getAbsolutePath().replace("<target>", "apk"))
                         } else if (dependencyTask.name.startsWith(DexGuardHelper.DEXGUARD_AAB_TASK)) {
                             buildHelper.project.objects.fileProperty().set(mappingFile.getAsFile().getAbsolutePath().replace("<target>", "bundle"))
                         }
                     })
+                    /* FIXME */
                 }
 
             } catch (Exception e) {
                 // DexGuard task hasn't been created
                 logger.error("configureDexGuard: " + e)
-                logger.error(DexGuardHelper.DEXGUARD_PLUGIN_ORDER_ERROR_MSG)
+                logger.error(DEXGUARD_PLUGIN_ORDER_ERROR_MSG)
             }
         }
     }
+
+    protected configureDexGuard9Tasks(String variantName) {
+        variantName
+    }
+
 
     protected configureDexGuardTasks() {
         logger.debug("Dexguard version: " + buildHelper.dexguardHelper.currentVersion)
@@ -123,7 +130,7 @@ class DexGuardHelper {
                     it.classJars.set(variant.artifacts.getAll(MultipleArtifact.ALL_CLASSES_JARS.INSTANCE))
                 }
 
-                def desugarTaskName = "${DexGuardHelper.DEXGUARD_DESUGAR_TASK}${variantNameCap}"
+                def desugarTaskName = "${DEXGUARD_DESUGAR_TASK}${variantNameCap}"
                 try {
                     project.tasks.named(desugarTaskName) { task ->
                         task.finalizedBy(transformerTask)
@@ -136,12 +143,12 @@ class DexGuardHelper {
                 }
 
                 buildHelper.variantAdapter.getJavaCompileProvider(variant.name).configure {
-                    finalizedBy transformerTask
+it.finalizedBy transformerTask
                     logger.info("Task [${dexguardTask.getName()}] has been configured for New Relic instrumentation.")
                 }
 
                 // FIXME bundleRelease -> dexguardBundleBundle -> dexguardRelease
-                finalizeMapUploadTask("${DexGuardHelper.DEXGUARD_BUNDLE_TASK}${variantNameCap}", variant.name)
+                finalizeMapUploadTask("${DEXGUARD_BUNDLE_TASK}${variantNameCap}", variant.name)
 
             } catch (UnknownTaskException e) {
                 // task for this variant not available
@@ -151,15 +158,15 @@ class DexGuardHelper {
         }
     }
 
-    SetProperty<Task> getMapUploadTaskDependencies(def variantName) {
-        def buildType = variantAdapter.getBuildTypeProvider(variantName)
-        def taskSet = NewRelicMapUploadTask.getDependentTaskNames(variantName.capitalize)
+    Set<String> getMapUploadTaskDependencies(String variantName) {
+        def buildType = buildHelper.variantAdapter.getBuildTypeProvider(variantName)
+        def taskSet = NewRelicMapUploadTask.getDependentTaskNames(variantName.capitalize())
 
-        if (buildType.getOrElse(true).minified) {
+        if (buildType.get().minified) {
             [DEXGUARD_TASK, DEXGUARD_BUNDLE_TASK, DEXGUARD_APK_TASK, DEXGUARD_AAB_TASK].each { taskName ->
                 try {
                     buildHelper.project.tasks.named("${taskName}${variantName.capitalize()}").configure {
-                        taskSet.add(it)
+                        taskSet.add(it as String)
                     }
                 } catch (Exception ignored) {
                 }
@@ -172,7 +179,7 @@ class DexGuardHelper {
     // FIXME Refactor:
     void finalizeMapUploadTask(String targetTaskName, String variantName, Closure closure = null) {
         try {
-            finalizeMapUploadTask(project.tasks.named(targetTaskName).get(), variantName, closure)
+            finalizeMapUploadTask(buildHelper.project.tasks.named(targetTaskName).get(), variantName, closure)
         } catch (UnknownTaskException ignored) {
             // task for this variant not available
         }
@@ -182,7 +189,7 @@ class DexGuardHelper {
         try {
             def mapUploadTaskName = "${NewRelicMapUploadTask.NAME}${variantName.capitalize()}"
 
-            project.tasks.named(mapUploadTaskName, NewRelicMapUploadTask.class).with { mapUploadTaskProvider ->
+            buildHelper.project.tasks.named(mapUploadTaskName, NewRelicMapUploadTask.class).with { mapUploadTaskProvider ->
                 finalizeMapUploadProvider(project.tasks.named(dependencyTask.name), mapUploadTaskProvider, variantName, closure)
             }
         } catch (UnknownTaskException ignored) {
@@ -196,7 +203,8 @@ class DexGuardHelper {
                 try {
                     // update the map file iif needed
                     if (closure) {
-                        mapUploadTask.mappingFile.set(closure(mapUploadTask.mappingFile))
+                        def updated = closure(mapUploadTask.mappingFile.getAsFile())
+                        mapUploadTask.mappingFile.fileValue(updated as File)
                     }
 
                     if (!mapUploadTask.buildId.isPresent()) {
