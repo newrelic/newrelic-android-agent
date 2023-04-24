@@ -41,16 +41,6 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
     def newRelicMapUploadTask() {
 
         try {
-            if (mappingFile.isPresent()) {
-                def infile = mappingFile.asFile.get()
-                def outfile = taggedMappingFile.asFile.get()
-                outfile.with {
-                    parentFile.mkdirs()
-                    text = infile.text + BuildHelper.NEWLN +
-                            Proguard.NR_MAP_PREFIX + buildId.get() + BuildHelper.NEWLN
-                }
-            }
-
             def propertiesFound = false
             def agentOptions = InstrumentationAgent.getAgentOptions()
             def filePattern = ~/${Proguard.NR_PROPERTIES}/
@@ -70,6 +60,16 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
             }
 
             if (taggedMappingFile.isPresent()) {
+                if (mappingFile.isPresent()) {
+                    def infile = mappingFile.asFile.get()
+                    def outfile = taggedMappingFile.asFile.get()
+                    outfile.with {
+                        parentFile.mkdirs()
+                        text = infile.text + BuildHelper.NEWLN +
+                                Proguard.NR_MAP_PREFIX + buildId.get() + BuildHelper.NEWLN
+                    }
+                }
+
                 // we know where map should be (Gradle tells us)
                 def mapFilePath = taggedMappingFile.asFile.get()
 

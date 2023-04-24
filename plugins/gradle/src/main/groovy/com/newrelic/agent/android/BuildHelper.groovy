@@ -8,6 +8,7 @@ package com.newrelic.agent.android
 import com.android.build.api.variant.AndroidComponentsExtension
 import com.android.build.gradle.AppExtension
 import com.newrelic.agent.InstrumentationAgent
+import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.obfuscation.Proguard
 import groovy.json.JsonOutput
 import kotlin.KotlinVersion
@@ -242,7 +243,7 @@ class BuildHelper {
      * @return true if AGP 4.x Gradle components are present
      */
     def isUsingLegacyTransform() {
-        variantAdapter instanceof VariantAdapter.AGP4Adapter
+        variantAdapter instanceof AGP4Adapter
     }
 
     /**
