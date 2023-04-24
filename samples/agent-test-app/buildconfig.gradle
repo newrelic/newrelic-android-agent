@@ -29,7 +29,7 @@ buildscript {
                 ndk   : "com.newrelic.agent.android:agent-ndk:" + newrelic.agent.ndk,
         ]
 
-        agentRepo = hasOptional('agentRepo', null)
+        agentRepo = hasOptional('agentRepo', "local")
 
         versions = [
                 gradle: hasOptional("newrelic.gradle.version", "7.0.2"),
