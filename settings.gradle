@@ -6,7 +6,7 @@
 pluginManagement {
     ext {
         versions = [
-                agp     : '7.0.2',
+                agp     : '7.1.+',
                 kotlin  : '1.6.+',
                 shadow  : '7.1.2',
                 nexus   : '1.1.0',
