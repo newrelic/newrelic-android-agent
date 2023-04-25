@@ -68,7 +68,7 @@ class AGP4Adapter extends VariantAdapter {
     @Override
     Provider<Object> getBuildTypeProvider(String variantName) {
         def variant = withVariant(variantName)
-        def buildType = new BuildTypeAdapter(variant.buildType.name, variant.buildType.minifyEnabled)
+        def buildType = new BuildTypeAdapter(variant.name, variant.buildType.minifyEnabled, variant.buildType.name)
         return objectFactory.property(Object).value(buildType)
     }
 
@@ -215,23 +215,24 @@ class AGP4Adapter extends VariantAdapter {
             if (mapFileProvider?.isPresent()) {
                 mapUploadProvider.configure { mapTask ->
                     mapTask.mappingFile.fileValue(mapFileProvider.map { it.singleFile }.get())
-                    mapTask.taggedMappingFile.set(mapTask.mappingFile) // fileValue(mapFileProvider.map { it.singleFile }.get())
                 }
             }
         }
 
-        def dependencyTaskNames = NewRelicMapUploadTask.getDependentTaskNames(variantName.capitalize())
+        def dependencyTaskNames = NewRelicMapUploadTask.wiredTaskNames(variantName.capitalize())
         buildHelper.wireTaskProviderToDependencyNames(dependencyTaskNames) { dependencyTaskProvider ->
             dependencyTaskProvider.configure { dependencyTask ->
-                // dependencyTask.finalizedBy(mapUploadProvider)
+                dependencyTask.finalizedBy(mapUploadProvider)
             }
         }
 
+        /*
         def dependencyTasks = ["minify${variantName.capitalize()}WithR8"] as Set
         buildHelper.wireTaskProviderToDependencyNames(dependencyTasks) { dependencyTaskProvider ->
             dependencyTaskProvider.configure { dependencyTask ->
                 dependencyTask.finalizedBy(mapUploadProvider)
             }
         }
+        */
     }
 }

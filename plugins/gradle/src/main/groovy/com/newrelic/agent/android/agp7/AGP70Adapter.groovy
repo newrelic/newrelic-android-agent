@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.agp7
 
+
 import com.android.build.api.artifact.MultipleArtifact
 import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.variant.AndroidComponentsExtension
@@ -49,17 +50,13 @@ class AGP70Adapter extends VariantAdapter {
     @Override
     VariantAdapter configure(NewRelicExtension extension) {
         getVariantValues().each { variant ->
-            def transformProvider = getTransformProvider(variant.name)
-            def configProvider = getConfigProvider(variant.name)
+            if (shouldInstrumentVariant(variant.name)) {
+                def transformProvider = getTransformProvider(variant.name)
+                def configProvider = getConfigProvider(variant.name)
+            }
 
             if (shouldUploadVariantMap(variant.name)) {
                 def mapProvider = getMapUploadProvider(variant.name)
-                def mapUploadTasks = NewRelicMapUploadTask.getDependentTaskNames(variant.name.capitalize())
-                buildHelper.wireTaskProviderToDependencyNames(mapUploadTasks) { dependencyTaskProvider ->
-                    mapProvider.configure {
-                        it.dependsOn(dependencyTaskProvider)
-                    }
-                }
             }
         }
 
@@ -79,7 +76,7 @@ class AGP70Adapter extends VariantAdapter {
     @Override
     Provider<BuildTypeAdapter> getBuildTypeProvider(String variantName) {
         def variant = withVariant(variantName)
-        def buildType = new BuildTypeAdapter(variant.buildType, variant.minifiedEnabled, variant.flavorName)
+        def buildType = new BuildTypeAdapter(variant.name, variant.minifiedEnabled, variant.flavorName, variant.buildType)
         return objectFactory.property(Object).value(buildType)
     }
 
@@ -164,8 +161,12 @@ class AGP70Adapter extends VariantAdapter {
         }
 
         buildHelper.project.afterEvaluate {
-            def configTasks = NewRelicConfigTask.getDependentTaskNames(variantName.capitalize())
-            buildHelper.wireTaskProviderToDependencyNames(configTasks) { taskProvider ->
+            def wiredTaskNames = Set.of(
+                    "generate${variantName.capitalize()}BuildConfig",
+                    "javaPreCompile${variantName.capitalize()}",
+            )
+
+            buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { taskProvider ->
                 taskProvider.configure { dependencyTask ->
                     dependencyTask.finalizedBy(configProvider)
                 }
@@ -178,14 +179,27 @@ class AGP70Adapter extends VariantAdapter {
     @Override
     def wiredWithMapUploadProvider(String variantName) {
         def mapUploadProvider = super.wiredWithMapUploadProvider(variantName)
+        def vnc = variantName.capitalize()
 
-        mapUploadProvider.configure { mapTask ->
-            mapTask.mappingFile.set(getMappingFileProvider(variantName).flatMap { it })
+        buildHelper.project.afterEvaluate {
+            def wiredTaskNames = Set.of(
+                    "minify${vnc}WithR8",
+                    "minify${vnc}WithProguard",
+                    "transformClassesAndResourcesWithProguardTransformFor${vnc}",
+                    "transformClassesAndResourcesWithProguardFor${vnc}",
+                    "transformClassesAndResourcesWithR8For${vnc}",
+            )
+
+            buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { dependencyTaskProvider ->
+                dependencyTaskProvider.configure {
+                    it.finalizedBy(mapUploadProvider)
+                }
+                mapUploadProvider.configure {
+                    it.dependsOn(dependencyTaskProvider)
+                    it.shouldRunAfter(dependencyTaskProvider)
+                }
+            }
         }
-
-        withVariant(variantName).artifacts.use(mapUploadProvider)
-                .wiredWithFiles({ it.getMappingFile() }, { it.getTaggedMappingFile() })
-                .toTransform(SingleArtifact.OBFUSCATION_MAPPING_FILE.INSTANCE)
 
         return mapUploadProvider
     }

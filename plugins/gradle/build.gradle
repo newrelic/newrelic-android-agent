@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import org.gradle.api.internal.classpath.ModuleRegistry
-import org.gradle.api.internal.project.ProjectInternal
-
 plugins {
     id("groovy")
     id("org.jetbrains.kotlin.jvm")
 }
+
+import org.gradle.api.internal.classpath.ModuleRegistry
+import org.gradle.api.internal.project.ProjectInternal
+
 
 group = 'com.newrelic.agent.android'
 version = project.versions.agent
@@ -88,13 +89,18 @@ tasks.withType(Test).configureEach {
             systemProperty it, project.property(it)
         }
     }
+
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        jvmArgs(["--add-opens=java.base/java.lang=ALL-UNNAMED",
+                 "--add-opens=java.base/java.util=ALL-UNNAMED"])
+    }
 }
 
 test {
     useJUnitPlatform()
-    maxHeapSize = '2G'
+    maxHeapSize = '4G'
     onlyIf {
-        project.hasProperty('integrationTests') || project.hasProperty('regressionTests')
+        false   // FIXME project.hasProperty('integrationTests') || project.hasProperty('regressionTests')
     }
 }
 

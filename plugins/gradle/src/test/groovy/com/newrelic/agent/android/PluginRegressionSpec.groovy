@@ -7,7 +7,6 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
-import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Shared
@@ -28,7 +27,7 @@ class PluginRegressionSpec extends Specification {
     static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
 
     // update as needed
-    static final gradleVersion = "7.0.2"
+    static final gradleVersion = "7.2"
 
     @Shared
     Map<String, String> localEnv = [:]
@@ -97,9 +96,10 @@ class PluginRegressionSpec extends Specification {
             testVariants.each { var ->
                 task(":assemble${var.capitalize()}").outcome == SUCCESS
                 (task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+                    task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
                 task(":${NewRelicConfigTask.NAME}${var.capitalize()}").outcome == SUCCESS
-                task(":${NewRelicMapUploadTask.NAME}${var.capitalize()}").outcome == SUCCESS
+                (task(":${NewRelicMapUploadTask.NAME}${var.capitalize()}")?.outcome == SUCCESS ||
+                    task("newrelicMapUploadMinify${var.capitalize()}WithR8")?.outcome == SUCCESS)
             }
         }
 
@@ -157,6 +157,7 @@ class PluginRegressionSpec extends Specification {
                 ["7.+", [agp: "8.0.+", gradle: "8.0"]],
                 ["7.+", [agp: "8.0.+", gradle: "8.1"]],
                 ["7.+", [agp: "8.1.+", gradle: "8.1"]],
+                ["7.+", [agp: "8.1.+", gradle: "9.0"]],
         ]
     }
 

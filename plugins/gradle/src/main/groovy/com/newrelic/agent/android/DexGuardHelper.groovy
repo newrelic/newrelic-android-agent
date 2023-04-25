@@ -7,12 +7,10 @@ package com.newrelic.agent.android
 
 import com.android.build.api.artifact.MultipleArtifact
 import com.newrelic.agent.util.BuildId
-import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.UnknownTaskException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
-import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.util.GradleVersion
 
@@ -160,7 +158,7 @@ it.finalizedBy transformerTask
 
     Set<String> getMapUploadTaskDependencies(String variantName) {
         def buildType = buildHelper.variantAdapter.getBuildTypeProvider(variantName)
-        def taskSet = NewRelicMapUploadTask.getDependentTaskNames(variantName.capitalize())
+        def taskSet = NewRelicMapUploadTask.wiredTaskNames(variantName.capitalize())
 
         if (buildType.get().minified) {
             [DEXGUARD_TASK, DEXGUARD_BUNDLE_TASK, DEXGUARD_APK_TASK, DEXGUARD_AAB_TASK].each { taskName ->

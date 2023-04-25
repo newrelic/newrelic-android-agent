@@ -10,36 +10,39 @@ import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.util.BuildId
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.*
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.TaskAction
 
 abstract class NewRelicMapUploadTask extends DefaultTask {
     final static String NAME = "newrelicMapUpload"
 
+    @InputFile
+    abstract RegularFileProperty getMappingFile()
+
     @Input
     abstract Property<String> getVariantName()
 
-    @InputDirectory
-    abstract DirectoryProperty getProjectRoot()
-
     @Input
-    abstract Property<String> getBuildId()          // variant buildId
+    abstract Property<String> getBuildId()
 
     @Input
     abstract Property<String> getMapProvider()      // [proguard, r8, dexguard]
 
-    @InputFile
-    abstract RegularFileProperty getMappingFile()
+    @Internal
+    abstract DirectoryProperty getProjectRoot()
 
-    @OutputFile
-    abstract RegularFileProperty getTaggedMappingFile()
+    @Internal
+    abstract Property<ConfigurableFileCollection> getTaggedMappingFiles()
 
     @TaskAction
     def newRelicMapUploadTask() {
-
         try {
             def propertiesFound = false
             def agentOptions = InstrumentationAgent.getAgentOptions()
@@ -59,19 +62,21 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
                 return
             }
 
-            if (taggedMappingFile.isPresent()) {
-                if (mappingFile.isPresent()) {
+            if (mappingFile.isPresent()) {
+                // we know where map should be (Gradle tells us)
+                def mapFilePath = mappingFile.asFile.get()
+
+                if (taggedMappingFiles.isPresent() && !taggedMappingFiles.get().empty) {
                     def infile = mappingFile.asFile.get()
-                    def outfile = taggedMappingFile.asFile.get()
-                    outfile.with {
+                    taggedMappingFiles.get().files.add(project.file(mappingFile))
+                    def outfile = taggedMappingFiles.first().asFile.get()
+                    outfile?.with {
                         parentFile.mkdirs()
                         text = infile.text + BuildHelper.NEWLN +
                                 Proguard.NR_MAP_PREFIX + buildId.get() + BuildHelper.NEWLN
                     }
+                    mapFilePath = taggedMappingFiles.get().files.first().asFile
                 }
-
-                // we know where map should be (Gradle tells us)
-                def mapFilePath = taggedMappingFile.asFile.get()
 
                 if (mapFilePath?.exists()) {
                     logger.debug("Map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
@@ -100,21 +105,14 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
         return NewRelicGradlePlugin.LOGGER
     }
 
-    static Set<String> getDependentTaskNames(String variantNameCap) {
-        def taskSet = [] as Set
-
-        taskSet.addAll([
-                "lintVitalAnalyze${variantNameCap}",
-                "lintVitalReport${variantNameCap}",
-                /*
-                "lintVital${variantNameCap}"
-                "minify${variantNameCap}WithProguard",
-                "minify${variantNameCap}WithR8",
-                "transformClassesAndResourcesWithProguardFor${variantNameCap}",
-                "transformClassesAndResourcesWithR8For${variantNameCap}",
-                */
-        ])
-
-        taskSet
+    static Set<String> wiredTaskNames(String vnc) {
+        return Set.of(
+                "minify${vnc}WithR8",
+                "minify${vnc}WithProguard",
+                "lintVitalAnalyze${vnc}",
+                "lintVitalReport${vnc}",
+                "dexguardApk${vnc}",
+                "dexguardAab${vnc}",
+        )
     }
 }

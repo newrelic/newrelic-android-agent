@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android
 
+import com.android.build.api.artifact.SingleArtifact
 import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.agp7.AGP70Adapter
 import com.newrelic.agent.android.agp7.AGP74Adapter
@@ -146,8 +147,8 @@ abstract class VariantAdapter {
         def variant = withVariant(variantName)
         def buildType = withBuildType(variantName)
 
-        return (buildType.minified && (buildHelper.extension.shouldIncludeMapUpload(variant.name) ||
-                buildHelper.extension.shouldIncludeMapUpload(buildType.name)))
+        return (buildType.minified && (buildHelper.extension.shouldIncludeMapUpload(buildType.name) ||
+                buildHelper.extension.shouldIncludeMapUpload(buildType.buildType)))
     }
 
     def wiredWithTransformProvider(String variantName) {
@@ -171,22 +172,24 @@ abstract class VariantAdapter {
 
     def wiredWithMapUploadProvider(String variantName) {
         def mapUploadProvider = getMapUploadProvider(variantName) { mapUploadTask ->
+            def variantMap = getMappingFileProvider(variantName)
+
+            mapUploadTask.mappingFile.set(variantMap)
+            mapUploadTask.taggedMappingFiles.set(buildHelper.project.files())
+            mapUploadTask.projectRoot.set(buildHelper.project.layout.projectDirectory)
             mapUploadTask.buildId.set(objectFactory.property(String).value(BuildId.getBuildId(variantName)))
             mapUploadTask.variantName.set(objectFactory.property(String).value(variantName))
             mapUploadTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
-            mapUploadTask.mappingFile.set(getMappingFileProvider(variantName))
-            mapUploadTask.taggedMappingFile.set(getMappingFileProvider(variantName))
-            mapUploadTask.projectRoot.set(buildHelper.project.layout.projectDirectory)
 
             mapUploadTask.onlyIf {
                 // Execute the task only if the given spec is satisfied. The spec will
                 // be evaluated at task execution time, not during configuration.
-                !mapUploadTask.getTaggedMappingFile().asFile.get().exists()
+                mapUploadTask.mappingFile.asFile.get().exists()
             }
 
             mapUploadTask.outputs.upToDateWhen {
-                mapUploadTask.getTaggedMappingFile().asFile.get().with {
-                    exists() && text.contains(Proguard.NR_MAP_PREFIX)
+                mapUploadTask.mappingFile.asFile.get().with {
+                    exists() && text.contains(Proguard.NR_MAP_PREFIX + mapUploadTask.buildId.get() )
                 }
             }
         }
@@ -209,7 +212,7 @@ abstract class VariantAdapter {
             }
         } catch (InvalidUserDataException ignored) {
             return buildHelper.project.tasks.named(name, clazz) {
-                action?.execute(it)
+                // action?.execute(it)
             }
         }
     }
@@ -231,11 +234,13 @@ abstract class VariantAdapter {
         final String name
         final Boolean minified
         final String flavor
+        final String buildType
 
-        BuildTypeAdapter(String name, Boolean minified = false, String flavor = "") {
+        BuildTypeAdapter(String name, Boolean minified = false, String flavor = name, String buildType = name) {
             this.name = name
             this.minified = minified
             this.flavor = flavor
+            this.buildType = buildType
         }
     }
 

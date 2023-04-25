@@ -66,11 +66,11 @@ abstract class NewRelicConfigTask extends DefaultTask {
         return NewRelicGradlePlugin.LOGGER
     }
 
-    static def getDependentTaskNames(String variantNameCap) {
+    static def wiredTaskNames(String vnc) {
         def taskSet = [] as Set
 
         taskSet.addAll([
-                "generate${variantNameCap}BuildConfig",
+                "generate${vnc}BuildConfig",
         ])
 
         taskSet
