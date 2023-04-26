@@ -44,6 +44,7 @@ import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.instrumentation.MetricCategory;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
@@ -68,6 +69,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -486,6 +488,12 @@ public class AndroidAgentImpl implements
             //clear all existing data during shutdown process
             if (NewRelic.isShutdown) {
                 clearExistingData();
+
+                //make sure to add shutdown supportability metrics
+                for (ConcurrentHashMap.Entry<String, Metric> entry : StatsEngine.notice().getStatsMap().entrySet()) {
+                    Metric metric = entry.getValue();
+                    Harvest.getInstance().getHarvestData().getMetrics().addMetric(metric);
+                }
             }
 
             Harvest.harvestNow(true);
