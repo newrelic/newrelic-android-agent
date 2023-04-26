@@ -29,6 +29,9 @@ public class AgentConfiguration {
     public static final String DEFAULT_REGION_COLLECTOR_HOST = "mobile-collector.%s.nr-data.net";
     private static final String DEFAULT_REGION_CRASH_COLLECTOR_HOST = "mobile-crash.%s.nr-data.net";
 
+    public static final String DEFAULT_FED_RAMP_COLLECTOR_HOST = "gov-mobile-collector.newrelic.com";
+    private static final String DEFAULT_FED_RAMP_CRASH_COLLECTOR_HOST = "gov-mobile-crash.newrelic.com";
+
     private static final String HEX_COLLECTOR_PATH = "/mobile/f";
     private static final int HEX_COLLECTOR_TIMEOUT = 5000; // 5 seconds
 
@@ -67,9 +70,17 @@ public class AgentConfiguration {
     public void setApplicationToken(String applicationToken) {
         this.applicationToken = applicationToken;
         this.region = parseRegionFromApplicationToken(applicationToken);
-        if (this.region != null) {
-            this.collectorHost = String.format(DEFAULT_REGION_COLLECTOR_HOST, region);
-            this.crashCollectorHost = String.format(DEFAULT_REGION_CRASH_COLLECTOR_HOST, region);
+        if (FeatureFlag.featureEnabled(FeatureFlag.FedRampEnabled)) {
+            this.collectorHost = DEFAULT_FED_RAMP_COLLECTOR_HOST;
+            this.crashCollectorHost = DEFAULT_FED_RAMP_CRASH_COLLECTOR_HOST;
+        } else {
+            if (this.region != null) {
+                this.collectorHost = String.format(DEFAULT_REGION_COLLECTOR_HOST, region);
+                this.crashCollectorHost = String.format(DEFAULT_REGION_CRASH_COLLECTOR_HOST, region);
+            } else {
+                this.collectorHost = DEFAULT_COLLECTOR_HOST;
+                this.crashCollectorHost = DEFAULT_CRASH_COLLECTOR_HOST;
+            }
         }
     }
 
@@ -237,6 +248,14 @@ public class AgentConfiguration {
         }
 
         return DEFAULT_COLLECTOR_HOST;
+    }
+
+    String getFedRampCollectorHost() {
+        return DEFAULT_FED_RAMP_COLLECTOR_HOST;
+    }
+
+    String getFedRampCrashCollectorHost() {
+        return DEFAULT_FED_RAMP_CRASH_COLLECTOR_HOST;
     }
 
     /**

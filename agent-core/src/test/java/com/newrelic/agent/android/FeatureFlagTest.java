@@ -13,6 +13,7 @@ import static com.newrelic.agent.android.FeatureFlag.AnalyticsEvents;
 import static com.newrelic.agent.android.FeatureFlag.CrashReporting;
 import static com.newrelic.agent.android.FeatureFlag.DefaultInteractions;
 import static com.newrelic.agent.android.FeatureFlag.DistributedTracing;
+import static com.newrelic.agent.android.FeatureFlag.FedRampEnabled;
 import static com.newrelic.agent.android.FeatureFlag.HandledExceptions;
 import static com.newrelic.agent.android.FeatureFlag.HttpResponseBodyCapture;
 import static com.newrelic.agent.android.FeatureFlag.InteractionTracing;
@@ -60,6 +61,11 @@ public class FeatureFlagTest {
     }
 
     @Test
+    public void defaultDisabledFeatures() throws Exception {
+        Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
+    }
+
+    @Test
     public void resetFeatureFlags() throws Exception {
         Assert.assertTrue("NetworkRequests is enabled by default", FeatureFlag.featureEnabled(NetworkRequests));
         FeatureFlag.disableFeature(NetworkRequests);
@@ -82,6 +88,8 @@ public class FeatureFlagTest {
         Assert.assertTrue("NetworkRequests is now enabled", FeatureFlag.featureEnabled(NetworkRequests));
         Assert.assertTrue("NetworkErrorRequests is now enabled", FeatureFlag.featureEnabled(NetworkErrorRequests));
         Assert.assertTrue("Distributed tracing is now enabled", FeatureFlag.featureEnabled(DistributedTracing));
+
+        Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
     }
 
 }
