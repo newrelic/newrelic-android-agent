@@ -9,6 +9,7 @@ import com.newrelic.agent.compile.ClassTransformer
 import groovy.io.FileType
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.Directory
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
@@ -20,14 +21,17 @@ import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
 
 abstract class ClassTransformWrapperTask extends DefaultTask {
-    final static String NAME = "newrelicTransform"
+    final static String NAME = "newrelicTransformClassesFor"
 
     @InputFiles
     abstract ListProperty<Directory> getClassDirectories();
 
     @InputFiles
-    @Optional
     abstract ListProperty<RegularFile> getClassJars();
+
+    @OutputDirectory
+    @Optional
+    abstract DirectoryProperty getOutputDirectory();
 
     @OutputFile
     abstract RegularFileProperty getOutputJar();
@@ -36,32 +40,30 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
     void transformClasses() {
         long tStart = System.currentTimeMillis()
         def transformer = new ClassTransformer()
-        def outputFile = outputJar.get().getAsFile()
+        File outputJarFile = outputJar.asFile.get()
 
-        logger.debug("[TransformTask]  ${NAME} starting: Task[${getName()}] Output[${outputFile.getAbsolutePath()}]")
+        logger.debug("[TransformTask] Task[${getName()}] starting: Output JAR[${outputJarFile.getAbsolutePath()}]")
+        outputJarFile.parentFile.mkdirs()
 
-        try (def outputFileStream = new FileOutputStream(outputFile);
+        try (def outputFileStream = new FileOutputStream(outputJarFile)
              def bufferedOutputStream = new BufferedOutputStream(outputFileStream)) {
 
             new JarOutputStream(bufferedOutputStream).withCloseable { jarOutputStream ->
+
                 classDirectories.get().forEach { directory ->
                     directory.asFile.traverse(type: FileType.FILES) { classFile ->
                         String relativePath = directory.asFile.toURI().relativize(classFile.toURI()).getPath()
                         try {
                             new FileInputStream(classFile).withCloseable { fileInputStream ->
-                                // FIXME mark stream position for rewind
-                                // jarOutputStream.
-
                                 def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
                                 jarOutputStream.putNextEntry(jarEntry)
-                                // FIXME Pass output stream directly
                                 transformer.processClassBytes(classFile, fileInputStream).withCloseable {
                                     jarOutputStream << it
                                 }
                                 jarOutputStream.closeEntry()
                             }
                         } catch (IOException ignored) {
-                            ignored
+
                         }
                     }
                 }
@@ -72,38 +74,36 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                             def instrumentable = transformer.verifyManifest(jar)
 
                             if (!instrumentable) {
-                                return;
+                                return
                             }
 
                             for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
-
                                 if (instrumentable) {
                                     try {
                                         JarEntry jarEntry = e.nextElement()
                                         jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
                                         jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
-                                            // FIXME Pass output stream directly
                                             transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
                                                 jarOutputStream << it
                                             }
                                         }
                                         jarOutputStream.closeEntry()
                                     } catch (IOException ignored) {
-                                        ignored
                                     }
                                 }
                             }
 
                         } catch (IOException e) {
-                            logger.warn(e)
+                            logger.warn(e.message)
                         }
                     }
                 }
+
+                logger.info("[TransformTask] Finished in " + Double.valueOf((double) (
+                        System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.")
             }
         }
 
-        logger.info("[$NAME] Finished in " + Double.valueOf((double) (
-                System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.")
     }
 
     @Internal

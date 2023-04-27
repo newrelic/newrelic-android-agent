@@ -8,6 +8,7 @@ package com.newrelic.agent.android
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.util.BuildId
 import jdk.tools.jlink.plugin.PluginException
+import kotlin.KotlinVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.LogLevel
@@ -70,7 +71,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
         if (buildHelper.checkDexGuard()) {
             buildHelper.withDexGuardHelper(DexGuardHelper.register(buildHelper))
-            buildHelper.dexguardHelper.configureDexGuardTasks(project)
+            buildHelper.dexguardHelper.configureDexGuardTasks()
         }
 
         pluginExtension.with {
@@ -93,6 +94,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         LOGGER.debug("Android Gradle plugin version: " + buildHelper.agpVersion)
         LOGGER.debug("Gradle version: " + buildHelper.gradleVersion)
         LOGGER.debug("Java version: " + buildHelper.getSystemPropertyProvider('java.version').get())
+        LOGGER.debug("Kotlin version: " + KotlinVersion.CURRENT)
         LOGGER.debug("Gradle configuration cache supported: " + buildHelper.configurationCacheSupported())
         LOGGER.debug("Gradle configuration cache enabled: " + buildHelper.configurationCacheEnabled())
 

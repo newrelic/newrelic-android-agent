@@ -8,8 +8,11 @@ package com.newrelic.agent.android
 import com.android.build.api.variant.AndroidComponentsExtension
 import com.android.build.gradle.AppExtension
 import com.newrelic.agent.InstrumentationAgent
+import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.obfuscation.Proguard
 import groovy.json.JsonOutput
+import kotlin.KotlinVersion
+import org.gradle.api.Action
 import org.gradle.api.BuildCancelledException
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -18,8 +21,6 @@ import org.gradle.api.logging.Logger
 import org.gradle.api.plugins.ExtraPropertiesExtension
 import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.provider.Provider
-import org.gradle.api.provider.SetProperty
-import org.gradle.api.tasks.TaskProvider
 import org.gradle.util.GradleVersion
 
 import java.util.concurrent.atomic.AtomicReference
@@ -29,32 +30,27 @@ class BuildHelper {
     /**
      * https://developer.android.com/studio/releases/gradle-plugin#updating-gradle
      * Plugin version	Required Gradle version
-     * 4.0.+            6.1.1
-     * 4.1.+            6.5.+
-     * 4.2.+            6.7.+       // min supported Gradle configuration cache level
-     * 7.0              7.0.2       // min supported AGP that supports configuration caching
-     * 7.1	            7.2.+
+     * 4.2.+            6.7.1       // min supported Gradle configuration cache level
+     * 7.0              7.0         // min supported AGP that supports configuration caching
+     * 7.1	            7.2
      * 7.2              7.3.3
      * 7.3              7.4
-     * 7.4.+            7.5
-     * 8.0.+            8.0
-     * 8.1.+            8.1
+     * 7.4              7.5
+     * 8.0              8.0
+     * 8.1              8.0
      *
-     * */
+     **/
 
     static final String PROP_WARNING_AGP = "newrelic.warning.agp"
     static final String PROP_HALT_ON_WARNING = "newrelic.halt-on-warning"
-
-    static final String DEX_PROGUARD = "proguard"
-    static final String DEX_R8 = "r8"
 
     public static final String agentVersion = InstrumentationAgent.version
 
     public final String gradleVersion = GradleVersion.current().version
 
-    static final String currentSupportedAGPVersion = "8.1"
-    static final String minSupportedAGPVersion = '4.2.0'
-    static final String minSupportedGradleVersion = '7.4'
+    static final String minSupportedAGPVersion = '4.2.2'
+    static final String maxSupportedAGPVersion = "8.1"
+    static final String minSupportedGradleVersion = '7.0'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
     static final String minSupportedAGPConfigCacheVersion = '7.0.2'
 
@@ -89,7 +85,7 @@ class BuildHelper {
             this.android = project.extensions.getByType(AppExtension.class) as AppExtension
             this.androidComponents = project.extensions.getByType(AndroidComponentsExtension.class) as AndroidComponentsExtension
 
-            this.agpVersion = getAndNormalizeAGPVersion()
+            this.agpVersion = getAGPVersionAsSemVer(getReportedAGPVersion())
 
             // warn or throw if we can't instrument this build
             validatePluginSettings()
@@ -113,22 +109,22 @@ class BuildHelper {
                     "}")
         }
 
-        def (_, tag, fullAgpVersion) = (getAndroidComponentsExtension().getPluginVersion() =~ /^(Android Gradle Plugin version )(.*)$/)[0]
+        def reportedAGPVersion = getReportedAGPVersion()
 
         if (GradleVersion.version(getAgpVersion()) < GradleVersion.version(BuildHelper.minSupportedAGPVersion)) {
-            throw new UnknownPluginException("The New Relic plugin is not compatible with Android Gradle plugin version ${fullAgpVersion}."
+            throw new UnknownPluginException("The New Relic plugin is not compatible with Android Gradle plugin version ${reportedAGPVersion}."
                     + NEWLN
-                    + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported.")
+                    + "AGP versions ${minSupportedAGPVersion} - ${maxSupportedAGPVersion} are officially supported.")
         }
 
-        if (GradleVersion.version(getAgpVersion()) > GradleVersion.version(BuildHelper.currentSupportedAGPVersion)) {
+        if (GradleVersion.version(getAgpVersion()) > GradleVersion.version(BuildHelper.maxSupportedAGPVersion)) {
             def enableWarning = hasOptional(BuildHelper.PROP_WARNING_AGP, true).toString().toLowerCase()
             if ((enableWarning != 'false') && (enableWarning != '0')) {
-                warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${fullAgpVersion}."
+                warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${reportedAGPVersion}."
                         + NEWLN
-                        + "AGP versions ${minSupportedAGPVersion} - ${currentSupportedAGPVersion} are officially supported."
+                        + "AGP versions ${minSupportedAGPVersion} - ${maxSupportedAGPVersion} are officially supported."
                         + NEWLN
-                        + "To disable this warning, set '${BuildHelper.PROP_WARNING_AGP}=false'")
+                        + " Set property '${PROP_WARNING_AGP}=false' to disable this warning.")
             }
         }
 
@@ -140,29 +136,48 @@ class BuildHelper {
     }
 
     /**
+     * Return the semantic version reported by the plugin
+     * @return Semver as a String
+     */
+    String getAGPVersionAsSemVer(String version) {
+        // filter for unofficial (non-semver) version numbers
+        try {
+            // AGP version may contain '*-{qualifier}', which GradleVersion doesn't recognize
+            GradleVersion.version(version)
+
+        } catch (Exception ignored) {
+            warnOrHalt("AGP version [$version] is not officially supported")
+            def (_, semVer, delimiter, qualifier) = (version =~ /^(\d{1,3}\.\d{1,3}\.\d{1,3})(-)?(.*)?$/)[0]
+            return semVer
+        }
+
+        return version
+    }
+
+    /**
      * Fetching the reported AGP is problematic: the Version class has moved around
      * between releases of both the AGP and gradle-api. Try our best here to return the
      * correct value.
      *
-     * @return Semver as a String
+     * @return Full version reported by plugin
      */
-    String getAndNormalizeAGPVersion() {
-        String reportedAgpVersion = "unknown"
+    String getReportedAGPVersion() {
+        String reportedVersion = "unknown"
 
         try {
             getAndroidComponentsExtension().getPluginVersion().with {
-                reportedAgpVersion = major + "." + minor + "." + micro
+                reportedVersion = major + "." + minor + "." + micro
                 if (previewType) {
-                    reportedAgpVersion = reportedAgpVersion + "-" + previewType + preview
+                    reportedVersion = reportedVersion + "-" + previewType + preview
                 }
             }
 
-        } catch (MissingPropertyException) {
+        } catch (MissingPropertyException ignored) {
             // pluginVersion not available
             try {
                 // AGP 3.6.+: com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
                 final Class versionClass = BuildHelper.class.getClassLoader().loadClass("com.android.Version")
-                reportedAgpVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString()
+                reportedVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString()
 
             } catch (ClassNotFoundException e) {
                 try {
@@ -170,7 +185,7 @@ class BuildHelper {
 
                     // AGP 3.4 - 3.5.+: com.android.builder.model.Version.ANDROID_GRADLE_PLUGIN_VERSION
                     final Class versionClass = BuildHelper.class.getClassLoader().loadClass("com.android.builder.model.Version")
-                    reportedAgpVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString()
+                    reportedVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString()
 
                 } catch (ClassNotFoundException e1) {
                     logger.error("AGP 3.4 - 3.5.+: $e1")
@@ -179,18 +194,7 @@ class BuildHelper {
             }
         }
 
-        // filter for unofficial (non-semver) version numbers
-        try {
-            // AGP version may contain '*-{qualifier}', which GradleVersion doesn't recognize
-            GradleVersion.version(reportedAgpVersion)
-
-        } catch (IllegalArgumentException e) {
-            warnOrHalt("AGP version [$reportedAgpVersion] is not officially supported")
-            def (_, version, qualifier) = (reportedAgpVersion =~ /^(\d{1,3}\.\d{1,3}\.\d{1,3})-(.*)$/)[0]
-            reportedAgpVersion = version
-        }
-
-        return reportedAgpVersion
+        return reportedVersion
     }
 
     /**
@@ -203,7 +207,7 @@ class BuildHelper {
         return project.objects.fileProperty().value(f.get())
     }
 
-    def withDexGuardHelper(final def dexguardHelper) {
+    def withDexGuardHelper(final DexGuardHelper dexguardHelper) {
         this.dexguardHelper = dexguardHelper
     }
 
@@ -216,7 +220,7 @@ class BuildHelper {
             // FIXME May also be enabled through command line: --configuration-cache
             def prop = project.providers.gradleProperty("org.gradle.unsafe.configuration-cache")
             return prop.present
-        } catch (Exception) {
+        } catch (Exception ignored) {
             false
         }
     }
@@ -239,11 +243,11 @@ class BuildHelper {
      * @return true if AGP 4.x Gradle components are present
      */
     def isUsingLegacyTransform() {
-        variantAdapter instanceof VariantAdapter.AGP4Adapter
+        variantAdapter instanceof AGP4Adapter
     }
 
     /**
-     * Emit passed string as a warning. If PROP_WARNINGS_AS_ERROR is set, throw a HaltBuildException instead
+     * Emit passed string as a warning. If PROP_HALT_ON_WARNING is set, throw a HaltBuildException instead
      * Unsupported at present.
      *
      * @param Message to log or throw
@@ -252,15 +256,12 @@ class BuildHelper {
         def haltOnWarning = hasOptional(BuildHelper.PROP_HALT_ON_WARNING, false).toString().toLowerCase()
         if ((haltOnWarning != 'false') && (haltOnWarning != '0')) {
             throw new UnknownPluginException(msg)
-        } else {
-            logger.warn(msg)
-            logger.warn("To treat warnings as fatal errors, set '${BuildHelper.PROP_HALT_ON_WARNING}=true'")
         }
         logger.warn(msg)
-        logger.warn("To treat warnings as fatal errors, set '${BuildHelper.PROP_HALT_ON_WARNING}=true'")
+        logger.warn("Set property '${PROP_HALT_ON_WARNING}=true' to treat warnings as fatal errors.")
     }
 
-    def hasOptional(def key, Object defaultValue) {
+    def hasOptional(String key, Object defaultValue) {
         project.rootProject.hasProperty(key) ? project.rootProject[key] : defaultValue
     }
 
@@ -270,7 +271,7 @@ class BuildHelper {
                 agp        : agpVersion,
                 gradle     : gradleVersion,
                 java       : getSystemPropertyProvider('java.version').get(),
-                //      kotlin     : getSystemPropertyProvider('kotlin.version').get(),
+                kotlin     : KotlinVersion.CURRENT,
                 dexguard   : [enabled: dexguardHelper.enabled, version: dexguardHelper.currentVersion],
                 configCache: [supported: configurationCacheSupported(), enabled: configurationCacheEnabled()],
                 variants   : variantAdapter.getBuildMetrics()
@@ -281,7 +282,7 @@ class BuildHelper {
         try {
             // JsonOutput.toJson(buildMetrics().toMapString())
             JsonOutput.toJson(getBuildMetrics())
-        } catch (Throwable) {
+        } catch (Throwable ignored) {
             ""
         }
     }
@@ -351,15 +352,12 @@ class BuildHelper {
         return Proguard.Provider.DEFAULT
     }
 
-    SetProperty<Task> getTaskSetFromNames(SetProperty<String> taskNameSet) {
-        def taskSet = project.objects.setProperty(Task)
+    Set<?> getTaskProvidersFromNames(Set<String> taskNameSet) {
+        def taskSet = [] as Set
 
-        taskNameSet.get().each { taskName ->
+        taskNameSet.each { taskName ->
             try {
-                // FIXME
-                project.tasks.named(taskName).get().with { task ->
-                    taskSet.add(task)
-                }
+                taskSet.add(project.tasks.named(taskName))
             } catch (Exception ignored) {
                 ignored
             }
@@ -368,29 +366,19 @@ class BuildHelper {
         taskSet
     }
 
-    def wireDependencyTaskNamesToProvider(TaskProvider taskProvider, SetProperty<String> taskNames) {
-        return wireDependencyTaskSetToProvider(taskProvider, getTaskSetFromNames(taskNames))
+    def wireTaskProviderToDependencyNames(Set<String> taskNames,
+                                          Action<Task> action = null) {
+        return wireTaskProviderToDependencies(getTaskProvidersFromNames(taskNames), action)
     }
 
-    def wireDependencyTaskSetToProvider(TaskProvider taskProvider, SetProperty<Task> dependencyTasks) {
-        try {
-            // FIXME
-            project.tasks.named(taskProvider.name).get().with { task ->
-                wireDependencyTaskSetToTask(task, dependencyTasks)
+    def wireTaskProviderToDependencies(Set<?> dependencyTaskProviders,
+                                       Action<Task> action) {
+        dependencyTaskProviders.each { dependencyTask ->
+            try {
+                action?.execute(dependencyTask)
+            } catch (Exception ignored) {
+                ignored
             }
-        } catch (Exception ignored) {
-            ignored
-        }
-    }
-
-    def wireDependencyTaskSetToTask(Task task, SetProperty<Task> dependencyTasks) {
-        try {
-            dependencyTasks.get().each { dependencyTask ->
-                dependencyTask.finalizedBy(task)
-                task.dependsOn(dependencyTask)
-            }
-        } catch (Exception ignored) {
-            ignored
         }
     }
 
