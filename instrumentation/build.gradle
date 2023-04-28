@@ -115,7 +115,9 @@ project.afterEvaluate() {
         dependsOn("compileStampedAgent")
     }
 
-    ["publishMavenJavaPublicationToMavenLocal", "publishMavenJavaPublicationToArtifactsRepository"].each { taskName ->
+    ["publishMavenJavaPublicationToMavenLocal",
+     "publishMavenJavaPublicationToArtifactsRepository",
+     "publishMavenJavaPublicationToSonatypeRepository"].each { taskName ->
         tasks.named(taskName).configure {
             dependsOn(jar)
         }

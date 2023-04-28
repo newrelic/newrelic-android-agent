@@ -17,6 +17,7 @@ buildscript {
 plugins {
     id("com.github.johnrengelman.shadow")
     id("base")
+    id("io.github.gradle-nexus.publish-plugin")
 }
 
 description 'The New Relic Android Agent'
@@ -101,7 +102,7 @@ project.afterEvaluate {
         workingDir rootProject.rootDir
         environment "M2_REPO", mavenLocal
         commandLine "./gradlew", "-Pnewrelic.agent.version=$project.versions.agent", "publish"
-        enabled true
+        enabled false
     }
 
     project.tasks.register("integrationTest", Exec) {
@@ -111,6 +112,7 @@ project.afterEvaluate {
         workingDir "$rootProject.rootDir/samples/agent-test-app"
         environment "M2_REPO", mavenLocal
         commandLine "./gradlew", "-Pnewrelic.agent.version=$project.versions.agent", "-PagentRepo=${mavenLocal}", "clean", "build"
+        enabled prepareIntegration.enabled
     }
 
     check.dependsOn(['integrationTest'])
