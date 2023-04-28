@@ -29,7 +29,6 @@ import com.newrelic.agent.android.distributedtracing.TraceConfiguration;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
 import com.newrelic.agent.android.harvest.Harvest;
-import com.newrelic.agent.android.harvest.HarvestAdapter;
 import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
@@ -106,12 +105,14 @@ public class NewRelicTest {
 
     @Before
     public void removeFinalModifiers() throws Exception {
+        /** FIXME Field is no longer accessible in JDK 11
         Field field = Agent.class.getDeclaredField("MONO_INSTRUMENTATION_FLAG");
         field.setAccessible(true);
         Field modifiersField = Field.class.getDeclaredField("modifiers");
         modifiersField.setAccessible(true);
         modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
         field.set(String.class, "YES");
+        /* FIXME */
     }
 
     @Before
