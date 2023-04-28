@@ -96,7 +96,7 @@ shadowJar {
     relocate "com.google", "com.newrelic.com.google"
     relocate "org.apache", "com.newrelic.org.apache"
 
-    relocate ("org.slf4j", "com.newrelic.org.slf4j") {
+    relocate("org.slf4j", "com.newrelic.org.slf4j") {
         exclude "org.slf4j.Logger"
     }
 
@@ -115,12 +115,8 @@ project.afterEvaluate() {
         dependsOn("compileStampedAgent")
     }
 
-    ["publishMavenJavaPublicationToMavenLocal",
-     "publishMavenJavaPublicationToArtifactsRepository",
-     "publishMavenJavaPublicationToSonatypeRepository"].each { taskName ->
-        tasks.named(taskName).configure {
-            dependsOn(jar)
-        }
+    tasks.withType(AbstractPublishToMaven).configureEach {
+        dependsOn(jar)
     }
 
     tasks.named("compileTestJava").configure {
