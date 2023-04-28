@@ -19,7 +19,8 @@ public enum FeatureFlag {
     HandledExceptions,
     DistributedTracing,
     NativeReporting,
-    AppStartMetrics;
+    AppStartMetrics,
+    FedRampEnabled;
 
     private static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
 

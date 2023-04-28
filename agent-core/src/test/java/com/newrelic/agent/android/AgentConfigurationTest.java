@@ -87,6 +87,23 @@ public class AgentConfigurationTest {
     }
 
     @Test
+    public void shouldGetFedRampCollector() {
+        agentConfiguration.setApplicationToken(appToken);
+        Assert.assertEquals(agentConfiguration.getCollectorHost(), agentConfiguration.getDefaultCollectorHost());
+        Assert.assertEquals(agentConfiguration.getCrashCollectorHost(), agentConfiguration.getDefaultCrashCollectorHost());
+
+        FeatureFlag.enableFeature(FeatureFlag.FedRampEnabled);
+        agentConfiguration.setApplicationToken(appToken);
+        Assert.assertEquals(agentConfiguration.getCollectorHost(), agentConfiguration.getFedRampCollectorHost());
+        Assert.assertEquals(agentConfiguration.getCrashCollectorHost(), agentConfiguration.getFedRampCrashCollectorHost());
+
+        FeatureFlag.resetFeatures();
+        agentConfiguration.setApplicationToken(appToken);
+        Assert.assertEquals(agentConfiguration.getCollectorHost(), agentConfiguration.getDefaultCollectorHost());
+        Assert.assertEquals(agentConfiguration.getCrashCollectorHost(), agentConfiguration.getDefaultCrashCollectorHost());
+    }
+
+    @Test
     public void shouldAllowCollectorOverride() {
         agentConfiguration.setApplicationToken("eu01xx" + appToken);
         Assert.assertEquals(agentConfiguration.getCollectorHost(), "mobile-collector.eu01.nr-data.net");

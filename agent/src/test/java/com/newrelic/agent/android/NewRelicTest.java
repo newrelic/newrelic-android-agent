@@ -22,11 +22,14 @@ import com.newrelic.agent.android.analytics.EventManagerImpl;
 import com.newrelic.agent.android.analytics.EventTransformAdapter;
 import com.newrelic.agent.android.analytics.NetworkEventTransformer;
 import com.newrelic.agent.android.analytics.NetworkRequestEvent;
+import com.newrelic.agent.android.background.ApplicationStateEvent;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceConfiguration;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
 import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.harvest.HarvestAdapter;
 import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
@@ -99,6 +102,16 @@ public class NewRelicTest {
     @BeforeClass
     public static void classSetUp() {
         AgentLogManager.setAgentLog(new ConsoleAgentLog());
+    }
+
+    @Before
+    public void removeFinalModifiers() throws Exception {
+        Field field = Agent.class.getDeclaredField("MONO_INSTRUMENTATION_FLAG");
+        field.setAccessible(true);
+        Field modifiersField = Field.class.getDeclaredField("modifiers");
+        modifiersField.setAccessible(true);
+        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+        field.set(String.class, "YES");
     }
 
     @Before
@@ -260,6 +273,60 @@ public class NewRelicTest {
         Assert.assertFalse("Agent should not be started", NewRelic.isStarted());
         nrInstance.start(spyContext.getContext());
         Assert.assertTrue("Should start agent", NewRelic.isStarted());
+    }
+
+    @Test
+    public void testShutdown() throws Exception {
+        //Manually shutdown agent, as agent cannot be started
+        NewRelic.isShutdown = true;
+        Agent.getImpl().stop();
+
+        //check all the harvestData
+        HarvestData harvestData = Harvest.getInstance().getHarvestData();
+        Assert.assertEquals(harvestData.getHttpTransactions().count(), 0);
+        Assert.assertEquals(harvestData.getActivityTraces().count(), 0);
+        Assert.assertEquals(harvestData.getAnalyticsEvents().size(), 0);
+        Assert.assertEquals(harvestData.getAgentHealth().asJsonArray().size(), 0);
+        Assert.assertEquals(harvestData.getDataToken().getAccountId(), 0);
+        Assert.assertEquals(harvestData.getDataToken().getAgentId(), 0);
+    }
+
+    @Test
+    public void testAgentStatesBetweenStartShutdown() throws Exception {
+        //Manually stop agent
+        NewRelic.started = false;
+        NewRelic.shutdown();
+        Assert.assertFalse(NewRelic.isShutdown);
+
+        //Manually start agent, as cannot call NewRelic.start()
+        NewRelic.started = true;
+        NewRelic.shutdown();
+
+        Assert.assertFalse(NewRelic.started);
+        Assert.assertTrue(NewRelic.isShutdown);
+    }
+
+    @Test
+    public void testHarvestBetweenForegroundBackground() throws Exception {
+        //setup application foreground and background
+        ApplicationStateEvent e = new ApplicationStateEvent(ApplicationStateMonitor.getInstance());
+        AgentConfiguration agentConfig = new AgentConfiguration();
+        agentConfig.setApplicationToken(APP_TOKEN);
+        AndroidAgentImpl agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
+        Agent.setImpl(agentImpl);
+
+        //Manually start the Harvest
+        NewRelic.started = true;
+        Harvest.start();
+        NewRelic.shutdown();
+
+        agentImpl.start();
+        agentImpl.applicationBackgrounded(e);
+        agentImpl.applicationForegrounded(e);
+
+        Harvest instance = Harvest.getInstance();
+        Assert.assertNull(instance.getHarvestData());
+        Assert.assertNull(instance.getHarvestConnection());
     }
 
     /**
@@ -1015,5 +1082,4 @@ public class NewRelicTest {
         }
         return null;
     }
-
 }

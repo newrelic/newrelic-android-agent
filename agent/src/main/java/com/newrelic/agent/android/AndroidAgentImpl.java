@@ -44,6 +44,7 @@ import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.instrumentation.MetricCategory;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
@@ -55,6 +56,7 @@ import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
 import com.newrelic.agent.android.tracing.TraceMachine;
+import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
 import com.newrelic.agent.android.util.Connectivity;
 import com.newrelic.agent.android.util.Encoder;
@@ -68,6 +70,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -119,7 +122,21 @@ public class AndroidAgentImpl implements
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             // used to determine when app backgrounds
             final UiBackgroundListener backgroundListener;
-            backgroundListener = new UiBackgroundListener();
+            if (Agent.getMonoInstrumentationFlag().equals("YES")) {
+                backgroundListener = new ActivityLifecycleBackgroundListener();
+                if (backgroundListener instanceof Application.ActivityLifecycleCallbacks) {
+                    try {
+                        if (context.getApplicationContext() instanceof Application) {
+                            Application application = (Application) context.getApplicationContext();
+                            application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
+                        }
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                }
+            } else {
+                backgroundListener = new UiBackgroundListener();
+            }
 
             context.registerComponentCallbacks(backgroundListener);
         }
@@ -486,6 +503,12 @@ public class AndroidAgentImpl implements
             //clear all existing data during shutdown process
             if (NewRelic.isShutdown) {
                 clearExistingData();
+
+                //make sure to add shutdown supportability metrics
+                for (ConcurrentHashMap.Entry<String, Metric> entry : StatsEngine.notice().getStatsMap().entrySet()) {
+                    Metric metric = entry.getValue();
+                    Harvest.getInstance().getHarvestData().getMetrics().addMetric(metric);
+                }
             }
 
             Harvest.harvestNow(true);
@@ -586,7 +609,9 @@ public class AndroidAgentImpl implements
     @Override
     public void applicationForegrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application foregrounded");
-        start();
+        if (!NewRelic.isShutdown) {
+            start();
+        }
     }
 
     @Override
