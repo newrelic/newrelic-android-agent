@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.compile;
 
+import com.google.common.collect.ImmutableMap;
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.compile.visitor.ActivityClassVisitor;
@@ -38,7 +39,7 @@ import java.util.regex.Pattern;
  * string that indicates what handler should execute. This allows us to program at a higher
  * level instead of writing everything in bytecode.
  */
-public class InvocationDispatcher implements InvocationHandler {
+public class InvocationDispatcher {
 
     public static final Class<java.util.logging.Logger> INVOCATION_DISPATCHER_CLASS = java.util.logging.Logger.class;
     public static final String INVOCATION_DISPATCHER_FIELD_NAME = "treeLock";
@@ -49,57 +50,13 @@ public class InvocationDispatcher implements InvocationHandler {
     private final Pattern kotlinPackagePattern = Pattern.compile(Constants.ANDROID_KOTLIN_PACKAGE_RE);
 
     final Map<String, InvocationHandler> invocationHandlers;
-    private boolean writeDisabledMessage = true;
 
     public InvocationDispatcher(final Logger log) throws ClassNotFoundException {
         ClassRemapperConfig config = new ClassRemapperConfig(log);
 
         this.log = log;
         this.instrumentationContext = new InstrumentationContext(config, log);
-        this.invocationHandlers = Collections.unmodifiableMap(
-                new HashMap<String, InvocationHandler>() {{
-                    String proxyInvocationKey = InstrumentationAgent.getProxyInvocationKey(
-                            Constants.CLASS_TRANSFORMER_CLASS_NAME,
-                            Constants.CLASS_TRANSFORMER_METHOD_NAME);
-
-                    put(proxyInvocationKey, new InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, Method method, Object[] args) {
-                            String filename = (String) args[0];
-                            byte[] bytes = (byte[]) args[1];
-
-                            if (isInstrumentationDisabled()) {
-                                if (writeDisabledMessage) {
-                                    writeDisabledMessage = false;
-                                    log.info("Instrumentation disabled, no agent present");
-                                }
-                                return bytes;
-                            }
-
-                            writeDisabledMessage = true;
-
-                            synchronized (instrumentationContext) {
-                                log.debug("ClassTransformer/transformClassBytes arg[0](filename)[" + filename + "] arg[1](bytes)[" + bytes.length + "]");
-                                log.debug("ClassTransformer/transformClassBytes proxy[" + proxy + "]");
-                                log.debug("ClassTransformer/transformClassBytes method[" + method + "]");
-                                log.debug("ClassTransformer/transformClassBytes args[" + args + "]");
-
-                                ClassData classData = visitClassBytes(bytes);
-                                if (instrumentationContext.isClassModified()) {
-                                    if (classData != null && classData.getClassBytes() != null) {
-                                        if ((bytes.length != classData.getClassBytes().length)) {
-                                            log.debug("ClassTransformer/transformClassBytes transformed bytes[" + classData.getClassBytes().length + "]");
-                                        }
-                                        return classData.getClassBytes();
-                                    }
-                                }
-                            }
-
-                            return null;
-                        }
-
-                    });
-                }});
+        this.invocationHandlers = ImmutableMap.of();
     }
 
     boolean isInstrumentationDisabled() {
@@ -144,22 +101,6 @@ public class InvocationDispatcher implements InvocationHandler {
                 isKotlinSDKPackage(className));
     }
 
-    @Override
-    public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) {
-        InvocationHandler handler = invocationHandlers.get(proxy);
-        if (handler == null) {
-            log.error("Unknown invocation type: " + proxy + ".  Arguments: " + Arrays.asList(args));
-        } else {
-            try {
-                return handler.invoke(proxy, method, args);
-            } catch (Throwable t) {
-                log.error("Error:" + t.getMessage(), t);
-            }
-        }
-
-        return null;
-    }
-
     /**
      * Process the given class bytes, modifying them if necessary.
      */
@@ -194,7 +135,6 @@ public class InvocationDispatcher implements InvocationHandler {
                 // Second pass to actually do the work
                 //
                 ClassVisitor cv = cw;
-                log.debug("[InvocationDispatcher] class [" + className + "]");
 
                 // Exclude both the agent code and our dependant libraries
                 if (className.equals(Constants.NEWRELIC_CLASS_NAME)) {
@@ -204,7 +144,7 @@ public class InvocationDispatcher implements InvocationHandler {
                     // Don't instrument everything in the support lib (like JSON methods, etc).
                     cv = new ActivityClassVisitor(cv, instrumentationContext, log);
                 } else if (isExcludedPackage(className)) {
-                    log.debug("[InvocationDispatcher] Excluding class [" + className + "]");
+                    // log.debug("[InvocationDispatcher] Excluding class [" + className + "]");
                     return null;
                 } else {
                     cv = new AnnotatingClassVisitor(cv, instrumentationContext, log);
@@ -227,6 +167,7 @@ public class InvocationDispatcher implements InvocationHandler {
                         parsingOptions = ClassReader.SKIP_FRAMES;
                     }
                     cr.accept(cv, parsingOptions);
+
                 } catch (Exception e) {
                     if (classWriterFlags != ClassWriter.COMPUTE_MAXS) {
                         log.debug("[InvocationDispatcher] [" + className + "] " + e);
