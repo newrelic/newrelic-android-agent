@@ -20,6 +20,13 @@ plugins {
 version = project.versions.agent
 archivesBaseName = "android-agent"
 
+tasks.withType(JavaExec).configureEach {
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        jvmArgs(["--add-opens=java.base/java.lang=ALL-UNNAMED",
+                 "--add-opens=java.base/java.util=ALL-UNNAMED"])
+    }
+}
+
 android {
     namespace "com.newrelic.agent.android"
     compileSdkVersion project.versions.agp.compileSdk
@@ -54,9 +61,9 @@ android {
             includeAndroidResources = true
             returnDefaultValues = true
             all {
-            forkEvery = 1
+                forkEvery = 1
+            }
         }
-    }
     }
 
     // TODO Migrate to artifacts api

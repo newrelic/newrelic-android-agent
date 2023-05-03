@@ -7,8 +7,8 @@ package com.newrelic.agent.android
 
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.util.BuildId
-import jdk.tools.jlink.plugin.PluginException
 import kotlin.KotlinVersion
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.LogLevel
@@ -104,31 +104,25 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
         if (buildHelper.checkDexGuard()) {
             LOGGER.info("DexGuard detected.")
-            throw new PluginException("DexGuard is not yet supported in this version of the New Relic Android Gradle plugin. Sit tight, it won't be long!")
+            throw new GradleException("DexGuard is not yet supported in this version of the New Relic Android Gradle plugin. Sit tight, it won't be long!")
         }
 
         LOGGER.info("BuildMetrics[${buildHelper.getBuildMetrics().toMapString()}]")
     }
 
     private def parseLegacyAgentArgs(Project project) {
-        def prop = buildHelper.getSystemPropertyProvider(InstrumentationAgent.NR_AGENT_ARGS_KEY)
         def agentArgs = ""
 
-        if (prop.present) {
-            agentArgs = prop.get()
-
+        if (project.logger.isDebugEnabled()) {
+            agentArgs = "loglevel=DEBUG"
+        } else if (project.logger.isInfoEnabled()) {
+            agentArgs = "loglevel=INFO"
+        } else if (project.logger.isWarnEnabled()) {
+            agentArgs = "loglevel=WARN"
+        } else if (project.logger.isErrorEnabled()) {
+            agentArgs = "loglevel=ERROR"
         } else {
-            if (project.logger.isDebugEnabled()) {
-                agentArgs = "loglevel=DEBUG"
-            } else if (project.logger.isInfoEnabled()) {
-                agentArgs = "loglevel=INFO"
-            } else if (project.logger.isWarnEnabled()) {
-                agentArgs = "loglevel=WARN"
-            } else if (project.logger.isErrorEnabled()) {
-                agentArgs = "loglevel=ERROR"
-            } else {
-                agentArgs = "loglevel=TRACE"
-            }
+            agentArgs = "loglevel=TRACE"
         }
 
         Throwable argsError = InstrumentationAgent.withAgentArgs(agentArgs)

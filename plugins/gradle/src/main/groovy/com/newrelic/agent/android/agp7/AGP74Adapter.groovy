@@ -33,7 +33,7 @@ class AGP74Adapter extends AGP70Adapter {
         Provider<BuildTypeAdapter> getBuildTypeProvider(String variantName) {
             def variant = withVariant(variantName)
             def isMinifyEnabled = variant.properties.getOrDefault('minifyEnabled', variant.properties.get("minifiedEnabled"))   // really?
-            def buildTypeAdapter = new BuildTypeAdapter(variant.buildType, isMinifyEnabled, variant.flavorName)
+            def buildTypeAdapter = new BuildTypeAdapter(variant.name, isMinifyEnabled, variant.flavorName, variant.buildType)
 
             return buildHelper.project.objects.property(Object).value(buildTypeAdapter)
         }
