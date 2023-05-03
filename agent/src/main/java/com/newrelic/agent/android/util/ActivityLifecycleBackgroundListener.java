@@ -87,6 +87,16 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
 
     @Override
     public void onActivityStopped(Activity activity) {
+        if (isInBackground.getAndSet(true)) {
+            Runnable runner = new Runnable() {
+                @Override
+                public void run() {
+                    log.debug("ActivityLifecycleBackgroundListener.onActivityStopped - notifying ApplicationStateMonitor");
+                    ApplicationStateMonitor.getInstance().activityStopped();
+                }
+            };
+            executor.submit(runner);
+        }
     }
 
     @Override
