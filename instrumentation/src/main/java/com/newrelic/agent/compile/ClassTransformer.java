@@ -6,7 +6,6 @@
 package com.newrelic.agent.compile;
 
 import com.newrelic.agent.InstrumentationAgent;
-import com.newrelic.agent.util.BuildId;
 import com.newrelic.agent.util.FileUtils;
 import com.newrelic.agent.util.Streams;
 
@@ -22,9 +21,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.jar.Attributes;
@@ -39,7 +35,6 @@ public final class ClassTransformer {
     public static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
     public static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
 
-    private final List<File> classes;
     private final Logger log;
     private File inputFile;
     private File outputFile;
@@ -63,10 +58,9 @@ public final class ClassTransformer {
     }
 
     public ClassTransformer() {
-        this.classes = new ArrayList<>();
         this.log = InstrumentationAgent.LOGGER;
-        this.inputFile = new File(".");
-        this.outputFile = new File(".");
+        this.inputFile = new File(".").getAbsoluteFile();
+        this.outputFile = new File(".").getAbsoluteFile();
         this.classData = null;
         this.identityTransform = false;
         this.writeMode = WriteMode.modified;
@@ -76,7 +70,6 @@ public final class ClassTransformer {
     public ClassTransformer(File classPath, File outputDir) {
         this();
 
-        this.classes.add(classPath);
         this.inputFile = classPath;
         this.outputFile = outputDir;
         if (classPath.isDirectory()) {
@@ -89,25 +82,6 @@ public final class ClassTransformer {
         File jar = new File(jarFile.getName());
         this.inputFile = jar.getParentFile();
         this.outputFile = outputJar;
-    }
-
-    protected void doTransform() {
-        long tStart = System.currentTimeMillis();
-
-        log.info("[ClassTransformer] Using build ID[" + BuildId.getBuildId(invocationDispatcher.getInstrumentationContext().getVariantName()) + "]");
-
-        for (File classFile : classes) {
-            inputFile = FileUtils.isClass(classFile) ? classFile.getParentFile() : classFile;
-
-            log.debug("[ClassTransformer] Transforming classpath[" + classFile.getAbsolutePath() + "]");
-            log.debug("[ClassTransformer] InputFile[" + inputFile.getAbsolutePath() + "]");
-            log.debug("[ClassTransformer] OutputFile[" + outputFile.getAbsolutePath() + "]");
-
-            transformClassFile(classFile);
-        }
-
-        log.info(MessageFormat.format("[ClassTransformer] doTransform finished in {0} sec.",
-                Float.valueOf((System.currentTimeMillis() - tStart) / 1000f)));
     }
 
     /*
@@ -132,7 +106,6 @@ public final class ClassTransformer {
         if (FileUtils.isClass(classPathname)) {
             try {
                 if (bytes != null) {
-                    log.debug("[ClassTransformer] transformClassBytes: [" + classPathname + "]");
                     classData = invocationDispatcher.visitClassBytes(bytes);
                     if (classData != null && classData.getClassBytes() != null && classData.isModified()) {
                         return classData.getClassBytes();
@@ -417,11 +390,6 @@ public final class ClassTransformer {
         return this;
     }
 
-    public ClassTransformer addClasspath(final File classpath) {
-        classes.add(classpath);
-        return this;
-    }
-
     public ClassTransformer withWriteMode(WriteMode writeMode) {
         this.writeMode = writeMode;
         return this;
@@ -477,6 +445,4 @@ public final class ClassTransformer {
             }
         }
     }
-
-    // boolean verifyAndWriteManifest()
 }
