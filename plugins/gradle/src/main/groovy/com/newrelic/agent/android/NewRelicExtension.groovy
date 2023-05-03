@@ -21,8 +21,8 @@ abstract class NewRelicExtension {
     public static final String PLUGIN_EXTENSION_NAME = "newrelic"
 
     /**
-     * Variant name spec is loose:it can be the literal name of the teh variant, the builtType
-     * or product flavow
+     * Variant name spec is loose: it can be the literal name of the variant, the build type
+     * or product flavor.
      */
     protected final List<String> variantExclusionList = []              // ['Debug', 'staging']
     protected final List<String> variantMapUploadList = ['release']     // ['Release', 'ProdRelease', 'Staging']
