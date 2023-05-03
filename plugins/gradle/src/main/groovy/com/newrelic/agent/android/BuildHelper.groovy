@@ -48,8 +48,8 @@ class BuildHelper {
 
     public final String gradleVersion = GradleVersion.current().version
 
-    static final String minSupportedAGPVersion = '4.2.2'
-    static final String maxSupportedAGPVersion = "8.1"
+    static final String minSupportedAGPVersion = '7.0.2'
+    static final String maxSupportedAGPVersion = "8.2"
     static final String minSupportedGradleVersion = '7.0'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
     static final String minSupportedAGPConfigCacheVersion = '7.0.2'
@@ -124,7 +124,7 @@ class BuildHelper {
                         + NEWLN
                         + "AGP versions ${minSupportedAGPVersion} - ${maxSupportedAGPVersion} are officially supported."
                         + NEWLN
-                        + " Set property '${PROP_WARNING_AGP}=false' to disable this warning.")
+                        + "Set property '${PROP_WARNING_AGP}=false' to disable this warning.")
             }
         }
 
@@ -233,7 +233,7 @@ class BuildHelper {
             }
             return provider
         } catch (Exception e) {
-            logger.error("getSystemPropertyProvider: ${e.message}")
+            logger.debug("getSystemPropertyProvider: ${e.message}")
         }
 
         return project.objects.property(String).orElse(System.getProperty(key))

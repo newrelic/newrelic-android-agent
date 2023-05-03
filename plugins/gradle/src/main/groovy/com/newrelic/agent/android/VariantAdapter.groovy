@@ -67,6 +67,9 @@ abstract class VariantAdapter {
         if (currentGradleVersion >= GradleVersion.version("7.4")) {
             return new AGP74Adapter(buildHelper)
         } else if (currentGradleVersion >= GradleVersion.version("7.2")) {
+            if (GradleVersion.version(buildHelper.agpVersion) < GradleVersion.version("7.2")) {
+                return new AGP4Adapter(buildHelper)
+            }
             return new AGP70Adapter(buildHelper)
         } else {
             return new AGP4Adapter(buildHelper)
@@ -158,7 +161,7 @@ abstract class VariantAdapter {
     def wiredWithConfigProvider(String variantName) {
         def configProvider = getConfigProvider(variantName) { configTask ->
             def buildType = withBuildType(variantName)
-            def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variantName}")
+            def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/java/newrelicConfig/${buildType.name}")
 
             configTask.sourceOutputDir.set(objectFactory.directoryProperty().value(genSrcFolder))
             configTask.buildId.set(objectFactory.property(String).value(BuildId.getBuildId(variantName)))
@@ -189,7 +192,7 @@ abstract class VariantAdapter {
 
             mapUploadTask.outputs.upToDateWhen {
                 mapUploadTask.mappingFile.asFile.get().with {
-                    exists() && text.contains(Proguard.NR_MAP_PREFIX + mapUploadTask.buildId.get() )
+                    exists() && text.contains(Proguard.NR_MAP_PREFIX + mapUploadTask.buildId.get())
                 }
             }
         }
