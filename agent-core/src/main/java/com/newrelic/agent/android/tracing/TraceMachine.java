@@ -187,12 +187,14 @@ public class TraceMachine extends HarvestAdapter {
     }
 
     public static void endTrace() {
-        traceMachine.completeActivityTrace();
+        if (isTracingActive()) {
+            traceMachine.completeActivityTrace();
+        }
     }
 
     public static void endTrace(String id) {
         try {
-            if (getActivityTrace().rootTrace.myUUID.toString().equals(id)) {
+            if (getActivityTrace().rootTrace.myUUID.toString().equals(id) && isTracingActive()) {
                 traceMachine.completeActivityTrace();
             }
         } catch (TracingInactiveException e) {
