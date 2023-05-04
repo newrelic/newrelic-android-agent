@@ -119,6 +119,10 @@ project.afterEvaluate() {
         dependsOn(jar)
     }
 
+    tasks.named("signMavenJavaPublication").configure {
+        dependsOn(jar)
+    }
+
     tasks.named("compileTestJava").configure {
         dependsOn("compileStampedAgent")
     }

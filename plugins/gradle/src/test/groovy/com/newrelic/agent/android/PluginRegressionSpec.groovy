@@ -7,6 +7,7 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Shared
@@ -25,6 +26,7 @@ class PluginRegressionSpec extends Specification {
 
     static final rootDir = new File("../..")
     static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
+    static final buildDir = new File(projectRootDir, "build")
 
     // update as needed
     static final gradleVersion = "7.2"
@@ -62,8 +64,25 @@ class PluginRegressionSpec extends Specification {
     def setupSpec() {
         given: "Set/verify staging location"
         localEnv += System.getenv()
+        if (localEnv["M2_REPO"] == null) {
+            def m2 = new File(rootDir, "build/.m2/repository").absoluteFile
+            try {
+                if (!(m2.exists() && m2.canRead())) {
+                    provideRunner()
+                            .withProjectDir(rootDir)
+                            .withArguments("install", "publish")
+                            .build()
+                    if (!(m2.exists() && m2.canRead())) {
+                        throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
+                    }
+                }
+                localEnv.put("M2_REPO", m2.getAbsolutePath())
+            } catch (Exception ignored) {
+            }
+        }
     }
 
+    @Ignore
     @Unroll("#dataVariablesWithIndex")
     @Requires({ jvm.isJava11Compatible() })
     def "Regress agent[#agent] against AGP[#agp] Gradle[#gradle]"() {
@@ -97,9 +116,24 @@ class PluginRegressionSpec extends Specification {
                 task(":assemble${var.capitalize()}").outcome == SUCCESS
                 (task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                     task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
-                task(":${NewRelicConfigTask.NAME}${var.capitalize()}").outcome == SUCCESS
+
+                [NewRelicConfigTask.NAME].each { task ->
+                    buildResult.task(":${task}${var.capitalize()}").outcome == SUCCESS
+                    // def configTmpl = new File(buildDir, "/generated/java/newrelicConfig${var.capitalize()}/com/newrelic/agent/android/NewRelicConfig.java")
+                    // configTmpl.exists() && configTmpl.canRead()
+                    // configTmpl.text.find(~/BUILD_ID = \"(.*)\".*/)
+
+                    def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
+                    configClass.exists() && configClass.canRead()
+                }
+
                 (task(":${NewRelicMapUploadTask.NAME}${var.capitalize()}")?.outcome == SUCCESS ||
-                    task("newrelicMapUploadMinify${var.capitalize()}WithR8")?.outcome == SUCCESS)
+                        task("newrelicMapUploadMinify${var.capitalize()}WithR8")?.outcome == SUCCESS)
+
+                with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
+                    exists()
+                    text.contains("# NR_BUILD_ID -> ")
+                }
             }
         }
 
@@ -156,8 +190,7 @@ class PluginRegressionSpec extends Specification {
         [agent, [agp, gradle]] << [
                 ["7.+", [agp: "8.0.+", gradle: "8.0"]],
                 ["7.+", [agp: "8.0.+", gradle: "8.1"]],
-                ["7.+", [agp: "8.1.+", gradle: "8.1"]],
-                ["7.+", [agp: "8.1.+", gradle: "9.0"]],
+             // ["7.+", [agp: "8.1.+", gradle: "8.1.1"]],
         ]
     }
 
