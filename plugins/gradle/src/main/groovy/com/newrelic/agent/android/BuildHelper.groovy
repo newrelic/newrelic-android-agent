@@ -79,6 +79,10 @@ class BuildHelper {
         this.logger = NewRelicGradlePlugin.LOGGER
         this.dexguardHelper = DexGuardHelper.register(this)
 
+        if (!project.pluginManager.hasPlugin("com.android.application")) {
+            throw new BuildCancelledException("Instrumentation of Android modules are not yet supported.")
+        }
+
         try {
             this.extension = project.extensions.getByType(NewRelicExtension.class) as NewRelicExtension
             this.extraProperties = project.extensions.getByType(ExtraPropertiesExtension.class) as ExtraPropertiesExtension
@@ -232,8 +236,7 @@ class BuildHelper {
                 return provider.forUseAtConfigurationTime()
             }
             return provider
-        } catch (Exception e) {
-            logger.debug("getSystemPropertyProvider: ${e.message}")
+        } catch (Exception ignored) {
         }
 
         return project.objects.property(String).orElse(System.getProperty(key))
@@ -273,7 +276,7 @@ class BuildHelper {
                 java       : getSystemPropertyProvider('java.version').get(),
                 kotlin     : KotlinVersion.CURRENT,
                 dexguard   : [enabled: dexguardHelper.enabled, version: dexguardHelper.currentVersion],
-                configCache: [supported: configurationCacheSupported(), enabled: configurationCacheEnabled()],
+                configCache: [enabled: configurationCacheEnabled()],
                 variants   : variantAdapter.getBuildMetrics()
         ]
     }
