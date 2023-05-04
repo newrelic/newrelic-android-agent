@@ -189,6 +189,8 @@ public class TraceMachine extends HarvestAdapter {
     public static void endTrace() {
         if (isTracingActive()) {
             traceMachine.completeActivityTrace();
+        } else {
+            log.debug("Attempted to end trace with no trace machine!");
         }
     }
 
@@ -305,7 +307,7 @@ public class TraceMachine extends HarvestAdapter {
             final long inception = traceMachine.activityTrace.startedAt;
 
             if ((lastUpdatedAt + HEALTHY_TRACE_TIMEOUT) < currentTime && !traceMachine.activityTrace.hasMissingChildren()) {
-                log.debug(String.format("LastUpdated[%d] CurrentTime[%d] Trigger[%d]", lastUpdatedAt, currentTime, currentTime-lastUpdatedAt));
+                log.debug(String.format("LastUpdated[%d] CurrentTime[%d] Trigger[%d]", lastUpdatedAt, currentTime, currentTime - lastUpdatedAt));
                 log.debug("Completing activity trace after hitting healthy timeout (" + HEALTHY_TRACE_TIMEOUT + "ms)");
                 if (isTracingActive()) {
                     traceMachine.completeActivityTrace();
