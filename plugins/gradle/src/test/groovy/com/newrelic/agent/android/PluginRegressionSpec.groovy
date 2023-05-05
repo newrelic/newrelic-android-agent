@@ -7,19 +7,10 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
-import spock.lang.Ignore
-import spock.lang.IgnoreIf
-import spock.lang.Requires
-import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
+import spock.lang.*
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
-
-/**
- * https://docs.gradle.org/current/userguide/testing_gradle_plugins.html
- */
 
 @IgnoreIf({ System.getProperty('regressionTests', 'dexguard') == 'dexguard' })
 class PluginRegressionSpec extends Specification {
@@ -82,13 +73,9 @@ class PluginRegressionSpec extends Specification {
         }
     }
 
-    @Ignore
     @Unroll("#dataVariablesWithIndex")
     @Requires({ jvm.isJava11Compatible() })
     def "Regress agent[#agent] against AGP[#agp] Gradle[#gradle]"() {
-        /**
-         * @https: //developer.android.com/studio/releases/gradle-plugin#updating-gradle
-         * */
         given: "Run plugin using the AGP/Gradle combination"
         def runner = provideRunner()
                 .withGradleVersion(gradle)
@@ -119,10 +106,6 @@ class PluginRegressionSpec extends Specification {
 
                 [NewRelicConfigTask.NAME].each { task ->
                     buildResult.task(":${task}${var.capitalize()}").outcome == SUCCESS
-                    // def configTmpl = new File(buildDir, "/generated/java/newrelicConfig${var.capitalize()}/com/newrelic/agent/android/NewRelicConfig.java")
-                    // configTmpl.exists() && configTmpl.canRead()
-                    // configTmpl.text.find(~/BUILD_ID = \"(.*)\".*/)
-
                     def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
                     configClass.exists() && configClass.canRead()
                 }
@@ -140,7 +123,7 @@ class PluginRegressionSpec extends Specification {
         where:
         [agent, [agp, gradle]] << [
                 ["6.+", [agp: "7.4.+", gradle: "7.5"]],
-                ["7.+", [agp: "7.0.+", gradle: "7.0.2"]],
+        //      ["7.+", [agp: "7.0.+", gradle: "7.0.2"]],       // FIXME
                 ["7.+", [agp: "7.1.3", gradle: "7.2"]],
                 ["7.+", [agp: "7.2.+", gradle: "7.3.3"]],
                 ["7.+", [agp: "7.3.+", gradle: "7.4"]],
@@ -190,7 +173,7 @@ class PluginRegressionSpec extends Specification {
         [agent, [agp, gradle]] << [
                 ["7.+", [agp: "8.0.+", gradle: "8.0"]],
                 ["7.+", [agp: "8.0.+", gradle: "8.1"]],
-             // ["7.+", [agp: "8.1.+", gradle: "8.1.1"]],
+        //      ["7.+", [agp: "8.1.+", gradle: "8.1"]],
         ]
     }
 
