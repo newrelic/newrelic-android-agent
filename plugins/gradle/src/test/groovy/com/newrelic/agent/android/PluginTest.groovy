@@ -5,9 +5,7 @@
 
 package com.newrelic.agent.android
 
-import java.io.FileFilter
 import com.google.common.io.Files
-import org.apache.commons.io.FileUtils
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -46,44 +44,39 @@ abstract class PluginTest {
         def build = tmpProjectDir.newFile("build.gradle")
         Files.write(getClass().getResource("/gradle/build.gradle").bytes, build)
 
-/*
-        def filter = new FileFilter() {
+        /*
+        FileUtils.copyDirectory(projectDir, tmpProjectDir.root, new FileFilter() {
             @Override
             boolean accept(File file) {
-                return !(file.directory && file.name.equals("build"))
+                return !(file.directory && (file.name == "build" || file.name == ".gradle" || file.name == "userHome"))
             }
-        }
-
-        FileUtils.copyDirectory(projectDir, tmpProjectDir.root, filter)
-/**/
+        })
+        /**/
 
         project = ProjectBuilder.builder()
                 .withName("newrelic-plugin-test")
-                // .withProjectDir(projectDir)
-                .withProjectDir(tmpProjectDir.root)
+                .withProjectDir(projectDir)
+                // .withProjectDir(tmpProjectDir.root)
                 .build()
 
         project.ext.applyPlugin = applyPlugin
 
         project.getPlugins().with {
             agp = apply("com.android.application")
-/*
             if (applyPlugin) {
                 plugin = apply("newrelic")
             }
-*/
         }
 
         // force soft evaluation of AGP
-        // project.getTasksByName("assembleRelease", false)
+        project.getTasksByName("assembleRelease", false)
 
         // or hard,
         // (project as ProjectInternal).evaluate()
     }
 
     @AfterEach
-    void
-    afterEach() {
-        tmpProjectDir.delete()
+    void afterEach() {
+        tmpProjectDir?.delete()
     }
 }

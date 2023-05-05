@@ -63,6 +63,7 @@ repositories {
 }
 
 
+logger.quiet "[newrelic] [agent-test-app] JDK version [${System.getProperty('java.version')}]"
 logger.quiet "[newrelic] [agent-test-app] Gradle version [${GradleVersion.current()}]"
 logger.quiet "[newrelic] [agent-test-app] AGP plugin version [${versions.agp.plugin}]"
 logger.quiet "[newrelic] [agent-test-app] withProductFlavors[${project.withProductFlavors.toBoolean()}]"

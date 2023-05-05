@@ -31,7 +31,7 @@ class BuildHelper {
      * https://developer.android.com/studio/releases/gradle-plugin#updating-gradle
      * Plugin version	Required Gradle version
      * 4.2.+            6.7.1       // min supported Gradle configuration cache level
-     * 7.0              7.0         // min supported AGP that supports configuration caching
+     * 7.0              7.0.2       // min supported AGP that supports configuration caching
      * 7.1	            7.2
      * 7.2              7.3.3
      * 7.3              7.4
@@ -48,9 +48,9 @@ class BuildHelper {
 
     public final String gradleVersion = GradleVersion.current().version
 
-    static final String minSupportedAGPVersion = '7.0.2'
+    static final String minSupportedAGPVersion = '7.0.0'
     static final String maxSupportedAGPVersion = "8.2"
-    static final String minSupportedGradleVersion = '7.0'
+    static final String minSupportedGradleVersion = '7.0.2'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
     static final String minSupportedAGPConfigCacheVersion = '7.0.2'
 
@@ -80,7 +80,7 @@ class BuildHelper {
         this.dexguardHelper = DexGuardHelper.register(this)
 
         if (!project.pluginManager.hasPlugin("com.android.application")) {
-            throw new BuildCancelledException("Instrumentation of Android modules are not yet supported.")
+            throw new BuildCancelledException("Instrumentation of Android modules (libraries, dynamic feature, etc.) is not supported in this version.")
         }
 
         try {

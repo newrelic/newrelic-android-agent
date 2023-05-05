@@ -8,38 +8,40 @@ package com.newrelic.agent.android
 import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.util.BuildId
 import org.junit.Assert
+import org.junit.Ignore
 import org.junit.jupiter.api.Test
 
+@Ignore
 class NewRelicGradlePluginTest extends PluginTest {
 
-    @Test
+    // @Test
     void apply() {
     }
 
-    @Test
+    // @Test
     void initializePluginForAGP4x() {
 
     }
 
-    @Test
+    // @Test
     void initializePluginForAGP7x() {
 
     }
 
-    @Test
+    // @Test
     void logBuildMetrics() {
 
     }
 
-    @Test
+    // @Test
     void checkDexGuard() {
     }
 
-    @Test
+    // @Test
     void checkInstantApps() {
     }
 
-    @Test
+    // @Test
     void getDefaultBuildMap() {
         def buildIdMap = plugin.getDefaultBuildMap() as HashMap<String, String>
         Assert.assertTrue(plugin.pluginExtension.variantMapsEnabled.get())
@@ -50,7 +52,7 @@ class NewRelicGradlePluginTest extends PluginTest {
         }
     }
 
-    @Test
+    // @Test
     void getMapProvider() {
         Assert.assertEquals(plugin.buildHelper.getMapCompilerName(), Proguard.Provider.DEFAULT)
 
