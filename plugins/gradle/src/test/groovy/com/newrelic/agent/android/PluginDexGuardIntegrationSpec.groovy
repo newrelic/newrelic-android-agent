@@ -5,12 +5,9 @@
 
 package com.newrelic.agent.android
 
-import org.gradle.testkit.runner.BuildResult
+
 import org.gradle.testkit.runner.GradleRunner
 import spock.lang.IgnoreIf
-import spock.lang.Requires
-import spock.lang.Shared
-import spock.lang.Specification
 import spock.lang.Stepwise
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
@@ -26,17 +23,8 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
  */
 @Stepwise
 @IgnoreIf({ System.getProperty('integrationTests', '') != 'dexguard' })
-class PluginDexGuardIntegrationSpec extends Specification {
+class PluginDexGuardIntegrationSpec extends PluginSpec {
 
-    static final rootDir = new File("../..")
-    static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
-    static final buildDir = new File(projectRootDir, "build")
-    static final debuggable = false             // set to true to break in plugin/Gradle code
-
-    // Current values (update as needed)
-    static final agentVersion = "6.10.0"        // modify as needed
-    static final agpVersion = "4.+"
-    static final gradleVersion = "6.7.1"
     static final dexguardBaseVersion = "9.3.7"
     static final dexguardPluginVersion = "1.+"
     static final dexguardHome                   // = /path/to/dexguard/artifacts"
@@ -49,47 +37,6 @@ class PluginDexGuardIntegrationSpec extends Specification {
     5) in the same directory as the DexGuard jar (not working in combination with Gradle v3.1+).
     */
     static final dexguardLicenseFile            // = "/path/to/license"
-
-    @Shared
-    Map<String, String> localEnv = [:]
-
-    @Shared
-    BuildResult buildResult
-
-    @Shared
-    def testTask = 'assembleRelease'
-
-    @Shared
-    def testVariants = ['release']
-
-    @Shared
-    def printFilter
-
-    @Shared
-    String filteredOutput
-
-    // fixtures
-    def setup() {
-        printFilter = new PrintFilter()
-    }
-
-    def setupSpec() {
-        given: "Publish the agent to local M2 repo location"
-        buildResult = GradleRunner.create()
-                .withProjectDir(rootDir)
-                .withArguments("publish")
-                .build()
-
-        and: "verify M2 repo location"
-        localEnv += System.getenv()
-        if (localEnv["M2_REPO"] == null) {
-            def m2 = new File(rootDir, "build/.m2/repository")
-            if (!(m2.exists() && m2.canRead())) {
-                throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
-            }
-            localEnv.put("M2_REPO", m2.getAbsolutePath())
-        }
-    }
 
     def "verify dexguard apk instrumentation"() {
         given: "Build the app using DexGuard"

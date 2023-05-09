@@ -5,31 +5,16 @@
 
 package com.newrelic.agent.android
 
-import org.gradle.testkit.runner.BuildResult
-import org.gradle.testkit.runner.GradleRunner
-import spock.lang.*
+import spock.lang.IgnoreIf
+import spock.lang.Requires
+import spock.lang.Shared
+import spock.lang.Unroll
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 @IgnoreIf({ System.getProperty('regressionTests', 'dexguard') == 'dexguard' })
-class PluginRegressionSpec extends Specification {
-
-    static final rootDir = new File("../..")
-    static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
-    static final buildDir = new File(projectRootDir, "build")
-
-    // update as needed
-    static final gradleVersion = "7.2"
-
-    @Shared
-    Map<String, String> localEnv = [:]
-
-    @Shared
-    BuildResult buildResult
-
-    @Shared
-    boolean debuggable = true
+class PluginRegressionSpec extends PluginSpec {
 
     @Shared
     def testTask = 'assembleRelease'
@@ -37,41 +22,6 @@ class PluginRegressionSpec extends Specification {
     @Shared
     def testVariants = ['release']
 
-    @Shared
-    def printFilter
-
-    @Shared
-    String filteredOutput
-
-    @Shared
-    StringWriter errorOutput
-
-    // fixtures
-    def setup() {
-        printFilter = new PrintFilter()
-        errorOutput = new StringWriter()
-    }
-
-    def setupSpec() {
-        given: "Set/verify staging location"
-        localEnv += System.getenv()
-        if (localEnv["M2_REPO"] == null) {
-            def m2 = new File(rootDir, "build/.m2/repository").absoluteFile
-            try {
-                if (!(m2.exists() && m2.canRead())) {
-                    provideRunner()
-                            .withProjectDir(rootDir)
-                            .withArguments("install", "publish")
-                            .build()
-                    if (!(m2.exists() && m2.canRead())) {
-                        throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
-                    }
-                }
-                localEnv.put("M2_REPO", m2.getAbsolutePath())
-            } catch (Exception ignored) {
-            }
-        }
-    }
 
     @Unroll("#dataVariablesWithIndex")
     @Requires({ jvm.isJava11Compatible() })
@@ -83,7 +33,7 @@ class PluginRegressionSpec extends Specification {
                         "-Pnewrelic.agent.version=${agent}",
                         "-Pnewrelic.agp.version=${agp}",
                         "-Pcompiler=r8",
-                        "-PagentRepo=local",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=false",
                         "--stacktrace",
                         "clean",
@@ -102,7 +52,7 @@ class PluginRegressionSpec extends Specification {
             testVariants.each { var ->
                 task(":assemble${var.capitalize()}").outcome == SUCCESS
                 (task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                    task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+                        task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
 
                 [NewRelicConfigTask.NAME].each { task ->
                     buildResult.task(":${task}${var.capitalize()}").outcome == SUCCESS
@@ -123,7 +73,7 @@ class PluginRegressionSpec extends Specification {
         where:
         [agent, [agp, gradle]] << [
                 ["6.+", [agp: "7.4.+", gradle: "7.5"]],
-        //      ["7.+", [agp: "7.0.+", gradle: "7.0.2"]],       // FIXME
+                //      ["7.+", [agp: "7.0.+", gradle: "7.0.2"]],       // FIXME
                 ["7.+", [agp: "7.1.3", gradle: "7.2"]],
                 ["7.+", [agp: "7.2.+", gradle: "7.3.3"]],
                 ["7.+", [agp: "7.3.+", gradle: "7.4"]],
@@ -146,6 +96,7 @@ class PluginRegressionSpec extends Specification {
                         "-Pnewrelic.agp.version=${agp}",
                         "-Pcompiler=r8",
                         "-PagentRepo=local",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=false",
                         "--stacktrace",
                         "clean",
@@ -173,24 +124,7 @@ class PluginRegressionSpec extends Specification {
         [agent, [agp, gradle]] << [
                 ["7.+", [agp: "8.0.+", gradle: "8.0"]],
                 ["7.+", [agp: "8.0.+", gradle: "8.1"]],
-        //      ["7.+", [agp: "8.1.+", gradle: "8.1"]],
+                //      ["7.+", [agp: "8.1.+", gradle: "8.1"]],
         ]
     }
-
-    def cleanup() {
-        with(new File(projectRootDir, ".gradle/configuration-cache")) {
-            it.deleteDir()
-        }
-    }
-
-    def provideRunner() {
-        def runner = GradleRunner.create()
-                .withProjectDir(projectRootDir)
-                .forwardStdOutput(printFilter)
-                .forwardStdError(errorOutput)
-                .withGradleVersion(gradleVersion)
-
-        return debuggable ? runner.withDebug(debuggable) : runner.withEnvironment(localEnv)
-    }
-
 }
