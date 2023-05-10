@@ -14,34 +14,7 @@ import org.junit.jupiter.api.Test
 @Ignore
 class NewRelicGradlePluginTest extends PluginTest {
 
-    // @Test
-    void apply() {
-    }
-
-    // @Test
-    void initializePluginForAGP4x() {
-
-    }
-
-    // @Test
-    void initializePluginForAGP7x() {
-
-    }
-
-    // @Test
-    void logBuildMetrics() {
-
-    }
-
-    // @Test
-    void checkDexGuard() {
-    }
-
-    // @Test
-    void checkInstantApps() {
-    }
-
-    // @Test
+    @Test
     void getDefaultBuildMap() {
         def buildIdMap = plugin.getDefaultBuildMap() as HashMap<String, String>
         Assert.assertTrue(plugin.pluginExtension.variantMapsEnabled.get())
@@ -52,7 +25,7 @@ class NewRelicGradlePluginTest extends PluginTest {
         }
     }
 
-    // @Test
+    @Test
     void getMapProvider() {
         Assert.assertEquals(plugin.buildHelper.getMapCompilerName(), Proguard.Provider.DEFAULT)
 

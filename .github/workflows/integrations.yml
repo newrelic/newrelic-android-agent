@@ -16,8 +16,6 @@ on:
 
 jobs:
   integration-plugin:
-    if: ${{ false }}  # disable for until tests are resolved
-
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -43,7 +41,7 @@ jobs:
           name: build-reports
           path: plugins/gradle/build/reports/
 
-  regression-plugin:
+  regression-jdk17-plugin:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -51,6 +49,31 @@ jobs:
         uses: actions/setup-java@v3
         with:
           java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: current
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      - name: Stage with Gradle
+        run: ./gradlew install publish
+      - name: Build with Gradle
+        run: ./gradlew :plugins:gradle:test --tests "com.newrelic.agent.android.PluginRegressionSpec" -PregressionTests
+      - name: Upload build reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-reports
+          path: plugins/gradle/build/reports/
+
+  regression-jdk11-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
           distribution: 'temurin'
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2

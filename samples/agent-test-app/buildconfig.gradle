@@ -21,7 +21,7 @@ buildscript {
                 ]
         ]
 
-        newrelic.agent.snapshotUri = uri("https://oss.sonatype.org/content/repositories/comnewrelic-$newrelic.agent.snapshotNumber")
+        newrelic.agent.snapshotUri = uri("https://oss.sonatype.org/content/repositories/comnewrelic-$newrelic.agent.snapshot")
 
         newrelic.deps = [
                 agent : "com.newrelic.agent.android:android-agent:" + newrelic.agent.version,

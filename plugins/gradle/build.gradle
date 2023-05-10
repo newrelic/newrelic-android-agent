@@ -30,6 +30,9 @@ compileKotlin {
 
 classes.dependsOn compileKotlin
 
+def integrationTest = sourceSets.create("integrationTest")
+def functionalTest = sourceSets.create("functionalTest")
+
 dependencies {
     implementation project(path: ':instrumentation', configuration: 'shadow')
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
@@ -49,6 +52,7 @@ dependencies {
     testImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
     testImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
 
+    testImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
     testImplementation gradleApi()
     testImplementation gradleTestKit()
 
@@ -58,7 +62,29 @@ dependencies {
     testImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
     testImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
     testImplementation 'com.google.guava:guava:' + project.versions.java.guava
+    testImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
     testImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
+        exclude group: 'org.codehaus.groovy'
+    }
+
+    // integrations
+    integrationTestImplementation(project)
+    integrationTestImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
+    integrationTestImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    integrationTestImplementation gradleApi()
+    integrationTestImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
+    integrationTestImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
+        exclude group: 'org.codehaus.groovy'
+    }
+
+    // regressions
+    functionalTestImplementation(project)
+    functionalTestImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
+    functionalTestImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    functionalTestImplementation gradleApi()
+    functionalTestImplementation gradleTestKit()
+    functionalTestImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
+    functionalTestImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
         exclude group: 'org.codehaus.groovy'
     }
 
@@ -104,10 +130,32 @@ test {
     }
 }
 
+def integrationTestTask = tasks.register("integrationTests", Test) {
+    description = 'Runs the integration tests.'
+    group = "verification"
+    testClassesDirs = integrationTest.output.classesDirs
+    classpath = integrationTest.runtimeClasspath
+    mustRunAfter(tasks.named('test'))
+}
+
+def functionalTestTask = tasks.register("functionalTests", Test) {
+    description = 'Runs the functional tests.'
+    group = "verification"
+    testClassesDirs = functionalTest.output.classesDirs
+    classpath = functionalTest.runtimeClasspath
+    mustRunAfter(tasks.named('test'))
+}
+
+/* TBA
+tasks.named('check') {
+    dependsOn(integrationTestTask)
+    dependsOn(functionalTestTask)
+}
+/* TBA */
+
 artifacts {
     archives jar
 }
-
 
 apply from: "${rootDir}/gradle/publishing.gradle"
 

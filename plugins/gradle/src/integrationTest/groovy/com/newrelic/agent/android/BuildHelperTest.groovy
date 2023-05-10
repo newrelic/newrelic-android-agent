@@ -21,12 +21,19 @@ class BuildHelperTest extends PluginTest {
     BuildHelper buildHelper
 
     BuildHelperTest() {
-        super(false)
+        super(true)
     }
 
     @BeforeEach
     void setUp() {
-        NewRelicExtension.register(project)
+        project.getPlugins().with {
+            agp = apply("com.android.application")
+            if (applyPlugin) {
+                plugin = apply("newrelic")
+            }
+        }
+
+        def ext = NewRelicExtension.register(project)
 
         buildHelper = Mockito.spy(BuildHelper.register(project))
         buildHelper.logger = Mockito.spy(buildHelper.logger)
