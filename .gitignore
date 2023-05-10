@@ -1,0 +1,9 @@
+**/.DS_Store
+**/build
+**/dist
+*.swp
+*.log
+**/.gradle
+**/.idea
+**/*.iml
+local.properties

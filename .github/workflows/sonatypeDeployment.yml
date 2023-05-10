@@ -1,0 +1,50 @@
+name: Sonatype Deployment
+
+on:
+  push:
+    branches: ["main", "release/*"]
+  pull_request:
+    branches: ["main", "release/*"]
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'NewRelic Android agent deployment'
+        default: '6.+'
+        required: false
+
+jobs:
+  assemble_project:
+    name: Assemble project
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup JDK 11
+      uses: actions/setup-java@v3
+      with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'gradle'
+    - name: Build with Gradle
+      run: ./gradlew clean assemble --no-daemon
+
+  publish_release:
+      name: Publish artifacts
+      needs: [assemble_project]
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+        - name: Setup JDK 11
+          uses: actions/setup-java@v3
+          with:
+            java-version: '11'
+            distribution: 'temurin'
+            cache: 'gradle'
+        - name: Publish to sonatype and close the staging repo
+          env:
+            ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
+            ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PASSWORD }}
+            ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.SIGNING_KEY_ID }}
+            ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
+            ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+          run: ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1
+

@@ -1,0 +1,155 @@
+/*
+ * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+apply plugin: 'java'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+version = project.versions.agent
+archivesBaseName = "instrumentation"
+
+def typeMapPath = "${project.projectDir}/type_map.properties"
+def buildGenPath = "${buildDir}/tmp/compileJava/src/main/java"
+
+configurations {
+    mappedClasses
+}
+
+tasks.withType(JavaCompile) {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs/export', include: '*.jar')
+    compileOnly fileTree(dir: 'libs', include: '*.jar')
+
+    // brittle: tread lightly
+    // mappedClasses fileTree(dir: rootProject.project(':agent').projectLibsDir, include: "android-agent-${version}.jar")
+
+    testImplementation "junit:junit:" + project.versions.test.junit
+    testImplementation "org.mockito:mockito-core:" + project.versions.test.mockitoCore
+    testImplementation "org.ow2.asm:asm:8.0.1"
+    testImplementation "org.ow2.asm:asm-commons:8.0.1"
+    testImplementation "org.ow2.asm:asm-analysis:8.0.1"
+    testImplementation "org.ow2.asm:asm-util:8.0.1"
+    testImplementation "org.ow2.asm:asm-tree:8.0.1"
+}
+
+jar {
+    manifest {
+        attributes(
+                "New-Relic-App-Version": project.version,
+                "Premain-Class": "com.newrelic.agent.InstrumentationAgent",
+                "Agent-Class": "com.newrelic.agent.InstrumentationAgent",
+                "Can-Retransform-Classes": "true",
+                "Can-Redefine-Classes": "true")
+    }
+}
+
+tasks.register("stampAgentVersion", Copy) {
+    def srcPath = sourceSets.main.java.srcDirs[0]
+
+    logger.quiet("[newrelic] [instrumentation] Stamping [${srcPath}/com/newrelic/agent/InstrumentationAgent.java] " +
+            "into [${buildGenPath}/com/newrelic/agent]")
+
+    from("${srcPath}/com/newrelic/agent/InstrumentationAgent.java") {
+        filter { it.replaceAll('replaceme', version) }
+    }
+    into "${buildGenPath}/com/newrelic/agent"
+}
+
+tasks.register("compileStampedAgent", JavaCompile) {
+    logger.quiet("[newrelic] [instrumentation] Recompiling [${buildGenPath}/com/newrelic/agent/InstrumentationAgent.java]")
+
+    dependsOn stampAgentVersion
+    source = buildGenPath
+    include 'com/newrelic/agent/InstrumentationAgent.java'
+    classpath = sourceSets.main.compileClasspath
+    destinationDir = sourceSets.main.output.classesDirs.first()
+    options.sourcepath = sourceSets.main.allJava.getSourceDirectories()
+    options.listFiles = true
+}
+
+
+/*
+ * Finalize instrumentation.jar
+ *
+ * This task will merge the class rewriter and dependencies into a fat jar,
+ * using Shadow to rewrite package names where applicable
+ */
+
+shadowJar {
+    archiveClassifier = ''
+
+    // load static type map
+    from typeMapPath
+
+    relocate "org.objectweb.asm", "com.newrelic.org.objectweb.asm"
+    relocate "org.reflections", "com.newrelic.org.reflections"
+    relocate "com.google", "com.newrelic.com.google"
+    relocate "org.apache", "com.newrelic.org.apache"
+
+    relocate ("org.slf4j", "com.newrelic.org.slf4j") {
+        exclude "org.slf4j.Logger"
+    }
+
+    manifest {
+        inheritFrom jar.manifest
+    }
+
+    exclude "META-INF/*"
+}
+
+/**
+ * Set dependencies
+ */
+project.afterEvaluate() {
+    classes.finalizedBy compileStampedAgent
+
+    tasks.register("generateMapFile", JavaExec) {
+        description "Extract relocation rules from instrumentation code and generate type_map properties file"
+        dependsOn compileStampedAgent
+        group "build"
+        main 'com.newrelic.agent.util.MapFileGenerator'
+        jvmArgs '-Xmx1024m'
+        args "${typeMapPath}"
+        classpath sourceSets.main.compileClasspath
+        classpath sourceSets.main.runtimeClasspath
+        classpath configurations.mappedClasses
+        doFirst {
+            standardOutput = new FileOutputStream(new File(getTemporaryDir(), 'MapFileGenerator.log'))
+        }
+        gradle.taskGraph.whenReady {
+            logger.quiet("GenerateMapFile task enabled[${gradle.taskGraph.hasTask(generateMapFile)}]")
+        }
+    }
+}
+
+artifacts {
+    archives shadowJar
+}
+
+
+apply from: "${rootDir}/gradle/publishing.gradle"
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact shadowJar
+            artifactId 'instrumentation'
+            pom {
+                artifactId = 'instrumentation'
+                name = 'New Relic Android Instrumentation Agent'
+                description = 'The New Relic Android instrumentation agent instruments and rewrites classes for Android applications'
+            }
+        }
+    }
+}
+
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
