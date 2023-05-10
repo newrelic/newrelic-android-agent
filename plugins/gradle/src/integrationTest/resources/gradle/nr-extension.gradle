@@ -1,3 +1,5 @@
+package gradle
+
 /*
  * Copyright (c) 2023- present. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0

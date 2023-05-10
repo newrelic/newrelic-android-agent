@@ -73,7 +73,7 @@ class PluginRegressionSpec extends PluginSpec {
         where:
         [agent, [agp, gradle]] << [
                 ["6.+", [agp: "7.4.+", gradle: "7.5"]],
-                //      ["7.+", [agp: "7.0.+", gradle: "7.0.2"]],       // FIXME
+        //      ["7.+", [agp: "7.0.+", gradle: "7.0.2"]],       // FIXME
                 ["7.+", [agp: "7.1.3", gradle: "7.2"]],
                 ["7.+", [agp: "7.2.+", gradle: "7.3.3"]],
                 ["7.+", [agp: "7.3.+", gradle: "7.4"]],
@@ -85,9 +85,6 @@ class PluginRegressionSpec extends PluginSpec {
     @Unroll("#dataVariablesWithIndex")
     @Requires({ jvm.isJava17Compatible() })
     def "Regress agent[#agent] against AGP8 [#agp] Gradle[#gradle]"() {
-        /**
-         * @https: //developer.android.com/studio/releases/gradle-plugin#updating-gradle
-         * */
         given: "Run #agent plugin using #agp/#gradle"
         def runner = provideRunner()
                 .withGradleVersion(gradle)
