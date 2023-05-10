@@ -9,9 +9,11 @@ buildscript {
     ext {
         def hasOptional = { key, defaultValue -> rootProject.hasProperty(key) ? rootProject[key] : defaultValue }
 
-        compiler = hasOptional('compiler', 'r8')    // [proguard, r8, dexguard, dexguardLegacy]
+        agentRepo = hasOptional('agentRepo', "local")
+        compiler = hasOptional('compiler', 'r8')        // [proguard, r8, dexguard, dexguardLegacy]
         minify = hasOptional('minifyEnabled', true)
         withProductFlavors = hasOptional('withProductFlavors', false)
+        applyPlugin = hasOptional('applyPlugin', true)
 
         newrelic = [
                 agent: [
@@ -29,15 +31,13 @@ buildscript {
                 ndk   : "com.newrelic.agent.android:agent-ndk:" + newrelic.agent.ndk,
         ]
 
-        agentRepo = hasOptional('agentRepo', "local")
-
         versions = [
                 gradle: hasOptional("newrelic.gradle.version", "7.0.2"),
 
                 agp     : [
                         plugin    : hasOptional('newrelic.agp.version', "7.0.+"),
                         targetSdk : 30,
-                        compileSdk: 29,
+                        compileSdk: 30,
                         minSdk    : 24,
                         supportLib: "28.+"
                 ],
@@ -48,11 +48,9 @@ buildscript {
                         home  : hasOptional('dexguard.home', '')
                 ],
 
-                kotlin  : hasOptional('newrelic.kotlin.version', '1.5.+')
+                kotlin  : hasOptional('newrelic.kotlin.version', '1.6.+'),
+                gson  : '2.10.1'
         ]
-
-        // used to control whether the plugin is applied when projects are created by tests
-        applyPlugin = hasOptional('applyPlugin', true)
     }
 
     logger.debug "[newrelic] $project.ext.properties"
@@ -63,6 +61,10 @@ buildscript {
             throw new RuntimeException("Testing with DexGuard 9+ requires DexGuard Maven token!")
         }
     }
+}
+
+wrapper {
+    gradleVersion = versions.gradle
 }
 
 allprojects {

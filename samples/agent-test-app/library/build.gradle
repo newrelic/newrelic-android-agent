@@ -1,0 +1,15 @@
+/*
+ * Copyright (c) 2023. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ *  Android library component
+ */
+
+apply plugin: "com.android.library"
+apply plugin: "org.jetbrains.kotlin.android"
+
+project.applyPlugin=false  // FIXME
+apply from: "${rootDir}/android.gradle"
+

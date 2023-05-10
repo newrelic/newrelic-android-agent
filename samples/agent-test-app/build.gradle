@@ -5,8 +5,6 @@
 
 import org.gradle.util.GradleVersion
 
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-
 buildscript {
     apply from: "$projectDir/buildconfig.gradle"
 
@@ -16,19 +14,11 @@ buildscript {
         maven { url newrelic.agent.snapshotUri }
 
         if (project.agentRepo) {
-            if (project.agentRepo.toLowerCase().equals("local")) {
+            if (project.agentRepo.toLowerCase() == "local") {
                 mavenLocal()
             } else if (project.file(agentRepo).exists()) {
                 logger.quiet "[newrelic] [agent-test-app] Agent using local [${agentRepo}] repo"
                 maven { url "${agentRepo}" }
-            }
-        }
-
-        // may be injected by CI
-        if (System.env.M2_REPO) {
-            if (project.file(System.env.M2_REPO).exists()) {
-                logger.quiet "[newrelic] [agent-test-app] Agent using local Maven [${System.env.M2_REPO}] repo"
-                maven { url "${System.env.M2_REPO}" }
             }
         }
 
@@ -37,7 +27,8 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:' + versions.agp.plugin
+        classpath "com.android.tools.build:gradle:${versions.agp.plugin}"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
         classpath newrelic.deps.plugin
         if (project.compiler.startsWith('dexguard')) {
             classpath "com.guardsquare:dexguard-gradle-plugin:${versions.dexguard.plugin}"
@@ -45,25 +36,46 @@ buildscript {
     }
 }
 
-repositories {
-    if (project.agentRepo) {
-        if (project.agentRepo.toLowerCase().equals("local")) {
+allprojects {
+    repositories {
+        if (project.agentRepo) {
+            if (project.agentRepo.toLowerCase() == "local") {
+                mavenLocal()
+            } else if (project.file(agentRepo).exists()) {
+                maven { url "${agentRepo}" }
+            }
+        }
+
+        maven { url newrelic.agent.snapshotUri }
+        maven { url "https://plugins.gradle.org/m2/" }
+        mavenCentral()
+        mavenLocal()
+        google()
+    }
+}
+
+subprojects {
+    buildscript {
+        repositories {
+            maven { url newrelic.agent.snapshotUri }
+            maven { url "https://plugins.gradle.org/m2/" }
+            mavenCentral()
             mavenLocal()
-        } else if (project.file(agentRepo).exists()) {
-            maven { url "${agentRepo}" }
+            google()
+        }
+        dependencies {
+            classpath 'com.android.tools.build:gradle:' + versions.agp.plugin
+            classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
         }
     }
 
-    if (System.env.M2_REPO) {
-        if (project.file(System.env.M2_REPO).exists()) {
-            maven { url "${System.env.M2_REPO}" }
-        }
+    repositories {
+        google()
+        mavenCentral()
+        mavenLocal()
+        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url newrelic.agent.snapshotUri }
     }
-
-    maven { url newrelic.agent.snapshotUri }
-
-    mavenCentral()
-    google()
 }
 
 
@@ -72,12 +84,9 @@ logger.quiet "[newrelic] [agent-test-app] Gradle version [${GradleVersion.curren
 logger.quiet "[newrelic] [agent-test-app] AGP plugin version [${versions.agp.plugin}]"
 logger.quiet "[newrelic] [agent-test-app] withProductFlavors[${project.withProductFlavors.toBoolean()}]"
 logger.quiet "[newrelic] [agent-test-app] using dex compiler[$project.compiler]"
+logger.quiet "[newrelic] [agent-test-app] appy NR plugins[$project.applyPlugin]"
 
-
-apply plugin: 'com.android.application'
-
-def useDexguard = (project.compiler && project.compiler.startsWith('dexguard'))
-if (useDexguard) {
+if (project.compiler && project.compiler.startsWith('dexguard')) {
     logger.quiet "[newrelic] [agent-test-app] Dexguard license[${System.getProperty('dexguard.license', System.getenv('DEXGUARD_LICENSE'))}]"
     logger.quiet "[newrelic] [agent-test-app] Dexguard home[${versions.dexguard.home}]"
     logger.quiet "[newrelic] [agent-test-app] Dexguard base version[${versions.dexguard.base}]"
@@ -85,171 +94,20 @@ if (useDexguard) {
     apply plugin: 'dexguard'
 }
 
-wrapper {
-    gradleVersion = versions.gradle
+project.tasks.register("cleanRoot", Delete) {
+    delete rootProject.buildDir
 }
 
+
+/**
+ * Android app component
+ * Keep app in rootDir for testing
+ */
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
 android {
-    namespace "com.newrelic.agent.android.testapp"
-    compileSdkVersion versions.agp.compileSdk
-
     defaultConfig {
-        minSdkVersion versions.agp.minSdk
-        targetSdkVersion versions.agp.targetSdk
         applicationId "com.newrelic"
-        versionCode 1
-        versionName "1.1"
-    }
-
-    logger.quiet "[newrelic] [agent-test-app] minifyEnabled [${project.minify.toBoolean()}]"
-    buildTypes {
-        switch (compiler) {
-            case 'dexguard':
-                debug {
-                    minifyEnabled false
-                }
-                qa {
-                    minifyEnabled false
-                }
-                release {
-                    minifyEnabled false
-                }
-                break
-
-            case 'dexguardLegacy':
-                debug {
-                    proguardFile getDefaultDexGuardFile('dexguard-release.pro')
-                    minifyEnabled false
-                }
-                qa {
-                    proguardFile getDefaultDexGuardFile('dexguard-release.pro')
-                    minifyEnabled false
-                }
-                release {
-                    proguardFile getDefaultDexGuardFile('dexguard-release.pro')
-                    minifyEnabled false
-                }
-                break
-
-            case 'r8':
-            case 'proguard':
-                debug {
-                    proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-                    minifyEnabled minify.toBoolean()
-                }
-                qa {
-                    proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-                    minifyEnabled minify.toBoolean()
-                }
-                release {
-                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                    minifyEnabled minify.toBoolean()
-                }
-                break
-        }
-    }
-
-    if (withProductFlavors && withProductFlavors.toBoolean()) {
-        flavorDimensions "aosp"
-        productFlavors {
-            google {
-                dimension "aosp"
-            }
-            amazon {
-                dimension "aosp"
-            }
-        }
     }
 }
-
-dependencies {
-    implementation "com.android.support:appcompat-v7:" + versions.agp.supportLib
-    implementation newrelic.deps.agent
-}
-
-//
-// DG 9.+
-//
-if (project.plugins.hasPlugin("dexguard")) {
-    logger.quiet "[newrelic] [agent-test-app] using DexGuard[${versions.dexguard.base}]"
-
-    if (compiler == 'dexguard') {
-        dexguard {
-            version = versions.dexguard.base
-
-            // Not needed when used with 'version' property:
-            // path = /path/to/dexguard/lib
-
-            // Can be set via a system property by adding the following in the gradle.properties file:
-            //  systemProp.dexguard.license=/path/to/dexguard-license.txt
-            // license = /path/to/dexguard-license.txt"
-
-            configurations {
-                debug {
-                    defaultConfiguration 'dexguard-release.pro'
-                    configuration 'dexguard-project.txt'
-                    configuration 'proguard-project.txt'
-                }
-                qa {
-                    defaultConfiguration 'dexguard-release.pro'
-                    configuration 'dexguard-qa-project.txt'
-                }
-                release {
-                    defaultConfiguration 'dexguard-release.pro'
-                    configuration 'dexguard-project.txt'
-                    configuration 'proguard-project.txt'
-                }
-            }
-        }
-    }
-}
-
-//
-// NewRelic agent
-//
-
-if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
-    apply plugin: 'newrelic'
-}
-
-if (project.plugins.hasPlugin("newrelic")) {
-
-    // this allows integration testing
-    def testExtension = project.file("nr-extension.gradle")
-    if (testExtension.exists()) {
-        apply from: testExtension.absolutePath
-
-    } else {
-        newrelic {
-            // use a common buildId for all variants (default: true)
-            // variantMapsEnabled true
-
-            // Tag and report Proguard maps for these build types (default: release):
-            uploadMapsForVariant 'release', 'qa'
-
-            // do not instrument these variant builds
-            excludeVariantInstrumentation 'debug'
-
-            // do not instrument these specific packages
-            excludePackageInstrumentation 'com.newrelic'
-
-            try {
-                variantConfigurations {
-                    debug {
-                        // mappingFile = 'build/outputs/dexguard/mapping/debug/debug-mapping.txt'
-                    }
-
-                    qa {
-                        mappingFile = 'build/outputs/dexguard/mapping/qa/qa-mapping.txt'
-                    }
-
-                    release {
-                        // mappingFile = 'build/outputs/dexguard/mapping/bundle/release/mapping.txt'
-                    }
-                }
-            } catch (Exception) {
-                logger.info("DSL not implemented")
-            }
-        }
-    }
-}
+apply from: "android.gradle"
