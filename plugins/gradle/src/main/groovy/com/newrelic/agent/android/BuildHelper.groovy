@@ -79,10 +79,6 @@ class BuildHelper {
         this.logger = NewRelicGradlePlugin.LOGGER
         this.dexguardHelper = DexGuardHelper.register(this)
 
-        if (!project.pluginManager.hasPlugin("com.android.application")) {
-            throw new BuildCancelledException("Instrumentation of Android modules (libraries, dynamic feature, etc.) is not supported in this version.")
-        }
-
         try {
             this.extension = project.extensions.getByType(NewRelicExtension.class) as NewRelicExtension
             this.extraProperties = project.extensions.getByType(ExtraPropertiesExtension.class) as ExtraPropertiesExtension
@@ -108,7 +104,7 @@ class BuildHelper {
             throw new UnknownPluginException("The New Relic agent plugin depends on the Android plugin." + NEWLN +
                     "Please apply an Android plugin before the New Relic agent: " + NEWLN +
                     "plugins {" + NEWLN +
-                    "   id 'com.android.[application, library]'" + NEWLN +
+                    "   id 'com.android.[application, library, dynamic-feature]'" + NEWLN +
                     "   id 'newrelic'" + NEWLN +
                     "}")
         }

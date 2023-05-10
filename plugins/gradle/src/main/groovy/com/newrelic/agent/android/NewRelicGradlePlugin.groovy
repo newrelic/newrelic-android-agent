@@ -8,6 +8,7 @@ package com.newrelic.agent.android
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.util.BuildId
 import kotlin.KotlinVersion
+import org.gradle.api.BuildCancelledException
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -30,6 +31,10 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
         // bind the instrumentation agent's logger to the plugin's logger
         InstrumentationAgent.LOGGER = LOGGER
+
+        if (!project.pluginManager.hasPlugin("com.android.application")) {
+            throw new BuildCancelledException("Instrumentation of Android modules (libraries, dynamic feature, etc.) is not supported in this version.")
+        }
 
         pluginExtension = NewRelicExtension.register(project)
         if (!pluginExtension.getEnabled()) {
