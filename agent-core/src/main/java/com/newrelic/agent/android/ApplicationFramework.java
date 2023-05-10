@@ -11,5 +11,6 @@ public enum ApplicationFramework {
     Cordova,
     Flutter,
     Capacitor,
-    Xamarin
+    Xamarin,
+    MAUI
 }

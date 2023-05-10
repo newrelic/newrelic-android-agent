@@ -41,7 +41,7 @@ class BuildHelper {
 
     static final GradleVersion minSupportedAGPVersion = GradleVersion.version('4.0.1')
     static final GradleVersion minSupportedGradleVersion = GradleVersion.version('6.1.1')
-    static final GradleVersion currentSupportedAGPVersion = GradleVersion.version('7.4.0')
+    static final GradleVersion currentSupportedAGPVersion = GradleVersion.version('7.4.4')
     static final GradleVersion legacyGradleVersion = GradleVersion.version('4.10.0')
     static final GradleVersion breakingGradleVersion = GradleVersion.version('5.6.4')
 

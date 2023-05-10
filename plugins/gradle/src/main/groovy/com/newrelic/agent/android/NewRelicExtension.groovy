@@ -16,7 +16,7 @@ import org.gradle.api.tasks.Nested
 abstract class NewRelicExtension {
 
     protected List<String> variantExclusionList = []          // ['Debug', 'Staging']
-    protected List<String> variantMapUploadList = []          // ['Release', 'ProdRelease', 'Staging']
+    protected List<String> variantMapUploadList = ['release']          // ['Release', 'ProdRelease', 'Staging']
     protected List<String> packageExclusionList = []          // ['android.*', 'androidx.*']
 
     boolean enabled = true
