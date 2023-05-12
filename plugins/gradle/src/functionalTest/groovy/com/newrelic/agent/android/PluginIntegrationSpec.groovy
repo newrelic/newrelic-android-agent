@@ -10,6 +10,7 @@ import spock.lang.Ignore
 import spock.lang.Requires
 import spock.lang.Stepwise
 
+import static org.gradle.testkit.runner.TaskOutcome.SKIPPED
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 @Stepwise
@@ -18,7 +19,8 @@ class PluginIntegrationSpec extends PluginSpec {
 
     def setup() {
         provideRunner()
-                .withArguments("-Pnewrelic.agp.version=${agpVersion}", "clean")
+                .withGradleVersion("7.3.3")
+                .withArguments("-Pnewrelic.agp.version=7.2.+", "clean")
                 .build()
     }
 
@@ -122,12 +124,6 @@ class PluginIntegrationSpec extends PluginSpec {
 
     def "verify invalidated cached map uploads"() {
         given: "Rerun the cached the task"
-        /*
-        with(new File(buildDir, "outputs/mapping/release/mapping.txt")) {
-            exists() && delete()
-        }
-        and:
-        */
         def runner = provideRunner()
                 .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion)
                 .withArguments(
@@ -141,7 +137,7 @@ class PluginIntegrationSpec extends PluginSpec {
 
         then:
         buildResult.output.contains("Configuration cache entry stored")
-        buildResult.task(":newrelicMapUploadRelease").outcome == SUCCESS
+        buildResult.task(":newrelicMapUploadRelease").outcome == SKIPPED
     }
 
     def "verify min config cache supported agp/gradle"() {

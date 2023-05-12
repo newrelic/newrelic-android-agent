@@ -16,6 +16,10 @@ import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 @Requires({ jvm.isJava17Compatible() })
 class PluginJDK17IntegrationSpec extends PluginSpec {
 
+    static final jdkVersion = 17
+    static final agpVersion = "8.0.+"
+    static final gradleVersion = "8.1.1"
+
     def setup() {
         provideRunner()
                 .withArguments("-Pnewrelic.agp.version=${agpVersion}", "clean")
@@ -29,11 +33,12 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                 "-Pnewrelic.agp.version=${agpVersion}",
                 "-Pcompiler=r8",
                 "-PagentRepo=${localEnv["M2_REPO"]}",
-                "-PwithProductFlavors=true",
+                "-PwithProductFlavors=false",
                 "--stacktrace",
                 testTask)
 
         when:
+        testVariants = ["release"]
         buildResult = runner.build()
 
         and:
@@ -42,10 +47,8 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         then:
         // rerun the build use local results
         testVariants.each { var ->
-            ['newrelicConfig'].each { taskName ->
-                with(buildResult.task(":${taskName}${var.capitalize()}")) {
-                    outcome == SUCCESS || outcome == UP_TO_DATE
-                }
+            with(buildResult.task(":${NewRelicConfigTask.NAME}${var.capitalize()}")) {
+                outcome == SUCCESS || outcome == UP_TO_DATE
             }
         }
     }
@@ -67,7 +70,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         buildResult = runner.build()
 
         then:
-        buildResult.task(":$testTask").outcome == SUCCESS
+        buildResult.task("${testTask}").outcome == SUCCESS
     }
 
     def "verify pre-release AGP version check"() {
@@ -108,8 +111,10 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         preResult.output.contains("Calculating task graph")
         preResult.output.contains("Configuration cache entry stored")
 
-        postResult.task(":newrelicConfigRelease").outcome == UP_TO_DATE ||
-                postResult.task(":newrelicConfigRelease").outcome == SUCCESS        // FIXME
+        with(postResult.task(":${NewRelicConfigTask.NAME}Release")) {
+            outcome == UP_TO_DATE || outcome == SUCCESS     // FIXME Should be UP_TO_DATE
+        }
+
         postResult.output.contains("Reusing configuration cache")
         postResult.output.contains("Configuration cache entry reused")
     }
@@ -297,6 +302,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         }
     }
 
+    @Requires({ jvm.isJava17Compatible() })
     def "verify AGP8"() {
         final agp8Version = s
         final gradle8Version = "8.0.2"

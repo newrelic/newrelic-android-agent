@@ -5,14 +5,26 @@
 
 package com.newrelic.agent.android
 
+import spock.lang.Requires
+import spock.lang.Shared
+
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 class PluginSmokeSpec extends PluginSpec {
 
+    /* Last levels for JDK 11. Must use JDK 17 for AGP/Gradle 8.+    */
+    static final jdkVersion = 11
+    static final agpVersion = "7.4.+"
+    static final gradleVersion = "7.6.1"
+
+    @Shared
+    def testVariants = ['googleRelease']        // when withProductFlavors=true
+
     def setupSpec() {
         given: "create the build runner"
         def runner = provideRunner()
+                .withGradleVersion(gradleVersion)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
@@ -29,6 +41,7 @@ class PluginSmokeSpec extends PluginSpec {
         filteredOutput = printFilter
     }
 
+    @Requires({ jvm.isJavaVersionCompatible(jdkVersion) })
     def "build the test app"() {
         expect: "the test app was built"
         with(buildResult) {
@@ -49,16 +62,14 @@ class PluginSmokeSpec extends PluginSpec {
     def "verify NewRelicConfig was injected"() {
         expect:
         testVariants.each { var ->
-            ['newrelicConfig'].each { task ->
-                buildResult.task(":${task}${var.capitalize()}").outcome == SUCCESS
-                def configTmpl = new File(buildDir,
-                        "/generated/java/newrelicConfig${var.capitalize()}/com/newrelic/agent/android/NewRelicConfig.java")
-                configTmpl.exists() && configTmpl.canRead()
-                configTmpl.text.find(~/BUILD_ID = \"(.*)\".*/)
+            buildResult.task(":${NewRelicConfigTask.NAME}${var.capitalize()}").outcome == SUCCESS
+            def configTmpl = new File(buildDir,
+                    "/generated/java/newrelicConfig${var.capitalize()}/com/newrelic/agent/android/NewRelicConfig.java")
+            configTmpl.exists() && configTmpl.canRead()
+            configTmpl.text.find(~/BUILD_ID = \"(.*)\".*/)
 
-                def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
-                configClass.exists() && configClass.canRead()
-            }
+            def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
+            configClass.exists() && configClass.canRead()
         }
     }
 

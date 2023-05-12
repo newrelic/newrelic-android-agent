@@ -51,7 +51,7 @@ class BuildHelper {
     static final String maxSupportedAGPVersion = "8.2"
     static final String minSupportedGradleVersion = '7.0.2'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
-    static final String minSupportedAGPConfigCacheVersion = '7.0.2'
+    static final String minSupportedAGPConfigCacheVersion = '7.1.0'
 
     public static String NEWLN = "\r\n"
 

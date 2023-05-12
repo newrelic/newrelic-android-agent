@@ -19,6 +19,9 @@ sourceSets {
     main.java.srcDirs += "src/main/kotlin"
 }
 
+def integrationTest = sourceSets.create("integrationTest")
+def functionalTest = sourceSets.create("functionalTest")
+
 compileGroovy {
     dependsOn tasks.getByPath('compileKotlin')
     classpath += files(compileKotlin.destinationDir)
@@ -29,9 +32,6 @@ compileKotlin {
 }
 
 classes.dependsOn compileKotlin
-
-def integrationTest = sourceSets.create("integrationTest")
-def functionalTest = sourceSets.create("functionalTest")
 
 dependencies {
     implementation project(path: ':instrumentation', configuration: 'shadow')
@@ -49,19 +49,18 @@ dependencies {
     compileOnly localGroovy()
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
-    testImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
-    testImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-
-    testImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
+    testImplementation(project)
+    testImplementation project(path: ':instrumentation', configuration: 'default')
     testImplementation gradleApi()
     testImplementation gradleTestKit()
-
-    testImplementation project(path: ':instrumentation', configuration: 'default')
+    testImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
+    testImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    testImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
+    testImplementation 'com.google.guava:guava:' + project.versions.java.guava
     testImplementation 'junit:junit:' + project.versions.test.junit
     testImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
     testImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
     testImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
-    testImplementation 'com.google.guava:guava:' + project.versions.java.guava
     testImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
     testImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
         exclude group: 'org.codehaus.groovy'
@@ -69,9 +68,16 @@ dependencies {
 
     // integrations
     integrationTestImplementation(project)
+    integrationTestImplementation project(path: ':instrumentation', configuration: 'default')
+    integrationTestImplementation gradleApi()
+    integrationTestImplementation gradleTestKit()
     integrationTestImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
     integrationTestImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    integrationTestImplementation gradleApi()
+    integrationTestImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
+    integrationTestImplementation 'com.google.guava:guava:' + project.versions.java.guava
+    integrationTestImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
+    integrationTestImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
+    integrationTestImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
     integrationTestImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
     integrationTestImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
         exclude group: 'org.codehaus.groovy'
@@ -79,10 +85,16 @@ dependencies {
 
     // regressions
     functionalTestImplementation(project)
-    functionalTestImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
-    functionalTestImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    functionalTestImplementation project(path: ':instrumentation', configuration: 'default')
     functionalTestImplementation gradleApi()
     functionalTestImplementation gradleTestKit()
+    functionalTestImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
+    functionalTestImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    functionalTestImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
+    functionalTestImplementation 'com.google.guava:guava:' + project.versions.java.guava
+    functionalTestImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
+    functionalTestImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
+    functionalTestImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
     functionalTestImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
     functionalTestImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
         exclude group: 'org.codehaus.groovy'
@@ -110,7 +122,7 @@ tasks.withType(Test).configureEach {
         includeEngines("junit-jupiter")
     }
 
-    ["integrationTests", "regressionTests", "newrelic.agent.args", "newrelic.agent.version"].each {
+    ["newrelic.agent.args", "newrelic.agent.version"].each {
         if (project.hasProperty(it)) {
             systemProperty it, project.property(it)
         }
@@ -123,11 +135,10 @@ tasks.withType(Test).configureEach {
 }
 
 test {
-    useJUnitPlatform()
-    maxHeapSize = '4G'
-    onlyIf {
-        project.hasProperty('regressionTests') || project.hasProperty('integrationTests')
+    useJUnitPlatform() {
+        includeEngines("junit-jupiter")
     }
+    maxHeapSize = '4G'
 }
 
 def integrationTestTask = tasks.register("integrationTests", Test) {
@@ -139,19 +150,16 @@ def integrationTestTask = tasks.register("integrationTests", Test) {
 }
 
 def functionalTestTask = tasks.register("functionalTests", Test) {
-    description = 'Runs the functional tests.'
+    description = 'Runs the functional/regression tests.'
     group = "verification"
     testClassesDirs = functionalTest.output.classesDirs
     classpath = functionalTest.runtimeClasspath
     mustRunAfter(tasks.named('test'))
 }
 
-/* TBA
 tasks.named('check') {
-    dependsOn(integrationTestTask)
     dependsOn(functionalTestTask)
 }
-/* TBA */
 
 artifacts {
     archives jar

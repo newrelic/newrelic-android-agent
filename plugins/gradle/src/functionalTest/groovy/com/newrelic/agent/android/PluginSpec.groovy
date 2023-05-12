@@ -19,7 +19,8 @@ abstract class PluginSpec extends Specification {
     static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
 
-    // update as needed
+    /* AGP/Gradle level 8+ require JDK 17 */
+    static final minJdkVersion = 17
     static final agentVersion = System.getProperty("newrelic.agent.version", '7.+')
     static final agpVersion = "8.0.+"
     static final gradleVersion = "8.1.1"
@@ -28,6 +29,9 @@ abstract class PluginSpec extends Specification {
 
     @Shared
     Map<String, String> localEnv = [:]
+
+    @Shared
+    def modules = [":library"]
 
     @Shared
     BuildResult buildResult
@@ -39,7 +43,7 @@ abstract class PluginSpec extends Specification {
     def testTask = 'assembleRelease'
 
     @Shared
-    def testVariants = ['googleRelease']
+    def testVariants = ['release']
 
     @Shared
     def printFilter

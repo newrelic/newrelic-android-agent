@@ -102,7 +102,6 @@ project.afterEvaluate {
         workingDir rootProject.rootDir
         environment "M2_REPO", mavenLocal
         commandLine "./gradlew", "-Pnewrelic.agent.version=$project.versions.agent", "publish"
-        enabled false
     }
 
     project.tasks.register("integrationTest", Exec) {

@@ -36,7 +36,7 @@ jobs:
       - name: Stage with Gradle
         run: ./gradlew install publish
       - name: Build with Gradle
-        run: ./gradlew :plugins:gradle:test --tests "com.newrelic.agent.android.PluginIntegrationSpec" -PintegrationTests
+        run: ./gradlew :plugins:gradle:integrationTests --tests "com.newrelic.agent.android.PluginIntegrationSpec" -PintegrationTests
       - name: Upload build reports
         uses: actions/upload-artifact@v3
         with:
@@ -61,7 +61,7 @@ jobs:
       - name: Stage with Gradle
         run: ./gradlew install publish
       - name: Build with Gradle
-        run: ./gradlew :plugins:gradle:test --tests "com.newrelic.agent.android.PluginRegressionSpec" -PregressionTests
+        run: ./gradlew :plugins:gradle:functionalTests --tests "com.newrelic.agent.android.PluginRegressionSpec" -PregressionTests
       - name: Upload build reports
         uses: actions/upload-artifact@v3
         with:
@@ -86,7 +86,7 @@ jobs:
       - name: Stage with Gradle
         run: ./gradlew install publish
       - name: Build with Gradle
-        run: ./gradlew :plugins:gradle:test --tests "com.newrelic.agent.android.PluginRegressionSpec" -PregressionTests
+        run: ./gradlew :plugins:gradle:functionalTests --tests "com.newrelic.agent.android.PluginRegressionSpec" -PregressionTests
       - name: Upload build reports
         uses: actions/upload-artifact@v3
         with:
