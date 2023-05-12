@@ -195,7 +195,6 @@ class AGP70Adapter extends VariantAdapter {
                     it.finalizedBy(mapUploadProvider)
                 }
                 mapUploadProvider.configure {
-                    it.dependsOn(dependencyTaskProvider)
                     it.shouldRunAfter(dependencyTaskProvider)
                 }
             }

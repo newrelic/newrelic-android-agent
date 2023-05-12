@@ -89,46 +89,43 @@ class AGP4Adapter extends VariantAdapter {
     TaskProvider getConfigProvider(String variantName, Action action = null) {
         def variant = withVariant(variantName)
         def configTaskProvider = registerOrNamed("${NewRelicConfigTask.NAME}${variantName.capitalize()}", NewRelicConfigTask.class, action)
-        def buildConfigProvider
 
         try {
-            buildConfigProvider = variant.getGenerateBuildConfigProvider()
+            def buildConfigProvider = variant.getGenerateBuildConfigProvider()
+            if (buildConfigProvider?.isPresent()) {
+                def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.dirName}")
+
+                try {
+                    variant.registerJavaGeneratingTask(configTaskProvider, genSrcFolder.get().asFile)
+                } catch (Exception e) {
+                    logger.error("getConfigProvider: $e")
+                }
+
+                try {
+                    variant.addJavaSourceFoldersToModel(genSrcFolder.get().asFile)
+                } catch (Exception e) {
+                    logger.warn("getConfigProvider: $e")
+                }
+
+                // must manually update the Kotlin compile tasks source sets (per variant)
+                try {
+                    buildHelper.project.tasks.named("compile${variantName.capitalize()}Kotlin") { kotlinCompileTask ->
+                        kotlinCompileTask.dependsOn(configTaskProvider)
+                        kotlinCompileTask.source(objectFactory.sourceDirectorySet(configTaskProvider.name, configTaskProvider.name)
+                                .srcDir(genSrcFolder))
+                    }
+                } catch (Exception ignored) {
+                    // Kotlin source not present or task has started
+                }
+
+                return configTaskProvider
+
+            } else {
+                logger.error("getConfigProvider: buildConfig NOT finalized: buildConfig task was not found")
+            }
 
         } catch (Exception e) {
             logger.error("getConfigProvider: $e")
-            buildConfigProvider = variant.generateBuildConfig
-        }
-
-        if (buildConfigProvider?.isPresent()) {
-            def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.dirName}")
-
-            try {
-                variant.registerJavaGeneratingTask(configTaskProvider, genSrcFolder.get().asFile)
-            } catch (Exception e) {
-                logger.error("getConfigProvider: $e")
-            }
-
-            try {
-                variant.addJavaSourceFoldersToModel(genSrcFolder.get().asFile)
-            } catch (Exception e) {
-                logger.warn("getConfigProvider: $e")
-            }
-
-            // must manually update the Kotlin compile tasks source sets (per variant)
-            try {
-                buildHelper.project.tasks.named("compile${variantName.capitalize()}Kotlin") { kotlinCompileTask ->
-                    kotlinCompileTask.dependsOn(configTaskProvider)
-                    kotlinCompileTask.source(objectFactory.sourceDirectorySet(configTaskProvider.name, configTaskProvider.name)
-                            .srcDir(genSrcFolder))
-                }
-            } catch (UnknownTaskException ignored) {
-                // Kotlin source not present
-            }
-
-            return configTaskProvider
-
-        } else {
-            logger.error("getConfigProvider: buildConfig NOT finalized: buildConfig task was not found")
         }
 
         return null
@@ -192,8 +189,11 @@ class AGP4Adapter extends VariantAdapter {
                     it.finalizedBy(configProvider)
                 }
             } catch (Exception ignored) {
-                configTaskProvider = variant.generateBuildConfig.configure {
-                    it.finalizedBy(configProvider)
+                variant.generateBuildConfig.configure {
+                    try {
+                        it.finalizedBy(configProvider)
+                    } catch (Exception ignored1) {
+                    }
                 }
             }
         }
@@ -201,7 +201,11 @@ class AGP4Adapter extends VariantAdapter {
         def dependencyTasks = ["generate${variantName.capitalize()}BuildConfig"] as Set
         buildHelper.wireTaskProviderToDependencyNames(dependencyTasks) { dependencyTaskProvider ->
             dependencyTaskProvider.configure { dependencyTask ->
-                dependencyTask.finalizedBy(configProvider)
+                try {
+                    dependencyTask.finalizedBy(configProvider)
+                } catch (Exception ignored) {
+                    ignored
+                }
             }
         }
     }
@@ -214,7 +218,9 @@ class AGP4Adapter extends VariantAdapter {
             def mapFileProvider = variant.getMappingFileProvider()
             if (mapFileProvider?.isPresent()) {
                 mapUploadProvider.configure { mapTask ->
-                    mapTask.mappingFile.fileValue(mapFileProvider.map { it.singleFile }.get())
+                    if (!mapTask.mappingFile.present) {
+                        mapTask.mappingFile.fileValue(mapFileProvider.map { it.singleFile }.get())
+                    }
                 }
             }
         }
@@ -225,14 +231,5 @@ class AGP4Adapter extends VariantAdapter {
                 dependencyTask.finalizedBy(mapUploadProvider)
             }
         }
-
-        /*
-        def dependencyTasks = ["minify${variantName.capitalize()}WithR8"] as Set
-        buildHelper.wireTaskProviderToDependencyNames(dependencyTasks) { dependencyTaskProvider ->
-            dependencyTaskProvider.configure { dependencyTask ->
-                dependencyTask.finalizedBy(mapUploadProvider)
-            }
-        }
-        */
     }
 }
