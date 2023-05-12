@@ -47,7 +47,6 @@ class BuildHelper {
     public static final String agentVersion = InstrumentationAgent.version
 
     public final String gradleVersion = GradleVersion.current().version
-
     static final String minSupportedAGPVersion = '7.0.0'
     static final String maxSupportedAGPVersion = "8.2"
     static final String minSupportedGradleVersion = '7.0.2'
