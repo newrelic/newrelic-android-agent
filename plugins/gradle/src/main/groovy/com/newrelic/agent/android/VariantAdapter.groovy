@@ -168,6 +168,12 @@ abstract class VariantAdapter {
             configTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
             configTask.minifyEnabled.set(objectFactory.property(Boolean).value(buildType.minified))
             configTask.buildMetrics.set(objectFactory.property(String).value(buildHelper.getBuildMetrics().toString()))
+
+            configTask.outputs.upToDateWhen {
+                configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile.with() {
+                    exists() && text.contains(configTask.buildId.get())
+                }
+            }
         }
 
         return configProvider
