@@ -32,7 +32,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         // bind the instrumentation agent's logger to the plugin's logger
         InstrumentationAgent.LOGGER = LOGGER
 
-        if (!project.pluginManager.hasPlugin("com.android.application")) {
+        if (!isSupportedModule(project)) {
             throw new BuildCancelledException("Instrumentation of Android modules (libraries, dynamic feature, etc.) is not supported in this version.")
         }
 
@@ -155,4 +155,15 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         return buildIdCache
     }
 
+    static def isSupportedModule(Project project) {
+        /**
+         * ApplicationExtension: android extension for the com.android.application plugin used to create an Android app.
+         * LibraryExtension: android extension for the com.android.library plugin used to create an Android library
+         * TestExtension: android extension for the com.android.test plugin used to create a separate android test project.
+         * DynamicFeatureExtension: android extension for the com.android.feature plugin used to create dynamic features.
+         */
+        return project.pluginManager.hasPlugin("com.android.application") ||
+                project.pluginManager.hasPlugin("com.android.library") ||
+                project.pluginManager.hasPlugin("com.android.dynamic-feature")
+    }
 }

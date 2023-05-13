@@ -45,5 +45,3 @@ dependencyResolutionManagement {
 rootProject.name = 'agent-test-app'
 
 include ":library"
-// FIXME include ":feature"
-

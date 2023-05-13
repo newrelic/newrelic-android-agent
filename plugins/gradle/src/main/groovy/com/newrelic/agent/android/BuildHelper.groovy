@@ -7,6 +7,9 @@ package com.newrelic.agent.android
 
 import com.android.build.api.variant.AndroidComponentsExtension
 import com.android.build.gradle.AppExtension
+import com.android.build.gradle.BaseExtension
+import com.android.build.api.dsl.DynamicFeatureExtension
+import com.android.build.gradle.LibraryExtension
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.obfuscation.Proguard
@@ -57,7 +60,7 @@ class BuildHelper {
 
     final Project project
     final NewRelicExtension extension
-    final AppExtension android
+    final BaseExtension android
     final AndroidComponentsExtension androidComponents
     final ExtraPropertiesExtension extraProperties
 
@@ -81,7 +84,7 @@ class BuildHelper {
         try {
             this.extension = project.extensions.getByType(NewRelicExtension.class) as NewRelicExtension
             this.extraProperties = project.extensions.getByType(ExtraPropertiesExtension.class) as ExtraPropertiesExtension
-            this.android = project.extensions.getByType(AppExtension.class) as AppExtension
+            this.android = project.extensions.getByName("android")
             this.androidComponents = project.extensions.getByType(AndroidComponentsExtension.class) as AndroidComponentsExtension
 
             this.agpVersion = getAGPVersionAsSemVer(getReportedAGPVersion())
@@ -154,9 +157,7 @@ class BuildHelper {
     }
 
     /**
-     * Fetching the reported AGP is problematic: the Version class has moved around
-     * between releases of both the AGP and gradle-api. Try our best here to return the
-     * correct value.
+     * Try our best here to return the correct plugin version.
      *
      * @return Full version reported by plugin
      */
@@ -172,7 +173,10 @@ class BuildHelper {
             }
 
         } catch (MissingPropertyException ignored) {
-            // pluginVersion not available
+            /**
+             * pluginVersion not available. Fetching the reported AGP is problematic: the
+             * Version class has moved around between releases of both the AGP and gradle-api.
+             */
             try {
                 // AGP 3.6.+: com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
                 final Class versionClass = BuildHelper.class.getClassLoader().loadClass("com.android.Version")
@@ -217,7 +221,7 @@ class BuildHelper {
     def configurationCacheEnabled() {
         try {
             // FIXME May also be enabled through command line: --configuration-cache
-            def prop = project.providers.gradleProperty("org.gradle.unsafe.configuration-cache")
+            def prop = project.providers.gradleProperty("org.gradle.configuration-cache")
             return prop.present
         } catch (Exception ignored) {
             false
@@ -295,7 +299,7 @@ class BuildHelper {
         return agpVersion
     }
 
-    AppExtension getAndroidExtension() {
+    def getAndroidExtension() {
         return android
     }
 

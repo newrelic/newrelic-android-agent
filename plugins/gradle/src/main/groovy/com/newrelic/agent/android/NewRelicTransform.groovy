@@ -37,10 +37,6 @@ class NewRelicTransform extends Transform {
         this.providers = project.providers
         this.contentTypes = ImmutableSet.of(
                 QualifiedContent.DefaultContentType.CLASSES as QualifiedContent.ContentType).toSet()
-        this.contentScopes = ImmutableSet.of(
-                QualifiedContent.Scope.PROJECT,
-                QualifiedContent.Scope.EXTERNAL_LIBRARIES,
-                QualifiedContent.Scope.SUB_PROJECTS).toSet()
 
         logger.debug("project: " + project.name)
 
@@ -48,8 +44,14 @@ class NewRelicTransform extends Transform {
             def plugins = project.plugins
             if (plugins.hasPlugin('com.android.application') || plugins.hasPlugin('com.android.instantapp')) {
                 logger.debug("apk or instantapp, transform external libraries")
+                this.contentScopes = ImmutableSet.of(
+                        QualifiedContent.Scope.PROJECT,
+                        QualifiedContent.Scope.EXTERNAL_LIBRARIES,
+                        QualifiedContent.Scope.SUB_PROJECTS).toSet()
             } else {
                 logger.debug("feature or library")
+                this.contentScopes = ImmutableSet.of(QualifiedContent.Scope.PROJECT,).toSet()
+
             }
         } catch (Exception e) {
             logger.error("NewRelicTransform: " + e)

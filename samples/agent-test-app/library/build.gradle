@@ -10,6 +10,6 @@
 apply plugin: "com.android.library"
 apply plugin: "org.jetbrains.kotlin.android"
 
-project.applyPlugin=false  // FIXME
+project.applyPlugin=true
 apply from: "${rootDir}/android.gradle"
 

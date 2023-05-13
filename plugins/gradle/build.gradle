@@ -118,8 +118,9 @@ tasks.named("compileKotlin").configure {
 }
 
 tasks.withType(Test).configureEach {
-    useJUnitPlatform() {
-        includeEngines("junit-jupiter")
+    useJUnitPlatform {
+        // includeEngines("junit-vintage")
+        // includeEngines("junit-jupiter")
     }
 
     ["newrelic.agent.args", "newrelic.agent.version"].each {
@@ -135,8 +136,9 @@ tasks.withType(Test).configureEach {
 }
 
 test {
-    useJUnitPlatform() {
-        includeEngines("junit-jupiter")
+    useJUnitPlatform {
+        // includeEngines("junit-vintage")
+        // includeEngines("junit-jupiter")
     }
     maxHeapSize = '4G'
 }
