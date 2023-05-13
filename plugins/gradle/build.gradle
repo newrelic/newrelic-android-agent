@@ -16,11 +16,32 @@ group = 'com.newrelic.agent.android'
 version = project.versions.agent
 
 sourceSets {
-    main.java.srcDirs += "src/main/kotlin"
+    main {
+        java.srcDirs += "src/main/kotlin"
+    }
+
+    integration {
+        groovy.srcDir "$projectDir/src/integration/groovy"
+        resources.srcDir "$projectDir/src/integration/resources"
+        compileClasspath += main.output + test.output
+        runtimeClasspath += main.output + test.output
+    }
+
+    functional {
+        groovy.srcDir "$projectDir/src/functional/groovy"
+        resources.srcDir "$projectDir/src/functional/resources"
+        compileClasspath += main.output + test.output
+        runtimeClasspath += main.output + test.output
+    }
 }
 
-def integrationTest = sourceSets.create("integrationTest")
-def functionalTest = sourceSets.create("functionalTest")
+configurations {
+    integrationImplementation.extendsFrom testImplementation
+    integrationRuntime.extendsFrom testRuntime
+
+    functionalImplementation.extendsFrom testImplementation
+    functionalRuntime.extendsFrom testRuntime
+}
 
 compileGroovy {
     dependsOn tasks.getByPath('compileKotlin')
@@ -32,6 +53,12 @@ compileKotlin {
 }
 
 classes.dependsOn compileKotlin
+
+def toolingApiBuildersJar = (project as ProjectInternal).services.get(ModuleRegistry.class)
+        .getModule("gradle-tooling-api-builders")
+        .classpath
+        .asFiles
+        .first()
 
 dependencies {
     implementation project(path: ':instrumentation', configuration: 'shadow')
@@ -49,7 +76,7 @@ dependencies {
     compileOnly localGroovy()
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
-    testImplementation(project)
+    // testImplementation(project)
     testImplementation project(path: ':instrumentation', configuration: 'default')
     testImplementation gradleApi()
     testImplementation gradleTestKit()
@@ -58,6 +85,7 @@ dependencies {
     testImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
     testImplementation 'com.google.guava:guava:' + project.versions.java.guava
     testImplementation 'junit:junit:' + project.versions.test.junit
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:' + project.versions.test.jupiter
     testImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
     testImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
     testImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
@@ -67,44 +95,39 @@ dependencies {
     }
 
     // integrations
-    integrationTestImplementation(project)
-    integrationTestImplementation project(path: ':instrumentation', configuration: 'default')
-    integrationTestImplementation gradleApi()
-    integrationTestImplementation gradleTestKit()
-    integrationTestImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
-    integrationTestImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    integrationTestImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
-    integrationTestImplementation 'com.google.guava:guava:' + project.versions.java.guava
-    integrationTestImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
-    integrationTestImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
-    integrationTestImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
-    integrationTestImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
-    integrationTestImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
+    integrationImplementation(project)
+    integrationImplementation project(path: ':instrumentation', configuration: 'default')
+    integrationImplementation gradleApi()
+    integrationImplementation gradleTestKit()
+    integrationImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
+    integrationImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    integrationImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
+    integrationImplementation 'com.google.guava:guava:' + project.versions.java.guava
+    integrationImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
+    integrationImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
+    integrationImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
+    integrationImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
+    integrationImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
         exclude group: 'org.codehaus.groovy'
     }
 
-    // regressions
-    functionalTestImplementation(project)
-    functionalTestImplementation project(path: ':instrumentation', configuration: 'default')
-    functionalTestImplementation gradleApi()
-    functionalTestImplementation gradleTestKit()
-    functionalTestImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
-    functionalTestImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    functionalTestImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
-    functionalTestImplementation 'com.google.guava:guava:' + project.versions.java.guava
-    functionalTestImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
-    functionalTestImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
-    functionalTestImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
-    functionalTestImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
-    functionalTestImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
+    // end-to-end, regressions
+    functionalImplementation(project)
+    functionalImplementation project(path: ':instrumentation', configuration: 'default')
+    functionalImplementation gradleApi()
+    functionalImplementation gradleTestKit()
+    functionalImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
+    functionalImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
+    functionalImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
+    functionalImplementation 'com.google.guava:guava:' + project.versions.java.guava
+    functionalImplementation 'org.junit.jupiter:junit-jupiter-api:' + project.versions.test.jupiter
+    functionalImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
+    functionalImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
+    functionalImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
+    functionalImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
+    functionalImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
         exclude group: 'org.codehaus.groovy'
     }
-
-    def toolingApiBuildersJar = (project as ProjectInternal).services.get(ModuleRegistry.class)
-            .getModule("gradle-tooling-api-builders")
-            .classpath
-            .asFiles
-            .first()
 
     testRuntimeOnly(files(toolingApiBuildersJar))
 }
@@ -145,22 +168,22 @@ test {
 
 def integrationTestTask = tasks.register("integrationTests", Test) {
     description = 'Runs the integration tests.'
-    group = "verification"
-    testClassesDirs = integrationTest.output.classesDirs
-    classpath = integrationTest.runtimeClasspath
+    group = "test"
+    testClassesDirs = sourceSets.integration.output.classesDirs
+    classpath = sourceSets.integration.runtimeClasspath
     mustRunAfter(tasks.named('test'))
 }
 
 def functionalTestTask = tasks.register("functionalTests", Test) {
     description = 'Runs the functional/regression tests.'
-    group = "verification"
-    testClassesDirs = functionalTest.output.classesDirs
-    classpath = functionalTest.runtimeClasspath
+    group = "test"
+    testClassesDirs = sourceSets.functional.output.classesDirs
+    classpath = sourceSets.functional.runtimeClasspath
     mustRunAfter(tasks.named('test'))
 }
 
 tasks.named('check') {
-    dependsOn(functionalTestTask)
+    dependsOn(tasks.named("functionalTests"))
 }
 
 artifacts {

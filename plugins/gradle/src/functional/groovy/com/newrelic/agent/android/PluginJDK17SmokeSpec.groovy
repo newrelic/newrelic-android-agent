@@ -5,21 +5,24 @@
 
 package com.newrelic.agent.android
 
+import spock.lang.Ignore
 import spock.lang.Requires
 import spock.lang.Shared
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
-class PluginSmokeSpec extends PluginSpec {
+@Requires({ jvm.isJava17Compatible() })
+class PluginJDK17SmokeSpec extends PluginSpec {
 
     /* Last levels for JDK 11. Must use JDK 17 for AGP/Gradle 8.+    */
-    static final jdkVersion = 11
-    static final agpVersion = "7.4.+"
-    static final gradleVersion = "7.6.1"
+    static final jdkVersion = 17
+    static final agpVersion = "8.0.+"
+    static final gradleVersion = "8.0"
 
     @Shared
-    def testVariants = ['googleRelease']        // when withProductFlavors=true
+    def testVariants = ['googleRelease']
+    // when withProductFlavors=true
 
     def setupSpec() {
         given: "create the build runner"
@@ -76,8 +79,7 @@ class PluginSmokeSpec extends PluginSpec {
     void "verify class transforms"() {
         expect:
         testVariants.each { var ->
-            (buildResult.task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+            buildResult.task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS
         }
     }
 
@@ -94,6 +96,15 @@ class PluginSmokeSpec extends PluginSpec {
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
                 filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
             }
+        }
+    }
+
+    def "verify submodules built and instrumented"() {
+        expect:
+        testVariants.each { var ->
+            (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                    buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
         }
     }
 }

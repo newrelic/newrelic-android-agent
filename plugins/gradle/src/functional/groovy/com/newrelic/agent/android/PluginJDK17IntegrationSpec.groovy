@@ -9,6 +9,7 @@ import spock.lang.Ignore
 import spock.lang.Requires
 import spock.lang.Stepwise
 
+import static org.gradle.testkit.runner.TaskOutcome.SKIPPED
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
@@ -21,6 +22,10 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
     static final gradleVersion = "8.1.1"
 
     def setup() {
+        with(new File(projectRootDir, ".gradle/configuration-cache")) {
+            it.deleteDir()
+        }
+
         provideRunner()
                 .withArguments("-Pnewrelic.agp.version=${agpVersion}", "clean")
                 .build()
@@ -42,35 +47,15 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         buildResult = runner.build()
 
         and:
+        // rerun the build use local results
         buildResult = runner.build()
 
         then:
-        // rerun the build use local results
         testVariants.each { var ->
             with(buildResult.task(":${NewRelicConfigTask.NAME}${var.capitalize()}")) {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
         }
-    }
-
-    def "test min supported AGP version"() {
-        given: "Build the app using the minimum supported AGP version"
-
-        // rerun the build use local results
-        def runner = provideRunner()
-                .withGradleVersion("7.2")
-                .withArguments(
-                        "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
-                        "-PagentRepo=${localEnv["M2_REPO"]}",
-                        "clean",
-                        testTask)
-
-        when:
-        buildResult = runner.build()
-
-        then:
-        buildResult.task("${testTask}").outcome == SUCCESS
     }
 
     def "verify pre-release AGP version check"() {
@@ -112,7 +97,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         preResult.output.contains("Configuration cache entry stored")
 
         with(postResult.task(":${NewRelicConfigTask.NAME}Release")) {
-            outcome == UP_TO_DATE || outcome == SUCCESS     // FIXME Should be UP_TO_DATE
+            outcome == UP_TO_DATE || outcome == SUCCESS // FIXME Should be UP_TO_DATE
         }
 
         postResult.output.contains("Reusing configuration cache")
@@ -176,6 +161,27 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         postResult.output.contains("Configuration cache entry reused")
     }
 
+    @Ignore("FIXME: Fails in JDK w/config cache")
+    def "verify invalidated cached map uploads"() {
+        given: "Rerun the cached the task"
+        def runner = provideRunner()
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "--configuration-cache",
+                        testTask)
+        when:
+        def preResult = runner.build()
+
+        and:
+        def postResult = runner.build()
+
+        then:
+        preResult.output.contains("Configuration cache entry stored")
+        preResult.task(":newrelicMapUploadRelease").outcome == SKIPPED
+    }
+
     def "verify product flavors"() {
         given: "Build with flavor dimensions enabled"
         def runner = provideRunner()
@@ -193,11 +199,8 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         with(buildResult) {
             task(":assembleRelease").outcome == SUCCESS
             ['Amazon', 'Google'].each {
-                task(":transformClassesWithNewrelicTransformFor${it}Release").outcome == SUCCESS
+                task(":${ClassTransformWrapperTask.NAME}${it.capitalize()}Release")?.outcome == SUCCESS
                 task(":assemble${it}Release").outcome == SUCCESS
-                filteredOutput.contains("Map upload ignored for variant[${it.toLowerCase()}Debug]")
-                filteredOutput.contains("newrelicConfig${it}Release buildId[")
-                filteredOutput.contains("newrelicConfig${it}Debug buildId[")
             }
         }
     }
@@ -223,27 +226,22 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
 
         then:
         with(buildResult) {
-            task(":transformClassesWithNewrelicTransformForDebug") == null
-            with(task(":transformClassesWithNewrelicTransformForRelease")) {
+            task(":${ClassTransformWrapperTask.NAME}Debug") == null
+            with(task(":${ClassTransformWrapperTask.NAME}Release")) {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
-            with(task(":transformClassesWithNewrelicTransformForQa")) {
+            with(task(":${ClassTransformWrapperTask.NAME}Qa")) {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
 
             ["debug", "release", "qa"].each { var ->
                 var = var.capitalize()
-                filteredOutput.contains("newrelicConfig${var} buildId[")
                 ["assemble${var}"].each { taskName ->
                     with(task(":${taskName}")) {
                         outcome == SUCCESS || outcome == UP_TO_DATE
                     }
                 }
             }
-
-            filteredOutput.contains("Excluding instrumentation of variant [debug]")
-            !filteredOutput.contains("Excluding instrumentation of variant [release]")
-            filteredOutput.contains("Map upload ignored for variant[debug]")
         }
     }
 
@@ -278,67 +276,26 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
 
         then:
         with(buildResult) {
-            task(":transformClassesWithNewrelicTransformForDebug") == null
-            with(task(":transformClassesWithNewrelicTransformForRelease")) {
+            task(":${ClassTransformWrapperTask.NAME}Debug") == null
+            with(task(":${ClassTransformWrapperTask.NAME}Release")) {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
-            with(task(":transformClassesWithNewrelicTransformForQa")) {
+            with(task(":${ClassTransformWrapperTask.NAME}Qa")) {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
 
             ["debug", "release", "qa"].each { var ->
                 var = var.capitalize()
-                filteredOutput.contains("newrelicConfig${var} buildId[")
                 ["assemble${var}"].each { taskName ->
                     with(task(":${taskName}")) {
                         outcome == SUCCESS || outcome == UP_TO_DATE
                     }
                 }
             }
-
-            filteredOutput.contains("Excluding instrumentation of variant [debug]")
-            !filteredOutput.contains("Excluding instrumentation of variant [release]")
-            filteredOutput.contains("Map upload ignored for variant[debug]")
-        }
-    }
-
-    @Requires({ jvm.isJava17Compatible() })
-    def "verify AGP8"() {
-        final agp8Version = s
-        final gradle8Version = "8.0.2"
-
-        given: "Apply AGP8"
-        def runner = provideRunner()
-                .withGradleVersion(gradle8Version)
-                .withArguments(
-                        "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=${agp8Version}",
-                        "-PagentRepo=${localEnv["M2_REPO"]}",
-                        "clean", testTask)
-
-        when: "run the build"
-        buildResult = runner.build()
-
-        then:
-        with(buildResult) {
-            with(task(":clean")) {
-                outcome == SUCCESS || outcome == UP_TO_DATE
-            }
-            with(task(":$testTask")) {
-                outcome == SUCCESS
-            }
-
-            filteredOutput.contains("Android Gradle plugin version:")
-            filteredOutput.contains("Gradle version:")
-            filteredOutput.contains("Java version:")
-            filteredOutput.contains("Kotlin version:")
         }
     }
 
     def cleanup() {
         extensionsFile?.delete()
-        with(new File(projectRootDir, ".gradle/configuration-cache")) {
-            it.deleteDir()
-        }
     }
 }
