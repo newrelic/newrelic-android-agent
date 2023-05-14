@@ -6,10 +6,6 @@
 package com.newrelic.agent.android
 
 import com.android.build.api.variant.AndroidComponentsExtension
-import com.android.build.gradle.AppExtension
-import com.android.build.gradle.BaseExtension
-import com.android.build.api.dsl.DynamicFeatureExtension
-import com.android.build.gradle.LibraryExtension
 import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.obfuscation.Proguard
@@ -60,7 +56,7 @@ class BuildHelper {
 
     final Project project
     final NewRelicExtension extension
-    final BaseExtension android
+    final def android
     final AndroidComponentsExtension androidComponents
     final ExtraPropertiesExtension extraProperties
 

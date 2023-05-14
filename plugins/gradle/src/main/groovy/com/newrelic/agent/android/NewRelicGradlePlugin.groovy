@@ -156,14 +156,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
     }
 
     static def isSupportedModule(Project project) {
-        /**
-         * ApplicationExtension: android extension for the com.android.application plugin used to create an Android app.
-         * LibraryExtension: android extension for the com.android.library plugin used to create an Android library
-         * TestExtension: android extension for the com.android.test plugin used to create a separate android test project.
-         * DynamicFeatureExtension: android extension for the com.android.feature plugin used to create dynamic features.
-         */
         return project.pluginManager.hasPlugin("com.android.application") ||
-                project.pluginManager.hasPlugin("com.android.library") ||
-                project.pluginManager.hasPlugin("com.android.dynamic-feature")
+                project.pluginManager.hasPlugin("com.android.library")
     }
 }

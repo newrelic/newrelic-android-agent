@@ -105,9 +105,16 @@ project.tasks.register("cleanRoot", Delete) {
  */
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
+apply from: "android.gradle"
+
 android {
+    namespace "com.newrelic.agent.android.testapp"
+
     defaultConfig {
         applicationId "com.newrelic"
     }
+
+    if (findProject(":feature")) {
+        dynamicFeatures = [':feature']
+    }
 }
-apply from: "android.gradle"

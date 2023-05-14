@@ -5,12 +5,10 @@
 
 package com.newrelic.agent.android.agp4
 
-
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.LibraryExtension
 import com.newrelic.agent.android.*
 import org.gradle.api.Action
-import org.gradle.api.UnknownTaskException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
