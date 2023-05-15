@@ -504,13 +504,15 @@ public class AndroidAgentImpl implements
             }
 
             //clear all existing data during shutdown process
-            if (NewRelic.isShutdown) {
+            if (NewRelic.isStarted() && NewRelic.isShutdown) {
                 clearExistingData();
 
                 //make sure to add shutdown supportability metrics
                 for (ConcurrentHashMap.Entry<String, Metric> entry : StatsEngine.notice().getStatsMap().entrySet()) {
                     Metric metric = entry.getValue();
-                    Harvest.getInstance().getHarvestData().getMetrics().addMetric(metric);
+                    if (Harvest.getInstance().getHarvestData() != null && Harvest.getInstance().getHarvestData().getMetrics() != null) {
+                        Harvest.getInstance().getHarvestData().getMetrics().addMetric(metric);
+                    }
                 }
             }
 
