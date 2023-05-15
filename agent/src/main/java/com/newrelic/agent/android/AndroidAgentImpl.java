@@ -503,17 +503,21 @@ public class AndroidAgentImpl implements
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_HARVEST_ON_MAIN_THREAD);
             }
 
-            //clear all existing data during shutdown process
-            if (NewRelic.isStarted() && NewRelic.isShutdown) {
-                clearExistingData();
+            try {
+                //clear all existing data during shutdown process
+                if (NewRelic.isStarted() && NewRelic.isShutdown) {
+                    clearExistingData();
 
-                //make sure to add shutdown supportability metrics
-                for (ConcurrentHashMap.Entry<String, Metric> entry : StatsEngine.notice().getStatsMap().entrySet()) {
-                    Metric metric = entry.getValue();
-                    if (Harvest.getInstance().getHarvestData() != null && Harvest.getInstance().getHarvestData().getMetrics() != null) {
-                        Harvest.getInstance().getHarvestData().getMetrics().addMetric(metric);
+                    //make sure to add shutdown supportability metrics
+                    for (ConcurrentHashMap.Entry<String, Metric> entry : StatsEngine.notice().getStatsMap().entrySet()) {
+                        Metric metric = entry.getValue();
+                        if (Harvest.getInstance().getHarvestData() != null && Harvest.getInstance().getHarvestData().getMetrics() != null) {
+                            Harvest.getInstance().getHarvestData().getMetrics().addMetric(metric);
+                        }
                     }
                 }
+            } catch (Exception ex) {
+                log.error("There is an error during shutdown process: " + ex.getLocalizedMessage());
             }
 
             Harvest.harvestNow(true);
