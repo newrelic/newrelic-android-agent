@@ -7,9 +7,15 @@
  *  Android library component
  */
 
+project.applyPlugin = true
+
 apply plugin: "com.android.library"
 apply plugin: "org.jetbrains.kotlin.android"
 
-project.applyPlugin=false  // FIXME
 apply from: "${rootDir}/android.gradle"
+
+android {
+    namespace "com.newrelic.agent.android.testapp.library"
+}
+
 

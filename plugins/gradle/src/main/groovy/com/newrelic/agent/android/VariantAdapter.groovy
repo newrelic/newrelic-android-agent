@@ -5,7 +5,7 @@
 
 package com.newrelic.agent.android
 
-import com.android.build.api.artifact.SingleArtifact
+
 import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.agp7.AGP70Adapter
 import com.newrelic.agent.android.agp7.AGP74Adapter

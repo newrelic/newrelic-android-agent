@@ -4,7 +4,6 @@
  */
 
 android {
-    namespace "com.newrelic.agent.android.testapp"
     compileSdkVersion versions.agp.compileSdk
 
     defaultConfig {
@@ -59,6 +58,12 @@ android {
                     minifyEnabled minify.toBoolean()
                 }
                 break
+
+            default:
+                debug {}
+                qa {}
+                release {}
+                break
         }
     }
 
@@ -74,9 +79,6 @@ android {
         }
     }
 
-    if (findProject(":feature")) {
-        dynamicFeatures = [':feature']
-    }
 }
 
 dependencies {
@@ -108,7 +110,7 @@ if (project.plugins.hasPlugin("dexguard")) {
                 debug {
                     defaultConfiguration 'dexguard-release.pro'
                     configuration 'dexguard-project.txt'
-                    configuration 'proguard-project.txt'
+                    configuration 'proguard-rules.pro'
                 }
                 qa {
                     defaultConfiguration 'dexguard-release.pro'
@@ -117,7 +119,7 @@ if (project.plugins.hasPlugin("dexguard")) {
                 release {
                     defaultConfiguration 'dexguard-release.pro'
                     configuration 'dexguard-project.txt'
-                    configuration 'proguard-project.txt'
+                    configuration 'proguard-rules.pro'
                 }
             }
         }
