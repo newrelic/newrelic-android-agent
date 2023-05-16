@@ -232,7 +232,10 @@ abstract class VariantAdapter {
     def assembleDataModel(String variantName) {
         // assemble and configure model
         wiredWithTransformProvider(variantName)
-        wiredWithConfigProvider(variantName)
+        if (buildHelper.project.plugins.hasPlugin("com.android.application")) {
+            // inject config lass into apps
+            wiredWithConfigProvider(variantName)
+        }
         if (shouldUploadVariantMap(variantName)) {
             // register map upload task(s)
             wiredWithMapUploadProvider(variantName)

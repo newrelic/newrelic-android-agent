@@ -60,9 +60,9 @@ The Android agent requires the following tools to build:
 
 |Dependency|        Version         |                                             |
 |----------|:----------------------:|---------------------------------------------|
-|Java|    JDK 11 or higher    ||
-|Android Gradle Plugin|     7.0 or higher      | AGP 7 requires JDK 11, AGP 8 requires JDK 17 |
-|Gradle|    7.0.2 or higher     | AGP 8 requires Gradle 8 or higher           |
+|Java|    JDK 11 or higher    |AGP 7 requires JDK 11, AGP 8 requires JDK 17|
+|Android Gradle Plugin|     7.0 or higher      |  |
+|Gradle|    7.1 or higher    | AGP 8 requires Gradle 8 or higher           |
 |minSDK|           24           ||
 |NDK| 21.4.7075529 or higher ||
 |Cmake|    3.18.1 or higher    ||
@@ -191,17 +191,17 @@ When set to true, Gradle will run the build with remote debugging enabled, liste
 This will suspend the virtual machine until a debugger is attached. You will no longer see `Listening for transport dt_socket at address: 5005`, but instead now see `> Starting Daemon` when the build waits for a remote debugger to attach. Simply run your _Remote_ configuration (created above) and the debugger will stop at any breakpoints set.
 
 ## Debugging the Agent Gradle Plugin
-The easiest way to debug the Agent Gradle Plugin is to run the [PluginFunctionalSpec test](plugins/gradle/src/test/groovy/com/newrelic/agent/android/PluginFunctionalSpec.groovy).
-When the GradleRunner is created with `withDebug(true)`, the Gradle process available for debugging, and breakpoints can be set anywhere in the plugin code.
-When the test is run, the breakpoints will be triggered and the state of the plugin available for inspectoin.
+The easiest way to debug the Agent Gradle Plugin is to run the a [plugin functional test](plugins/gradle/src/functional/groovy/com/newrelic/agent/android/PluginSmokeSpec.groovy).
+When the GradleRunner is created with `withDebug(true)`, the Gradle process is available for debugging and breakpoints can be set anywhere in the plugin code.
+When the test is run, the breakpoints will be triggered and the state of the plugin available for inspection.
 
 ## Gradle Properties
 _Properties_ are configurable values used throughout the agent. At present, these include:
 
-|Property| Use decscription                                                                                    |
-|---|-----------------------------------------------------------------------------------------------------|
-|`newrelic.agent.version`| The Semantic version of the agent, i.e., `6.10.0`                                                |
-|`newrelic.agent.build`| The build number of the agent. Usually provided by CI, will appear as `SNAPSHOT` when built locally |
+| Property                 | Use decscription                                                                                                                                     |
+|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `newrelic.agent.version` | The Semantic version of the agent, i.e., `7.0.0`                                                                                                     |
+| `newrelic.agent.build`   | The build number of the agent. Usually provided by CI, will appear as `SNAPSHOT` when built locally                                                  |
 
 ## Gradle Tasks
 

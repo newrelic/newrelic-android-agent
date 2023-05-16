@@ -187,25 +187,10 @@ class AGP4Adapter extends VariantAdapter {
                     it.finalizedBy(configProvider)
                 }
             } catch (Exception ignored) {
-                variant.generateBuildConfig.configure {
-                    try {
-                        it.finalizedBy(configProvider)
-                    } catch (Exception ignored1) {
-                    }
-                }
+                ignored
             }
         }
 
-        def dependencyTasks = ["generate${variantName.capitalize()}BuildConfig"] as Set
-        buildHelper.wireTaskProviderToDependencyNames(dependencyTasks) { dependencyTaskProvider ->
-            dependencyTaskProvider.configure { dependencyTask ->
-                try {
-                    dependencyTask.finalizedBy(configProvider)
-                } catch (Exception ignored) {
-                    ignored
-                }
-            }
-        }
     }
 
     @Override
