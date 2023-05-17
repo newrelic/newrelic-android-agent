@@ -106,7 +106,6 @@ abstract class NewRelicExtension {
         }
     }
 
-    @Deprecated
     void uploadMapsForVariant(Object... e) {
         variantMapUploadList.clear()
         variantMapUploadList.addAll(e.collect { i -> i.toString().toLowerCase() })
@@ -119,7 +118,6 @@ abstract class NewRelicExtension {
         }
     }
 
-    @Deprecated
     void excludeVariantInstrumentation(Object... e) {
         variantExclusionList.clear()
         variantExclusionList.addAll(e.collect { i -> i.toString().toLowerCase() })
@@ -132,14 +130,13 @@ abstract class NewRelicExtension {
         }
     }
 
-    @Deprecated
     void excludePackageInstrumentation(Object... e) {
         packageExclusionList.clear()
         packageExclusionList.addAll(e.collect { i -> i.toString().toLowerCase() })
 
         variantMapUploadList.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                instrument = true   // FIXME
+                // FIXME
             }
         }
     }
@@ -156,7 +153,7 @@ abstract class NewRelicExtension {
     }
 
     boolean shouldInstrumentTests() {
-        return false    // FIXME instrumentTests.get()
+        return instrumentTests.get()
     }
 
     boolean shouldIncludeMapUpload(String variantName) {
