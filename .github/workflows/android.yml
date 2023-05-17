@@ -24,8 +24,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build with Gradle
+        id: build-step
         run: ./gradlew build
       - name: Upload build reports
+        # if: failure() && steps.build-step.outcome != 'success'
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: build-reports

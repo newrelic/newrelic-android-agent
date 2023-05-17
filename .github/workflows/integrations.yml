@@ -86,8 +86,11 @@ jobs:
       - name: Stage with Gradle
         run: ./gradlew install publish
       - name: Build with Gradle
+        id: test-step
         run: ./gradlew :plugins:gradle:functionalTests
       - name: Upload build reports
+        # if: failure() && steps.test-step.outcome != 'success'
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: build-reports
