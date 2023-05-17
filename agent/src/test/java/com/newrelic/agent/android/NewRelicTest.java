@@ -328,6 +328,10 @@ public class NewRelicTest {
         Harvest instance = Harvest.getInstance();
         Assert.assertNull(instance.getHarvestData());
         Assert.assertNull(instance.getHarvestConnection());
+
+        //app goes to foreground/background after HarvestData is null
+        agentImpl.applicationBackgrounded(e);
+        agentImpl.applicationForegrounded(e);
     }
 
     /**
