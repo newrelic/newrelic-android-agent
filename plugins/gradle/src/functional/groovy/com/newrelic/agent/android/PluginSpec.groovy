@@ -81,6 +81,10 @@ abstract class PluginSpec extends Specification {
         printFilter = new PrintFilter()
         errorOutput = new StringWriter()
         extensionsFile = new File(projectRootDir, "nr-extension.gradle")
+
+        with(new File(projectRootDir, ".gradle/configuration-cache")) {
+            it.deleteDir()
+        }
     }
 
     def provideRunner() {

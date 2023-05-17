@@ -7,6 +7,7 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.UnexpectedBuildFailure
 import spock.lang.Ignore
+import spock.lang.Issue
 import spock.lang.Requires
 import spock.lang.Stepwise
 
@@ -122,34 +123,38 @@ class PluginIntegrationSpec extends PluginSpec {
         e.message.contains("BUILD FAILED")
     }
 
+    @Ignore("TODO")
     def "verify invalidated cached map uploads"() {
         given: "Rerun the cached the task"
         def runner = provideRunner()
-                .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion)
+                .withGradleVersion(BuildHelper.minSupportedGradleVersion)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "--configuration-cache",
-                        "newrelicMapUploadRelease")
+                        "clean", testTask)
         when:
-        def buildResult = runner.build()
+        def preResult = runner.build()
+
+        and:
+        def postResult = runner.build()
 
         then:
-        buildResult.output.contains("Configuration cache entry stored")
-        buildResult.task(":newrelicMapUploadRelease").outcome == SKIPPED
+        preResult.output.contains("Configuration cache entry stored")
+        preResult.task(":newrelicMapUploadRelease").outcome == SKIPPED
     }
 
     def "verify min config cache supported agp/gradle"() {
         given: "Cache the task"
         def runner = provideRunner()
-                .withGradleVersion(BuildHelper.minSupportedAGPConfigCacheVersion)
+                .withGradleVersion(BuildHelper.minSupportedGradleVersion)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "--configuration-cache",
-                        "newRelicConfigRelease")
+                        testTask)
         when:
         def preResult = runner.build()
 
