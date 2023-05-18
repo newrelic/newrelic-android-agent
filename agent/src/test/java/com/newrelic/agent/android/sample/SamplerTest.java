@@ -5,6 +5,10 @@
 
 package com.newrelic.agent.android.sample;
 
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+
 import android.content.Context;
 
 import com.newrelic.agent.android.Agent;
@@ -16,27 +20,20 @@ import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.tracing.ActivityTrace;
 import com.newrelic.agent.android.tracing.Sample;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatchers;
-import org.mockito.Mockito;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.annotation.Config;
 
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-
 @RunWith(RobolectricTestRunner.class)
-@Config(sdk = Config.OLDEST_SDK)
 public class SamplerTest {
     private final SpyContext context = new SpyContext();
     private long testStarted;

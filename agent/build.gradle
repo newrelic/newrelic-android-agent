@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import com.android.builder.core.BuilderConstants
 
 buildscript {
@@ -8,13 +13,22 @@ buildscript {
     }
 }
 
-
-apply plugin: 'com.android.library'
+plugins {
+    id("com.android.library")
+}
 
 version = project.versions.agent
 archivesBaseName = "android-agent"
 
+tasks.withType(JavaExec).configureEach {
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        jvmArgs(["--add-opens=java.base/java.lang=ALL-UNNAMED",
+                 "--add-opens=java.base/java.util=ALL-UNNAMED"])
+    }
+}
+
 android {
+    namespace "com.newrelic.agent.android"
     compileSdkVersion project.versions.agp.compileSdk
 
     defaultConfig {
@@ -30,6 +44,7 @@ android {
     }
 
     // only interested in the release variant
+    // TODO Migrate to artifacts api
     variantFilter { variant ->
         if (variant.buildType.name != BuilderConstants.RELEASE) {
             variant.ignore = true
@@ -42,13 +57,16 @@ android {
     }
 
     testOptions {
-        unitTests.includeAndroidResources = true
-        unitTests.returnDefaultValues = true
-        unitTests.all {
-            forkEvery = 1
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+            all {
+                forkEvery = 1
+            }
         }
     }
 
+    // TODO Migrate to artifacts api
     libraryVariants.all { variant ->
         // The artifact is now a fat jar
         logger.info("[FAT-JAR] Variant[${variant.name}]")

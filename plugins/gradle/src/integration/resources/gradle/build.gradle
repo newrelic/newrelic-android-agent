@@ -1,0 +1,67 @@
+package gradle
+
+/*
+ * Copyright (c) 2023 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.newrelic.agent.android'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.newrelic.agent.android"
+        minSdk 24
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        qa {
+            minifyEnabled false
+        }
+        staging {
+            minifyEnabled true
+        }
+        prod {
+            minifyEnabled true
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    implementation newrelic.deps.agent
+    implementation 'androidx.core:core-ktx:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}
+
+if (project.plugins.hasPlugin("newrelic")) {
+    def testExtension = project.file("nr-extension.gradle")
+    if (testExtension.exists()) {
+        apply from: testExtension.absolutePath
+    }
+}

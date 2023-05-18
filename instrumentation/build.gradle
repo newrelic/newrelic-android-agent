@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-apply plugin: 'java'
-apply plugin: 'com.github.johnrengelman.shadow'
+plugins {
+    id("com.github.johnrengelman.shadow")
+    id("java")
+}
 
 version = project.versions.agent
 archivesBaseName = "instrumentation"
@@ -17,24 +19,28 @@ configurations {
 }
 
 tasks.withType(JavaCompile) {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 dependencies {
     implementation fileTree(dir: 'libs/export', include: '*.jar')
     compileOnly fileTree(dir: 'libs', include: '*.jar')
 
+    implementation "org.ow2.asm:asm:${versions.java.asm}"
+    implementation "org.ow2.asm:asm-commons:${versions.java.asm}"
+
     // brittle: tread lightly
     // mappedClasses fileTree(dir: rootProject.project(':agent').projectLibsDir, include: "android-agent-${version}.jar")
 
     testImplementation "junit:junit:" + project.versions.test.junit
     testImplementation "org.mockito:mockito-core:" + project.versions.test.mockitoCore
-    testImplementation "org.ow2.asm:asm:8.0.1"
-    testImplementation "org.ow2.asm:asm-commons:8.0.1"
-    testImplementation "org.ow2.asm:asm-analysis:8.0.1"
-    testImplementation "org.ow2.asm:asm-util:8.0.1"
-    testImplementation "org.ow2.asm:asm-tree:8.0.1"
+
+    testImplementation "org.ow2.asm:asm:${versions.java.asm}"
+    testImplementation "org.ow2.asm:asm-commons:${versions.java.asm}"
+    testImplementation "org.ow2.asm:asm-analysis:${versions.java.asm}"
+    testImplementation "org.ow2.asm:asm-util:${versions.java.asm}"
+    testImplementation "org.ow2.asm:asm-tree:${versions.java.asm}"
 }
 
 jar {
@@ -67,11 +73,10 @@ tasks.register("compileStampedAgent", JavaCompile) {
     source = buildGenPath
     include 'com/newrelic/agent/InstrumentationAgent.java'
     classpath = sourceSets.main.compileClasspath
-    destinationDir = sourceSets.main.output.classesDirs.first()
+    destinationDirectory = sourceSets.main.output.classesDirs.first()
     options.sourcepath = sourceSets.main.allJava.getSourceDirectories()
     options.listFiles = true
 }
-
 
 /*
  * Finalize instrumentation.jar
@@ -91,7 +96,7 @@ shadowJar {
     relocate "com.google", "com.newrelic.com.google"
     relocate "org.apache", "com.newrelic.org.apache"
 
-    relocate ("org.slf4j", "com.newrelic.org.slf4j") {
+    relocate("org.slf4j", "com.newrelic.org.slf4j") {
         exclude "org.slf4j.Logger"
     }
 
@@ -106,6 +111,22 @@ shadowJar {
  * Set dependencies
  */
 project.afterEvaluate() {
+    tasks.withType(Jar).configureEach {
+        dependsOn("compileStampedAgent")
+    }
+
+    tasks.withType(AbstractPublishToMaven).configureEach {
+        dependsOn(jar)
+    }
+
+    tasks.named("signMavenJavaPublication").configure {
+        dependsOn(jar)
+    }
+
+    tasks.named("compileTestJava").configure {
+        dependsOn("compileStampedAgent")
+    }
+
     classes.finalizedBy compileStampedAgent
 
     tasks.register("generateMapFile", JavaExec) {
@@ -148,8 +169,7 @@ publishing {
     }
 }
 
-
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }

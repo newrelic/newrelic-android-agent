@@ -18,8 +18,7 @@ import org.gradle.api.provider.ProviderFactory
 import java.util.jar.JarFile
 
 class NewRelicTransform extends Transform {
-
-    final static String TRANSFORMER_NAME = "newrelicTransform"
+    final static String NAME = "newrelicTransform"
 
     private final Set<QualifiedContent.ContentType> contentTypes
     private final Set<QualifiedContent.Scope> contentScopes
@@ -37,13 +36,7 @@ class NewRelicTransform extends Transform {
         this.objectFactory = project.objects
         this.providers = project.providers
         this.contentTypes = ImmutableSet.of(
-                QualifiedContent.DefaultContentType.CLASSES
-        )
-        this.contentScopes = ImmutableSet.of(
-                QualifiedContent.Scope.PROJECT,
-                QualifiedContent.Scope.EXTERNAL_LIBRARIES,
-                QualifiedContent.Scope.SUB_PROJECTS,
-        )
+                QualifiedContent.DefaultContentType.CLASSES as QualifiedContent.ContentType).toSet()
 
         logger.debug("project: " + project.name)
 
@@ -51,8 +44,14 @@ class NewRelicTransform extends Transform {
             def plugins = project.plugins
             if (plugins.hasPlugin('com.android.application') || plugins.hasPlugin('com.android.instantapp')) {
                 logger.debug("apk or instantapp, transform external libraries")
+                this.contentScopes = ImmutableSet.of(
+                        QualifiedContent.Scope.PROJECT,
+                        QualifiedContent.Scope.EXTERNAL_LIBRARIES,
+                        QualifiedContent.Scope.SUB_PROJECTS).toSet()
             } else {
                 logger.debug("feature or library")
+                this.contentScopes = ImmutableSet.of(QualifiedContent.Scope.PROJECT,).toSet()
+
             }
         } catch (Exception e) {
             logger.error("NewRelicTransform: " + e)
@@ -61,7 +60,7 @@ class NewRelicTransform extends Transform {
 
     @Override
     String getName() {
-        return TRANSFORMER_NAME
+        return NAME
     }
 
     @Override
@@ -101,94 +100,84 @@ class NewRelicTransform extends Transform {
 
         long tStart = System.currentTimeMillis()
 
-        logger.info("[" + TRANSFORMER_NAME + "] Started")
+        logger.info("[$NAME] Started")
         if (identityTransform) {
-            logger.info("[" + TRANSFORMER_NAME + "] Will not rewrite classes")
+            logger.info("[$NAME] Will not rewrite classes")
         }
 
-        logger.debug("Context.path: " + context.path)
-        logger.debug("Context.temporaryDir: " + context.temporaryDir)
+        logger.debug("[$NAME] Context.path[$context.path]")
+        logger.debug("[$NAME] Context.temporaryDir[$context.temporaryDir]")
+        logger.debug("[$NAME] outputProvider[$outputProvider]")
+        logger.debug("[$NAME] isIncremental[$isIncremental]")
 
-        File directoryOutput = context.temporaryDir
         inputs.each { input ->
-            if (!input.directoryInputs.empty) {
-                def dirInp = input.directoryInputs.first()
-                directoryOutput = outputProvider.getContentLocation(
+            input.directoryInputs.each { dirInp ->
+                logger.debug("[$NAME] directoryInput[${dirInp.name}]")
+                def contentLocation = outputProvider.getContentLocation(
                         dirInp.name,
                         dirInp.getContentTypes(),
                         dirInp.getScopes(),
                         Format.DIRECTORY)
-                logger.debug("transform.directoryOutput: " + directoryOutput.absolutePath)
+                logger.debug("[$NAME] directoryOutput[$contentLocation.absolutePath]")
             }
         }
-
-        logger.debug("transform.outputProvider: " + outputProvider)
-        logger.debug("transform.isIncremental: " + isIncremental)
 
         try {
             // start with a clean slate
             if (!isIncremental) {
-                logger.debug("Delete transform output contents: ")
+                logger.debug("[$NAME] Delete transform output contents: ")
                 outputProvider.deleteAll()
             }
 
-            logger.debug("Calling class rewriter: ")
+            logger.debug("[$NAME] Calling class rewriter: ")
 
             ClassTransformer classTransformer
 
             inputs.each { input ->
                 input.directoryInputs.each { dirInp ->
-                    final File output = outputProvider.getContentLocation(
+                    final File contentLocation = outputProvider.getContentLocation(
                             dirInp.name,
                             dirInp.getContentTypes(),
                             dirInp.getScopes(),
                             Format.DIRECTORY)
 
-                    logger.debug("Transform directory[" + dirInp.file.getAbsolutePath() +
-                            "] Output[" + output.getAbsolutePath() + "]")
+                    logger.debug("[$NAME] Transform directory[${dirInp.file.getAbsolutePath()}] Output[${contentLocation.getAbsolutePath()}]")
 
-                    classTransformer = new ClassTransformer(dirInp.file, output)
-                    classTransformer.withWriteMode(ClassTransformer.WriteMode.always)
+                    new ClassTransformer(dirInp.file, contentLocation)
+                            .withWriteMode(ClassTransformer.WriteMode.always)
                             .asIdentityTransform(identityTransform)
                             .usingVariant(variantName)
                             .transformDirectory(dirInp.file)
                 }
 
                 input.jarInputs.each { jarInp ->
-                    final File output = outputProvider.getContentLocation(
+                    final File contentLocation = outputProvider.getContentLocation(
                             jarInp.name,
                             jarInp.getContentTypes(),
                             jarInp.getScopes(),
                             Format.JAR)
 
-                    logger.debug("Transform JAR[" + jarInp.file.getAbsolutePath() +
-                            "] Output[" + output.getAbsolutePath() + "]")
+                    logger.debug("[$NAME] Transform JAR[${jarInp.file.getAbsolutePath()}] Output[${contentLocation.getAbsolutePath()}]")
 
-                    JarFile jar = null
-                    try {
-                        jar = new JarFile(jarInp.file)
-                        classTransformer = new ClassTransformer(jar, output)
-                        classTransformer.withWriteMode(ClassTransformer.WriteMode.always)
+                    try (JarFile jar = new JarFile(jarInp.file)) {
+                        new ClassTransformer(jar, contentLocation)
+                                .withWriteMode(ClassTransformer.WriteMode.always)
                                 .asIdentityTransform(identityTransform)
                                 .usingVariant(variantName)
                                 .transformArchive(jarInp.file)
-                    } finally {
-                        if (jar != null) {
-                            jar.close()
-                        }
                     }
                 }
             }
 
         } catch (final IOException exception) {
-            logger.error("[" + TRANSFORMER_NAME + "] failed ", exception)
+            logger.error("[$NAME] failed ", exception)
             throw exception
         } catch (final Exception exception) {
-            logger.error("[" + TRANSFORMER_NAME + "] failed ", exception)
+            logger.error("[$NAME] failed ", exception)
             throw new TransformException(exception)
         }
 
-        logger.info("[" + TRANSFORMER_NAME + "] Finished in " + Double.valueOf((double) (
+        logger.info("[$NAME] Finished in " + Double.valueOf((double) (
                 System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.")
     }
 
@@ -210,7 +199,7 @@ class NewRelicTransform extends Transform {
     @Override
     boolean applyToVariant(VariantInfo variant) {
         if (variant.isTest() && pluginExtension.shouldInstrumentTests()) {
-            logger.info("Excluding instrumentation of test variant [" + variant.fullVariantName + "]")
+            logger.info("[$NAME] Excluding instrumentation of test variant [${variant.fullVariantName}]")
             return false
         }
 
@@ -218,8 +207,9 @@ class NewRelicTransform extends Transform {
                 pluginExtension.shouldExcludeVariant(variant.buildTypeName)
 
         if (shouldExclude) {
-            logger.info("Excluding instrumentation of variant [" + variant.fullVariantName + "]")
+            logger.info("[$NAME] Excluding instrumentation of variant [${variant.fullVariantName}]")
         }
+
         return !shouldExclude
     }
 

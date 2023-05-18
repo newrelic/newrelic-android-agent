@@ -15,7 +15,9 @@ import android.os.SystemClock;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.rum.AppTracer;
 
-public final class NewRelicAppContentProvider extends ContentProvider {
+public class NewRelicAppContentProvider extends ContentProvider {
+
+    AppApplicationLifeCycle appApplicationLifeCycle = new AppApplicationLifeCycle();
 
     @Override
     public boolean onCreate() {
@@ -25,7 +27,7 @@ public final class NewRelicAppContentProvider extends ContentProvider {
         if (context == null) {
             return false;
         } else {
-            new AppApplicationLifeCycle().onColdStartInitiated(context);
+            appApplicationLifeCycle.onColdStartInitiated(context);
         }
         return true;
     }

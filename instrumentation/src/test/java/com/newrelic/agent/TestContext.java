@@ -57,6 +57,7 @@ public class TestContext {
         classWriter = new ClassWriterSafe(ClassWriter.COMPUTE_FRAMES);
     }
 
+    @SuppressWarnings("deprecation")
     public byte[] classBytesFromResource(final String resourceName) {
         try {
             ClassReader cr = new ClassReader(TestContext.class.getResource(resourceName).openStream());

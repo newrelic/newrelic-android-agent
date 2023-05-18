@@ -53,6 +53,7 @@ public class Proguard {
     public static final String VARIANT_KEY = "com.newrelic.mapping.variant";
     public static final String LOGLEVEL_KEY = "com.newrelic.loglevel";
     public static final String PROJECT_ROOT_KEY = "com.newrelic.projectroot";
+    public static final String NR_MAP_PREFIX = "# NR_BUILD_ID -> ";
 
     private static final String PROP_NR_APP_TOKEN = "com.newrelic.application_token";
     private static final String PROP_UPLOADING_ENABLED = "com.newrelic.enable_proguard_upload";
@@ -62,7 +63,6 @@ public class Proguard {
     private static final String DEFAULT_MAPPING_API_HOST = "mobile-symbol-upload.newrelic.com";
     private static final String DEFAULT_REGION_MAPPING_API_HOST = "mobile-symbol-upload.%s.nr-data.net";
     private static final String MAPPING_API_PATH = "/symbol";
-    private static final String NR_MAP_PREFIX = "# NR_BUILD_ID -> ";
     private static final String NR_COMPILER_PREFIX = "# compiler: ";
     private static final String NR_COMPILER_VERSION_PREFIX = "# compiler_version: ";
     private static final String NEWLN = System.getProperty("line.separator", "\r\n");

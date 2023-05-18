@@ -1,0 +1,34 @@
+package gradle
+
+pluginManagement {
+    ext {
+        versions = [
+                agent : "7.+",
+                agp   : "7.4.+",
+                kotlin: "1.7.+"
+        ]
+    }
+
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+        mavenLocal()
+    }
+
+    plugins {
+        id 'com.android.application' version "${agp}" apply false
+        id 'com.android.library' version "${agp}" apply false
+        id 'org.jetbrains.kotlin.android' version "${kotlin}" apply false
+    }
+
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+        mavenLocal()
+    }
+}

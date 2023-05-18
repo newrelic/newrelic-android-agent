@@ -53,6 +53,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("deprecation")
 public class ApacheInstrumentationTest {
 
     private TransactionState transactionState;
@@ -196,7 +197,6 @@ public class ApacheInstrumentationTest {
     }
 
     @Test
-    @SuppressWarnings("deprecation")
     public void testWrapRequestEntity() {
         HttpEntityEnclosingRequest httpEntityEnclosingRequest = spy(new BasicHttpEntityEnclosingRequest(Providers.APP_METHOD, Providers.APP_URL));
         httpEntityEnclosingRequest.setEntity(new InputStreamEntity(new ByteArrayInputStream(Providers.APP_DATA.getBytes()), -1));

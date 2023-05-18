@@ -9,16 +9,13 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.test.mock.Providers;
 
-import junit.framework.TestCase;
-
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.HashMap;
 import java.util.Map;
 
-public class TraceListenerTest extends TestCase {
+public class TraceListenerTest {
 
     private TransactionState transactionState;
     private TraceContext traceContext;

@@ -29,7 +29,6 @@ import com.newrelic.agent.android.distributedtracing.TraceConfiguration;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
 import com.newrelic.agent.android.harvest.Harvest;
-import com.newrelic.agent.android.harvest.HarvestAdapter;
 import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
@@ -51,7 +50,7 @@ import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -68,7 +67,6 @@ import org.robolectric.RobolectricTestRunner;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
@@ -107,12 +105,14 @@ public class NewRelicTest {
 
     @Before
     public void removeFinalModifiers() throws Exception {
+        /** FIXME Field is no longer accessible in JDK 11
         Field field = Agent.class.getDeclaredField("MONO_INSTRUMENTATION_FLAG");
         field.setAccessible(true);
         Field modifiersField = Field.class.getDeclaredField("modifiers");
         modifiersField.setAccessible(true);
         modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
         field.set(String.class, "YES");
+        /* FIXME */
     }
 
     @Before
@@ -604,7 +604,7 @@ public class NewRelicTest {
         Assert.assertEquals("Should contain url", APP_URL, transaction.getUrl());
         Assert.assertEquals("Should contain method", "get", transaction.getHttpMethod());
         Assert.assertEquals("Should contain status code", HttpStatus.SC_CREATED, transaction.getStatusCode());
-        Assert.assertEquals("Should contain request time", 1.0, transaction.getTotalTime());
+        Assert.assertEquals("Should contain request time", 1.0, transaction.getTotalTime(), 0f);
         Assert.assertEquals("Should contain bytes send", "requestBody".length(), transaction.getBytesSent());
         Assert.assertEquals("Should contain bytes received", "responseBody".length(), transaction.getBytesReceived());
         Assert.assertEquals("Should contain response body", "responseBody", transaction.getResponseBody());
@@ -667,15 +667,15 @@ public class NewRelicTest {
         NewRelic.incrementAttribute("name");
         NewRelic.incrementAttribute("name");
         AnalyticsAttribute attribute = analyticsController.getUserAttributes().iterator().next();
-        Assert.assertEquals("Should increment attribute to 3", 3d, attribute.getDoubleValue());
+        Assert.assertEquals("Should increment attribute to 3", 3d, attribute.getDoubleValue(), 0f);
 
         NewRelic.incrementAttribute("name", 2f);
         attribute = analyticsController.getUserAttributes().iterator().next();
-        Assert.assertEquals("Should increment attribute to 5", 5d, attribute.getDoubleValue());
+        Assert.assertEquals("Should increment attribute to 5", 5d, attribute.getDoubleValue(), 0f);
 
         NewRelic.incrementAttribute("name", -5f);
         attribute = analyticsController.getUserAttributes().iterator().next();
-        Assert.assertEquals("Should increment attribute to 0", 0d, attribute.getDoubleValue());
+        Assert.assertEquals("Should increment attribute to 0", 0d, attribute.getDoubleValue(), 0f);
     }
 
     @Test
