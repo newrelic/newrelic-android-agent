@@ -27,8 +27,7 @@ jobs:
         id: build-step
         run: ./gradlew build
       - name: Upload build reports
-        # if: failure() && steps.build-step.outcome != 'success'
-        if: always()
+        if: failure() && steps.build-step.outcome != 'success'
         uses: actions/upload-artifact@v3
         with:
           name: build-reports
