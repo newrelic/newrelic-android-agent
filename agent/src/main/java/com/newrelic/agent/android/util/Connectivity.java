@@ -72,7 +72,6 @@ public final class Connectivity {
         return networkInfo != null && networkInfo.isConnected();
     }
 
-    @SuppressWarnings("deprecation")
     private static boolean isWan(final NetworkInfo networkInfo) {
         switch (networkInfo.getType()) {
             case ConnectivityManager.TYPE_MOBILE:

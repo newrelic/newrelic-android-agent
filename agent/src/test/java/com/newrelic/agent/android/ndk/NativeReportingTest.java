@@ -6,17 +6,14 @@
 package com.newrelic.agent.android.ndk;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.SavedState;
 import com.newrelic.agent.android.SpyContext;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
-
-import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class)
 public class NativeReportingTest {

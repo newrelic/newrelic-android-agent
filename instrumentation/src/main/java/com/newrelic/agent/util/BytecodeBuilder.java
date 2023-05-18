@@ -53,10 +53,10 @@ public final class BytecodeBuilder {
      * store all of the arguments into it.
      */
     public BytecodeBuilder loadArgumentsArray(String methodDesc) {
-
         Method method = new Method("dummy", methodDesc);
-        mv.push(method.getArgumentTypes().length);
         Type objectType = Type.getType(Object.class);
+
+        mv.push(method.getArgumentTypes().length);
         mv.newArray(objectType);
 
         for (int i = 0; i < method.getArgumentTypes().length; i++) {
@@ -65,6 +65,7 @@ public final class BytecodeBuilder {
             mv.loadArg(i);
             mv.arrayStore(objectType);
         }
+
         return this;
     }
 
@@ -73,8 +74,9 @@ public final class BytecodeBuilder {
      * stack to be stored into the array.
      */
     public BytecodeBuilder loadArray(Runnable... r) {
-        mv.push(r.length);
         Type objectType = Type.getObjectType("java/lang/Object");
+
+        mv.push(r.length);
         mv.newArray(objectType);
 
         for (int i = 0; i < r.length; i++) {
@@ -93,13 +95,9 @@ public final class BytecodeBuilder {
         mv.visitLdcInsn(Constants.NR_PRINT_INFO_FLAG);
         mv.visitInsn(Opcodes.ACONST_NULL);
 
-        loadArray(new Runnable() {
-            public void run() {
-                mv.visitLdcInsn(message);
-            }
-        });
-
+        loadArray(() -> mv.visitLdcInsn(message));
         invokeDispatcher();
+
         return this;
     }
 
@@ -119,6 +117,7 @@ public final class BytecodeBuilder {
         if (popReturnOffStack) {
             mv.pop();
         }
+
         return this;
     }
 

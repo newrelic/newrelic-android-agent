@@ -5,44 +5,55 @@
 
 package com.newrelic.agent.android.rum.contentprovider;
 
-import android.test.ProviderTestCase2;
-import android.test.mock.MockContentResolver;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import junit.framework.Assert;
+import android.app.Application;
+import android.content.ContentResolver;
+import android.content.Context;
 
+import com.newrelic.agent.android.SpyContext;
+import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
+import com.newrelic.agent.android.rum.AppTracer;
+
+import org.junit.Assert;
+
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.shadows.ShadowContentResolver;
 
-public class AppContentProviderTest extends ProviderTestCase2<NewRelicAppContentProvider> {
-    private MockContentResolver resolver;
+@RunWith(RobolectricTestRunner.class)
+public class AppContentProviderTest {
+    private final static String AUTHORITY = "com.newrelic.agent.android.rum.contentprovider.NewRelicAppContentProvider";
 
-    /**
-     * Constructor.
-     *
-     * @param providerClass     The class name of the provider under test
-     * @param providerAuthority The provider's authority string
-     */
-    public AppContentProviderTest(Class<NewRelicAppContentProvider> providerClass, String providerAuthority) {
-        super(providerClass, providerAuthority);
-    }
+    private ContentResolver resolver;
+    private SpyContext contextSpy = new SpyContext();
+    private Application application = spy((Application) contextSpy.getContext());
+    private NewRelicAppContentProvider contentProvider;
 
-    public AppContentProviderTest() {
-        super(NewRelicAppContentProvider.class, "com.newrelic.agent.android.rum.contentprovider.NewRelicAppContentProvider");
-    }
+    @Before
+    public void setUp() throws Exception {
+        resolver = contextSpy.getContext().getContentResolver();
+        contentProvider = spy(new NewRelicAppContentProvider());
+        contentProvider.appApplicationLifeCycle = spy(new AppApplicationLifeCycle());
 
-    @Override
-    protected void setUp() throws Exception {
-        super.setUp();
-        resolver = this.getMockContentResolver();
-    }
+        when(contentProvider.getContext()).thenReturn(application);
 
-    @Override
-    protected void tearDown() throws Exception {
-        super.tearDown();
+        ShadowContentResolver.registerProviderInternal(AUTHORITY, contentProvider);
     }
 
     @Test
     public void testOnCreate() {
-        NewRelicAppContentProvider provider = new NewRelicAppContentProvider();
-        Assert.assertFalse(provider.onCreate());
+        Assert.assertEquals(0, AppTracer.getInstance().getContentProviderStartedTime(), 0);
+        Assert.assertTrue(contentProvider.onCreate());
+        Assert.assertTrue(AppTracer.getInstance().getContentProviderStartedTime() != 0);
+        verify(contentProvider.appApplicationLifeCycle, times(1)).onColdStartInitiated(any(Context.class));
+        verify(application, times(1)).registerActivityLifecycleCallbacks(any(AppApplicationLifeCycle.class));
     }
 }

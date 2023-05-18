@@ -1,2 +1,49 @@
+/*
+ * Copyright (c) 2023 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+pluginManagement {
+    ext {
+        versions = [
+                agent : "7.+",
+                agp   : "7.1.+",
+                kotlin: "1.6.+",
+                gradle: "7.2"
+        ]
+    }
+
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        mavenLocal()
+        google()
+    }
+
+    plugins {
+        /* TODO  Can't pass the component versions through pluginManagement,
+            so we must use the legacy plugin scheme
+
+        id("org.jetbrains.kotlin.android") version "${versions.kotlin}" apply false
+        id("com.android.application") version "${versions.agp}" apply false
+        id("com.android.library") version "${versions.agp}" apply false
+        id('newrelic') version "${versions.agent}" apply false
+        */
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        mavenLocal()
+        google()
+    }
+}
+
 rootProject.name = 'agent-test-app'
 
+include ":library"
+
+// TODO include ":feature"

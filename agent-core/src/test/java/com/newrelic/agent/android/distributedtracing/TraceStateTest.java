@@ -5,14 +5,13 @@
 
 package com.newrelic.agent.android.distributedtracing;
 
-import junit.framework.TestCase;
-
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Locale;
 
-public class TraceStateTest extends TestCase {
+public class TraceStateTest {
     static final String TRACE_STATE_DELIMITER = "=";
     static final String TRACE_STATE_ENTRY_DELIMITER = ",";
     static final String TRACE_FIELD_DELIMITER = "-";
@@ -20,7 +19,7 @@ public class TraceStateTest extends TestCase {
     private TraceContext traceContext;
     private TraceState traceState;
 
-    @Override
+    @Before
     public void setUp() throws Exception {
         TraceConfiguration.setInstance(new TraceConfiguration("1", "22", "333"));
         traceContext = TraceContext.createTraceContext(null);
@@ -52,7 +51,7 @@ public class TraceStateTest extends TestCase {
         Assert.assertTrue(traceContext.getVendor().matches(TraceState.W3CTraceState.TRACE_STATE_VENDOR_REGEX));
     }
 
-    boolean isValidTraceHeaderValue(String headerValue) {
+    public boolean isValidTraceHeaderValue(String headerValue) {
         Assert.assertNotNull(headerValue);
         Assert.assertFalse(headerValue.isEmpty());
 

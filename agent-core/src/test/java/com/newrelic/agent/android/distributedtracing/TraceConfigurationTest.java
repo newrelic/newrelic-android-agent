@@ -7,24 +7,26 @@ package com.newrelic.agent.android.distributedtracing;
 
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 
-import junit.framework.TestCase;
-
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
-public class TraceConfigurationTest extends TestCase {
+public class TraceConfigurationTest {
 
     private TraceConfiguration traceConfiguration;
 
-    @Override
+    @Before
     public void setUp() throws Exception {
         traceConfiguration = new TraceConfiguration("1", "1", "");
         traceConfiguration = TraceConfiguration.setInstance(traceConfiguration);
     }
 
+    @Test
     public void testIsSampled() {
         Assert.assertFalse(traceConfiguration.isSampled());
     }
 
+    @Test
     public void testOnHarvestConnected() {
         HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("2");
         HarvestConfiguration.getDefaultHarvestConfiguration().setApplication_id(("22"));
@@ -33,6 +35,7 @@ public class TraceConfigurationTest extends TestCase {
         Assert.assertEquals("22", traceConfiguration.applicationId);
     }
 
+    @Test
     public void testSetConfiguration() {
         HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("2");
         HarvestConfiguration.getDefaultHarvestConfiguration().setApplication_id(("22"));
@@ -41,12 +44,14 @@ public class TraceConfigurationTest extends TestCase {
         Assert.assertEquals("22", traceConfiguration.applicationId);
     }
 
+    @Test
     public void testGetInstance() {
         TraceConfiguration instance = TraceConfiguration.getInstance();
         Assert.assertNotNull(instance);
         Assert.assertEquals(traceConfiguration, instance);
     }
 
+    @Test
     public void testSetInstance() {
         TraceConfiguration instance = new TraceConfiguration("3", "33", "333");
         TraceConfiguration.setInstance(instance);

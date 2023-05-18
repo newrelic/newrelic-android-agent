@@ -602,6 +602,7 @@ public final class NewRelic {
      *
      * @param attributes
      */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public static void noticeNetworkFailure(Map<String, Object> attributes) {
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API

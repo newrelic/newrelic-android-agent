@@ -1,5 +1,12 @@
-apply plugin: 'java'
-apply plugin: 'com.github.johnrengelman.shadow'
+/*
+ * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+plugins {
+    id("com.github.johnrengelman.shadow")
+    id("java")
+}
 
 version = project.versions.agent
 archivesBaseName = "agent-core"
@@ -7,13 +14,13 @@ archivesBaseName = "agent-core"
 def buildGenPath = "${buildDir}/tmp/compileJava/src/main/java"
 
 tasks.withType(JavaCompile) {
-    sourceCompatibility = JavaVersion.VERSION_1_7
-    targetCompatibility = JavaVersion.VERSION_1_7
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 configurations {
     fat {
-        extendsFrom project.configurations.runtime
+        extendsFrom project.configurations.runtimeClasspath
     }
 }
 
@@ -59,7 +66,7 @@ test {
     forkEvery = 1
 }
 
-task stampAgentClass(type: Copy) {
+tasks.register('stampAgentClass', Copy) {
     logger.lifecycle "[newrelic] [agent-core] Version[${version}]"
     logger.quiet "[newrelic] [agent-core] MonoEnabled[${monoEnabled}]"
 
@@ -85,11 +92,12 @@ task stampAgentClass(type: Copy) {
 /**
  * Compile the stamped source file created above
  */
-task compileStampedAgent(type: JavaCompile, dependsOn: 'stampAgentClass') {
+tasks.register('compileStampedAgent', JavaCompile) {
+    dependsOn 'stampAgentClass'
     source = buildGenPath
     include 'com/newrelic/agent/android/Agent.java'
     classpath = sourceSets.main.compileClasspath
-    destinationDir = sourceSets.main.output.classesDirs.first()
+    destinationDirectory = sourceSets.main.output.classesDirs.first()
 
     options.sourcepath = sourceSets.main.allJava.getSourceDirectories()
     options.listFiles = false
@@ -99,5 +107,13 @@ task compileStampedAgent(type: JavaCompile, dependsOn: 'stampAgentClass') {
  * Set dependencies
  */
 project.afterEvaluate() {
+    tasks.named("compileTestJava").configure {
+        dependsOn("compileStampedAgent")
+    }
+
+    tasks.withType(Jar).configureEach {
+        dependsOn("compileStampedAgent")
+    }
+
     classes.finalizedBy compileStampedAgent, shadowJar
 }

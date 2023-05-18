@@ -6,7 +6,6 @@
 package com.newrelic.agent.compile;
 
 import com.newrelic.agent.InstrumentationAgent;
-import com.newrelic.agent.util.BuildId;
 import com.newrelic.agent.util.FileUtils;
 import com.newrelic.agent.util.Streams;
 
@@ -22,9 +21,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.jar.Attributes;
@@ -35,11 +31,10 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 public final class ClassTransformer {
-    private static final String MANIFEST_TRANSFORMED_BY_KEY = "Transformed-By";
-    private static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
-    private static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
+    public static final String MANIFEST_TRANSFORMED_BY_KEY = "Transformed-By";
+    public static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
+    public static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
 
-    private final List<File> classes;
     private final Logger log;
     private File inputFile;
     private File outputFile;
@@ -63,10 +58,9 @@ public final class ClassTransformer {
     }
 
     public ClassTransformer() {
-        this.classes = new ArrayList<>();
         this.log = InstrumentationAgent.LOGGER;
-        this.inputFile = new File(".");
-        this.outputFile = new File(".");
+        this.inputFile = new File(".").getAbsoluteFile();
+        this.outputFile = new File(".").getAbsoluteFile();
         this.classData = null;
         this.identityTransform = false;
         this.writeMode = WriteMode.modified;
@@ -76,7 +70,6 @@ public final class ClassTransformer {
     public ClassTransformer(File classPath, File outputDir) {
         this();
 
-        this.classes.add(classPath);
         this.inputFile = classPath;
         this.outputFile = outputDir;
         if (classPath.isDirectory()) {
@@ -91,25 +84,6 @@ public final class ClassTransformer {
         this.outputFile = outputJar;
     }
 
-    protected void doTransform() {
-        long tStart = System.currentTimeMillis();
-
-            log.info("[ClassTransformer] Using build ID[" + BuildId.getBuildId(invocationDispatcher.getInstrumentationContext().getVariantName()) + "]");
-
-        for (File classFile : classes) {
-            inputFile = FileUtils.isClass(classFile) ? classFile.getParentFile() : classFile;
-
-            log.debug("[ClassTransformer] Transforming classpath[" + classFile.getAbsolutePath() + "]");
-            log.debug("[ClassTransformer] InputFile[" + inputFile.getAbsolutePath() + "]");
-            log.debug("[ClassTransformer] OutputFile[" + outputFile.getAbsolutePath() + "]");
-
-            transformClassFile(classFile);
-        }
-
-        log.info(MessageFormat.format("[ClassTransformer] doTransform finished in {0} sec.",
-                Float.valueOf((System.currentTimeMillis() - tStart) / 1000f)));
-    }
-
     /*
      * Transforms an array of bytes using our class rewriter. This is the cut point used
      * by legacy, Dexguard and Transform API class transformations.
@@ -119,7 +93,7 @@ public final class ClassTransformer {
      * in createTransformClassAdapter, currently "(Ljava/lang/String;[B)[B")
      *
      * @param classPathname Used to discern resource type and logging
-     * @param bytes         Array of bytes contianing class
+     * @param bytes Array of bytes containing the class bytecode
      * @return Array of transformed bytes if class was processed; otherwise returns original
      * array of bytes if transformation is disabled or class could not be transformed.
      */
@@ -132,7 +106,6 @@ public final class ClassTransformer {
         if (FileUtils.isClass(classPathname)) {
             try {
                 if (bytes != null) {
-                    log.debug("[ClassTransformer] transformClassBytes: [" + classPathname + "]");
                     classData = invocationDispatcher.visitClassBytes(bytes);
                     if (classData != null && classData.getClassBytes() != null && classData.isModified()) {
                         return classData.getClassBytes();
@@ -159,7 +132,7 @@ public final class ClassTransformer {
      * @return ByteArrayInputStream containing transformed bytes if successful, or the original
      * bytes otherwise.
      **/
-    private ByteArrayInputStream processClassBytes(File classFile, InputStream classFileInputStream) throws IOException {
+    public ByteArrayInputStream processClassBytes(File classFile, InputStream classFileInputStream) throws IOException {
         byte[] classBytes = Streams.slurpBytes(classFileInputStream);
         byte[] transformedClassBytes = transformClassBytes(classFile.getPath(), classBytes);
         final ByteArrayInputStream processedClassBytesStream;
@@ -196,8 +169,8 @@ public final class ClassTransformer {
                 didProcessClass = transformDirectory(classFile);
 
             } else {
-
                 String classpath = classFile.getAbsolutePath();
+
                 if (classpath.startsWith(inputFile.getAbsolutePath())) {
                     classpath = classpath.substring(inputFile.getAbsolutePath().length() + 1);
                 }
@@ -283,38 +256,13 @@ public final class ClassTransformer {
         JarFile jarFile = null;
 
         try {
-            JarEntry manifest = new JarEntry(JarFile.MANIFEST_NAME);
-            boolean doTransform = true;
-
             jarFile = new JarFile(archiveFile);
             byteArrayOutputStream = new ByteArrayOutputStream();
             archiveFileInputStream = new FileInputStream(archiveFile);
             jarInputStream = new JarInputStream(archiveFileInputStream);
             jarOutputStream = new JarOutputStream(byteArrayOutputStream);
 
-            jarOutputStream.putNextEntry(manifest);
-
-            Manifest realManifest = jarFile.getManifest();
-            if (realManifest != null) {
-                realManifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
-
-                Map<String, Attributes> entries = realManifest.getEntries();
-                for (String entryKey : entries.keySet()) {
-                    Attributes attrs = realManifest.getAttributes(entryKey);
-                    for (Object attr : attrs.keySet()) {
-                        String attrKeyName = attr.toString();
-                        if (MANIFEST_SHA1_DIGEST_KEY.equals(attrKeyName) ||
-                                MANIFEST_SHA_256_DIGEST_KEY.equals(attrKeyName)) {
-                            doTransform = false;
-                        }
-                    }
-                }
-
-                realManifest.write(jarOutputStream);
-            }
-
-            jarOutputStream.flush();
-            jarOutputStream.closeEntry();
+            boolean doTransform = verifyAndWriteManifest(jarFile, jarOutputStream);
 
             if (!doTransform) {
                 log.info("[ClassTransformer] Skipping instrumentation of signed jar [" + archiveFile.getPath() + "]");
@@ -396,13 +344,49 @@ public final class ClassTransformer {
         return didProcessArchive;
     }
 
-    public ClassTransformer asIdentityTransform(boolean identityTransform) {
-        this.identityTransform = identityTransform;
-        return this;
+    public boolean verifyManifest(JarFile jarFile) throws IOException {
+        Manifest realManifest = jarFile.getManifest();
+
+        if (realManifest != null) {
+
+            Map<String, Attributes> entries = realManifest.getEntries();
+            for (String entryKey : entries.keySet()) {
+                Attributes attrs = realManifest.getAttributes(entryKey);
+                for (Object attr : attrs.keySet()) {
+                    String attrKeyName = attr.toString();
+                    if (MANIFEST_SHA1_DIGEST_KEY.equals(attrKeyName) ||
+                            MANIFEST_SHA_256_DIGEST_KEY.equals(attrKeyName)) {
+                        return false;
+                    }
+                }
+            }
+
+            realManifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
+        }
+
+        return true;
     }
 
-    public ClassTransformer addClasspath(final File classpath) {
-        classes.add(classpath);
+    public boolean verifyAndWriteManifest(JarFile jarFile, JarOutputStream jarOutputStream) throws IOException {
+        if (!verifyManifest(jarFile)) {
+            return false;
+        }
+
+        Manifest manifest = jarFile.getManifest();
+        if (manifest == null) {
+            manifest = new Manifest();
+            JarEntry manifestJarEntry = new JarEntry(JarFile.MANIFEST_NAME);
+            manifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
+            jarOutputStream.putNextEntry(manifestJarEntry);
+            jarOutputStream.flush();
+            jarOutputStream.closeEntry();
+        }
+
+        return true;
+    }
+
+    public ClassTransformer asIdentityTransform(boolean identityTransform) {
+        this.identityTransform = identityTransform;
         return this;
     }
 
@@ -461,5 +445,4 @@ public final class ClassTransformer {
             }
         }
     }
-
 }
