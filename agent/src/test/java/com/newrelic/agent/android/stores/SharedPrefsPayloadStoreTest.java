@@ -11,7 +11,7 @@ import com.newrelic.agent.android.SpyContext;
 import com.newrelic.agent.android.agentdata.HexAttribute;
 import com.newrelic.agent.android.agentdata.builder.AgentDataBuilder;
 import com.newrelic.agent.android.payload.Payload;
-import com.newrelic.com.google.flatbuffers.FlatBufferBuilder;
+import com.google.flatbuffers.FlatBufferBuilder;
 import com.newrelic.mobile.fbs.HexAgentData;
 import com.newrelic.mobile.fbs.HexAgentDataBundle;
 

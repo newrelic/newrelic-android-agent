@@ -15,7 +15,6 @@ buildscript {
 }
 
 plugins {
-    id("com.github.johnrengelman.shadow")
     id("base")
     id("io.github.gradle-nexus.publish-plugin")
 }

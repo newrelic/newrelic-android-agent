@@ -4,16 +4,10 @@
  */
 
 import com.android.builder.core.BuilderConstants
-
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url "https://jitpack.io" }
-    }
-}
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
+    id("com.github.johnrengelman.shadow")
     id("com.android.library")
 }
 
@@ -45,7 +39,6 @@ android {
     }
 
     // only interested in the release variant
-    // TODO Migrate to artifacts api
     variantFilter { variant ->
         if (variant.buildType.name != BuilderConstants.RELEASE) {
             variant.ignore = true
@@ -67,28 +60,49 @@ android {
         }
     }
 
-    // TODO Migrate to artifacts api
     libraryVariants.all { variant ->
-        // The artifact is now a fat jar
         logger.info("[FAT-JAR] Variant[${variant.name}]")
-        variant.ext.fatJarTask = toFatJarTask(variant)
+        variant.ext.fatJarProvider = toFatJarTask(variant)
         artifacts {
-            archives variant.ext.fatJarTask
+            // The artifact is a fat jar
+            archives variant.ext.fatJarProvider
         }
 
-        /**
-         * Set dependencies
-         */
-        def assembleTask = variant.getAssembleProvider().get()
-        fatJarTask.dependsOn assembleTask
-        assembleTask.finalizedBy variant.ext.fatJarTask
+        def assembleTask = variant.getAssembleProvider()
+        fatJarProvider.configure {
+            dependsOn assembleTask
+        }
+        assembleTask.configure {
+            finalizedBy variant.ext.fatJarProvider
+        }
     }
 }
 
-dependencies {
-    implementation fileTree(dir: 'libs', include: '*.jar')
+/*
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        logger.info("[FAT-JAR] Variant[${variant.name}]")
+        variant.ext.fatJarProvider = toFatJarTask(variant)
+        artifacts {
+            // The artifact is a fat jar
+            archives variant.ext.fatJarProvider
+        }
 
-    compileOnly project(path: ':agent-core', configuration: 'fat')
+        def assembleTask = project.tasks.named("assemble") {
+            dependsOn variant.ext.fatJarProvider
+        }
+
+        fatJarProvider.configure {
+            finalizedBy assembleTask
+        }
+    }
+}
+/**/
+
+dependencies {
+    implementation project(path: ':agent-core', configuration: 'fat')
+
+    compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk
 
     testImplementation project(path: ':agent-core', configuration: 'fat')
@@ -101,24 +115,14 @@ dependencies {
 }
 
 /**
- * Returns path to *fat* agent-core
+ * Finalize android-agent.jar for the passed variant
  */
-def agentCoreJarPath() {
-    configurations.releaseCompileClasspath.find { c -> c.absolutePath.contains("agent-core-$version-fat") }
-}
 
-/**
- * Finalize agent.jar for the passed variant
- */
 def toFatJarTask(def variant) {
-    def variantName = variant.name.toLowerCase()
-    def fatJarFile = "android-agent-${project.version}.jar"
-
-    // This task will merge agent and agent-core classes, relocating embedded 3rd-party classes.
-    // ShadowJar doesn't support Android so use JarJar until that's resolved
-
-    def fatJarTaskName = "fatJar${variantName.capitalize()}"
-    def fatJarTask = task(fatJarTaskName, type: Jar) {
+    def fatJarProvider = project.tasks.register("fatJar${variant.name.capitalize()}", ShadowJar) {
+        archiveClassifier = ''
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        includeEmptyDirs = false
         manifest {
             attributes(
                     "Implementation-Vendor": "New Relic Inc.",
@@ -131,43 +135,22 @@ def toFatJarTask(def variant) {
                 into "proguard"
             }
         }
-
         exclude 'META-INF/**'
-
-        doLast {
-            /**
-             * Create a combined agent jar
-             */
-            def fatjarOutputFile = new File("${project.projectLibsDir}/${fatJarFile}").getCanonicalFile()
-            def agentCoreJarPath = agentCoreJarPath()
-            def compileTask = variant.getJavaCompileProvider().get()
-
-            logger.lifecycle "[newrelic] [agent] Agent fat jar: ${fatjarOutputFile}"
-            logger.info "[newrelic] [agent] Agent core dependency: ${agentCoreJarPath}"
-
-            ant {
-                taskdef name: 'jarjar', classname: 'com.tonicsystems.jarjar.JarJarTask', classpath: "${projectDir}/jarjar-1.4.jar"
-
-                // Combine shadowed dependencies
-                jarjar(jarfile: fatjarOutputFile, manifest: "$buildDir/tmp/${fatJarTaskName}/MANIFEST.MF") {
-                    fileset(dir: compileTask.destinationDir)
-                    zipfileset(src: agentCoreJarPath) {
-                        exclude(name: '**/GsonInstrumentation.*')
-                    }
-                    rule pattern: "com.google.**", result: "com.newrelic.com.google.@1"
-                }
-
-                // Insert unshadowed file(s) into target
-                jar(destfile: fatjarOutputFile, update: "true", compress: "true", duplicate: "fail") {
-                    zipfileset(src: agentCoreJarPath) {
-                        include(name: '**/GsonInstrumentation.*')
-                    }
-                }
-            }
+        exclude 'module-info.class'
+        from {
+            [variant.getJavaCompileProvider().get().destinationDir,
+             variant.runtimeConfiguration.collect { it.isDirectory() ? it : zipTree(it) }
+            ]
         }
+        relocate("com.google.gson", "com.newrelic.com.google.gson") {
+            // FIXME: Shadow does not exclude! This breaks Gson instrumentation
+            exclude "**/GsonInstrumentation*"
+        }
+        relocate("com.google.flatbuffers", "com.newrelic.com.google.flatbuffers")
+        mergeServiceFiles()
     }
 
-    return fatJarTask
+    fatJarProvider
 }
 
 /**
@@ -179,7 +162,7 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             android.libraryVariants.all { variant ->
-                artifact variant.ext.fatJarTask
+                artifact variant.ext.fatJarProvider
             }
             artifactId 'android-agent'
             pom {
