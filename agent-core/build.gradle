@@ -34,28 +34,25 @@ jar {
     }
 }
 
-//
-// Class rewriting (package relocation)
-//
-
-shadowJar {
-    archiveClassifier = 'fat'
-     relocate 'com.google.flatbuffers', 'com.newrelic.com.google.flatbuffers'
-    // relocate 'com.google.gson', 'com.newrelic.com.google.gson'
-    manifest {
-        inheritFrom project.tasks.jar.manifest
-    }
-    mergeServiceFiles()
-}
-
 dependencies {
-    implementation fileTree(dir: 'libs/export', include: '*.jar')
     compileOnly fileTree(dir: 'libs', include: '*.jar')
+
+    // all implementation dependencies will be shadowed
+    implementation 'com.google.code.gson:gson:' + project.versions.java.gson
+    implementation 'com.google.flatbuffers:flatbuffers-java:' + project.versions.java.flatbuffers
 
     testImplementation fileTree(dir: 'libs', include: '*.jar')
     testImplementation fileTree(dir: 'libs/export', include: '*.jar')
     testImplementation 'junit:junit:' + project.versions.test.junit
     testImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
+}
+
+shadowJar {
+    archiveClassifier = 'fat'
+    manifest {
+        inheritFrom project.tasks.jar.manifest
+    }
+    mergeServiceFiles()
 }
 
 artifacts {
