@@ -68,8 +68,9 @@ class BuildHelper {
     static final AtomicReference<BuildHelper> INSTANCE = new AtomicReference<BuildHelper>(null)
 
     static BuildHelper register(Project project) {
-        INSTANCE.compareAndSet(null, new BuildHelper(project))
-        return INSTANCE.get()
+//        INSTANCE.compareAndSet(null, new BuildHelper(project))
+//        return INSTANCE.get()
+        return new BuildHelper(project)
     }
 
     BuildHelper(Project project) {
