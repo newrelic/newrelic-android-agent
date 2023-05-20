@@ -106,4 +106,14 @@ class PluginSmokeSpec extends PluginSpec {
             buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
         }
     }
+
+    def "verify submodules built and instrumented"() {
+        expect:
+        testVariants.each { var ->
+            (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                    buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+        }
+    }
+
 }
