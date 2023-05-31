@@ -58,11 +58,19 @@ public class Harvest {
     }
 
     public static void start() {
-        instance.getHarvestTimer().start();
+        if (instance.getHarvestTimer() != null) {
+            instance.getHarvestTimer().start();
+        } else {
+            log.error("Harvest timer is null");
+        }
     }
 
     public static void stop() {
-        instance.getHarvestTimer().stop();
+        if (instance.getHarvestTimer() != null) {
+            instance.getHarvestTimer().stop();
+        } else {
+            log.error("Harvest timer is null");
+        }
     }
 
     public static void harvestNow(boolean finalizeSession) {
