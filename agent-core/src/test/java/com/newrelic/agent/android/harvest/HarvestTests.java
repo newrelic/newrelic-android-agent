@@ -604,6 +604,25 @@ public class HarvestTests {
         Assert.assertFalse("Harvest should not execute when app in background", testAdapter.didStart());
     }
 
+    @Test
+    public void testStartStop() {
+        try {
+            HarvestTimer timer = null;
+            Harvest.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail("Harvest start failed when harvest timer is null");
+        }
+
+        try {
+            HarvestTimer timer = null;
+            Harvest.stop();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail("Harvest stop failed when harvest timer is null");
+        }
+    }
+
 
     private class TestHarvestAdapter extends HarvestAdapter {
         private boolean started;
