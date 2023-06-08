@@ -93,9 +93,8 @@ dependencies {
 // DG 9.+
 //
 if (project.plugins.hasPlugin("dexguard")) {
-    logger.quiet "[newrelic] [agent-test-app] using DexGuard[${versions.dexguard.base}]"
-
     if (compiler == 'dexguard') {
+        logger.quiet "[newrelic] [agent-test-app] using DexGuard[${versions.dexguard.base}]"
         dexguard {
             version = versions.dexguard.base
 

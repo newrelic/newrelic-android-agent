@@ -68,15 +68,14 @@ class BuildHelper {
     static final AtomicReference<BuildHelper> INSTANCE = new AtomicReference<BuildHelper>(null)
 
     static BuildHelper register(Project project) {
-//        INSTANCE.compareAndSet(null, new BuildHelper(project))
-//        return INSTANCE.get()
+    //  FIXME INSTANCE.compareAndSet(null, new BuildHelper(project))
+    //  return INSTANCE.get()
         return new BuildHelper(project)
     }
 
     BuildHelper(Project project) {
         this.project = project
         this.logger = NewRelicGradlePlugin.LOGGER
-        this.dexguardHelper = DexGuardHelper.register(this)
 
         try {
             this.extension = project.extensions.getByType(NewRelicExtension.class) as NewRelicExtension
@@ -92,6 +91,7 @@ class BuildHelper {
             NEWLN = getSystemPropertyProvider("line.separator").get()
 
             this.variantAdapter = VariantAdapter.register(this)
+            this.dexguardHelper = DexGuardHelper.register(this)
 
         } catch (UnknownPluginException e) {
             throw new BuildCancelledException(e.message)
@@ -100,8 +100,8 @@ class BuildHelper {
 
     void validatePluginSettings() throws UnknownPluginException {
         if (!getAndroidExtension()) {
-            throw new UnknownPluginException("The New Relic agent plugin depends on the Android plugin." + NEWLN +
-                    "Please apply an Android plugin before the New Relic agent: " + NEWLN +
+            throw new UnknownPluginException("The New Relic agent plugin depends on the Android Gradle plugin." + NEWLN +
+                    "Please apply an Android Gradle plugin before the New Relic agent: " + NEWLN +
                     "plugins {" + NEWLN +
                     "   id 'com.android.[application, library, dynamic-feature]'" + NEWLN +
                     "   id 'newrelic'" + NEWLN +
@@ -308,15 +308,20 @@ class BuildHelper {
         return project.plugins.hasPlugin("dexguard")
     }
 
-    boolean checkInstantApps() {
+    boolean checkDynamicFeature() {
         return project.plugins.hasPlugin("com.android.instantapp") ||
                 project.plugins.hasPlugin("com.android.feature") ||
                 project.plugins.hasPlugin("com.android.dynamic-feature")
     }
 
+    boolean checkApplication() {
+        return project.plugins.hasPlugin("com.android.application")
+    }
+
     boolean checkLibrary() {
         return project.plugins.hasPlugin("com.android.library")
     }
+
 
     /**
      * Returns literal name of obfuscation compiler
@@ -325,7 +330,7 @@ class BuildHelper {
      */
     String getMapCompilerName() {
 
-        if (dexguardHelper.enabled) {
+        if (dexguardHelper?.enabled) {
             return Proguard.Provider.DEXGUARD
         }
 
@@ -372,9 +377,9 @@ class BuildHelper {
 
     def wireTaskProviderToDependencies(Set<?> dependencyTaskProviders,
                                        Action<Task> action) {
-        dependencyTaskProviders.each { dependencyTask ->
+        dependencyTaskProviders.each { dependencyTaskProvider ->
             try {
-                action?.execute(dependencyTask)
+                action?.execute(dependencyTaskProvider)
             } catch (Exception ignored) {
                 ignored
             }

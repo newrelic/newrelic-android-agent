@@ -46,7 +46,7 @@ class DexGuardHelperTest extends PluginTest {
         def buildHelper = BuildHelper.register(project)
         buildHelper.variantAdapter.configure(buildHelper.extension)
         buildHelper.variantAdapter.getVariantValues().each { variant ->
-            def mapPath = dexGuardHelper.getDefaultMapPathProvider(variant.name)
+            def mapPath = dexGuardHelper.getMappingFileProvider(variant.name)
             Assert.assertNotNull(mapPath)
             Assert.assertTrue(mapPath.getAsFile().get().getAbsolutePath().contains("/${variant.dirName}/"))
             if (dexGuardHelper.isDexGuard9()) {
