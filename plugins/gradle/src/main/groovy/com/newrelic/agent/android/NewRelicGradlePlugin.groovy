@@ -9,7 +9,6 @@ import com.newrelic.agent.InstrumentationAgent
 import com.newrelic.agent.util.BuildId
 import kotlin.KotlinVersion
 import org.gradle.api.BuildCancelledException
-import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.LogLevel
@@ -33,7 +32,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         InstrumentationAgent.LOGGER = LOGGER
 
         if (!isSupportedModule(project)) {
-            throw new BuildCancelledException("Instrumentation of Android modules (libraries, dynamic feature, etc.) is not supported in this version.")
+            throw new BuildCancelledException("Instrumentation of Android Dynamic feature modules is not supported in this version.")
         }
 
         pluginExtension = NewRelicExtension.register(project)
@@ -74,9 +73,8 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
     void configurePlugin(Project project) {
 
-        if (buildHelper.checkDexGuard()) {
-            buildHelper.withDexGuardHelper(DexGuardHelper.register(buildHelper))
-            buildHelper.dexguardHelper.configureDexGuardTasks()
+        if (buildHelper.dexguardHelper?.getEnabled()) {
+            buildHelper.dexguardHelper.configureDexGuard()
         }
 
         pluginExtension.with {
@@ -103,16 +101,17 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         LOGGER.debug("Gradle configuration cache supported: " + buildHelper.configurationCacheSupported())
         LOGGER.debug("Gradle configuration cache enabled: " + buildHelper.configurationCacheEnabled())
 
-        if (buildHelper.checkInstantApps()) {
-            LOGGER.debug("InstantApp detected.")
+        if (buildHelper.checkDynamicFeature()) {
+            LOGGER.debug("Dynamic feature module detected.")
         }
 
         if (buildHelper.checkDexGuard()) {
-            LOGGER.info("DexGuard detected.")
-            throw new GradleException("DexGuard is not yet supported in this version of the New Relic Android Gradle plugin. Sit tight, it won't be long!")
+            LOGGER.info("DexGuard detected " + buildHelper.dexguardHelper?.currentVersion)
         }
 
-        LOGGER.info("BuildMetrics[${buildHelper.getBuildMetrics().toMapString()}]")
+        if (buildHelper.checkApplication()) {
+            LOGGER.info("BuildMetrics[${buildHelper.getBuildMetrics().toMapString()}]")
+        }
     }
 
     private def parseLegacyAgentArgs(Project project) {

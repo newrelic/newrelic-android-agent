@@ -97,7 +97,7 @@ abstract class PluginSpec extends Specification {
                 .forwardStdError(errorOutput)
                 .withGradleVersion(gradleVersion)
 
-        return debuggable ? runner.withDebug(debuggable) : runner.withEnvironment(localEnv)
+        return debuggable ? runner.withDebug(true) : runner.withEnvironment(localEnv)
     }
 
 }
