@@ -150,6 +150,12 @@ abstract class VariantAdapter {
         def variant = withVariant(variantName)
         def buildType = withBuildType(variantName)
 
+        if (buildHelper.dexguardHelper?.getEnabled()) {
+            if (buildHelper.dexguardHelper.variantConfigurations.get().containsKey(buildType.name)) {
+                return true
+            }
+        }
+
         return (buildType.minified && (buildHelper.extension.shouldIncludeMapUpload(buildType.name) ||
                 buildHelper.extension.shouldIncludeMapUpload(buildType.buildType)))
     }
@@ -221,7 +227,7 @@ abstract class VariantAdapter {
             }
         } catch (InvalidUserDataException ignored) {
             return buildHelper.project.tasks.named(name, clazz) {
-                // action?.execute(it)
+                action?.execute(it)
             }
         }
     }
@@ -232,8 +238,8 @@ abstract class VariantAdapter {
     def assembleDataModel(String variantName) {
         // assemble and configure model
         wiredWithTransformProvider(variantName)
-        if (buildHelper.project.plugins.hasPlugin("com.android.application")) {
-            // inject config lass into apps
+        if (buildHelper.checkApplication()) {
+            // inject config class into apps
             wiredWithConfigProvider(variantName)
         }
         if (shouldUploadVariantMap(variantName)) {

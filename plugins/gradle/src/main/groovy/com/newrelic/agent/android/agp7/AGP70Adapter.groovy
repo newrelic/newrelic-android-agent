@@ -33,7 +33,6 @@ class AGP70Adapter extends VariantAdapter {
             metrics.put(variantBuilder.buildType, [:] as HashMap)
             metrics[variantBuilder.buildType].get().with {
                 put("minSdk", variantBuilder.minSdk)
-                put("maxSdk", variantBuilder.maxSdk)
                 put("targetSdk", variantBuilder.targetSdk)
             }
         })
@@ -100,10 +99,9 @@ class AGP70Adapter extends VariantAdapter {
     RegularFileProperty getMappingFileProvider(String variantName, Action action = null) {
         def variant = withVariant(variantName)
 
-        // FIXME DRY up
         // dexguard maps are handled separately
-        if (buildHelper.checkDexGuard() && buildHelper.dexguardHelper.getEnabled()) {
-            return buildHelper.dexguardHelper.getDefaultMapPathProvider(variant.dirName)
+        if (buildHelper.dexguardHelper?.getEnabled()) {
+            return buildHelper.dexguardHelper.getMappingFileProvider(variantName)
         }
 
         def variantConfiguration = buildHelper.extension.variantConfigurations.findByName(variantName)
@@ -156,7 +154,7 @@ class AGP70Adapter extends VariantAdapter {
                 variant.sources.java.addGeneratedSourceDirectory(configProvider, { it.getSourceOutputDir() })
             } catch (Exception ignored) {
                 //  FIXME
-                logger.debug("${GradleVersion.current()} does not privide addGeneratedSourceDirectory() on the Java sources instance.")
+                logger.debug("${GradleVersion.current()} does not provide addGeneratedSourceDirectory() on the Java sources instance.")
             }
         }
 
@@ -182,20 +180,26 @@ class AGP70Adapter extends VariantAdapter {
         def vnc = variantName.capitalize()
 
         buildHelper.project.afterEvaluate {
-            def wiredTaskNames = Set.of(
-                    "minify${vnc}WithR8",
-                    "minify${vnc}WithProguard",
-                    "transformClassesAndResourcesWithProguardTransformFor${vnc}",
-                    "transformClassesAndResourcesWithProguardFor${vnc}",
-                    "transformClassesAndResourcesWithR8For${vnc}",
-            )
+            def wiredTaskNames
 
-            buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { dependencyTaskProvider ->
-                dependencyTaskProvider.configure {
+            if (buildHelper.dexguardHelper?.enabled) {
+                wiredTaskNames = buildHelper.dexguardHelper.wiredTaskNames(vnc)
+            } else {
+                wiredTaskNames = Set.of(
+                        "minify${vnc}WithR8",
+                        "minify${vnc}WithProguard",
+                        "transformClassesAndResourcesWithProguardTransformFor${vnc}",
+                        "transformClassesAndResourcesWithProguardFor${vnc}",
+                        "transformClassesAndResourcesWithR8For${vnc}",
+                )
+            }
+
+            buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { dependencyTask ->
+                dependencyTask.configure {
                     it.finalizedBy(mapUploadProvider)
                 }
                 mapUploadProvider.configure {
-                    it.shouldRunAfter(dependencyTaskProvider)
+                    it.shouldRunAfter(dependencyTask)
                 }
             }
         }

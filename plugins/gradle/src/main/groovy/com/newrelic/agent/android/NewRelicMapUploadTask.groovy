@@ -109,6 +109,9 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
         return Set.of(
                 "minify${vnc}WithR8",
                 "minify${vnc}WithProguard",
+                "transformClassesAndResourcesWithProguardTransformFor${vnc}",
+                "transformClassesAndResourcesWithProguardFor${vnc}",
+                "transformClassesAndResourcesWithR8For${vnc}",
                 "lintVitalAnalyze${vnc}",
                 "lintVitalReport${vnc}",
                 "dexguardApk${vnc}",

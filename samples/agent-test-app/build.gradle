@@ -79,19 +79,11 @@ subprojects {
 
 
 logger.quiet "[newrelic] [agent-test-app] JDK version [${System.getProperty('java.version')}]"
-logger.quiet "[newrelic] [agent-test-app] Gradle version [${GradleVersion.current()}]"
+logger.quiet "[newrelic] [agent-test-app] Gradle version [${GradleVersion.current().version}]"
 logger.quiet "[newrelic] [agent-test-app] AGP plugin version [${versions.agp.plugin}]"
 logger.quiet "[newrelic] [agent-test-app] withProductFlavors[${project.withProductFlavors.toBoolean()}]"
 logger.quiet "[newrelic] [agent-test-app] using dex compiler[$project.compiler]"
 logger.quiet "[newrelic] [agent-test-app] appy NR plugins[$project.applyPlugin]"
-
-if (project.compiler && project.compiler.startsWith('dexguard')) {
-    logger.quiet "[newrelic] [agent-test-app] Dexguard license[${System.getProperty('dexguard.license', System.getenv('DEXGUARD_LICENSE'))}]"
-    logger.quiet "[newrelic] [agent-test-app] Dexguard home[${versions.dexguard.home}]"
-    logger.quiet "[newrelic] [agent-test-app] Dexguard base version[${versions.dexguard.base}]"
-    logger.quiet "[newrelic] [agent-test-app] Dexguard plugin version[${versions.dexguard.plugin}]"
-    apply plugin: 'dexguard'
-}
 
 project.tasks.register("cleanRoot", Delete) {
     delete rootProject.buildDir
@@ -104,6 +96,13 @@ project.tasks.register("cleanRoot", Delete) {
  */
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
+if (project.compiler && project.compiler.startsWith('dexguard')) {
+    logger.quiet "[newrelic] [agent-test-app] Dexguard license[${System.getProperty('dexguard.license', System.getenv('DEXGUARD_LICENSE'))}]"
+    logger.quiet "[newrelic] [agent-test-app] Dexguard home[${versions.dexguard.home}]"
+    logger.quiet "[newrelic] [agent-test-app] Dexguard base version[${versions.dexguard.base}]"
+    logger.quiet "[newrelic] [agent-test-app] Dexguard plugin version[${versions.dexguard.plugin}]"
+    apply plugin: 'dexguard'
+}
 apply from: "android.gradle"
 
 android {
