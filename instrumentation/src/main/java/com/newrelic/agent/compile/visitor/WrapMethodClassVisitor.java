@@ -24,7 +24,7 @@ public class WrapMethodClassVisitor extends ClassVisitor {
     private final Logger log;
 
     public WrapMethodClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Logger log) {
-        super(Opcodes.ASM8, cv);
+        super(Opcodes.ASM9, cv);
         this.context = context;
         this.log = log;
     }
@@ -47,7 +47,7 @@ public class WrapMethodClassVisitor extends ClassVisitor {
         private boolean dupInstructionFound = false;
 
         public MethodWrapMethodVisitor(MethodVisitor mv, final int access, final String name, final String desc, final InstrumentationContext context, final Logger log) {
-            super(Opcodes.ASM8, mv, access, name, desc);
+            super(Opcodes.ASM9, mv, access, name, desc);
             this.name = name;
             this.desc = desc;
             this.context = context;

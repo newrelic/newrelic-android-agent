@@ -20,7 +20,7 @@ public class ReplaceCallSiteClassVisitor extends ClassVisitor {
     private final Logger log;
 
     public ReplaceCallSiteClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Logger log) {
-        super(Opcodes.ASM8, cv);
+        super(Opcodes.ASM9, cv);
         this.context = context;
         this.log = log;
     }
