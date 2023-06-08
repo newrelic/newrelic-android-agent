@@ -33,7 +33,7 @@ public class TraceClassDecoratorTest {
     public void setUp() throws Exception {
         testContext = new TestContext();
         tcd = new TraceClassDecorator(testContext.classWriter);
-        testContext.classWriter.visit(Opcodes.ASM7, Opcodes.ACC_PROTECTED, method.getName(), method.getDescriptor(), null, null);
+        testContext.classWriter.visit(Opcodes.ASM9, Opcodes.ACC_PROTECTED, method.getName(), method.getDescriptor(), null, null);
         classBytes = testContext.classBytesFromResource("/MainActivity.class");
     }
 

@@ -16,7 +16,7 @@ public class TraceAnnotationClassVisitor extends ClassVisitor {
     private final InstrumentationContext context;
 
     public TraceAnnotationClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log) {
-        super(Opcodes.ASM8, cv);
+        super(Opcodes.ASM9, cv);
         this.context = context;
     }
 

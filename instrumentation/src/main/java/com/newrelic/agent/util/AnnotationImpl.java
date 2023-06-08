@@ -18,7 +18,7 @@ public class AnnotationImpl extends AnnotationVisitor {
     private Map<String, Object> attributes;
 
     public AnnotationImpl(String name) {
-        super(Opcodes.ASM8);
+        super(Opcodes.ASM9);
         this.name = name;
     }
 
@@ -61,7 +61,7 @@ public class AnnotationImpl extends AnnotationVisitor {
         private final ArrayList<Object> values = new ArrayList<Object>();
 
         public ArrayVisitor(final String name) {
-            super(Opcodes.ASM8);
+            super(Opcodes.ASM9);
             this.name = name;
         }
 

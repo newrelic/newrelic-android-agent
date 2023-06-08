@@ -31,7 +31,7 @@ public class MethodAnnotationVisitor {
         private final Collection<MethodAnnotation> annotations = new ArrayList<MethodAnnotation>();
 
         public MethodAnnotationClassVisitor(String annotationDescription) {
-            super(Opcodes.ASM8);
+            super(Opcodes.ASM9);
             this.annotationDescription = annotationDescription;
         }
 
@@ -56,7 +56,7 @@ public class MethodAnnotationVisitor {
             private final String methodDesc;
 
             public MethodAnnotationVisitorImpl(String name, String desc) {
-                super(Opcodes.ASM8);
+                super(Opcodes.ASM9);
                 this.methodName = name;
                 this.methodDesc = desc;
             }

@@ -25,7 +25,7 @@ public class PrefilterClassVisitor extends ClassVisitor {
     private final Logger log;
 
     public PrefilterClassVisitor(final InstrumentationContext context, final Logger log) {
-        super(Opcodes.ASM8);
+        super(Opcodes.ASM9);
         this.context = context;
         this.log = log;
     }
@@ -53,7 +53,7 @@ public class PrefilterClassVisitor extends ClassVisitor {
 
     @Override
     public MethodVisitor visitMethod(final int access, final String name, final String desc, final String signature, final String[] exceptions) {
-        MethodVisitor methodVisitor = new MethodVisitor(Opcodes.ASM8) {
+        MethodVisitor methodVisitor = new MethodVisitor(Opcodes.ASM9) {
             @Override
             public AnnotationVisitor visitAnnotationDefault() {
                 return null;

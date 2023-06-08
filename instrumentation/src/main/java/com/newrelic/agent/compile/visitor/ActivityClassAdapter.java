@@ -50,7 +50,7 @@ public abstract class ActivityClassAdapter extends ClassVisitor {
 
 
     public ActivityClassAdapter(ClassVisitor cv, InstrumentationContext context, Logger log, Set<String> baseClasses, Map<Method, Method> methodMappings) {
-        super(Opcodes.ASM8, cv);
+        super(Opcodes.ASM9, cv);
         this.context = context;
         this.log = log;
 
@@ -169,7 +169,7 @@ public abstract class ActivityClassAdapter extends ClassVisitor {
         }
 
         public MethodVisitor createMethodVisitor(int access, final Method method, MethodVisitor mv, final boolean callSuper) {
-            return new GeneratorAdapter(Opcodes.ASM8, mv, access, method.getName(), method.getDescriptor()) {
+            return new GeneratorAdapter(Opcodes.ASM9, mv, access, method.getName(), method.getDescriptor()) {
                 @Override
                 public void visitMaxs(int maxStack, int maxLocals) {
                     super.visitMaxs(Math.max(maxStack, 8), Math.max(maxLocals, 8));

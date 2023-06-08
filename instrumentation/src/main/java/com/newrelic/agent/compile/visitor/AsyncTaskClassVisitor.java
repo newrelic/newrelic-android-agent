@@ -45,7 +45,7 @@ public class AsyncTaskClassVisitor extends ClassVisitor {
     );
 
     public AsyncTaskClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log) {
-        super(Opcodes.ASM8, cv);
+        super(Opcodes.ASM9, cv);
         this.context = context;
         this.log = log;
     }

@@ -22,7 +22,7 @@ public class NewRelicClassVisitor extends ClassVisitor {
     private final Logger log;
 
     public NewRelicClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Logger log) {
-        super(Opcodes.ASM8, cv);
+        super(Opcodes.ASM9, cv);
         this.context = context;
         this.log = log;
     }
@@ -59,7 +59,7 @@ public class NewRelicClassVisitor extends ClassVisitor {
     // the proguard file in the future.
     private final class BuildIdMethodVisitor extends GeneratorAdapter {
         public BuildIdMethodVisitor(MethodVisitor mv, final int access, final String name, final String desc) {
-            super(Opcodes.ASM8, mv, access, name, desc);
+            super(Opcodes.ASM9, mv, access, name, desc);
         }
 
         @Override
@@ -82,7 +82,7 @@ public class NewRelicClassVisitor extends ClassVisitor {
      */
     private final class NewRelicMethodVisitor extends GeneratorAdapter {
         public NewRelicMethodVisitor(MethodVisitor mv, final int access, final String name, final String desc) {
-            super(Opcodes.ASM8, mv, access, name, desc);
+            super(Opcodes.ASM9, mv, access, name, desc);
         }
 
         @Override
