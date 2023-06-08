@@ -19,7 +19,7 @@ public abstract class BaseMethodVisitor extends AdviceAdapter {
     protected final BytecodeBuilder builder = new BytecodeBuilder(this);
 
     protected BaseMethodVisitor(MethodVisitor mv, int access, String methodName, String desc) {
-        super(Opcodes.ASM8, mv, access, methodName, desc);
+        super(Opcodes.ASM9, mv, access, methodName, desc);
         this.methodName = methodName;
     }
 

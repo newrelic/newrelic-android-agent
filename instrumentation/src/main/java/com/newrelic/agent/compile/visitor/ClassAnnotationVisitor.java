@@ -25,7 +25,7 @@ public class ClassAnnotationVisitor extends ClassVisitor {
     private final String annotationDescription;
 
     public ClassAnnotationVisitor(String annotationDescription) {
-        super(Opcodes.ASM8);
+        super(Opcodes.ASM9);
         this.annotationDescription = annotationDescription;
     }
 

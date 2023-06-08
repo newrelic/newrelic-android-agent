@@ -41,7 +41,7 @@ public class TraceClassDecorator {
         Method method = new Method(Constants.TRACE_SETTRACE_METHOD_NAME, Constants.TRACE_SIGNATURE);
         MethodVisitor mv = adapter.visitMethod(Opcodes.ACC_PUBLIC, method.getName(), method.getDescriptor(), null, null);
 
-        GeneratorAdapter adapter = new GeneratorAdapter(Opcodes.ASM8, mv, Opcodes.ACC_PUBLIC, method.getName(), method.getDescriptor()) {
+        GeneratorAdapter adapter = new GeneratorAdapter(Opcodes.ASM9, mv, Opcodes.ACC_PUBLIC, method.getName(), method.getDescriptor()) {
             @Override
             public void visitCode() {
                 Label tryStart = new Label();

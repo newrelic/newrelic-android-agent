@@ -14,7 +14,7 @@ public class ContextInitializationClassVisitor extends ClassVisitor {
     private final InstrumentationContext context;
 
     public ContextInitializationClassVisitor(final ClassVisitor cv, final InstrumentationContext context) {
-        super(Opcodes.ASM8, cv);
+        super(Opcodes.ASM9, cv);
         this.context = context;
     }
 

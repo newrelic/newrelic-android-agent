@@ -16,7 +16,7 @@ import org.objectweb.asm.Type;
 public class SkipInstrumentedMethodsMethodVisitor extends MethodVisitor {
 
     public SkipInstrumentedMethodsMethodVisitor(MethodVisitor mv) {
-        super(Opcodes.ASM8, mv);
+        super(Opcodes.ASM9, mv);
     }
 
     @Override

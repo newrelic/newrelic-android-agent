@@ -24,7 +24,7 @@ public class ClassAdapterBase extends ClassVisitor {
     private final Logger log;
 
     public ClassAdapterBase(Logger log, ClassVisitor cv, Map<Method, MethodVisitorFactory> methodVisitors) {
-        super(Opcodes.ASM8, cv);
+        super(Opcodes.ASM9, cv);
         this.methodVisitors = methodVisitors;
         this.log = log;
     }
