@@ -169,10 +169,8 @@ def toFatJarTask(def variant) {
         exclude '**/META-INF/**'
         exclude '**/module-info.class'
         duplicatesStrategy = DuplicatesStrategy.INHERIT
-        from {
-            unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
-            shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
-        }
+        from unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
+        from shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
     }
 
     fatJarProvider
