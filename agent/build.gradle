@@ -121,21 +121,24 @@ dependencies {
 def toFatJarTask(def variant) {
     def unshadedJarProvider = project.tasks.register("unshadedJar${variant.name.capitalize()}", Jar) {
         dependsOn variant.runtimeConfiguration
+        dependsOn variant.getJavaCompileProvider()
         archiveClassifier = "u"
         include("**/GsonInstrumentation*")
+        from variant.getJavaCompileProvider().get().destinationDir
         from {
-            variant.getJavaCompileProvider().get().destinationDir
             variant.runtimeConfiguration.collect { it.isDirectory() ? it : zipTree(it) }
         }
     }
 
     def shadedJarProvider = project.tasks.register("shadedJar${variant.name.capitalize()}", ShadowJar) {
         dependsOn variant.runtimeConfiguration
+        dependsOn variant.getJavaCompileProvider()
         archiveClassifier = "s"
+        from variant.getJavaCompileProvider().get().destinationDir
         from {
-            variant.getJavaCompileProvider().get().destinationDir
             variant.runtimeConfiguration.collect { it.isDirectory() ? it : zipTree(it) }
         }
+        exclude '**/META-INF/**'
         exclude(unshadedJarProvider.get().includes)
         relocate("com.google.gson", "com.newrelic.com.google.gson") {
             // FIXME: Shadow does not exclude! This breaks Gson instrumentation.
@@ -166,9 +169,10 @@ def toFatJarTask(def variant) {
         exclude '**/META-INF/**'
         exclude '**/module-info.class'
         duplicatesStrategy = DuplicatesStrategy.INHERIT
-        from variant.getJavaCompileProvider().get().destinationDir
-        from unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
-        from shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
+        from {
+            unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
+            shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
+        }
     }
 
     fatJarProvider
