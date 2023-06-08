@@ -27,7 +27,7 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v2.4.2
         with:
           gradle-version: current
       - name: Grant execute permission for gradlew
@@ -53,7 +53,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v2.4.2
         with:
           gradle-version: current
       - name: Grant execute permission for gradlew
@@ -79,7 +79,7 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v2.4.2
         with:
           gradle-version: current
       - name: Grant execute permission for gradlew
