@@ -81,6 +81,7 @@ public class BuildId {
         if (Strings.isNullOrEmpty(buildId)) {
             buildId = autoBuildId();
             variantBuildIds.get().put(variantName, buildId);
+            log.debug("buildId[" + variantName + "] = [" + buildId + "]");
         }
 
         return variantBuildIds.get().get(variantName);

@@ -98,7 +98,6 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         LOGGER.debug("Gradle version: " + buildHelper.gradleVersion)
         LOGGER.debug("Java version: " + buildHelper.getSystemPropertyProvider('java.version').get())
         LOGGER.debug("Kotlin version: " + KotlinVersion.CURRENT)
-        LOGGER.debug("Gradle configuration cache supported: " + buildHelper.configurationCacheSupported())
         LOGGER.debug("Gradle configuration cache enabled: " + buildHelper.configurationCacheEnabled())
 
         if (buildHelper.checkDynamicFeature()) {
@@ -110,7 +109,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
 
         if (buildHelper.checkApplication()) {
-            LOGGER.info("BuildMetrics[${buildHelper.getBuildMetrics().toMapString()}]")
+            LOGGER.info("BuildMetrics[${buildHelper.getBuildMetrics()}]")
         }
     }
 
