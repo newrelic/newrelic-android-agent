@@ -106,6 +106,7 @@ dependencies {
     compileOnly newrelic.deps.ndk
 
     testImplementation project(path: ':agent-core', configuration: 'fat')
+    testImplementation fileTree(dir: 'libs', include: '*.jar')
     testImplementation newrelic.deps.ndk
 
     testImplementation 'org.robolectric:robolectric:' + project.versions.test.robolectric

@@ -68,8 +68,8 @@ class BuildHelper {
     static final AtomicReference<BuildHelper> INSTANCE = new AtomicReference<BuildHelper>(null)
 
     static BuildHelper register(Project project) {
-    //  FIXME INSTANCE.compareAndSet(null, new BuildHelper(project))
-    //  return INSTANCE.get()
+        //  FIXME INSTANCE.compareAndSet(null, new BuildHelper(project))
+        //  return INSTANCE.get()
         return new BuildHelper(project)
     }
 
@@ -265,21 +265,25 @@ class BuildHelper {
     }
 
     def getBuildMetrics() {
-        [
-                agent      : agentVersion,
-                agp        : agpVersion,
-                gradle     : gradleVersion,
-                java       : getSystemPropertyProvider('java.version').get(),
-                kotlin     : KotlinVersion.CURRENT,
-                dexguard   : [enabled: dexguardHelper.enabled, version: dexguardHelper.currentVersion],
-                configCache: [enabled: configurationCacheEnabled()],
-                variants   : variantAdapter.getBuildMetrics()
+        def metrics = [
+                agent             : agentVersion,
+                agp               : agpVersion,
+                gradle            : gradleVersion,
+                java              : getSystemPropertyProvider('java.version').get(),
+                kotlin            : KotlinVersion.CURRENT,
+                configCacheEnabled: configurationCacheEnabled(),
+                variants          : variantAdapter.getBuildMetrics()
         ]
+
+        if (dexguardHelper?.enabled) {
+            metrics["dexguard"] = dexguardHelper?.currentVersion
+        }
+
+        metrics
     }
 
     String getBuildMetricsAsJson() {
         try {
-            // JsonOutput.toJson(buildMetrics().toMapString())
             JsonOutput.toJson(getBuildMetrics())
         } catch (Throwable ignored) {
             ""
