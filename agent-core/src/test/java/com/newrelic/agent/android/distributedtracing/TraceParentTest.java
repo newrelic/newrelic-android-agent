@@ -5,18 +5,17 @@
 
 package com.newrelic.agent.android.distributedtracing;
 
-import junit.framework.TestCase;
-
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
-public class TraceParentTest extends TestCase {
+public class TraceParentTest {
     static final String TRACE_FIELD_DELIMITER = "-";
 
     private TraceContext traceContext;
     private TraceParent traceParent;
 
-    @Override
+    @Before
     public void setUp() throws Exception {
         TraceConfiguration.setInstance(new TraceConfiguration("1", "22", null));
         traceContext = TraceContext.createTraceContext(null);
@@ -39,11 +38,12 @@ public class TraceParentTest extends TestCase {
         Assert.assertNotNull(traceParent.getParentId());
     }
 
+    @Test
     public void testGetVersion() {
         Assert.assertEquals("00", traceParent.getVersion());
     }
 
-    boolean isValidTraceHeaderValue(String headerValue) {
+    public boolean isValidTraceHeaderValue(String headerValue) {
         Assert.assertNotNull(headerValue);
         Assert.assertFalse(headerValue.isEmpty());
         Assert.assertTrue(headerValue.matches(TraceParent.W3CTraceParent.TRACE_PARENT_HEADER_REGEX));

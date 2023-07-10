@@ -7,32 +7,55 @@ package com.newrelic.agent.android
 
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
+import org.gradle.api.Project
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Nested
+
+import javax.inject.Inject
 
 /**
  * NewRelic Android Agent plugin configuration
  */
 abstract class NewRelicExtension {
+    public static final String PLUGIN_EXTENSION_NAME = "newrelic"
 
-    protected List<String> variantExclusionList = []          // ['Debug', 'Staging']
-    protected List<String> variantMapUploadList = ['release']          // ['Release', 'ProdRelease', 'Staging']
-    protected List<String> packageExclusionList = []          // ['android.*', 'androidx.*']
+    /**
+     * Variant name spec is loose: it can be the literal name of the variant, the build type
+     * or product flavor.
+     */
+    protected final List<String> variantExclusionList = []              // ['Debug', 'staging']
+    protected final List<String> variantMapUploadList = ['release']     // ['Release', 'ProdRelease', 'Staging']
+    protected final List<String> packageExclusionList = []              // ['android.*', 'androidx.*']
 
-    boolean enabled = true
-    boolean instrumentTests = false
-    boolean variantMapsEnabled = true
+    Property<Boolean> enabled
+    Property<Boolean> instrumentTests
+    Property<Boolean> variantMapsEnabled
 
     NamedDomainObjectContainer<VariantConfiguration> variantConfigurations
 
-    NewRelicExtension(ObjectFactory objectFactory) {
+    static NewRelicExtension register(Project project) {
+        try {
+            return project.extensions.create(PLUGIN_EXTENSION_NAME, NewRelicExtension, project)
+        } catch (Exception) {
+            return project.extensions.getByType(NewRelicExtension.class) as NewRelicExtension
+        }
+    }
+
+    @Inject
+    NewRelicExtension(Project project) {
+        ObjectFactory objectFactory = project.getObjects()
+
+        this.enabled = objectFactory.property(Boolean.class).convention(true)
+        this.instrumentTests = objectFactory.property(Boolean.class).convention(false)
+        this.variantMapsEnabled = objectFactory.property(Boolean.class).convention(true)
         this.variantConfigurations = objectFactory.domainObjectContainer(VariantConfiguration, { name ->
-            objectFactory.newInstance(VariantConfiguration.class, name)
+            objectFactory.newInstance(VariantConfiguration.class, name, project)
         })
     }
 
-    boolean isEnabled() {
-        return enabled
+    boolean getEnabled() {
+        return enabled.get()
     }
 
     /*
@@ -42,6 +65,9 @@ abstract class NewRelicExtension {
      * <pre>
      * newRelic {
      *      variantConfigurations {
+     *          // The variant name spec is loose:it can be the literal name of the the variant,
+     *          // the build type or product flavor:
+     *
      *          debug {
      *              instrument = false
      *              uploadMappingFile = true
@@ -50,10 +76,15 @@ abstract class NewRelicExtension {
      *              uploadMappingFile = true
      *              mappingFile = 'build/outputs/mapping/release/mapping.txt'
      *          }
-     *          ... {
+     *
+     *          // The plugin will also look for and replace these tokens with variant values:
+     *          //  * <name> the variant name
+     *          //  * <dirName> The variant directory name component (usually the same as name)
+     *
+     *          debugFlavor {
      *              instrument = true
      *              uploadMappingFile = true
-     *              mappingFile = 'build/outputs/mapping/<variantName>/mapping.txt'
+     *              mappingFile = 'build/outputs/outofbounds/<dirName>/<name>-mapping.txt'
      *          }
      *      }
      * }
@@ -64,16 +95,17 @@ abstract class NewRelicExtension {
     void variantConfigurations(Action<? super NamedDomainObjectContainer<VariantConfiguration>> action) {
         action.execute(variantConfigurations);
         variantConfigurations.each { config ->
+            def normalizedConfigName = config.name.toLowerCase()
+
             if (!config.instrument) {
-                variantExclusionList.add(config.name.toLowerCase())
+                variantExclusionList.add(normalizedConfigName)
             }
             if (config.uploadMappingFile) {
-                variantMapUploadList.add(config.name.toLowerCase())
+                variantMapUploadList.add(normalizedConfigName)
             }
         }
     }
 
-    @Deprecated
     void uploadMapsForVariant(Object... e) {
         variantMapUploadList.clear()
         variantMapUploadList.addAll(e.collect { i -> i.toString().toLowerCase() })
@@ -81,12 +113,11 @@ abstract class NewRelicExtension {
         // update variants configs with these values
         variantMapUploadList.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                    uploadMappingFile = true
-                }
+                uploadMappingFile = true
+            }
         }
     }
 
-    @Deprecated
     void excludeVariantInstrumentation(Object... e) {
         variantExclusionList.clear()
         variantExclusionList.addAll(e.collect { i -> i.toString().toLowerCase() })
@@ -94,20 +125,19 @@ abstract class NewRelicExtension {
         // update variants configs with these values
         variantExclusionList.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                    instrument = false
-                }
+                instrument = false
+            }
         }
     }
 
-    @Deprecated
     void excludePackageInstrumentation(Object... e) {
         packageExclusionList.clear()
         packageExclusionList.addAll(e.collect { i -> i.toString().toLowerCase() })
 
         variantMapUploadList.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                    instrument = true
-                }
+                // FIXME
+            }
         }
     }
 
@@ -115,17 +145,21 @@ abstract class NewRelicExtension {
         variantConfigurations.findByName(variantName.toLowerCase())?.with {
             return instrument
         }
-        return variantExclusionList.contains(variantName.toLowerCase())
+        return !variantExclusionList.findAll { variantName == it || variantName.endsWith(it.capitalize()) }.empty
+    }
+
+    boolean shouldIncludeVariant(String variantName) {
+        !shouldExcludeVariant(variantName)
     }
 
     boolean shouldInstrumentTests() {
-        return instrumentTests
+        return instrumentTests.get()
     }
 
     boolean shouldIncludeMapUpload(String variantName) {
         variantConfigurations.findByName(variantName.toLowerCase())?.with {
             return uploadMappingFile
         }
-        return variantMapUploadList.contains(variantName.toLowerCase())
+        return variantMapUploadList.isEmpty() || variantMapUploadList.contains(variantName.toLowerCase())
     }
 }

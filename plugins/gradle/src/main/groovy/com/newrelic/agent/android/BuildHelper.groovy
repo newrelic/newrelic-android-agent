@@ -5,15 +5,21 @@
 
 package com.newrelic.agent.android
 
-import com.newrelic.agent.compile.HaltBuildException
+import com.android.build.api.variant.AndroidComponentsExtension
+import com.newrelic.agent.InstrumentationAgent
+import com.newrelic.agent.android.agp4.AGP4Adapter
+import com.newrelic.agent.android.obfuscation.Proguard
+import groovy.json.JsonOutput
+import kotlin.KotlinVersion
+import org.gradle.api.Action
+import org.gradle.api.BuildCancelledException
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.file.ProjectLayout
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
-import org.gradle.api.model.ObjectFactory
-import org.gradle.api.plugins.ExtensionContainer
+import org.gradle.api.plugins.ExtraPropertiesExtension
+import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.provider.Provider
-import org.gradle.api.provider.ProviderFactory
 import org.gradle.util.GradleVersion
 
 import java.util.concurrent.atomic.AtomicReference
@@ -21,247 +27,367 @@ import java.util.concurrent.atomic.AtomicReference
 class BuildHelper {
 
     /**
-     * @https: //developer.android.com/studio/releases/gradle-plugin#updating-gradle
+     * https://developer.android.com/studio/releases/gradle-plugin#updating-gradle
      * Plugin version	Required Gradle version
-     * 3.4.0 - 3.4.1	5.1.1
-     * 3.5.0 - 3.5.3    5.4.1
-     * 3.6.+	        5.6.4
-     * 4.0.+            6.1.1
-     * 4.1.+            6.5.+       // min supported Gradle configuration cache level
-     * 4.2.+            6.7.+
+     * 4.2.+            6.7.1       // min supported Gradle configuration cache level
      * 7.0              7.0.2       // min supported AGP that supports configuration caching
-     * 7.1	            7.2.+
+     * 7.1	            7.2
      * 7.2              7.3.3
+     * 7.3              7.4
+     * 7.4              7.5
+     * 8.0              8.0
+     * 8.1              8.0
      *
-     * */
+     **/
 
     static final String PROP_WARNING_AGP = "newrelic.warning.agp"
+    static final String PROP_HALT_ON_WARNING = "newrelic.halt-on-warning"
 
-    public static final GradleVersion currentGradleVersion = GradleVersion.current()
+    public static final String agentVersion = InstrumentationAgent.version
 
-    static final GradleVersion minSupportedAGPVersion = GradleVersion.version('4.0.1')
-    static final GradleVersion minSupportedGradleVersion = GradleVersion.version('6.1.1')
-    static final GradleVersion currentSupportedAGPVersion = GradleVersion.version('7.4.4')
-    static final GradleVersion legacyGradleVersion = GradleVersion.version('4.10.0')
-    static final GradleVersion breakingGradleVersion = GradleVersion.version('5.6.4')
+    public final String gradleVersion = GradleVersion.current().version
+    static final String minSupportedAGPVersion = '7.0.0'
+    static final String maxSupportedAGPVersion = "8.2"
+    static final String minSupportedGradleVersion = '7.1'
+    static final String minSupportedGradleConfigCacheVersion = '6.6'
+    static final String minSupportedAGPConfigCacheVersion = '7.0.0'
 
-    static final GradleVersion minSupportedGradleConfigCacheVersion = GradleVersion.version('6.5')
-    static final GradleVersion minSupportedAGPConfigCacheVersion = GradleVersion.version('7.0.2')
-
-    public static final boolean legacyGradle = (currentGradleVersion < legacyGradleVersion)
     public static String NEWLN = "\r\n"
 
-    final Logger logger
-    final ProviderFactory providers
-    final ExtensionContainer extensions
-    final ProjectLayout layout
-    final ObjectFactory objects
-    final GradleVersion agpVersion
+    final Project project
+    final NewRelicExtension extension
+    final def android
+    final AndroidComponentsExtension androidComponents
+    final ExtraPropertiesExtension extraProperties
 
+    VariantAdapter variantAdapter
+    String agpVersion
+    Logger logger
     DexGuardHelper dexguardHelper
 
-    static final AtomicReference<BuildHelper> instance = new AtomicReference<BuildHelper>(null)
+    static final AtomicReference<BuildHelper> INSTANCE = new AtomicReference<BuildHelper>(null)
+
+    static BuildHelper register(Project project) {
+        //  FIXME INSTANCE.compareAndSet(null, new BuildHelper(project))
+        //  return INSTANCE.get()
+        return new BuildHelper(project)
+    }
 
     BuildHelper(Project project) {
+        this.project = project
         this.logger = NewRelicGradlePlugin.LOGGER
-        this.providers = project.providers
-        this.extensions = project.extensions
-        this.layout = project.layout
-        this.objects = project.objects
-        this.dexguardHelper = new DexGuardHelper(project)
 
-        def reportedAGPVersion = getAGPVersion()
+        try {
+            this.extension = project.extensions.getByType(NewRelicExtension.class) as NewRelicExtension
+            this.extraProperties = project.extensions.getByType(ExtraPropertiesExtension.class) as ExtraPropertiesExtension
+            this.android = project.extensions.getByName("android")
+            this.androidComponents = project.extensions.getByType(AndroidComponentsExtension.class) as AndroidComponentsExtension
 
+            this.agpVersion = getAGPVersionAsSemVer(getReportedAGPVersion())
+
+            // warn or throw if we can't instrument this build
+            validatePluginSettings()
+
+            NEWLN = getSystemPropertyProvider("line.separator").get()
+
+            this.variantAdapter = VariantAdapter.register(this)
+            this.dexguardHelper = DexGuardHelper.register(this)
+
+        } catch (UnknownPluginException e) {
+            throw new BuildCancelledException(e.message)
+        }
+    }
+
+    void validatePluginSettings() throws UnknownPluginException {
+        if (!getAndroidExtension()) {
+            throw new UnknownPluginException("The New Relic agent plugin depends on the Android Gradle plugin." + NEWLN +
+                    "Please apply an Android Gradle plugin before the New Relic agent: " + NEWLN +
+                    "plugins {" + NEWLN +
+                    "   id 'com.android.[application, library, dynamic-feature]'" + NEWLN +
+                    "   id 'newrelic'" + NEWLN +
+                    "}")
+        }
+
+        def reportedAGPVersion = getReportedAGPVersion()
+
+        if (GradleVersion.version(getAgpVersion()) < GradleVersion.version(BuildHelper.minSupportedAGPVersion)) {
+            throw new UnknownPluginException("The New Relic plugin is not compatible with Android Gradle plugin version ${reportedAGPVersion}."
+                    + NEWLN
+                    + "AGP versions ${minSupportedAGPVersion} - ${maxSupportedAGPVersion} are officially supported.")
+        }
+
+        if (GradleVersion.version(getAgpVersion()) > GradleVersion.version(BuildHelper.maxSupportedAGPVersion)) {
+            def enableWarning = hasOptional(BuildHelper.PROP_WARNING_AGP, true).toString().toLowerCase()
+            if ((enableWarning != 'false') && (enableWarning != '0')) {
+                warnOrHalt("The New Relic plugin may not be compatible with Android Gradle plugin version ${reportedAGPVersion}."
+                        + NEWLN
+                        + "AGP versions ${minSupportedAGPVersion} - ${maxSupportedAGPVersion} are officially supported."
+                        + NEWLN
+                        + "Set property '${PROP_WARNING_AGP}=false' to disable this warning.")
+            }
+        }
+
+        if (GradleVersion.version(getGradleVersion()) < GradleVersion.version(BuildHelper.minSupportedGradleVersion)) {
+            warnOrHalt("The New Relic plugin may not be compatible with Gradle version ${getGradleVersion()}."
+                    + NEWLN
+                    + "Gradle versions ${minSupportedGradleVersion} and higher are officially supported.")
+        }
+    }
+
+    /**
+     * Return the semantic version reported by the plugin
+     * @return Semver as a String
+     */
+    String getAGPVersionAsSemVer(String version) {
+        // filter for unofficial (non-semver) version numbers
         try {
             // AGP version may contain '*-{qualifier}', which GradleVersion doesn't recognize
-            this.agpVersion = GradleVersion.version(reportedAGPVersion)
+            GradleVersion.version(version)
 
-        } catch (IllegalArgumentException e) {
-            logger.warn("AGP version [$reportedAGPVersion] is not officially supported")
-            def (_, agpVersion, qualifier) = (reportedAGPVersion =~ /^(\d{1,3}\.\d{1,3}\.\d{1,3})-(.*)$/)[0]
-            this.agpVersion = GradleVersion.version(agpVersion)
+        } catch (Exception ignored) {
+            warnOrHalt("AGP version [$version] is not officially supported")
+            def (_, semVer, delimiter, qualifier) = (version =~ /^(\d{1,3}\.\d{1,3}\.\d{1,3})(-)?(.*)?$/)[0]
+            return semVer
         }
 
-        if (agpVersion.baseVersion < minSupportedAGPVersion) {
-            throw new HaltBuildException("The New Relic plugin is not compatible with Android Gradle plugin version ${agpVersion.version}."
-                    + NEWLN
-                    + "AGP versions ${minSupportedAGPVersion.getVersion()} - ${currentSupportedAGPVersion.getVersion()} are officially supported.")
-        }
-
-        def hasOptional = { key, defaultValue -> project.rootProject.hasProperty(key) ? project.rootProject[key] : defaultValue }
-        def enableWarning = hasOptional(PROP_WARNING_AGP, true).toString().toLowerCase()
-        if ((enableWarning != 'false') && (enableWarning != '0')) {
-            if (agpVersion.baseVersion > currentSupportedAGPVersion) {
-                logger.warn("The New Relic plugin may not be compatible with Android Gradle plugin version ${agpVersion.version}."
-                        + NEWLN
-                        + "AGP versions ${minSupportedAGPVersion.getVersion()} - ${currentSupportedAGPVersion.getVersion()} are officially supported.")
-            }
-        }
-
-        if (currentGradleVersion < minSupportedGradleVersion) {
-            logger.warn("The New Relic plugin may not be compatible with Gradle version ${currentGradleVersion.version}."
-                    + NEWLN
-                    + "Gradle versions ${minSupportedGradleVersion.getVersion()} and higher are officially supported.")
-        }
-
-        BuildHelper.instance.compareAndSet(null, this)
-        BuildHelper.NEWLN = getSystemPropertyProvider("line.separator").get()
-
+        return version
     }
 
     /**
-     * Fetching the reported AGP is problematic: the Version class has moved around
-     * between releases of both the AGP gradle-api. Try our best here to return the correct value.
+     * Try our best here to return the correct plugin version.
      *
-     * For AGP 3.5.+ and below, the version is read from com.android.builder.model.Version
-     * Otherwise fetch it from com.android.Version
-     *
-     * @return Semver as String
+     * @return Full version reported by plugin
      */
-    String getAGPVersion() {
-        String agpVersion = "unknown"
-        ClassLoader classLoader = BuildHelper.class.getClassLoader();
-        Class versionClass
+    String getReportedAGPVersion() {
+        String reportedVersion = "unknown"
+
         try {
-            // AGP 3.6.+: com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
-            versionClass = classLoader.loadClass("com.android.Version");
-            agpVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString();
-        } catch (java.lang.ClassNotFoundException unused) {
+            getAndroidComponentsExtension().getPluginVersion().with {
+                reportedVersion = major + "." + minor + "." + micro
+                if (previewType) {
+                    reportedVersion = reportedVersion + "-" + previewType + preview
+                }
+            }
+
+        } catch (MissingPropertyException ignored) {
+            /**
+             * pluginVersion not available. Fetching the reported AGP is problematic: the
+             * Version class has moved around between releases of both the AGP and gradle-api.
+             */
             try {
-                // AGP 3.4 - 3.5.+: com.android.builder.model.Version.ANDROID_GRADLE_PLUGIN_VERSION
-                logger.error("getAGPVersion: $unused")
-                versionClass = classLoader.loadClass("com.android.builder.model.Version");
-                agpVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString();
-            } catch (java.lang.ClassNotFoundException ignored) {
-                logger.error("getAGPVersion: unknown - $ignored")
-            }
-        }
+                // AGP 3.6.+: com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
+                final Class versionClass = BuildHelper.class.getClassLoader().loadClass("com.android.Version")
+                reportedVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString()
 
-        return agpVersion
-    }
+            } catch (ClassNotFoundException e) {
+                try {
+                    logger.error("AGP 3.6.+: $e")
 
-    Task getVariantCompileTask(def variant) {
-        try {
-            if (!legacyGradle) {
-                def provider = variant.getJavaCompileProvider()
-                if (provider && provider.get()) {
-                    return provider.get()
+                    // AGP 3.4 - 3.5.+: com.android.builder.model.Version.ANDROID_GRADLE_PLUGIN_VERSION
+                    final Class versionClass = BuildHelper.class.getClassLoader().loadClass("com.android.builder.model.Version")
+                    reportedVersion = versionClass.getDeclaredField("ANDROID_GRADLE_PLUGIN_VERSION").get(null).toString()
+
+                } catch (ClassNotFoundException e1) {
+                    logger.error("AGP 3.4 - 3.5.+: $e1")
+                    throw e1
                 }
             }
-        } catch (Exception e) {
-            logger.error("getVariantCompileTask: $e")
         }
 
-        return variant.javaCompiler
-    }
-
-    def getProviderDefaultMapPath(def variant) {
-        if (dexguardHelper.enabled) {
-            return dexguardHelper.getDefaultMapPath(variant)
-        }
-
-        // Proguard/R8/DG8 report through AGP to this location
-        return layout.projectDirectory.file("${layout.buildDirectory}/outputs/mapping/${variant.dirName}/mapping.txt")
-    }
-
-    def getVariantBuildConfigTask(def variant) {
-        try {
-            if (!legacyGradle) {
-                def provider = variant.getGenerateBuildConfigProvider()
-                if (provider) {
-                    return provider
-                }
-            }
-        } catch (Exception e) {
-            logger.error("getVariantBuildConfigTask: $e")
-        }
-
-        return variant.generateBuildConfig
+        return reportedVersion
     }
 
     /**
-     * Returns a File object representing the variant's mapping file
-     * This can be null for Dexguard 8.5.+
-     *
-     * If the extention's variantConfiguration is present, use that map file
-     * if one is provided
-     *
-     * @param variant
-     * @return File(variantMappingFile)
+     * Proguard/R8/DG8 report through AGP to this location
+     * @param variantDirName Variant directory name used in file template
+     * @return RegularFileProperty
      */
-    def getVariantMappingFile(def variant) {
-        // First look in the plugin extension's variantConfiguration for overriding values:
-        try {
-            NewRelicExtension extension = extensions.getByName(NewRelicGradlePlugin.PLUGIN_EXTENSION_NAME)
-
-            def variantConfiguration = extension.variantConfigurations.findByName(variant.name)
-            if (variantConfiguration && variantConfiguration.mappingFile) {
-                def variantMappingFile = variantConfiguration.mappingFile
-                        .replace("<name>", variant.name)
-                        .replace("<dirName>", variant.dirName)
-
-                if (variantMappingFile) {
-                    layout.projectDirectory.file(variantMappingFile)
-                }
-            }
-        } catch (Exception UnknownDomainObjectException) {
-            // ignore
-        }
-
-        // Next check the AGP's variant config
-        try {
-            if (currentGradleVersion >= breakingGradleVersion) {
-                def provider = variant.getMappingFileProvider()
-                if (provider && provider.get()) {
-                    def fileCollection = provider.get()
-                    if (!fileCollection.empty) {
-                        return fileCollection.singleFile
-                    }
-                }
-            }
-        } catch (Exception e) {
-            logger.error("getVariantMappingFile: Map provider not found in variant [$variant.name]")
-        }
-
-        // If all else fails, default to default map locations
-        return getProviderDefaultMapPath(variant)
+    RegularFileProperty getDefaultMapPathProvider(String variantDirName) {
+        def f = project.layout.buildDirectory.file("outputs/mapping/${variantDirName}/mapping.txt")
+        return project.objects.fileProperty().value(f.get())
     }
 
-    def withDexGuardHelper(def dexguardHelper) {
+    def withDexGuardHelper(final DexGuardHelper dexguardHelper) {
         this.dexguardHelper = dexguardHelper
     }
 
-    def BuildCacheSupported() {
-        false   // TODO
-    }
-
-    def buildCacheEnabled() {
-        false   // TODO
-    }
-
     def configurationCacheSupported() {
-        (BuildHelper.currentGradleVersion.compareTo(BuildHelper.minSupportedGradleConfigCacheVersion) == 1)
+        GradleVersion.version(getGradleVersion()) >= GradleVersion.version(BuildHelper.minSupportedGradleConfigCacheVersion)
     }
 
     def configurationCacheEnabled() {
         try {
-            // TODO May also be enabled through command line: --configuration-cache
-            def prop = providers.gradleProperty("org.gradle.unsafe.configuration-cache")
+            // FIXME May also be enabled through command line: --configuration-cache
+            def prop = project.providers.gradleProperty("org.gradle.configuration-cache")
             return prop.present
-        } catch (Exception) {
+        } catch (Exception ignored) {
             false
         }
     }
 
-    Provider<String> getSystemPropertyProvider(String key) {
+    Provider<String> getSystemPropertyProvider(final String key) {
         try {
-            def provider = providers.systemProperty(key)
+            def provider = project.providers.systemProperty(key)
             if (configurationCacheSupported()) {
                 return provider.forUseAtConfigurationTime()
             }
             return provider
-        } catch (Exception e) {
-            return objects.property(String).orElse(System.getProperty(key))
+        } catch (Exception ignored) {
+        }
+
+        return project.objects.property(String).orElse(System.getProperty(key))
+    }
+
+    /**
+     * @return true if AGP 4.x Gradle components are present
+     */
+    def isUsingLegacyTransform() {
+        variantAdapter instanceof AGP4Adapter
+    }
+
+    /**
+     * Emit passed string as a warning. If PROP_HALT_ON_WARNING is set, throw a HaltBuildException instead
+     * Unsupported at present.
+     *
+     * @param Message to log or throw
+     */
+    void warnOrHalt(final String msg) {
+        def haltOnWarning = hasOptional(BuildHelper.PROP_HALT_ON_WARNING, false).toString().toLowerCase()
+        if ((haltOnWarning != 'false') && (haltOnWarning != '0')) {
+            throw new UnknownPluginException(msg)
+        }
+        logger.warn(msg)
+        logger.warn("Set property '${PROP_HALT_ON_WARNING}=true' to treat warnings as fatal errors.")
+    }
+
+    def hasOptional(String key, Object defaultValue) {
+        project.rootProject.hasProperty(key) ? project.rootProject[key] : defaultValue
+    }
+
+    def getBuildMetrics() {
+        def metrics = [
+                agent             : agentVersion,
+                agp               : agpVersion,
+                gradle            : gradleVersion,
+                java              : getSystemPropertyProvider('java.version').get(),
+                kotlin            : KotlinVersion.CURRENT,
+                configCacheEnabled: configurationCacheEnabled(),
+                variants          : variantAdapter.getBuildMetrics()
+        ]
+
+        if (dexguardHelper?.enabled) {
+            metrics["dexguard"] = dexguardHelper?.currentVersion
+        }
+
+        metrics
+    }
+
+    String getBuildMetricsAsJson() {
+        try {
+            JsonOutput.toJson(getBuildMetrics())
+        } catch (Throwable ignored) {
+            ""
         }
     }
+
+    // gettors to assist in mocking
+
+    String getGradleVersion() {
+        return gradleVersion
+    }
+
+    String getAgpVersion() {
+        return agpVersion
+    }
+
+    def getAndroidExtension() {
+        return android
+    }
+
+    AndroidComponentsExtension getAndroidComponentsExtension() {
+        return androidComponents
+    }
+
+    boolean checkDexGuard() {
+        return project.plugins.hasPlugin("dexguard")
+    }
+
+    boolean checkDynamicFeature() {
+        return project.plugins.hasPlugin("com.android.instantapp") ||
+                project.plugins.hasPlugin("com.android.feature") ||
+                project.plugins.hasPlugin("com.android.dynamic-feature")
+    }
+
+    boolean checkApplication() {
+        return project.plugins.hasPlugin("com.android.application")
+    }
+
+    boolean checkLibrary() {
+        return project.plugins.hasPlugin("com.android.library")
+    }
+
+
+    /**
+     * Returns literal name of obfuscation compiler
+     * @param project
+     * @return Compiler name (R8, Proguard_603 or DexGuard)
+     */
+    String getMapCompilerName() {
+
+        if (dexguardHelper?.enabled) {
+            return Proguard.Provider.DEXGUARD
+        }
+
+        if (GradleVersion.version(agpVersion) < GradleVersion.version("3.3")) {
+            return Proguard.Provider.PROGUARD_603
+        }
+
+        // Gradle 3.3 was experimental R8, driven by properties
+        if (checkLibrary() && project.hasProperty("android.enableR8.libraries")) {
+            return (project.getProperty("android.enableR8.libraries").toLowerCase().equals("false") ? Proguard.Provider.PROGUARD_603 : Proguard.Provider.R8)
+        }
+
+        if (project.hasProperty("android.enableR8")) {
+            return (project.getProperty("android.enableR8").toLowerCase().equals("false") ? Proguard.Provider.PROGUARD_603 : Proguard.Provider.R8)
+        }
+
+        // Gradle 3.4+ uses proguard by default, unless enabled by properties above
+        if (GradleVersion.version(agpVersion) < GradleVersion.version("3.4")) {
+            return Proguard.Provider.PROGUARD_603
+        }
+
+        // Gradle 3.4+ uses r8 by default, unless disabled by properties above
+        return Proguard.Provider.DEFAULT
+    }
+
+    Set<?> getTaskProvidersFromNames(Set<String> taskNameSet) {
+        def taskSet = [] as Set
+
+        taskNameSet.each { taskName ->
+            try {
+                taskSet.add(project.tasks.named(taskName))
+            } catch (Exception ignored) {
+                ignored
+            }
+        }
+
+        taskSet
+    }
+
+    def wireTaskProviderToDependencyNames(Set<String> taskNames,
+                                          Action<Task> action = null) {
+        return wireTaskProviderToDependencies(getTaskProvidersFromNames(taskNames), action)
+    }
+
+    def wireTaskProviderToDependencies(Set<?> dependencyTaskProviders,
+                                       Action<Task> action) {
+        dependencyTaskProviders.each { dependencyTaskProvider ->
+            try {
+                action?.execute(dependencyTaskProvider)
+            } catch (Exception ignored) {
+                ignored
+            }
+        }
+    }
+
 }

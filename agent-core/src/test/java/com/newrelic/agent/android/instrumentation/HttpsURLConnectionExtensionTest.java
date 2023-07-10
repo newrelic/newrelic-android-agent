@@ -10,19 +10,16 @@ import com.newrelic.agent.android.distributedtracing.TraceParent;
 import com.newrelic.agent.android.distributedtracing.TracePayload;
 import com.newrelic.agent.android.distributedtracing.TraceState;
 
-import junit.framework.TestCase;
-
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class HttpsURLConnectionExtensionTest extends TestCase {
+public class HttpsURLConnectionExtensionTest {
 
     final String requestUrl = "https://httpbin.org/status/418";
 

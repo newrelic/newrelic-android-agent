@@ -27,7 +27,7 @@ public class TraceMethodVisitor extends AdviceAdapter {
     private final int access;
 
     public TraceMethodVisitor(MethodVisitor mv, final int access, final String name, final String desc, final InstrumentationContext context) {
-        super(Opcodes.ASM8, mv, access, name, desc);
+        super(Opcodes.ASM9, mv, access, name, desc);
         this.access = access;
         this.context = context;
         this.log = context.getLog();
@@ -92,7 +92,7 @@ public class TraceMethodVisitor extends AdviceAdapter {
             Label tryEnd = new Label();
             Label tryHandler = new Label();
 
-            log.debug("[Tracing] [" + name + "] calls enterMethod()");
+            // log.debug("[Tracing] [" + name + "] calls enterMethod()");
 
             // Try catch blocks must be visited before their labels
             super.visitTryCatchBlock(tryStart, tryEnd, tryHandler, "java/lang/NoSuchFieldError");
@@ -164,6 +164,6 @@ public class TraceMethodVisitor extends AdviceAdapter {
         Type targetType = Type.getObjectType(Constants.TRACEMACHINE_CLASS_NAME);
         super.invokeStatic(targetType, new Method("exitMethod", "()V"));
 
-        log.debug("[Tracing] [" + name + "] calls exitMethod()");
+        // log.debug("[Tracing] [" + name + "] calls exitMethod()");
     }
 }

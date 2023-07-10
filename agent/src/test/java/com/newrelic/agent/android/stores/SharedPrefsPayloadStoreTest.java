@@ -11,7 +11,7 @@ import com.newrelic.agent.android.SpyContext;
 import com.newrelic.agent.android.agentdata.HexAttribute;
 import com.newrelic.agent.android.agentdata.builder.AgentDataBuilder;
 import com.newrelic.agent.android.payload.Payload;
-import com.newrelic.com.google.flatbuffers.FlatBufferBuilder;
+import com.google.flatbuffers.FlatBufferBuilder;
 import com.newrelic.mobile.fbs.HexAgentData;
 import com.newrelic.mobile.fbs.HexAgentDataBundle;
 
@@ -21,7 +21,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.annotation.Config;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -31,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(manifest = Config.NONE)
 public class SharedPrefsPayloadStoreTest {
 
     private static Context context = new SpyContext().getContext();

@@ -489,13 +489,13 @@ public class AndroidAgentImpl implements
         final EventManager eventManager = analyticsController.getEventManager();
 
         if (!NewRelic.isShutdown) {
-            // Emit a supportability metric that records the number of events recorded versus ejected
-            // during this session
-            int eventsRecorded = eventManager.getEventsRecorded();
-            int eventsEjected = eventManager.getEventsEjected();
+        // Emit a supportability metric that records the number of events recorded versus ejected
+        // during this session
+        int eventsRecorded = eventManager.getEventsRecorded();
+        int eventsEjected = eventManager.getEventsEjected();
 
-            Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
-                    eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
+        Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
+                eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
         }
 
         if (finalSendData) {

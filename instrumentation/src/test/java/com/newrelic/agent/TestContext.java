@@ -57,6 +57,7 @@ public class TestContext {
         classWriter = new ClassWriterSafe(ClassWriter.COMPUTE_FRAMES);
     }
 
+    @SuppressWarnings("deprecation")
     public byte[] classBytesFromResource(final String resourceName) {
         try {
             ClassReader cr = new ClassReader(TestContext.class.getResource(resourceName).openStream());
@@ -176,7 +177,7 @@ public class TestContext {
     }
 
     public ClassNode toClassNode(byte classBytes[]) {
-        return toClassNode(classBytes, new ClassVisitor(Opcodes.ASM7, cn) {
+        return toClassNode(classBytes, new ClassVisitor(Opcodes.ASM9, cn) {
         });
     }
 
