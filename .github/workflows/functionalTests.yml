@@ -38,7 +38,9 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: build-reports
-          path: plugins/gradle/build/reports/
+          path: plugins/gradle/build/reports/tests/test
+          if-no-files-found: ignore
+          retention-days: 5
 
   functional-jdk11-plugin:
     runs-on: ubuntu-latest
@@ -67,3 +69,5 @@ jobs:
         with:
           name: build-reports
           path: plugins/gradle/build/reports/
+          if-no-files-found: ignore
+          retention-days: 5
