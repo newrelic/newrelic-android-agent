@@ -150,6 +150,12 @@ abstract class VariantAdapter {
         def variant = withVariant(variantName)
         def buildType = withBuildType(variantName)
 
+        if (buildHelper.dexguardHelper?.getEnabled()) {
+            if (buildHelper.dexguardHelper.variantConfigurations.get().containsKey(buildType.name)) {
+                return true
+            }
+        }
+
         return (buildType.minified && (buildHelper.extension.shouldIncludeMapUpload(buildType.name) ||
                 buildHelper.extension.shouldIncludeMapUpload(buildType.buildType)))
     }
@@ -169,10 +175,12 @@ abstract class VariantAdapter {
             configTask.minifyEnabled.set(objectFactory.property(Boolean).value(buildType.minified))
             configTask.buildMetrics.set(objectFactory.property(String).value(buildHelper.getBuildMetrics().toString()))
 
+            configTask.onlyIf {
+                !configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile.exists() // FIXME && text.contains(configTask.buildId.get())
+            }
+
             configTask.outputs.upToDateWhen {
-                configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile.with() {
-                    exists() && text.contains(configTask.buildId.get())
-                }
+                configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile.exists() // FIXME && text.contains(configTask.buildId.get())
             }
         }
 
@@ -193,12 +201,14 @@ abstract class VariantAdapter {
             mapUploadTask.onlyIf {
                 // Execute the task only if the given spec is satisfied. The spec will
                 // be evaluated at task execution time, not during configuration.
-                mapUploadTask.mappingFile.asFile.get().exists()
+                mapUploadTask.mappingFile.asFile.get().with {
+                    exists() && !text.contains(Proguard.NR_MAP_PREFIX)  // FIXME + mapUploadTask.buildId.get())
+                }
             }
 
             mapUploadTask.outputs.upToDateWhen {
                 mapUploadTask.mappingFile.asFile.get().with {
-                    exists() && text.contains(Proguard.NR_MAP_PREFIX + mapUploadTask.buildId.get())
+                    exists() && text.contains(Proguard.NR_MAP_PREFIX)  // FIXME + mapUploadTask.buildId.get())
                 }
             }
         }
@@ -221,7 +231,7 @@ abstract class VariantAdapter {
             }
         } catch (InvalidUserDataException ignored) {
             return buildHelper.project.tasks.named(name, clazz) {
-                // action?.execute(it)
+                action?.execute(it)
             }
         }
     }
@@ -231,9 +241,9 @@ abstract class VariantAdapter {
      */
     def assembleDataModel(String variantName) {
         // assemble and configure model
-        wiredWithTransformProvider(variantName)
-        if (buildHelper.project.plugins.hasPlugin("com.android.application")) {
-            // inject config lass into apps
+        if (buildHelper.checkApplication()) {
+            wiredWithTransformProvider(variantName)
+            // inject config class into apps
             wiredWithConfigProvider(variantName)
         }
         if (shouldUploadVariantMap(variantName)) {

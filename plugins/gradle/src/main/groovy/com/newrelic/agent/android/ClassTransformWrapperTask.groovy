@@ -38,11 +38,11 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
 
     @TaskAction
     void transformClasses() {
-        long tStart = System.currentTimeMillis()
         def transformer = new ClassTransformer()
         File outputJarFile = outputJar.asFile.get()
+        long tStart = System.currentTimeMillis()
 
-        logger.debug("[TransformTask] Task[${getName()}] starting: Output JAR[${outputJarFile.getAbsolutePath()}]")
+        logger.debug("[ClassTransformTask] Task[${getName()}] starting: Output JAR[${outputJarFile.getAbsolutePath()}]")
         outputJarFile.parentFile.mkdirs()
 
         try (def outputFileStream = new FileOutputStream(outputJarFile)
@@ -99,7 +99,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                     }
                 }
 
-                logger.info("[TransformTask] Finished in " + Double.valueOf((double) (
+                logger.info("[ClassTransformTask] Finished in " + Double.valueOf((double) (
                         System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.")
             }
         }

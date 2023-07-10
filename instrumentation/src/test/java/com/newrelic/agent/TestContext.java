@@ -177,7 +177,7 @@ public class TestContext {
     }
 
     public ClassNode toClassNode(byte classBytes[]) {
-        return toClassNode(classBytes, new ClassVisitor(Opcodes.ASM7, cn) {
+        return toClassNode(classBytes, new ClassVisitor(Opcodes.ASM9, cn) {
         });
     }
 

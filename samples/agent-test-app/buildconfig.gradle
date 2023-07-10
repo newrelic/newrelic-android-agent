@@ -43,7 +43,7 @@ buildscript {
                 ],
 
                 dexguard: [
-                        base  : hasOptional('dexguard.base.version', '9.3.6'),
+                        base  : hasOptional('dexguard.base.version', '9.3.26'),
                         plugin: hasOptional('dexguard.plugin.version', '1.+'),
                         home  : hasOptional('dexguard.home', '')
                 ],

@@ -27,7 +27,7 @@ public class TraceMethodVisitor extends AdviceAdapter {
     private final int access;
 
     public TraceMethodVisitor(MethodVisitor mv, final int access, final String name, final String desc, final InstrumentationContext context) {
-        super(Opcodes.ASM8, mv, access, name, desc);
+        super(Opcodes.ASM9, mv, access, name, desc);
         this.access = access;
         this.context = context;
         this.log = context.getLog();

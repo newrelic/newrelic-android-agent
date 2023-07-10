@@ -151,7 +151,7 @@ class AGP4Adapter extends VariantAdapter {
         // FIXME DRY up
         // dexguard maps are handled separately
         if (buildHelper.checkDexGuard()) {
-            return buildHelper.dexguardHelper.getDefaultMapPathProvider(variant.dirName)
+            return buildHelper.dexguardHelper.getMappingFileProvider(variantName)
         }
 
         def variantConfiguration = buildHelper.extension.variantConfigurations.findByName(variant.name)

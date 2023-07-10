@@ -8,6 +8,8 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.GradleRunner
 import spock.lang.IgnoreIf
+import spock.lang.IgnoreRest
+import spock.lang.Requires
 import spock.lang.Stepwise
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
@@ -23,11 +25,14 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
  */
 @Stepwise
 @IgnoreIf({ System.getProperty('integrationTests', '') != 'dexguard' })
+@Requires({ jvm.isJavaVersionCompatible(PluginDexGuardIntegrationSpec.minJdkVersion) })
 class PluginDexGuardIntegrationSpec extends PluginSpec {
 
-    static final dexguardBaseVersion = "9.3.7"
-    static final dexguardPluginVersion = "1.+"
-    static final dexguardHome                   // = /path/to/dexguard/artifacts"
+    static final minJdkVersion = 11
+    static final agentVersion = System.getProperty("newrelic.agent.version", '7.+')
+    static final agpVersion = "7.+"
+    static final gradleVersion = "7.6"
+    static final dexguardBaseVersion = "9.3.+"
 
     /* According to GuardSquare, you should place your license file dexguard-license.txt
     1) in a location defined by the Java system property 'dexguard.license',
@@ -36,23 +41,31 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
     4) in the class path, or
     5) in the same directory as the DexGuard jar (not working in combination with Gradle v3.1+).
     */
-    static final dexguardLicenseFile            // = "/path/to/license"
+    static final dexguardLicenseFile = System.getenv("DEXGUARD_LICENSE")
+    static final dexguardMavenToken = System.getenv("DEXGUARD_MAVENTOKEN")
 
+    def setup() {
+        with(new File(projectRootDir, ".gradle/configuration-cache")) {
+            it.deleteDir()
+        }
+        provideRunner()
+                .withArguments("-Pnewrelic.agp.version=${agpVersion}", "clean")
+                .build()
+    }
+
+    @IgnoreRest
     def "verify dexguard apk instrumentation"() {
         given: "Build the app using DexGuard"
-        def runner = GradleRunner.create()
-                .forwardStdOutput(printFilter)
-                .withDebug(debuggable)
+        def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
-                .withArguments("--debug",
+                .withArguments(// "--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-Pcompiler=dexguard",
                         "-Pdexguard.base.version=${dexguardBaseVersion}",
-                        "-Pdexguard.plugin.version=${dexguardPluginVersion}",
-                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-Ddexguard.license=${dexguardLicenseFile}",
+                        "-PdexguardMavenToken=${dexguardMavenToken}",
                         testTask)
 
         when: "run the build and cache the results"
@@ -77,19 +90,16 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
 
     def "verify dexguard bundle instrumentation"() {
         given: "Build the app using DexGuard"
-        def runner = GradleRunner.create()
-                .forwardStdOutput(printFilter)
-                .withDebug(debuggable)
+        def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
                 .withArguments("--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-Pcompiler=dexguard",
                         "-Pdexguard.base.version=${dexguardBaseVersion}",
-                        "-Pdexguard.plugin.version=${dexguardPluginVersion}",
-                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-Ddexguard.license=${dexguardLicenseFile}",
+                        "-PdexguardMavenToken=${dexguardMavenToken}",
                         "bundleR")
 
         when: "run the build and cache the results"
@@ -114,19 +124,16 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
 
     def "verify dexguard mapping configuration"() {
         given: "Build the app using DexGuard"
-        def runner = GradleRunner.create()
-                .forwardStdOutput(printFilter)
-                .withDebug(debuggable)
+        def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
                 .withArguments("--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-Pcompiler=dexguard",
                         "-Pdexguard.base.version=${dexguardBaseVersion}",
-                        "-Pdexguard.plugin.version=${dexguardPluginVersion}",
-                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-Ddexguard.license=${dexguardLicenseFile}",
+                        "-PdexguardMavenToken=${dexguardMavenToken}",
                         "assembleQa")
 
         when: "run the build and cache the results"
@@ -151,19 +158,16 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
 
     def "verify disabled mapping upload"() {
         given: "Build the app using DexGuard"
-        def runner = GradleRunner.create()
-                .forwardStdOutput(printFilter)
-                .withDebug(debuggable)
+        def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
-                .withProjectDir(projectRootDir)
                 .withArguments("--debug",
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-Pcompiler=dexguard",
                         "-Pdexguard.base.version=${dexguardBaseVersion}",
-                        "-Pdexguard.plugin.version=${dexguardPluginVersion}",
-                        "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-Ddexguard.license=${dexguardLicenseFile}",
+                        "-PdexguardMavenToken=${dexguardMavenToken}",
                         "assembleD")
 
         when: "run the build and cache the results"
