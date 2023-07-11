@@ -31,4 +31,10 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: build-reports
-          path: plugins/gradle/build/reports/
+          path: |
+            agent/build/reports/tests/test/
+            agent-core/build/reports/tests/test/
+            instrumentation/gradle/build/reports/tests/test/
+            plugins/gradle/build/reports/tests/test
+            if-no-files-found: ignore
+            retention-days: 15
