@@ -77,6 +77,7 @@ task stampAgentClass(type: Copy) {
     from("src/main/java/com/newrelic/agent/android/Agent.java") {
         filter { it.replaceAll('#VERSION#', version) }
         filter { it.replaceAll('#MONO_INSTRUMENTATION_FLAG#', monoEnabled ? "YES" : "NO") }
+        filter { it.replaceAll('#UNITY_INSTRUMENTATION_FLAG#', unityEnabled ? "YES" : "NO") }
         filter { it.replaceAll('#DEFAULT_BUILD_ID#', buildId) }
     }
     into "${buildGenPath}/com/newrelic/agent/android"

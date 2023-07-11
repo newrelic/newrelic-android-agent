@@ -56,7 +56,8 @@ buildscript {
 
         ]
 
-        monoEnabled = true
+        monoEnabled = project.properties['Mono.Build'] == null ? false : project.properties['Mono.Build'] == "YES"
+        unityEnabled = true
 
         buildDate = new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         mavenLocal = new File(rootProject.buildDir, ".m2/repository")
