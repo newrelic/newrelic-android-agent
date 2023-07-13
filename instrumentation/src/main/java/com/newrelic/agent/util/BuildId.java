@@ -81,7 +81,6 @@ public class BuildId {
         if (Strings.isNullOrEmpty(buildId)) {
             buildId = autoBuildId();
             variantBuildIds.get().put(variantName, buildId);
-            log.debug("buildId[" + variantName + "] = [" + buildId + "]");
         }
 
         return variantBuildIds.get().get(variantName);
@@ -102,6 +101,13 @@ public class BuildId {
     public static void setVariantMapsEnabled(boolean variantMapsEnabled) {
         BuildId.variantMapsEnabled = variantMapsEnabled;
         log.debug("Variant buildIds have been " + (BuildId.variantMapsEnabled ? "enabled" : "disabled"));
+        if (BuildId.variantMapsEnabled) {
+            for( String variantName : variantBuildIds.get().keySet()) {
+                String buildId = variantBuildIds.get().get(variantName);
+                log.debug("Variant[" + variantName + "] buildId[" + buildId + "]");
+            }
+
+        }
     }
 
 }

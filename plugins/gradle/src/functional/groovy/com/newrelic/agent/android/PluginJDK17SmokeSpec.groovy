@@ -5,7 +5,7 @@
 
 package com.newrelic.agent.android
 
-import spock.lang.Ignore
+
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -18,11 +18,20 @@ class PluginJDK17SmokeSpec extends PluginSpec {
     /* Last levels for JDK 11. Must use JDK 17 for AGP/Gradle 8.+    */
     static final jdkVersion = 17
     static final agpVersion = "8.0.+"
-    static final gradleVersion = "8.0"
+    static final gradleVersion = "8.2"
+
+    def setup() {
+        with(new File(projectRootDir, ".gradle/configuration-cache")) {
+            it.deleteDir()
+        }
+
+        provideRunner()
+                .withArguments("-Pnewrelic.agp.version=${agpVersion}", "clean")
+                .build()
+    }
 
     @Shared
     def testVariants = ['googleRelease']
-    // when withProductFlavors=true
 
     def setupSpec() {
         given: "create the build runner"
@@ -35,8 +44,6 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
                         "--debug",
-                        "--stacktrace",
-                        "clean",
                         testTask)
 
         when: "run the build *once* and cache the results"
@@ -48,9 +55,6 @@ class PluginJDK17SmokeSpec extends PluginSpec {
     def "build the test app"() {
         expect: "the test app was built"
         with(buildResult) {
-            with(task(":clean")) {
-                outcome == SUCCESS || outcome == UP_TO_DATE
-            }
             with(task(":$testTask")) {
                 outcome == SUCCESS
             }
@@ -59,6 +63,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
             filteredOutput.contains("Gradle version:")
             filteredOutput.contains("Java version:")
             filteredOutput.contains("Kotlin version:")
+            filteredOutput.contains("BuildMetrics[")
         }
     }
 

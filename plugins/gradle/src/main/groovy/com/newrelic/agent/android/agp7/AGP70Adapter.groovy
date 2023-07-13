@@ -196,10 +196,10 @@ class AGP70Adapter extends VariantAdapter {
 
             buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { dependencyTask ->
                 dependencyTask.configure {
-                    it.finalizedBy(mapUploadProvider)
+                    finalizedBy(mapUploadProvider)
                 }
                 mapUploadProvider.configure {
-                    it.shouldRunAfter(dependencyTask)
+                    shouldRunAfter(dependencyTask)
                 }
             }
         }

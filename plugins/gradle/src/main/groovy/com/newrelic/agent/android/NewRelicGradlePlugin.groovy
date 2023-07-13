@@ -24,12 +24,14 @@ class NewRelicGradlePlugin implements Plugin<Project> {
     private NewRelicExtension pluginExtension
     private BuildHelper buildHelper
 
+    NewRelicGradlePlugin() {
+        // bind the instrumentation agent's logger to the plugin's logger
+        InstrumentationAgent.logger = LOGGER
+    }
+
     @Override
     void apply(Project project) {
         project.getLogging().captureStandardOutput(LogLevel.WARN)
-
-        // bind the instrumentation agent's logger to the plugin's logger
-        InstrumentationAgent.LOGGER = LOGGER
 
         if (!isSupportedModule(project)) {
             throw new BuildCancelledException("Instrumentation of Android Dynamic feature modules is not supported in this version.")
