@@ -30,7 +30,7 @@ class BuildHelper {
      * https://developer.android.com/studio/releases/gradle-plugin#updating-gradle
      * Plugin version	Required Gradle version
      * 4.2.+            6.7.1       // min supported Gradle configuration cache level
-     * 7.0              7.0.2       // min supported AGP that supports configuration caching
+     * 7.0              7.2         // min supported AGP that supports configuration caching
      * 7.1	            7.2
      * 7.2              7.3.3
      * 7.3              7.4

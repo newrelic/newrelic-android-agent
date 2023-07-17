@@ -5,12 +5,11 @@
 
 package com.newrelic.agent.android
 
-
+import com.newrelic.agent.android.obfuscation.Proguard
 import spock.lang.Requires
 import spock.lang.Shared
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
-import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 @Requires({ jvm.isJava17Compatible() })
 class PluginJDK17SmokeSpec extends PluginSpec {
@@ -24,10 +23,6 @@ class PluginJDK17SmokeSpec extends PluginSpec {
         with(new File(projectRootDir, ".gradle/configuration-cache")) {
             it.deleteDir()
         }
-
-        provideRunner()
-                .withArguments("-Pnewrelic.agp.version=${agpVersion}", "clean")
-                .build()
     }
 
     @Shared
@@ -44,6 +39,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
                         "--debug",
+                        "clean",
                         testTask)
 
         when: "run the build *once* and cache the results"
@@ -55,7 +51,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
     def "build the test app"() {
         expect: "the test app was built"
         with(buildResult) {
-            with(task(":$testTask")) {
+            with(task(":${testTask}")) {
                 outcome == SUCCESS
             }
 
@@ -97,7 +93,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
 
             with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
                 exists()
-                text.contains("# NR_BUILD_ID -> ")
+                text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
                 filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
             }

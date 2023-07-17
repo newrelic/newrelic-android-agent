@@ -68,7 +68,7 @@ public class ProguardTest {
 
             try (ReversedLinesFileReader reader = new ReversedLinesFileReader(file)) {
                 String line = reader.readLine();
-                assertEquals("# NR_BUILD_ID -> " + buildId, line);
+                assertEquals(Proguard.NR_MAP_PREFIX + buildId, line);
             }
 
         } catch (IOException e) {
