@@ -54,13 +54,13 @@ compileKotlin {
 
 classes.dependsOn compileKotlin
 
-def toolingApiBuildersJar = (project as ProjectInternal).services.get(ModuleRegistry.class)
-        .getModule("gradle-tooling-api-builders")
-        .classpath
-        .asFiles
-        .first()
-
 dependencies {
+    def toolingApiBuildersJar = (project as ProjectInternal).services.get(ModuleRegistry.class)
+            .getModule("gradle-tooling-api-builders")
+            .classpath
+            .asFiles
+            .first()
+
     implementation project(path: ':instrumentation', configuration: 'shadow')
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 
@@ -141,12 +141,10 @@ tasks.named("compileKotlin").configure {
 }
 
 tasks.withType(Test).configureEach {
-    useJUnitPlatform {
-        // includeEngines("junit-vintage")
-        // includeEngines("junit-jupiter")
-    }
+    useJUnitPlatform()
+    failFast = true
 
-    ["newrelic.agent.args", "newrelic.agent.version"].each {
+    ["newrelic.agent.args", "newrelic.agent.version", "integrations", "regressions"].each {
         if (project.hasProperty(it)) {
             systemProperty it, project.property(it)
         }
@@ -159,15 +157,14 @@ tasks.withType(Test).configureEach {
 }
 
 test {
-    useJUnitPlatform {
-        // includeEngines("junit-vintage")
-        // includeEngines("junit-jupiter")
-    }
-    maxHeapSize = '4G'
+    useJUnitPlatform ()
+    minHeapSize = "2g"
+    maxHeapSize = "8g"
+    failFast = true
 }
 
 def integrationTestTask = tasks.register("integrationTests", Test) {
-    description = 'Runs the integration tests.'
+    description = 'Runs the integration test suite'
     group = "test"
     testClassesDirs = sourceSets.integration.output.classesDirs
     classpath = sourceSets.integration.runtimeClasspath
@@ -175,7 +172,7 @@ def integrationTestTask = tasks.register("integrationTests", Test) {
 }
 
 def functionalTestTask = tasks.register("functionalTests", Test) {
-    description = 'Runs the functional/regression tests.'
+    description = 'Runs the functional/regression test suite'
     group = "test"
     testClassesDirs = sourceSets.functional.output.classesDirs
     classpath = sourceSets.functional.runtimeClasspath

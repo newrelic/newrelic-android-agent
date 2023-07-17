@@ -44,6 +44,8 @@ dependencyResolutionManagement {
 
 rootProject.name = 'agent-test-app'
 
-include ":library"
+if (settings.includeLibrary && Boolean.valueOf(settings.includeLibrary)) {
+    include ":library"
+}
 
 // TODO include ":feature"

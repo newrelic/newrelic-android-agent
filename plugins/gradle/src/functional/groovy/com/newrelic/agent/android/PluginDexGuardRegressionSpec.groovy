@@ -5,8 +5,7 @@
 
 package com.newrelic.agent.android
 
-import org.gradle.testkit.runner.BuildResult
-import org.gradle.testkit.runner.GradleRunner
+import com.newrelic.agent.android.obfuscation.Proguard
 import spock.lang.*
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
@@ -21,7 +20,7 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
  *
  */
 @Stepwise
-@IgnoreIf({ System.getProperty('regressionTests', '') != 'dexguard' })
+@IgnoreIf({ System.getProperty('regressions') != 'dexguard' })
 class PluginDexGuardRegressionSpec extends PluginRegressionSpec {
 
    static final dexguardHome                   // = /path/to/dexguard/artifacts"
@@ -64,7 +63,7 @@ class PluginDexGuardRegressionSpec extends PluginRegressionSpec {
             buildResult.task(":newrelicMapUploadDexguard${var.capitalize()}").outcome == SUCCESS
             with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
                 exists()
-                text.contains("# NR_BUILD_ID -> ")
+                text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
                 filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
             }

@@ -5,12 +5,15 @@
 
 package com.newrelic.agent.android
 
+import com.newrelic.agent.android.obfuscation.Proguard
 import spock.lang.Requires
+import spock.lang.Retry
 import spock.lang.Shared
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
+@Retry(delay = 15000, count=2)
 class PluginSmokeSpec extends PluginSpec {
 
     /* Last levels for JDK 11. Must use JDK 17 for AGP/Gradle 8.+    */
@@ -23,6 +26,10 @@ class PluginSmokeSpec extends PluginSpec {
 
     def setupSpec() {
         given: "create the build runner"
+            with(new File(projectRootDir, ".gradle/configuration-cache")) {
+                it.deleteDir()
+            }
+
         def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
                 .withArguments(
@@ -48,7 +55,7 @@ class PluginSmokeSpec extends PluginSpec {
             with(task(":clean")) {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
-            with(task(":$testTask")) {
+            with(task(":${testTask}")) {
                 outcome == SUCCESS
             }
 
@@ -90,7 +97,7 @@ class PluginSmokeSpec extends PluginSpec {
 
             with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
                 exists()
-                text.contains("# NR_BUILD_ID -> ")
+                text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
                 filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
             }

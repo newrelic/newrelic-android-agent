@@ -7,11 +7,7 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
-import org.gradle.testkit.runner.UnexpectedBuildFailure
 import spock.lang.*
-
-import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
-import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 abstract class PluginSpec extends Specification {
 
@@ -23,7 +19,7 @@ abstract class PluginSpec extends Specification {
     static final minJdkVersion = 17
     static final agentVersion = System.getProperty("newrelic.agent.version", '7.+')
     static final agpVersion = "8.0.+"
-    static final gradleVersion = "8.1.1"
+    static final gradleVersion = "8.2"
 
     def extensionsFile = new File(projectRootDir, "nr-extension.gradle")
 
