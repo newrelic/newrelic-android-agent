@@ -4,7 +4,7 @@
 > With [New Relic's Android agent](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android), you can track everything from performance issues to tiny errors within your code. Our agent monitors your Android app and provides visibility into its behavior during runtime. 
 
 ## Artifacts
-Agent releases follow [semantic versioning conventions](https://semver.org/). See [agent release notes](https://docs.newrelic.com/docs/release-notes/agent-release-notes/java-release-notes) for full details on releases and downloads. Agent artifacts can also be found on [Maven](https://search.maven.org/search?q=com.newrelic.agent.android).
+Agent releases follow [semantic versioning conventions](https://semver.org/). See [agent release notes](https://docs.newrelic.com/docs/release-notes/mobile-release-notes/android-release-notes/) for full details on releases and downloads. Agent artifacts can also be found on [Maven](https://search.maven.org/search?q=com.newrelic.agent.android).
 
 The Android agent is comprised of several modules that are used together to instrument client applications:
   
@@ -269,6 +269,10 @@ The New Relic Android Agent's Gradle plugin can be configured to selectively mod
 
 ## Support
 
+```
+Github issue is currently disabled in this repo, you can contact our support team or one of the following support channels to submit your issues, feature requests, etc. 
+```
+
 New Relic hosts and moderates an online forum where customers can interact with New Relic employees as well as other customers 
 to get help and share best practices. Like all official New Relic open source projects, there's a related Community topic in 
 the New Relic Explorers Hub. You can find this project's topic/threads [here](https://discuss.newrelic.com/tags/android).
@@ -315,4 +319,4 @@ If you believe you have found a security vulnerability in this project or any of
 
 ## License
 `newrelic-android-agent` is licensed under the [Apache 2.0](http://apache.org/licenses/LICENSE-2.0.txt) License.
-> The New Relic Android agent also uses source code from third-party libraries. Full details on which libraries are used and the terms under which they are licensed can be found  in the [third-party notices](./docs/THIRD_PARTY_NOTICES.md).
+> The New Relic Android agent also uses source code from third-party libraries. Full details on which libraries are used and the terms under which they are licensed can be found  in the [third-party notices](./THIRD_PARTY_NOTICES.md).
