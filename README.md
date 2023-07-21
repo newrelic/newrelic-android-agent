@@ -33,18 +33,11 @@ The instrumentation module performs instrumentation during builds on client code
 
 The output is `instrumentation-<version>.jar`
 
-### Gradle plugin ([:plugins:gradle](https://github.com/newrelic/newrelic-android-agent/tree/main/plugins/gradle))
+### Gradle plugin ([:plugins:gradle](https://github.com/newrelic/newrelic-android-agent/tree/main/plugins))
 
 The Gradle plugin auto-instruments client code during builds when applied to Android build configurations. 
 
 The output is `agent-gradle-plugin-<version>.jar`
-
-### NDK agent ([:ndk:agent-ndk](https://github.com/newrelic/newrelic-ndk-agent/tree/main))
-
-The NDK agent module captures native crashes resulting from raised signals and uncaught runtime exceptions from C and C++ code. After building, Android native agent artifacts are located in `agent-ndk/build/outputs/aar`
-
-
-The output is `agent-ndk-<variant>.aar`
 
 
 ## Git Submodules
@@ -52,28 +45,57 @@ The output is `agent-ndk-<variant>.aar`
 Prior to building the agent, update the repo's submodules from the command line
 > git submodule update --init --recursive
 
+### NDK agent ([:ndk:agent-ndk](https://github.com/newrelic/newrelic-ndk-agent/tree/main))
+
+The NDK agent submodule captures native crashes resulting from raised signals and uncaught runtime exceptions from C and C++ code. After building, Android native agent artifacts are located in `agent-ndk/build/outputs/aar`
+
+The output is `agent-ndk-<variant>.aar`
+
+
 # Installation
+
+## Dependencies
+
+Tool dependencies must to be installed and configured for your environment prior to building. The Android agent requires the following tools to build:
+
+| Dependency            | Version        |
+|-----------------------|----------------|
+| Java                  | JDK 11         |
+| Android Gradle Plugin | 7.1            |
+| Gradle                | 7.2            |
+| minSDK                | 24             |
+| compileSDK            | 28             |
+| targetSDK             | 28             |
+| buildtools            | 28.0.2         |
+
+## Submodules
+|Dependency|        Version         |
+|----------|:----------------------:|
+|NDK| 21.4.7075529 or higher |
+|Cmake|    3.18.1 or higher    |
+
+
+# Setting up your environment
+
+### AndroidStudio setup
+* [Download](https://developer.android.com/sdk/index.html) the Android Studio IDE.
+* Install SDK Platforms. SDK Manager left pane: Appearances & Behavior -> System Settings -> Android SDK. Right Pane selects the SDK Platforms.
+Android Studio must be configured with the Android Native Development Kit (NDK) installed. Update `cmake` in `Tools` -> `SDK Manager` -> `SDK Tools`
+* From Android Studio's main menu, select `File` -> `Import Project` -> `Next`. Provide the full path to your cloned agent repo.
+
+The JDK 11 implementation provided by Android Studio is the default JDK used when building from the IDE.
+
+# Getting Started
+See [Configure with Gradle and Android Studio](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/install-android-apps-gradle-android-studio) as well as
+the Android agent [compatibility and requirements](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/new-relic-android-compatibility-requirements/) documentation for an overview of what is supported by the Android agent.
 
 ## Building
 
-The Android agent requires the following tools to build:
+The agent can be built from either the command line Gradle or Android Studio. 
 
-|Dependency|        Version         |                                             |
-|----------|:----------------------:|---------------------------------------------|
-|Java|    JDK 11 or higher    |AGP 7 requires JDK 11, AGP 8 requires JDK 17|
-|Android Gradle Plugin|     7.0 or higher      |  |
-|Gradle|    7.1 or higher    | AGP 8 requires Gradle 8 or higher           |
-|minSDK|           24           ||
-|NDK| 21.4.7075529 or higher ||
-|Cmake|    3.18.1 or higher    ||
+The agent version is contained in `gradle.properties`, but can be overridden by adding `-Pnewrelic.agent.version={version}` to the Gradlew command line.
 
-Tool dependencies must to be installed and configured for your environment prior to building.
-
-### JDK
-
-The Android agent requires JDK 11 or higher to build. If used, `JAVA_HOME` should be set to this JDK version.
-
-### Gradle 
+### Build using Gradle
 To build the `android-agent` JAR, run the following command from the project root directory:
 
 ```
@@ -86,78 +108,47 @@ To build and run all checks:
 ./gradlew clean build
 ```
 
-## Android Studio setup
+### Build using Android Studio
 
-### Setting up your environment
-* [Download](https://developer.android.com/sdk/index.html) the Android Studio IDE.
-* Install SDK Platforms. SDK Manager left pane: Appearances & Behavior -> System Settings -> Android SDK. Right Pane selects the SDK Platforms.
-Android Studio must be configured with the Android Native Development Kit (NDK) installed. Update `cmake` in `Tools` -> `SDK Manager` -> `SDK Tools`
-* From Android Studio's main menu, select `File` -> `Import Project` -> `Next`. Provide the full path to your cloned agent repo.
-
-
-Refer to [Configure with Gradle and Android Studio](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/install-android-apps-gradle-android-studio/#configuration) for instructions on how to add the Android agent to your project.
-
-The JDK 11 implementation provided by Android Studio is the default JDK used when building from the IDE.
-
-## Getting Started
-See [Adding the New Relic Android Agent to an existing app](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/install-android-apps-gradle-android-studio) as well as the compatibility and requirements documentation for an overview of what is supported by the Android agent.
-
-## Usage
-The [Agent SDK](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/android-sdk-api/android-sdk-api-guide/) provides information on thw various agent SDK methods available to clients.
-
-## Building
-
-The agent uses Gradle can be built from either the command line or Android Studio. From the command line, enter `./gradlew clean build`. From Android Studio, each module should be built using the `Release` configuration.
-
-The agent version is contained in `gradle.properties`, but can be overridden by adding `-Pnewrelic.agent.version={version}` to the Gradlew command line.
-
+From Android Studio, each module should be built using the `Release` configuration.
 
 ## Testing
 
 The agent uses JUnit, Mockito and Robolectric to mock and test agent functionality.
 
 ### `Unit Tests`
+```
+./gradlew test
+```
 
 | Module           | Reports                                                     |
 |------------------|-------------------------------------------------------------|
-| `agent`          | file://agent/build/reports/tests/testReleaseUnitTest/index.html         |
-| `agent-core`     | file://agent-core/build/reports/tests/test/index.html            |
-| `instrumentation`| file://instrumentation/build/reports/tests/test/index.html  |
+| `agent`          | agent/build/reports/tests/testReleaseUnitTest/index.html         |
+| `agent-core`     | agent-core/build/reports/tests/test/index.html            |
+| `instrumentation`| instrumentation/build/reports/tests/test/index.html  |
 
-### `Integration Tests`
+### `Regression Tests`
+```
+./gradlew :plugins:gradle:check -P regressions
+```
+
 | Module           |Reports|
 |------------------|---|
-| `plugins:gradle` |file://plugins/gradle/build/reports/tests/test/index.html|
-
-```./gradlew :plugins:gradle:check -P integrationTests```
+| `plugins:gradle` |plugins/gradle/build/reports/tests/test/index.html|
 
 
-### `Integration Tests`
-| Module           |Reports|
-|------------------|---|
-| `plugins:gradle` |file://plugins/gradle/build/reports/tests/test/index.html|
-
-```./gradlew :plugins:gradle:check -P regressionTests```
-
-# Static Analysis Reports
-| Module |Reports|
-|--------|---|
+### `Static Analysis`
+```
+./gradlew lint
+```
+| |Reports|
+|-------|---|
 | `Lint` |file://agent/build/reports/lint-results-release.html|
-
-
-# Coverage Reports 
-
-|Module| Reports |
-|---|-----|
-|`agent`| tba |
-|`agent-core`| tba |
-|`instrumentation`| tba |
-|`plugin`| tba |
 
 
 # Debugging the agent
 
-The simplest way to debug the agent is at runtime through a [test app](https://github.com/newrelic/newrelic-android-agent/tree/main/samples/agent-test-app).
+The simplest way to debug the agent is at runtime through its [test app](https://github.com/newrelic/newrelic-android-agent/tree/main/samples/agent-test-app).
 
 * Create a test app that has been configured to use the agent.
 * Run a debugging session of the test app, but before you start execution, browse the `External Libraries` dependencies from the AS `Project` pane (all the way at the bottom).
@@ -172,7 +163,6 @@ Debugging the class rewriter or plugins is more difficult but you can use a ```R
   > ./gradlew clean assembleDebug 
   >
   You should then see `Listening for transport dt_socket at address: 5005`
-
 
 * Set some breakpoints in the agent or class rewriter, and start the remote debugging session
 * You are now live-debugging the Gradle build, specifically those tasks that interact with Agent code
@@ -191,7 +181,7 @@ When set to true, Gradle will run the build with remote debugging enabled, liste
 This will suspend the virtual machine until a debugger is attached. You will no longer see `Listening for transport dt_socket at address: 5005`, but instead now see `> Starting Daemon` when the build waits for a remote debugger to attach. Simply run your _Remote_ configuration (created above) and the debugger will stop at any breakpoints set.
 
 ## Debugging the Agent Gradle Plugin
-The easiest way to debug the Agent Gradle Plugin is to run the a [plugin functional test](plugins/gradle/src/functional/groovy/com/newrelic/agent/android/PluginSmokeSpec.groovy).
+The easiest way to debug the Agent Gradle Plugin is to run a [plugin functional test](plugins/gradle/src/functional/groovy/com/newrelic/agent/android/PluginSmokeSpec.groovy).
 When the GradleRunner is created with `withDebug(true)`, the Gradle process is available for debugging and breakpoints can be set anywhere in the plugin code.
 When the test is run, the breakpoints will be triggered and the state of the plugin available for inspection.
 
@@ -219,71 +209,20 @@ Build and test the agent project
 ### `publish`
 Build and install artifacts to the in-project Maven local repository (${rootProject.buildDir}/.m2/repository)
 
-### `copyLegacyArtifacts`
-Generates legacy artifacts to root project's `./dist` folder. All current Jenkins jobs assume this artifact location.
+# Sonatype Staging
+Agent pre-release snapshots will be posted to `https://oss.sonatype.org/content/repositories/comnewrelic-{snapshotId}`
 
-### `uploadArchives` 
-Generates distribution artifacts and deploys them to Sonatype
+# Usage
+The [Agent SDK](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/android-sdk-api/android-sdk-api-guide/) provides information on thw various agent SDK methods available to clients.
 
-# Publishing
-## Deploy to Sonatype
-Agent pre-release snapshots will be posted to `https://oss.sonatype.org/content/repositories/comnewrelic-{snapshotNumber}`
 
-# Plugin Configuration 
-The New Relic Android Agent's Gradle plugin can be configured to selectively modify the its behavior within each [build variant](https://developer.android.com/studio/build/build-variants).
-```
-  newRelic {
-    variantConfigurations {
-        debug {
-             instrument false
-             uploadMappingFile true
-             mappingFile 'build/outputs/mapping/qa/mapping.txt'
-         }
-         release {
-             uploadMappingFile = true
-             mappingFile = 'build/outputs/mapping/release/mapping.txt'
-         }
-         <customVariantName>... {
-             mappingFile = 'build/outputs/mapping/<...>/mapping.txt' *
-         }
-     }
-
-      // Legacy extension methods:
-
-      // use a common buildId for all variants (default: true)
-      variantMapsEnabled true
-
-      // Tag and report Proguard maps for these build types (default: release):
-      uploadMapsForVariant 'release', 'debug'
-
-      // enable/disable test class insstrumentation (default: true)
-      instrumentTests false
-
-      // Disable instrumentation of select build variants (default: none)
-      excludeVariantInstrumentation 'FullDebug', 'LiteRelease'
-      
-      // incubating
-      excludePackageInstrumentation 'com.google.firebase'
-  }
-```
-
-## Support
-
-```
-Github issue is currently disabled in this repo, you can contact our support team or one of the following support channels to submit your issues, feature requests, etc. 
-```
+# Support
 
 New Relic hosts and moderates an online forum where customers can interact with New Relic employees as well as other customers 
 to get help and share best practices. Like all official New Relic open source projects, there's a related Community topic in 
-the New Relic Explorers Hub. You can find this project's topic/threads [here](https://discuss.newrelic.com/tags/android).
+the New Relic Explorers Hub. You can find this project's topic/threads [on the New Relic Explorer's Hub](https://discuss.newrelic.com/tags/android).
 
-This [troubleshooting document](https://discuss.newrelic.com/t/android-troubleshooting-framework-install-and-configuration/119972) steps you through common troubleshooting questions.
-
-New Relic offers NRDiag, [a client-side diagnostic utility](https://docs.newrelic.com/docs/using-new-relic/cross-product-functions/troubleshooting/new-relic-diagnostics) that automatically detects common problems with New Relic agents. If NRDiag detects a problem, it suggests troubleshooting steps. NRDiag can also automatically attach troubleshooting data to a New Relic Support ticket.
-
-If the issue has been confirmed as a bug or is a Feature request, please file a Github issue.
-
-**Support Channels**
+### Support Channels 
 
 * [New Relic Documentation](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android): Comprehensive guidance for using our platform
 * [New Relic Community](https://discuss.newrelic.com/tags/android): The best place to engage in troubleshooting questions
@@ -291,15 +230,19 @@ If the issue has been confirmed as a bug or is a Feature request, please file a 
 * [New Relic University](https://learn.newrelic.com/): A range of online training for New Relic users of every level
 * [New Relic Technical Support](https://support.newrelic.com/) 24/7/365 ticketed support. Read more about our [Technical Support Offerings](https://docs.newrelic.com/docs/licenses/license-information/general-usage-licenses/support-plan).
 
+## Github Issues
+[Github Issues](https://github.com/newrelic/newrelic-android-agent/issues) are not open to the public at the moment. Please contact our support team or one of the support channels to submit your issues, feature requests, etc.
+
+
 ## Privacy
-At New Relic we take your privacy and the security of your information seriously, and are committed to protecting your information. We must emphasize the importance of not sharing personal data in public forums, and ask all users to scrub logs and diagnostic information for sensitive information, whether personal, proprietary, or otherwise.
+At New Relic, we take your privacy and the security of your information seriously and are committed to protecting your information. We must emphasize the importance of not sharing personal data in public forums, and ask all users to scrub logs and diagnostic information for sensitive information, whether personal, proprietary, or otherwise.
 
 We define “Personal Data” as any information relating to an identified or identifiable individual, including, for example, your name, phone number, post code or zip code, Device ID, IP address and email address.
 
 Please review [New Relic’s General Data Privacy Notice](https://newrelic.com/termsandconditions/privacy) for more information.
 
 ## Roadmap
-See our [roadmap](/roadmap.md), to learn more about our product vision, understand our plans, and provide us valuable feedback.
+See our [roadmap](roadmap.md), to learn more about our product vision, understand our plans, and provide us valuable feedback.
 
 ## Contribute
 
@@ -312,7 +255,7 @@ If you have any questions, or to execute our corporate CLA (which is required if
 
 **A note about vulnerabilities**
 
-As noted in our [security policy](../../security/policy), New Relic is committed to the privacy and security of our customers and their data. We believe that providing coordinated disclosure by security researchers and engaging with the security community are important means to achieve our security goals.
+As noted in our [security policy](https://docs.newrelic.com/docs/licenses/license-information/referenced-policies/security-policy/), New Relic is committed to the privacy and security of our customers and their data. We believe that providing coordinated disclosure by security researchers and engaging with the security community are important means to achieve our security goals.
 
 If you believe you have found a security vulnerability in this project or any of New Relic's products or websites, we welcome and greatly appreciate you reporting it to New Relic through [HackerOne](https://hackerone.com/newrelic).
 

@@ -10,15 +10,13 @@ New Relic is moving toward OpenTelemetry. OpenTelemetry is a unified standard fo
 ### Description
 This roadmap project is broken down into the following sections:
 
-- **Now**:
+- **Now**
     - This section contains features that are currently in progress.
-- **Next**:
+- **Next**
     - This section contains work planned within the next three months. These features may still be deprioritized and moved to Future.
-- **Future**:
+- **Future**
     - This section is for ideas for future work that is aligned with the product vision and possible opportunities for community contribution. It contains a list of features that anyone can implement. No guarantees can be provided on if or when these features will be completed.
 
+The proposed roadmap can be found [here](https://github.com/orgs/newrelic/projects/88/views/1).
 
-**The roadmap project is found [here](https://github.com/orgs/newrelic/projects)**
-
-#### Disclaimers
 > This roadmap is subject to change at any time. Future items should not be considered commitments.
