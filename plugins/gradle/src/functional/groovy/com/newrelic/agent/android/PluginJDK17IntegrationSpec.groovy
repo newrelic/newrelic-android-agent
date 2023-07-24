@@ -19,7 +19,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
 
     static final jdkVersion = 17
     static final agpVersion = "8.0.+"
-    static final gradleVersion = "8.1.1"
+    static final gradleVersion = "8.2"
 
     def setup() {
         with(new File(projectRootDir, ".gradle/configuration-cache")) {
@@ -53,7 +53,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         then:
         testVariants.each { var ->
             with(buildResult.task(":${NewRelicConfigTask.NAME}${var.capitalize()}")) {
-                outcome == SUCCESS || outcome == UP_TO_DATE
+                outcome == SKIPPED || outcome == UP_TO_DATE
             }
         }
     }
@@ -83,6 +83,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PincludeLibrary=false",
                         "--configuration-cache",
                         "clean", "newrelicConfigRelease")
         when:
@@ -136,6 +137,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PincludeLibrary=false",
                         "--configuration-cache",
                         "clean",
                         "newRelicConfigRelease")

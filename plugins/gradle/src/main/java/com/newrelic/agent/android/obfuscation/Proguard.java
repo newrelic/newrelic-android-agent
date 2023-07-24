@@ -110,8 +110,8 @@ public class Proguard {
     private boolean sslConnection = true;
 
     private static Map<String, String> agentOptions = Collections.emptyMap();
-    private static String buildId = BuildId.getBuildId(BuildId.DEFAULT_VARIANT);
 
+    private String buildId = BuildId.getBuildId(BuildId.DEFAULT_VARIANT);
     private Properties newRelicProps;
 
     public Proguard(final Logger log, final Map<String, String> agentOptions) {
@@ -183,8 +183,7 @@ public class Proguard {
                     log.info("Map [" + file.getAbsolutePath() + "] has already been tagged with buildID [" + buildId + "] - resending.");
                     return true;        // send it again
                 } else {
-                    String variant = agentOptions.get(VARIANT_KEY);
-                    buildId = BuildId.getBuildId(variant);
+                    buildId = agentOptions.getOrDefault(BuildId.BUILD_ID_KEY, buildId);
                     log.info("Tagging map [" + file.getAbsolutePath() + "] with buildID [" + buildId + "]");
                     // Write the build ID to the file so the user can uploaded it manually later.
                     try (final FileWriter fileWriter = new FileWriter(file, true)) {

@@ -167,20 +167,29 @@ abstract class VariantAdapter {
     def wiredWithConfigProvider(String variantName) {
         def configProvider = getConfigProvider(variantName) { configTask ->
             def buildType = withBuildType(variantName)
-            def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/java/newrelicConfig/${buildType.name}")
+            def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/java/newrelicConfig${buildType.name}")
 
             configTask.sourceOutputDir.set(objectFactory.directoryProperty().value(genSrcFolder))
-            configTask.buildId.set(objectFactory.property(String).value(BuildId.getBuildId(variantName)))
             configTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
             configTask.minifyEnabled.set(objectFactory.property(Boolean).value(buildType.minified))
             configTask.buildMetrics.set(objectFactory.property(String).value(buildHelper.getBuildMetrics().toString()))
+            configTask.configMetadata.set(configTask.sourceOutputDir.file(NewRelicConfigTask.METADATA))
+
+            def uuid = objectFactory.property(String).convention(BuildId.getBuildId(variantName))
+            def buildIdProvider = buildHelper.project.providers.fileContents(configTask.configMetadata).asText.orElse(uuid)
+
+            configTask.buildId.set(buildIdProvider)
 
             configTask.onlyIf {
-                !configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile.exists() // FIXME && text.contains(configTask.buildId.get())
+                def configClass = configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile
+                !configClass.exists() || !configClass.text.contains(configTask.buildId.get())
             }
 
             configTask.outputs.upToDateWhen {
-                configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile.exists() // FIXME && text.contains(configTask.buildId.get())
+                def meta = configTask.configMetadata.get().asFile
+                def configClass = configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile
+                configClass.exists() &&
+                    configClass.text.contains(configTask.buildId.get())
             }
         }
 
@@ -190,26 +199,36 @@ abstract class VariantAdapter {
     def wiredWithMapUploadProvider(String variantName) {
         def mapUploadProvider = getMapUploadProvider(variantName) { mapUploadTask ->
             def variantMap = getMappingFileProvider(variantName)
+            def uuid = objectFactory.property(String).value(BuildId.getBuildId(variantName))
 
             mapUploadTask.mappingFile.set(variantMap)
             mapUploadTask.taggedMappingFiles.set(buildHelper.project.files())
             mapUploadTask.projectRoot.set(buildHelper.project.layout.projectDirectory)
-            mapUploadTask.buildId.set(objectFactory.property(String).value(BuildId.getBuildId(variantName)))
+            mapUploadTask.buildId.convention(uuid)
             mapUploadTask.variantName.set(objectFactory.property(String).value(variantName))
             mapUploadTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
 
             mapUploadTask.onlyIf {
                 // Execute the task only if the given spec is satisfied. The spec will
                 // be evaluated at task execution time, not during configuration.
-                mapUploadTask.mappingFile.asFile.get().with {
-                    exists() && !text.contains(Proguard.NR_MAP_PREFIX)  // FIXME + mapUploadTask.buildId.get())
-                }
+                def tag = "${Proguard.NR_MAP_PREFIX}${mapUploadTask.buildId.get()}"
+                def mf = it.mappingFile.asFile.get()
+                mf.exists() && !mf.text.contains(tag)
             }
 
             mapUploadTask.outputs.upToDateWhen {
-                mapUploadTask.mappingFile.asFile.get().with {
-                    exists() && text.contains(Proguard.NR_MAP_PREFIX)  // FIXME + mapUploadTask.buildId.get())
-                }
+                def mf = it.mappingFile.asFile.get()
+                def tag = "${Proguard.NR_MAP_PREFIX}${mapUploadTask.buildId.get()}"
+                mf.exists() && mf.text.contains(tag)
+            }
+        }
+
+        if (buildHelper.checkApplication()) {
+            def configProvider = getConfigProvider(variantName)
+            def buildIdProvider = configProvider.flatMap { it.buildId }
+            mapUploadProvider.configure { mapUploadTask ->
+                mapUploadTask.dependsOn(configProvider)
+                mapUploadTask.buildId.set(buildIdProvider)
             }
         }
 
@@ -243,7 +262,7 @@ abstract class VariantAdapter {
         // assemble and configure model
         if (buildHelper.checkApplication()) {
             wiredWithTransformProvider(variantName)
-            // inject config class into apps
+            // inject config class into apks
             wiredWithConfigProvider(variantName)
         }
         if (shouldUploadVariantMap(variantName)) {

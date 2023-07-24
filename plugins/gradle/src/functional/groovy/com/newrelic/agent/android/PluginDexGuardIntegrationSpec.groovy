@@ -5,7 +5,7 @@
 
 package com.newrelic.agent.android
 
-
+import com.newrelic.agent.android.obfuscation.Proguard
 import org.gradle.testkit.runner.GradleRunner
 import spock.lang.IgnoreIf
 import spock.lang.IgnoreRest
@@ -24,7 +24,7 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
  *
  */
 @Stepwise
-@IgnoreIf({ System.getProperty('integrationTests', '') != 'dexguard' })
+@IgnoreIf({ System.getProperty('integrations') != 'dexguard' })
 @Requires({ jvm.isJavaVersionCompatible(PluginDexGuardIntegrationSpec.minJdkVersion) })
 class PluginDexGuardIntegrationSpec extends PluginSpec {
 
@@ -81,7 +81,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             buildResult.task(":newrelicMapUploadDexguardApk${var.capitalize()}").outcome == SUCCESS
             with(new File(buildDir, "outputs/dexguard/mapping/apk/${var}/mapping.txt")) {
                 exists()
-                text.contains("# NR_BUILD_ID -> ")
+                text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
                 filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
             }
@@ -115,7 +115,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             buildResult.task(":newrelicMapUploadDexguardAab${var.capitalize()}").outcome == SUCCESS
             with(new File(buildDir, "outputs/dexguard/mapping/bundle/${var}/mapping.txt")) {
                 exists()
-                text.contains("# NR_BUILD_ID -> ")
+                text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
                 filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
             }
@@ -149,7 +149,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             buildResult.task(":newrelicMapUploadDexguardApk${var.capitalize()}").outcome == SUCCESS
             with(new File(buildDir, "outputs/dexguard/mapping/${var}/qa-mapping.txt")) {
                 exists()
-                text.contains("# NR_BUILD_ID -> ")
+                text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
                 filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
             }
@@ -181,7 +181,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             !buildResult.task(":newrelicMapUploadDexguardApk${var.capitalize()}")
             with(new File(buildDir, "outputs/dexguard/mapping/apk/${var}/mapping.txt")) {
                 exists()
-                !text.contains("# NR_BUILD_ID -> ")
+                !text.contains(Proguard.NR_MAP_PREFIX)
                 !filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
                 !filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
             }

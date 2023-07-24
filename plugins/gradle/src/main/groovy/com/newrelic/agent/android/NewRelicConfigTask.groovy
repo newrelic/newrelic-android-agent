@@ -8,19 +8,22 @@ package com.newrelic.agent.android
 import com.newrelic.agent.InstrumentationAgent
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.*
 
+@CacheableTask
 abstract class NewRelicConfigTask extends DefaultTask {
     final static String NAME = "newrelicConfig"
     final static String CONFIG_CLASS = "com/newrelic/agent/android/NewRelicConfig.java"
+    final static String METADATA = ".metadata"
 
     @Input
-    abstract Property<String> getBuildId()        // variant buildId
+    abstract Property<String> getBuildId()      // variant buildId
 
     @Input
-    abstract Property<String> getMapProvider()    // [proguard, r8, dexguard]
+    abstract Property<String> getMapProvider()  // [proguard, r8, dexguard]
 
     @Input
     abstract Property<Boolean> getMinifyEnabled()
@@ -31,6 +34,10 @@ abstract class NewRelicConfigTask extends DefaultTask {
 
     @OutputDirectory
     abstract DirectoryProperty getSourceOutputDir()
+
+    @OutputFile
+    @Optional
+    abstract RegularFileProperty getConfigMetadata()
 
     @TaskAction
     def newRelicConfigTask() {
@@ -55,6 +62,8 @@ abstract class NewRelicConfigTask extends DefaultTask {
                         """.stripIndent()
             }
 
+            configMetadata.get().asFile.text = buildId.get()
+
         } catch (Exception e) {
             logger.error("Error encountered while configuring the New Relic plugin: ", e)
         }
@@ -64,16 +73,6 @@ abstract class NewRelicConfigTask extends DefaultTask {
     @Override
     Logger getLogger() {
         return NewRelicGradlePlugin.LOGGER
-    }
-
-    static def wiredTaskNames(String vnc) {
-        def taskSet = [] as Set
-
-        taskSet.addAll([
-                "generate${vnc}BuildConfig",
-        ])
-
-        taskSet
     }
 
 }

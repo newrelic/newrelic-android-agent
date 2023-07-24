@@ -24,6 +24,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          check-latest: true
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2.4.2
         with:
@@ -33,7 +34,7 @@ jobs:
       - name: Stage with Gradle
         run: ./gradlew install publish
       - name: Build with Gradle
-        run: ./gradlew :plugins:gradle:functionalTests -PregressionTests
+        run: ./gradlew :plugins:gradle:functionalTests
       - name: Upload build reports
         uses: actions/upload-artifact@v3
         with:
@@ -61,7 +62,37 @@ jobs:
         run: ./gradlew install publish
       - name: Build with Gradle
         id: test-step
-        run: ./gradlew :plugins:gradle:functionalTests -PregressionTests
+        run: ./gradlew :plugins:gradle:functionalTests
+      - name: Upload build reports
+        if: failure() && steps.test-step.outcome != 'success'
+        # if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-reports
+          path: plugins/gradle/build/reports/
+          if-no-files-found: ignore
+          retention-days: 5
+
+  functional-jdk11-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v2.4.2
+        with:
+          gradle-version: current
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      - name: Stage with Gradle
+        run: ./gradlew install publish
+      - name: Build with Gradle
+        id: test-step
+        run: ./gradlew :plugins:gradle:functionalTests --tests "com.newrelic.agent.android.PluginRegressionSpec" -Pregressions
       - name: Upload build reports
         # if: failure() && steps.test-step.outcome != 'success'
         if: always()
@@ -71,3 +102,32 @@ jobs:
           path: plugins/gradle/build/reports/
           if-no-files-found: ignore
           retention-days: 5
+
+  functional-jdk17-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          check-latest: true
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v2.4.2
+        with:
+          gradle-version: current
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      - name: Stage with Gradle
+        run: ./gradlew install publish
+      - name: Build with Gradle
+        run: ./gradlew :plugins:gradle:functionalTests --tests "com.newrelic.agent.android.PluginRegressionSpec" -Pregressions
+      - name: Upload build reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-reports
+          path: plugins/gradle/build/reports/tests/test
+          if-no-files-found: ignore
+          retention-days: 5
+
