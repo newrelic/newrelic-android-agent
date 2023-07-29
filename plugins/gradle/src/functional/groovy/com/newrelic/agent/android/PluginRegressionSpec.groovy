@@ -106,7 +106,6 @@ class PluginRegressionSpec extends PluginSpec {
                         "-PagentRepo=local",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=false",
-                        "--stacktrace",
                         "clean",
                         testTask)
 
