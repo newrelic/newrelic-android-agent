@@ -7,8 +7,14 @@
  *  Android library component
  */
 
-apply plugin: "com.android.library"
-apply plugin: "org.jetbrains.kotlin.android"
+plugins {
+    id("com.android.library")
+    id("org.jetbrains.kotlin.android")
+}
+
+if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
+    apply plugin: 'newrelic'
+}
 
 apply from: "${rootDir}/android.gradle"
 

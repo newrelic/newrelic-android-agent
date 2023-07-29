@@ -3,15 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-project.applyPlugin = true
+plugins {
+    id("com.android.dynamic-feature")
+    id("org.jetbrains.kotlin.android")
+}
+
 project.compiler = "none"
 
-apply plugin: "com.android.dynamic-feature"
-apply plugin: "org.jetbrains.kotlin.android"
 apply from: "${rootDir}/android.gradle"
 
 android {
-    namespace "com.newrelic.agent.android.testapp.feature"
+    namespace "com.newrelic"
 }
 
 dependencies {
