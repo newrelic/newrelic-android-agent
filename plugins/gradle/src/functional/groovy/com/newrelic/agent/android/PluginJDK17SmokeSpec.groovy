@@ -35,10 +35,10 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
-                        "-Pcompiler=r8",
+                        "-Pcompiler=dexguard",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
-                        "--debug",
+                        // "--debug",
                         "clean",
                         testTask)
 
