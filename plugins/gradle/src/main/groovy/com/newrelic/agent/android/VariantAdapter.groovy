@@ -139,7 +139,7 @@ abstract class VariantAdapter {
         // do all the variants if variantMapsEnabled are disabled, or only those variants
         // provided in the extension. Default is the release variant or build type
         if (!buildHelper.extension.variantMapsEnabled.get()
-                || buildHelper.extension.variantMapUploadList.isEmpty()) {
+                || buildHelper.extension.variantMapUploads.isEmpty()) {
             return true
         }
 
@@ -152,7 +152,7 @@ abstract class VariantAdapter {
 
         if (buildHelper.dexguardHelper?.getEnabled()) {
             if (buildHelper.dexguardHelper.variantConfigurations.get().containsKey(buildType.name)) {
-                return true
+                // TODO DG can't tell us if mapping disabled
             }
         }
 
@@ -189,7 +189,7 @@ abstract class VariantAdapter {
                 def meta = configTask.configMetadata.get().asFile
                 def configClass = configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile
                 configClass.exists() &&
-                    configClass.text.contains(configTask.buildId.get())
+                        configClass.text.contains(configTask.buildId.get())
             }
         }
 
@@ -260,11 +260,15 @@ abstract class VariantAdapter {
      */
     def assembleDataModel(String variantName) {
         // assemble and configure model
-        if (buildHelper.checkApplication()) {
+        if( buildHelper.extension.shouldIncludeVariant(variantName)) {
             wiredWithTransformProvider(variantName)
+        }
+
+        if (buildHelper.checkApplication()) {
             // inject config class into apks
             wiredWithConfigProvider(variantName)
         }
+
         if (shouldUploadVariantMap(variantName)) {
             // register map upload task(s)
             wiredWithMapUploadProvider(variantName)

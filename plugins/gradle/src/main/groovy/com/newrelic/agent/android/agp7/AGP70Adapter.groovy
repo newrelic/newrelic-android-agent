@@ -98,19 +98,19 @@ class AGP70Adapter extends VariantAdapter {
     @Override
     RegularFileProperty getMappingFileProvider(String variantName, Action action = null) {
         def variant = withVariant(variantName)
-
-        // dexguard maps are handled separately
-        if (buildHelper.dexguardHelper?.getEnabled()) {
-            return buildHelper.dexguardHelper.getMappingFileProvider(variantName)
-        }
-
         def variantConfiguration = buildHelper.extension.variantConfigurations.findByName(variantName)
+
         if (variantConfiguration && variantConfiguration.mappingFile) {
             def variantMappingFilePath = variantConfiguration.mappingFile.getAbsolutePath()
                     .replace("<name>", variant.name)
                     .replace("<dirName>", variant.dirName)
 
             return objectFactory.fileProperty().fileValue(buildHelper.project.file(variantMappingFilePath))
+        }
+
+        // dexguard maps are handled separately
+        if (buildHelper.dexguardHelper?.getEnabled()) {
+            return buildHelper.dexguardHelper.getMappingFileProvider(variantName)
         }
 
         return variant.artifacts.get(SingleArtifact.OBFUSCATION_MAPPING_FILE.INSTANCE)

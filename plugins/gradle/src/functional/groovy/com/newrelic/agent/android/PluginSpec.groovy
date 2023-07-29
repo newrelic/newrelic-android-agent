@@ -27,7 +27,7 @@ abstract class PluginSpec extends Specification {
     Map<String, String> localEnv = [:]
 
     @Shared
-    def modules = [":library"]
+    def modules = [":library", ":feature"]
 
     @Shared
     BuildResult buildResult
