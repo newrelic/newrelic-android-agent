@@ -16,7 +16,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
 
     /* Last levels for JDK 11. Must use JDK 17 for AGP/Gradle 8.+    */
     static final jdkVersion = 17
-    static final agpVersion = "8.0.+"
+    static final agpVersion = "8.1.+"
     static final gradleVersion = "8.2"
 
     def setup() {

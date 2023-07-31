@@ -157,7 +157,7 @@ tasks.withType(Test).configureEach {
 }
 
 test {
-    useJUnitPlatform ()
+    useJUnitPlatform()
     minHeapSize = "2g"
     maxHeapSize = "8g"
     failFast = true

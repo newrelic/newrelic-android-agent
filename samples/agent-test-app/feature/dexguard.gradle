@@ -1,0 +1,49 @@
+import org.slf4j.LoggerFactory
+
+/*
+ * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+//
+// DG 9.+
+//
+
+def logger = LoggerFactory.getLogger("newrelic")
+
+if (!project.properties.containsKey("dexguardMavenToken")) {
+    throw new RuntimeException("Testing with DexGuard 9+ requires DexGuard Maven token!")
+}
+
+apply plugin: 'dexguard'
+
+if (project.plugins.hasPlugin("dexguard")) {
+    logger.quiet "[agent-test-app] applied DexGuard[${versions.dexguard.plugin}] plugin to feature"
+
+    dexguard {
+        version = versions.dexguard.plugin
+
+        // path should point to the DexGuard distribution directory
+        // path = "/path/to/dexguard/lib"
+
+        // path to your DexGuard license file or the directory containing the file
+        // license = "/path/to/dexguard-license.txt"
+
+        configurations {
+            debug {
+                defaultConfiguration "dexguard-release.pro"
+                configuration "${rootDir}/dexguard-project.txt"
+                configuration "${rootDir}/proguard-rules.pro"
+            }
+            qa {
+                defaultConfiguration 'dexguard-release.pro'
+                configuration "${rootDir}/dexguard-qa-project.txt"
+            }
+            release {
+                defaultConfiguration 'dexguard-release.pro'
+                configuration "${rootDir}/dexguard-project.txt"
+                configuration "${rootDir}/proguard-rules.pro"
+            }
+        }
+    }
+}

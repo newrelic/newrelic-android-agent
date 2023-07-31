@@ -39,7 +39,6 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                 "-Pcompiler=r8",
                 "-PagentRepo=${localEnv["M2_REPO"]}",
                 "-PwithProductFlavors=false",
-                "--stacktrace",
                 testTask)
 
         when:

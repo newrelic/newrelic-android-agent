@@ -15,7 +15,7 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 @Stepwise
 @Requires({ !jvm.isJava17Compatible() })
-class PluginIntegrationSpec extends PluginSpec {
+class PluginJDK11IntegrationSpec extends PluginSpec {
 
     def setup() {
         with(new File(projectRootDir, ".gradle/configuration-cache")) {
@@ -38,6 +38,7 @@ class PluginIntegrationSpec extends PluginSpec {
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PincludeLibrary=false",   // FIXME https://github.com/JetBrains/compose-multiplatform/issues/2108
                         "clean",
                         testTask)
 

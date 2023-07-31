@@ -14,7 +14,7 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 @Retry(delay = 15000, count=2)
-class PluginSmokeSpec extends PluginSpec {
+class PluginJDK11SmokeSpec extends PluginSpec {
 
     /* Last levels for JDK 11. Must use JDK 17 for AGP/Gradle 8.+    */
     static final jdkVersion = 11
@@ -39,7 +39,6 @@ class PluginSmokeSpec extends PluginSpec {
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
                         "--debug",
-                        "--stacktrace",
                         "clean",
                         testTask)
 
