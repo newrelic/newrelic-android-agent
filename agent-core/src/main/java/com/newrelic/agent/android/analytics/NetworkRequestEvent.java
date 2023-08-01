@@ -62,6 +62,12 @@ public class NetworkRequestEvent extends AnalyticsEvent {
             attributes.add(new AnalyticsAttribute(AnalyticsAttribute.BYTES_RECEIVED_ATTRIBUTE, bytesReceived));
         }
 
+        if (txn.getParams() != null) {
+            for (String key : txn.getParams().keySet()) {
+                attributes.add(new AnalyticsAttribute(key, txn.getParams().get(key)));
+            }
+        }
+
         if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
             TraceContext traceContext = txn.getTraceContext();
             if (traceContext != null || txn.getTraceAttributes() != null) {

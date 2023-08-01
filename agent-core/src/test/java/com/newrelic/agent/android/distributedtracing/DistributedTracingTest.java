@@ -174,7 +174,7 @@ public class DistributedTracingTest {
 
         Collection<AnalyticsAttribute> eventAttrs = event.getAttributeSet();
 
-        Assert.assertEquals("Should contain correct number of attributes", 16, eventAttrs.size());
+        Assert.assertEquals("Should contain correct number of attributes", 18, eventAttrs.size());
 
         Assert.assertNotNull("Should contain distributed transaction guid", getAttributeByName(eventAttrs, DistributedTracing.NR_GUID_ATTRIBUTE));
 
