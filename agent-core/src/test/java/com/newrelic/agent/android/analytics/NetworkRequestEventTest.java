@@ -5,10 +5,13 @@
 
 package com.newrelic.agent.android.analytics;
 
+import static com.newrelic.agent.android.analytics.AnalyticsAttributeTests.getAttributeByName;
+
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.test.mock.Providers;
+import com.newrelic.agent.android.util.Constants;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -17,8 +20,6 @@ import org.junit.Test;
 
 import java.util.Collection;
 import java.util.Set;
-
-import static com.newrelic.agent.android.analytics.AnalyticsAttributeTests.getAttributeByName;
 
 public class NetworkRequestEventTest {
     private HttpTransaction httpTransaction;
@@ -45,6 +46,41 @@ public class NetworkRequestEventTest {
         Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.RESPONSE_TIME_ATTRIBUTE));
         Assert.assertNull(getAttributeByName(attributes, AnalyticsAttribute.BYTES_SENT_ATTRIBUTE));
         Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.BYTES_RECEIVED_ATTRIBUTE));
+    }
+
+    @Test
+    public void testAttributesWithMapParameters() throws Exception {
+        Set<AnalyticsAttribute> attributes = NetworkRequestEvent.createDefaultAttributeSet(httpTransaction);
+
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.REQUEST_DOMAIN_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.REQUEST_PATH_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.REQUEST_URL_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.CONNECTION_TYPE_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.REQUEST_METHOD_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.RESPONSE_TIME_ATTRIBUTE));
+        Assert.assertNull(getAttributeByName(attributes, AnalyticsAttribute.BYTES_SENT_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.BYTES_RECEIVED_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_TYPE));
+        Assert.assertNotNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_LENGTH));
+
+    }
+
+    @Test
+    public void testAttributesWithOutParameter() throws Exception {
+        httpTransaction.setParams(null);
+        Set<AnalyticsAttribute> attributes = NetworkRequestEvent.createDefaultAttributeSet(httpTransaction);
+
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.REQUEST_DOMAIN_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.REQUEST_PATH_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.REQUEST_URL_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.CONNECTION_TYPE_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.REQUEST_METHOD_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.RESPONSE_TIME_ATTRIBUTE));
+        Assert.assertNull(getAttributeByName(attributes, AnalyticsAttribute.BYTES_SENT_ATTRIBUTE));
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.BYTES_RECEIVED_ATTRIBUTE));
+        Assert.assertNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_TYPE));
+        Assert.assertNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_LENGTH));
+
     }
 
     @Test
