@@ -13,7 +13,7 @@ import spock.lang.*
 abstract class PluginSpec extends Specification {
 
     static final rootDir = new File("../..")
-    static final projectRootDir = new File(rootDir, "samples/agent-test-app/")
+    static final projectRootDir = new File(rootDir, "samples/Demo_SimpleNavigationCompose") // agent-test-app/")
     static final buildDir = new File(projectRootDir, "build")
 
     /* AGP/Gradle level 8+ require JDK 17 */

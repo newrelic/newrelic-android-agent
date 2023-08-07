@@ -5,8 +5,6 @@
 
 package com.newrelic.agent.compile.visitor;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.compile.InstrumentationContext;
 
@@ -25,44 +23,43 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public abstract class ActivityClassAdapter extends ClassVisitor {
+public abstract class DelegateClassAdapter extends ClassVisitor {
 
-    // Auto-instrument these methods
-    public static final ImmutableMap<String, String> traceMethodMap = ImmutableMap.of(
-            "onCreate", "(Landroid/os/Bundle;)V",
-            "onCreateView", "(Landroid/view/LayoutInflater;Landroid/view/ViewGroup;Landroid/os/Bundle;)Landroid/view/View;"
-    );
-
-    // Start a new trace for these methods
-    public static final ImmutableSet<String> startTracingOn = ImmutableSet.of(
-            "onCreate"
-    );
-
-    // A map of base classes as compiled regex patterns
-    protected final Map<String, Pattern> baseClassPatterns;
-    private final Map<Method, MethodVisitorFactory> methodVisitors;
-    protected final InstrumentationContext context;
-    protected final Logger log;
     protected String superName;
     protected boolean instrument = false;
     protected int access = 0;
-    private Pattern androidPackagePattern = Pattern.compile(Constants.ANDROID_PACKAGE_RE);
+    private Pattern classPackagePattern = Pattern.compile(Constants.ANDROID_PACKAGE_RE);
 
+    // A map of base classes as compiled regex patterns
+    protected final InstrumentationContext context;
+    protected final Logger log;
+    protected final Map<String, Pattern> delegatedClassPatterns;
+    protected final Map<Method, MethodVisitorFactory> methodVisitors;
+    protected final Map<String, Integer> methodAccessMap; // Return the access level for these methods
 
-    public ActivityClassAdapter(ClassVisitor cv, InstrumentationContext context, Logger log, Set<String> baseClasses, Map<Method, Method> methodMappings) {
+    public DelegateClassAdapter(ClassVisitor cv,
+                                InstrumentationContext context,
+                                Logger log,
+                                Set<String> delegateClasses,
+                                Map<Method, Method> delegateMethods,
+                                Map<String, Integer> delegateMethodAccessMap) {
         super(Opcodes.ASM9, cv);
         this.context = context;
         this.log = log;
 
-        methodVisitors = new HashMap<>();
-        for (Entry<Method, Method> entry : methodMappings.entrySet()) {
-            methodVisitors.put(entry.getKey(), new MethodVisitorFactory(entry.getValue()));
-        }
+        this.delegatedClassPatterns = new HashMap<>() {{
+            for (String pattern : delegateClasses) {
+                put(pattern, Pattern.compile(pattern));
+            }
+        }};
 
-        baseClassPatterns = new HashMap<>();
-        for (String pattern : baseClasses) {
-            baseClassPatterns.put(pattern, Pattern.compile(pattern));
-        }
+        this.methodVisitors = new HashMap<>() {{
+            for (Entry<Method, Method> entry : delegateMethods.entrySet()) {
+                put(entry.getKey(), new MethodVisitorFactory(entry.getValue()));
+            }
+        }};
+
+        this.methodAccessMap = delegateMethodAccessMap;
     }
 
     @Override
@@ -70,10 +67,7 @@ public abstract class ActivityClassAdapter extends ClassVisitor {
         super.visit(version, access, name, signature, superName, interfaces);
         this.superName = superName;
         this.access = access;
-        //
-        // Don't instrument anything from Android SDK, only classes that derive from them
-        //
-        this.instrument = shouldInstrumentClass(name, superName);
+        this.instrument = isInstrumentable(name, superName);
     }
 
     @Override
@@ -131,9 +125,13 @@ public abstract class ActivityClassAdapter extends ClassVisitor {
         super.visitEnd();
     }
 
+    // require implementation to inject method calls
     protected abstract void injectCodeIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method monitorMethod);
 
-    protected abstract int provideAccessForMethod(final String methodName);
+    protected int provideAccessForMethod(final String methodName) {
+        Integer v = methodAccessMap.get(methodName);
+        return (v != null) ? v.intValue() : Opcodes.ACC_PROTECTED;
+    }
 
     /**
      * Determine if this class is something we'd like to instrument, which
@@ -144,13 +142,23 @@ public abstract class ActivityClassAdapter extends ClassVisitor {
      * @param superName
      * @return Return true if this class should be instrumented
      */
-    protected boolean shouldInstrumentClass(String className, String superName) {
-        if (!androidPackagePattern.matcher(className.toLowerCase()).matches()) {
-            for (Pattern baseClassPattern : baseClassPatterns.values()) {
+    protected boolean isInstrumentable(String className, String superName) {
+        if (!classPackagePattern.matcher(className.toLowerCase()).matches()) {
+            for (Pattern baseClassPattern : delegatedClassPatterns.values()) {
                 Matcher matcher = baseClassPattern.matcher(superName);
                 if (matcher.matches()) {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    protected boolean isInstrumentable(final Method method) {
+        for (Method methodVisitor : methodVisitors.keySet()) {
+            if (methodVisitor.getName().equalsIgnoreCase(method.getName())) {
+                return true;
             }
         }
 
@@ -170,11 +178,6 @@ public abstract class ActivityClassAdapter extends ClassVisitor {
 
         public MethodVisitor createMethodVisitor(int access, final Method method, MethodVisitor mv, final boolean callSuper) {
             return new GeneratorAdapter(Opcodes.ASM9, mv, access, method.getName(), method.getDescriptor()) {
-                @Override
-                public void visitMaxs(int maxStack, int maxLocals) {
-                    super.visitMaxs(Math.max(maxStack, 8), Math.max(maxLocals, 8));
-                }
-
                 @Override
                 public void visitCode() {
                     super.visitCode();

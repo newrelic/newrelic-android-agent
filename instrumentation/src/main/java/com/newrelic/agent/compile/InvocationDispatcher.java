@@ -7,7 +7,6 @@ package com.newrelic.agent.compile;
 
 import com.google.common.collect.ImmutableMap;
 import com.newrelic.agent.Constants;
-import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.compile.visitor.ActivityClassVisitor;
 import com.newrelic.agent.compile.visitor.AnnotatingClassVisitor;
 import com.newrelic.agent.compile.visitor.AsyncTaskClassVisitor;
@@ -24,11 +23,7 @@ import org.objectweb.asm.ClassWriter;
 import org.slf4j.Logger;
 
 import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.text.MessageFormat;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -101,6 +96,10 @@ public class InvocationDispatcher {
                 isKotlinSDKPackage(className));
     }
 
+    boolean isAndroidJetpackPackage(String className) {
+        return className.startsWith("androidx/navigation/");
+    }
+
     /**
      * Process the given class bytes, modifying them if necessary.
      */
@@ -130,6 +129,13 @@ public class InvocationDispatcher {
 
             className = instrumentationContext.getClassName();
 
+/*
+            if (isAndroidSDKPackage(className)) {
+                log.info("COMPOSE:");
+                log.info("COMPOSE classname[" + className + "]");
+            }
+*/
+
             if (!instrumentationContext.hasTag(Constants.INSTRUMENTED_CLASS_NAME)) {
                 //
                 // Second pass to actually do the work
@@ -139,12 +145,13 @@ public class InvocationDispatcher {
                 // Exclude both the agent code and our dependant libraries
                 if (className.equals(Constants.NEWRELIC_CLASS_NAME)) {
                     cv = new NewRelicClassVisitor(cv, instrumentationContext, log);
+                } else if (isAndroidJetpackPackage(className)) {
+                    // cv = new ComposeNavigatorClassVisitor(cv, instrumentationContext, log);
+                    // cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidSDKPackage(className)) {
-                    // In this case, instrument activity/fragment related classes only.
-                    // Don't instrument everything in the support lib (like JSON methods, etc).
                     cv = new ActivityClassVisitor(cv, instrumentationContext, log);
                 } else if (isExcludedPackage(className)) {
-                    // log.debug("[InvocationDispatcher] Excluding class [" + className + "]");
+                    // log.warn("[InvocationDispatcher] Excluding class [" + className + "]");
                     return null;
                 } else {
                     cv = new AnnotatingClassVisitor(cv, instrumentationContext, log);

@@ -42,7 +42,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
-                        "--debug",
+                        // "--debug",
                         "clean",
                         testTask, "assembleQa")
 
