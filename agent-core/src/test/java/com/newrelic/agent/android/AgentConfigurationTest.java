@@ -146,4 +146,10 @@ public class AgentConfigurationTest {
         agentConfiguration.setApplicationFramework(ApplicationFramework.Xamarin);
         Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Xamarin);
     }
+
+    @Test
+    public void shouldParseUnityApplicationFramework() {
+        agentConfiguration.setApplicationFramework(ApplicationFramework.Unity);
+        Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Unity);
+    }
 }
