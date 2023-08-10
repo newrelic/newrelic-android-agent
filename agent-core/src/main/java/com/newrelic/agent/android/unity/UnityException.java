@@ -1,6 +1,9 @@
+/*
+ * Copyright (c) 2023-2024 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package com.newrelic.agent.android.unity;
-
-
 
 public class UnityException extends RuntimeException {
     private String sourceExceptionType = null;
