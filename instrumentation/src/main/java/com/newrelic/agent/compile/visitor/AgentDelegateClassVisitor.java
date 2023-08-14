@@ -23,7 +23,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public abstract class DelegateClassAdapter extends ClassVisitor {
+public abstract class AgentDelegateClassVisitor extends ClassVisitor {
 
     protected String superName;
     protected boolean instrument = false;
@@ -34,15 +34,15 @@ public abstract class DelegateClassAdapter extends ClassVisitor {
     protected final InstrumentationContext context;
     protected final Logger log;
     protected final Map<String, Pattern> delegatedClassPatterns;
-    protected final Map<Method, MethodVisitorFactory> methodVisitors;
+    protected final Map<Method, AgentDelegateMethodVisitorFactory> methodVisitors;
     protected final Map<String, Integer> methodAccessMap; // Return the access level for these methods
 
-    public DelegateClassAdapter(ClassVisitor cv,
-                                InstrumentationContext context,
-                                Logger log,
-                                Set<String> delegateClasses,
-                                Map<Method, Method> delegateMethods,
-                                Map<String, Integer> delegateMethodAccessMap) {
+    public AgentDelegateClassVisitor(ClassVisitor cv,
+                                     InstrumentationContext context,
+                                     Logger log,
+                                     Set<String> delegateClasses,
+                                     Map<Method, Method> delegateMethods,
+                                     Map<String, Integer> delegateMethodAccessMap) {
         super(Opcodes.ASM9, cv);
         this.context = context;
         this.log = log;
@@ -55,7 +55,7 @@ public abstract class DelegateClassAdapter extends ClassVisitor {
 
         this.methodVisitors = new HashMap<>() {{
             for (Entry<Method, Method> entry : delegateMethods.entrySet()) {
-                put(entry.getKey(), new MethodVisitorFactory(entry.getValue()));
+                put(entry.getKey(), new AgentDelegateMethodVisitorFactory(entry.getValue()));
             }
         }};
 
@@ -73,12 +73,13 @@ public abstract class DelegateClassAdapter extends ClassVisitor {
     @Override
     public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
         MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+
         if (!instrument) {
             return mv;
         }
 
         Method method = new Method(name, desc);
-        MethodVisitorFactory v = methodVisitors.get(method);
+        AgentDelegateMethodVisitorFactory v = methodVisitors.get(method);
         if (v != null) {
             // remove the method so we don't try to add it during visitEnd()
             methodVisitors.remove(method);
@@ -100,7 +101,7 @@ public abstract class DelegateClassAdapter extends ClassVisitor {
         // The unimplemented methods remain.  Add them, and be sure to call the super implementation
         // and return the correct result for type
 
-        for (Entry<Method, MethodVisitorFactory> entry : methodVisitors.entrySet()) {
+        for (Entry<Method, AgentDelegateMethodVisitorFactory> entry : methodVisitors.entrySet()) {
             String className = entry.getKey().getName();
             String classDescr = entry.getKey().getDescriptor();
             int access = provideAccessForMethod(className);
@@ -109,7 +110,7 @@ public abstract class DelegateClassAdapter extends ClassVisitor {
             mv = entry.getValue().createMethodVisitor(access, entry.getKey(), mv, true);
             mv.visitCode();
 
-            Type methodReturn = entry.getValue().monitorMethod.getReturnType();
+            Type methodReturn = entry.getValue().agentDelegateMethod.getReturnType();
 
             if (methodReturn == Type.VOID_TYPE) {
                 mv.visitInsn(Opcodes.RETURN);
@@ -126,7 +127,7 @@ public abstract class DelegateClassAdapter extends ClassVisitor {
     }
 
     // require implementation to inject method calls
-    protected abstract void injectCodeIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method monitorMethod);
+    protected abstract void injectIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method monitorMethod);
 
     protected int provideAccessForMethod(final String methodName) {
         Integer v = methodAccessMap.get(methodName);
@@ -165,15 +166,14 @@ public abstract class DelegateClassAdapter extends ClassVisitor {
         return false;
     }
 
-    protected class MethodVisitorFactory {
+    protected class AgentDelegateMethodVisitorFactory {
         /**
-         * The method on the targetType that will be invoked.
+         * The method on the agent delegate class that will be invoked
          */
-        final Method monitorMethod;
+        final Method agentDelegateMethod;
 
-        public MethodVisitorFactory(Method monitorMethod) {
-            super();
-            this.monitorMethod = monitorMethod;
+        public AgentDelegateMethodVisitorFactory(Method delegateMethod) {
+            this.agentDelegateMethod = delegateMethod;
         }
 
         public MethodVisitor createMethodVisitor(int access, final Method method, MethodVisitor mv, final boolean callSuper) {
@@ -189,7 +189,7 @@ public abstract class DelegateClassAdapter extends ClassVisitor {
                         }
                         visitMethodInsn(Opcodes.INVOKESPECIAL, superName, method.getName(), method.getDescriptor(), false);
                     }
-                    injectCodeIntoMethod(this, method, monitorMethod);
+                    injectIntoMethod(this, method, agentDelegateMethod);
                 }
             };
         }

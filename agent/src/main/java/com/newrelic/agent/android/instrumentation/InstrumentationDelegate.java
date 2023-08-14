@@ -16,13 +16,11 @@ import java.util.concurrent.Executors;
 public class InstrumentationDelegate {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
     protected static ExecutorService executor;
-    protected final AnalyticsControllerImpl analyticsController;
+    protected static AnalyticsControllerImpl analyticsController;
 
     static {
         InstrumentationDelegate.executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("instrumentationDelegateWorker"));
+        InstrumentationDelegate.analyticsController = AnalyticsControllerImpl.getInstance();
     }
 
-    public InstrumentationDelegate() {
-        this.analyticsController = AnalyticsControllerImpl.getInstance();
-    }
 }

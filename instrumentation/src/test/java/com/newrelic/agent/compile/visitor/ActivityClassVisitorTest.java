@@ -113,7 +113,7 @@ public class ActivityClassVisitorTest {
             MethodNode mn = testContext.toMethodNode(cn, m.getName(), m.getDescriptor());
             if (mn != null) {
                 Method delegate = map.get(m);
-                targets.add("INVOKEVIRTUAL " + ActivityClassVisitor.applicationStateMonitorType.getClassName().replace('.', '/')
+                targets.add("INVOKEVIRTUAL " + ActivityClassVisitor.agentDelegateClassType.getClassName().replace('.', '/')
                         + "." + delegate.getName() + " " + delegate.getDescriptor());
             }
         }

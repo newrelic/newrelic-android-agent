@@ -18,7 +18,7 @@ package com.newrelic.agent.android.instrumentation;
  * @ReplaceCallSite
  * public static void setFactory(final android.view.LayoutInflater inflater, final android.view.LayoutInflater.Factory factory) {
  * }
- * 
+ * </code>
  */
 public @interface ReplaceCallSite {
 	boolean isStatic() default false;

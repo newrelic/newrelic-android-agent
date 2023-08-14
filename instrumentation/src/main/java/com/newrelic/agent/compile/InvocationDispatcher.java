@@ -15,7 +15,7 @@ import com.newrelic.agent.compile.visitor.FragmentClassVisitor;
 import com.newrelic.agent.compile.visitor.NewRelicClassVisitor;
 import com.newrelic.agent.compile.visitor.PrefilterClassVisitor;
 import com.newrelic.agent.compile.visitor.TraceAnnotationClassVisitor;
-import com.newrelic.agent.compile.visitor.WrapMethodClassVisitor;
+import com.newrelic.agent.compile.visitor.AgentMethodDelegateClassVisitor;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -159,7 +159,7 @@ public class InvocationDispatcher {
                     cv = new FragmentClassVisitor(cv, instrumentationContext, log);
                     cv = new AsyncTaskClassVisitor(cv, instrumentationContext, log);
                     cv = new TraceAnnotationClassVisitor(cv, instrumentationContext, log);
-                    cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
+                    cv = new AgentMethodDelegateClassVisitor(cv, instrumentationContext, log);
                 }
                 cv = new ContextInitializationClassVisitor(cv, instrumentationContext);
 

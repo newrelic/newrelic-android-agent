@@ -19,11 +19,11 @@ import org.slf4j.Logger;
 import java.text.MessageFormat;
 import java.util.Collection;
 
-public class WrapMethodClassVisitor extends ClassVisitor {
+public class AgentMethodDelegateClassVisitor extends ClassVisitor {
     private final InstrumentationContext context;
     private final Logger log;
 
-    public WrapMethodClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Logger log) {
+    public AgentMethodDelegateClassVisitor(ClassVisitor cv, final InstrumentationContext context, final Logger log) {
         super(Opcodes.ASM9, cv);
         this.context = context;
         this.log = log;
@@ -35,10 +35,10 @@ public class WrapMethodClassVisitor extends ClassVisitor {
             return super.visitMethod(access, name, desc, sig, exceptions);
         }
 
-        return new MethodWrapMethodVisitor(super.visitMethod(access, name, desc, sig, exceptions), access, name, desc, context, log);
+        return new DelegateMethodVisitor(super.visitMethod(access, name, desc, sig, exceptions), access, name, desc, context, log);
     }
 
-    private static final class MethodWrapMethodVisitor extends GeneratorAdapter {
+    private static final class DelegateMethodVisitor extends GeneratorAdapter {
         private final String name;
         private final String desc;
         private final InstrumentationContext context;
@@ -46,7 +46,7 @@ public class WrapMethodClassVisitor extends ClassVisitor {
         private boolean newInstructionFound = false;
         private boolean dupInstructionFound = false;
 
-        public MethodWrapMethodVisitor(MethodVisitor mv, final int access, final String name, final String desc, final InstrumentationContext context, final Logger log) {
+        public DelegateMethodVisitor(MethodVisitor mv, final int access, final String name, final String desc, final InstrumentationContext context, final Logger log) {
             super(Opcodes.ASM9, mv, access, name, desc);
             this.name = name;
             this.desc = desc;
@@ -98,6 +98,9 @@ public class WrapMethodClassVisitor extends ClassVisitor {
             }
 
             super.visitInsn(opcode);
+        }
+
+        protected void injectCodeIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method monitorMethod) {
         }
 
         private boolean tryWrapReturnValue(final int opcode, final String owner, final String name, final String desc) {

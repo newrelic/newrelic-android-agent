@@ -25,7 +25,7 @@ import java.util.Set;
  * Android Fragment classes.  It either modifies existing Fragment class methods (onStart,
  * onStop, etc.) if overridden, or injects them (with a call to the super implementation).
  */
-public class FragmentClassVisitor extends DelegateClassAdapter {
+public class FragmentClassVisitor extends AgentDelegateClassVisitor {
 
     /**
      * This set should include the names of all Android SDK classes that would be base classes
@@ -87,7 +87,7 @@ public class FragmentClassVisitor extends DelegateClassAdapter {
     }
 
     @Override
-    protected void injectCodeIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method monitorMethod) {
+    protected void injectIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method agentDelegateMethod) {
         if (method.getName().equalsIgnoreCase("onStart") || method.getName().equalsIgnoreCase("onStop")) {
             log.debug("[FragmentClassVisitor] inject [" + method.getName() + "]");
         }

@@ -26,9 +26,9 @@ import java.util.Set;
  * Android Activity classes.  It either modifies existing Activity class methods (onStart,
  * onStop, etc.) if overridden, or injects them (with a call to the super implementation).
  */
-public class ActivityClassVisitor extends DelegateClassAdapter {
+public class ActivityClassVisitor extends AgentDelegateClassVisitor {
 
-    static final Type applicationStateMonitorType = Type.getObjectType(Constants.ASM_CLASS_NAME);
+    static final Type agentDelegateClassType = Type.getObjectType(Constants.ASM_CLASS_NAME);
 
     /**
      * This set should include the names of all Android SDK classes that would be base classes
@@ -44,7 +44,8 @@ public class ActivityClassVisitor extends DelegateClassAdapter {
             "^(androidx\\/)(ActivityCompat)"                        // ActivityGroup-derived
     );
 
-    // The set of methods we'd like to augment (or implement) with our delegates
+    // The set of methods we'd like to augment (or implement) from delegateClassType with our delegates
+
     public static final Map<Method, Method> methodDelegateMap = ImmutableMap.of(
             new Method("onStart", "()V"), new Method("activityStarted", "()V"),
             new Method("onStop", "()V"), new Method("activityStopped", "()V")
@@ -90,16 +91,16 @@ public class ActivityClassVisitor extends DelegateClassAdapter {
     }
 
     @Override
-    protected void injectCodeIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method monitorMethod) {
+    protected void injectIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method agentDelegateMethod) {
         if (method.getName().equalsIgnoreCase("onStart")) {
-            generatorAdapter.invokeStatic(applicationStateMonitorType, new Method("getInstance", applicationStateMonitorType, new Type[0]));
-            generatorAdapter.invokeVirtual(applicationStateMonitorType, monitorMethod);
+            generatorAdapter.invokeStatic(agentDelegateClassType, new Method("getInstance", agentDelegateClassType, new Type[0]));
+            generatorAdapter.invokeVirtual(agentDelegateClassType, agentDelegateMethod);
 
             log.debug("[ActivityClassVisitor] injecting onStart method");
 
         } else if (method.getName().equalsIgnoreCase("onStop")) {
-            generatorAdapter.invokeStatic(applicationStateMonitorType, new Method("getInstance", applicationStateMonitorType, new Type[0]));
-            generatorAdapter.invokeVirtual(applicationStateMonitorType, monitorMethod);
+            generatorAdapter.invokeStatic(agentDelegateClassType, new Method("getInstance", agentDelegateClassType, new Type[0]));
+            generatorAdapter.invokeVirtual(agentDelegateClassType, agentDelegateMethod);
 
             log.debug("[ActivityClassVisitor] injecting onStop method");
 
