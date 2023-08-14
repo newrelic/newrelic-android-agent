@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 
 public class InstrumentationDelegate {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
+
     protected static ExecutorService executor;
     protected static AnalyticsControllerImpl analyticsController;
 
@@ -22,5 +23,4 @@ public class InstrumentationDelegate {
         InstrumentationDelegate.executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("instrumentationDelegateWorker"));
         InstrumentationDelegate.analyticsController = AnalyticsControllerImpl.getInstance();
     }
-
 }

@@ -26,7 +26,8 @@ buildscript {
 
         versions = [
                 agent : newrelic.agent.version,
-                gradle: '7.2',
+                gradle : "7.2",
+                jetpack: "2.5.3",
 
                 java  : [
                         minVersion : JavaVersion.VERSION_11,

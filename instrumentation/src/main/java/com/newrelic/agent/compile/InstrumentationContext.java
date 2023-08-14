@@ -165,6 +165,10 @@ public class InstrumentationContext {
         return config.getCallSiteReplacements(className, methodName, methodDesc);
     }
 
+    public Collection<ClassMethod> getShadowMethods(final String className, final String methodName, final String methodDesc) {
+        return config.getShadowMethods(className, methodName, methodDesc);
+    }
+
     /**
      * Returns the variant [debug, release, ...] of this instrumentation context
      *

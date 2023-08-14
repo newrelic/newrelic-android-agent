@@ -201,6 +201,17 @@ public class InstrumentationContextTest {
     }
 
     @Test
+    public void getShadowMethods() {
+        Collection<ClassMethod> r;
+
+        r = instrumentation.getShadowMethods("", "execute", "([Ljava/lang/Object;)Landroid/os/AsyncTask;");
+        Assert.assertFalse(r.isEmpty());
+
+        r = instrumentation.getShadowMethods("clazz", "executed", "([Ljava/lang/Object;)Landroid/os/AsyncTask;");
+        Assert.assertTrue(r.isEmpty());
+    }
+
+    @Test
     public void getVariantName() {
         Assert.assertEquals(BuildId.DEFAULT_VARIANT, instrumentation.getVariantName());
         instrumentation.setVariantName("dev");

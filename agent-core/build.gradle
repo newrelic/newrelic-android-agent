@@ -6,7 +6,6 @@
 plugins {
     id("com.github.johnrengelman.shadow")
     id("java")
-    // id("org.jetbrains.kotlin.jvm")
 }
 
 version = project.versions.agent
@@ -41,7 +40,6 @@ dependencies {
     // all implementation dependencies will be shadowed
     implementation 'com.google.code.gson:gson:' + project.versions.java.gson
     implementation 'com.google.flatbuffers:flatbuffers-java:' + project.versions.java.flatbuffers
-    // implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 
     testImplementation fileTree(dir: 'libs', include: '*.jar')
     testImplementation fileTree(dir: 'libs/export', include: '*.jar')
@@ -116,17 +114,3 @@ project.afterEvaluate() {
 
     classes.finalizedBy compileStampedAgent, shadowJar
 }
-
-
-/*
-compileKotlin {
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-}
-compileTestKotlin {
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-}
-*/

@@ -65,18 +65,17 @@ public class NavigationController extends InstrumentationDelegate {
 
     @ReplaceCallSite(isStatic = true)
     static public void invoke(NavHostController navHostController, NavBackStackEntry navBackStackEntry, Composer composer, int cnt) {
-        navHostController.popBackStack();
+        navHostController.navigate(navBackStackEntry.getDestination().getId(), navBackStackEntry.getArguments());
         executor.submit(() -> {
-            log.debug("navigate$default(NavController, String, NavOptions, Navigator.Extras, int, Object)");
+            log.debug("invoke(NavController, NavBackStackEntry, Composer, int)");
             Map<String, Object> attrs = new HashMap<String, Object>() {{
                 put("span", "invoke");
-                put("navBackStackEntry.id", navBackStackEntry.getId());
+                put("navBackStackEntry.id", navBackStackEntry.getDestination().getId());
                 if (navBackStackEntry.getArguments() != null) {
                     put("navBackStackEntry.arguments", navBackStackEntry.getArguments().toString());
                 }
                 put("composer.rememberedValue", composer.rememberedValue());
             }};
-
             analyticsController.recordBreadcrumb("Compose", attrs);
         });
     }
