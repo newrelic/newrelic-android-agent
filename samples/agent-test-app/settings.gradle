@@ -86,8 +86,8 @@ pluginManagement {
         id("com.android.application") version "${versions.agp}" apply false
         id("com.android.library") version "${versions.agp}" apply false
         id("com.android.dynamic-feature") version "${versions.agp}" apply false
-        id('newrelic') version "${versions.agent}" apply false
         id('dexguard') version "${versions.dexguard.plugin}" apply false
+        id('newrelic') version "${versions.agent}" apply false
     }
 }
 

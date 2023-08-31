@@ -19,7 +19,17 @@ if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
 apply from: "${rootDir}/android.gradle"
 
 android {
-    namespace "com.newrelic.agent.android.testapp.library"
+    namespace "com.newrelic"
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11
+    }
 }
+
 
 

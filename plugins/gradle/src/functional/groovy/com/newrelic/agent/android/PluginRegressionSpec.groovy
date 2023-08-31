@@ -57,7 +57,7 @@ class PluginRegressionSpec extends PluginSpec {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
 
-            testVariants.each { var ->
+            instrumentationVariants.each { var ->
                 task(":assemble${var.capitalize()}").outcome == SUCCESS
                 (task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                         task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
@@ -119,10 +119,12 @@ class PluginRegressionSpec extends PluginSpec {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
 
-            testVariants.each { var ->
+            instrumentationVariants.each { var ->
                 task(":assemble${var.capitalize()}").outcome == SUCCESS
                 task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}").outcome == SUCCESS
                 task(":${NewRelicConfigTask.NAME}${var.capitalize()}").outcome == SUCCESS
+            }
+            mapUploadVariants.each { var ->
                 task(":${NewRelicMapUploadTask.NAME}${var.capitalize()}").outcome == SUCCESS
             }
         }
