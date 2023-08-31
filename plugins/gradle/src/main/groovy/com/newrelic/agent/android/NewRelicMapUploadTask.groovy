@@ -33,9 +33,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
     abstract Property<String> getBuildId()
 
     @Input
-    abstract Property<String> getMapProvider()
-
-    // [proguard, r8, dexguard]
+    abstract Property<String> getMapProvider()      // [proguard, r8, dexguard]
 
     @Internal
     abstract DirectoryProperty getProjectRoot()

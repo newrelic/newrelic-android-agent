@@ -1,0 +1,7 @@
+#/bin/sh
+
+find . -name NewRelicConfig.java -exec grep -l BUILD_ID {} \; -exec grep BUILD_ID {} \;
+echo
+find . -name *mapping.txt -exec grep -l NR_B {} \; -exec grep NR_B {} \;
+echo
+find . -name ".metadata" -exec echo {} \; -exec cat {} \; -exec echo \; 

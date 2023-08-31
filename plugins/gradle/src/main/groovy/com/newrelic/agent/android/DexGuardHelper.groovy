@@ -33,7 +33,7 @@ class DexGuardHelper {
     final Logger logger
     final def extension
 
-    String currentVersion = "9.0.0"
+    def currentVersion = "9.0.0"
     def enabled = false
 
     static DexGuardHelper register(BuildHelper buildHelper) {
@@ -56,8 +56,8 @@ class DexGuardHelper {
                 this.extension = buildHelper.project.extensions.getByName(DexGuardHelper.PLUGIN_EXTENSION_NAME)
                 this.extension?.with() { ext ->
                     try {
-                        ext.version?.with() { v ->
-                            this.currentVersion = v
+                        ext.version?.with() { version ->
+                            this.currentVersion = version
                         }
                     } catch (Exception ignored) {
                         // version not found in config

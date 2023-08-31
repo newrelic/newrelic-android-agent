@@ -96,6 +96,7 @@ class PluginJDK11IntegrationSpec extends PluginSpec {
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
+                        "-PincludeLibrary=false",   // FIXME https://github.com/JetBrains/compose-multiplatform/issues/2108
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         testTask)
         when:

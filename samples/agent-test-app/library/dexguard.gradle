@@ -1,3 +1,4 @@
+import org.gradle.util.GradleVersion
 import org.slf4j.LoggerFactory
 
 /*
@@ -17,8 +18,6 @@ if (project.plugins.hasPlugin("dexguard")) {
     logger.quiet "[agent-test-app] applied DexGuard[${versions.dexguard.plugin}] plugin to library"
 
     dexguard {
-        version = versions.dexguard.plugin
-
         // path should point to the DexGuard distribution directory
         // path = "/path/to/dexguard/lib"
 
@@ -27,19 +26,24 @@ if (project.plugins.hasPlugin("dexguard")) {
 
         configurations {
             debug {
-                defaultConfiguration "dexguard-library-release-aggressive.pro"
+                defaultConfiguration "dexguard-library-debug.pro"
                 configuration "${rootDir}/dexguard-project.txt"
                 configuration "${rootDir}/proguard-rules.pro"
             }
             qa {
-                defaultConfiguration 'dexguard-library-release-aggressive.pro'
+                defaultConfiguration 'dexguard-library-release-conservative.pro'
                 configuration "${rootDir}/dexguard-qa-project.txt"
             }
             release {
-                defaultConfiguration 'dexguard-library-release-aggressive.pro'
+                defaultConfiguration 'dexguard-library-release.pro'
                 configuration "${rootDir}/dexguard-project.txt"
                 configuration "${rootDir}/proguard-rules.pro"
             }
         }
     }
+
+    if (GradleVersion.version(versions.dexguard.plugin.replace('+', '0')) < GradleVersion.version("9.4")) {
+        dexguard.version = versions.dexguard
+    }
+
 }

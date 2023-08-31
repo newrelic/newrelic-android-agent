@@ -22,10 +22,7 @@ import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 class PluginRegressionSpec extends PluginSpec {
 
     @Shared
-    def testTask = 'assembleRelease'
-
-    @Shared
-    def testVariants = ['release']
+    def testTask = 'assemble'
 
     @Retry(count = 2)
     @Timeout(300)
@@ -57,7 +54,7 @@ class PluginRegressionSpec extends PluginSpec {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
 
-            testVariants.each { var ->
+            instrumentationVariants.each { var ->
                 task(":assemble${var.capitalize()}").outcome == SUCCESS
                 (task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                         task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
@@ -67,7 +64,8 @@ class PluginRegressionSpec extends PluginSpec {
                     def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
                     configClass.exists() && configClass.canRead()
                 }
-
+            }
+            mapUploadVariants.each { var ->
                 (task(":${NewRelicMapUploadTask.NAME}${var.capitalize()}")?.outcome == SUCCESS ||
                         task("newrelicMapUploadMinify${var.capitalize()}WithR8")?.outcome == SUCCESS)
 
@@ -103,9 +101,9 @@ class PluginRegressionSpec extends PluginSpec {
                         "-Pnewrelic.agent.version=${agent}",
                         "-Pnewrelic.agp.version=${agp}",
                         "-Pcompiler=r8",
-                        "-PagentRepo=local",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=false",
+                        "--debug",
                         "clean",
                         testTask)
 
@@ -119,10 +117,12 @@ class PluginRegressionSpec extends PluginSpec {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
 
-            testVariants.each { var ->
+            instrumentationVariants.each { var ->
                 task(":assemble${var.capitalize()}").outcome == SUCCESS
                 task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}").outcome == SUCCESS
                 task(":${NewRelicConfigTask.NAME}${var.capitalize()}").outcome == SUCCESS
+            }
+            mapUploadVariants.each { var ->
                 task(":${NewRelicMapUploadTask.NAME}${var.capitalize()}").outcome == SUCCESS
             }
         }
