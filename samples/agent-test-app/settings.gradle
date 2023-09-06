@@ -28,7 +28,7 @@ pluginManagement {
 
     resolutionStrategy {
         eachPlugin {
-            if (requested.id.id.startsWith("newrelic")) {
+            if (requested.id.id == ("newrelic")) {
                 useModule("com.newrelic.agent.android:agent-gradle-plugin:${versions.agent}")
             }
             if (requested.id.id == "dexguard") {
@@ -65,7 +65,7 @@ pluginManagement {
                 maven {
                     credentials {
                         username = "maven"
-                        password = "${dexguardMavenToken}"
+                        password = System.getProperty("DEXGUARD_MAVENTOKEN", "${dexguardMavenToken}")
                     }
                     url "https://maven.guardsquare.com"
                     content {
@@ -86,8 +86,8 @@ pluginManagement {
         id("com.android.application") version "${versions.agp}" apply false
         id("com.android.library") version "${versions.agp}" apply false
         id("com.android.dynamic-feature") version "${versions.agp}" apply false
-        id('newrelic') version "${versions.agent}" apply false
         id('dexguard') version "${versions.dexguard.plugin}" apply false
+        id('newrelic') version "${versions.agent}" apply false
     }
 }
 

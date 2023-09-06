@@ -13,11 +13,11 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.Logger
-import org.gradle.api.logging.Logging
 import org.gradle.api.plugins.UnknownPluginException
+import org.slf4j.LoggerFactory
 
 class NewRelicGradlePlugin implements Plugin<Project> {
-    public static Logger LOGGER = Logging.getLogger(PLUGIN_EXTENSION_NAME)
+    public static Logger LOGGER = LoggerFactory.getLogger(PLUGIN_EXTENSION_NAME)
 
     public static final String PLUGIN_EXTENSION_NAME = "newrelic"
 
@@ -82,10 +82,10 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         pluginExtension.with {
             // Do all the variants if variant maps are disabled, or only those provided
             // in the extension. The default is ['release'].
-            if (!variantMapsEnabled.get() || variantMapUploadList.isEmpty()) {
+            if (!variantMapsEnabled.get() || variantMapUploads.isEmpty()) {
                 LOGGER.debug("Maps will be tagged and uploaded for all variants")
             } else {
-                LOGGER.debug("Maps will be tagged and uploaded for variants ${variantMapUploadList}")
+                LOGGER.debug("Maps will be tagged and uploaded for variants ${variantMapUploads}")
             }
         }
 

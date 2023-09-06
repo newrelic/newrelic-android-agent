@@ -1,11 +1,11 @@
-import org.slf4j.LoggerFactory
-
 /*
  * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
-def logger = LoggerFactory.getLogger("newrelic")
 
+import org.slf4j.LoggerFactory
+
+def logger = LoggerFactory.getLogger("newrelic")
 
 android {
     compileSdk versions.agp.compileSdk
@@ -53,8 +53,8 @@ android {
 
             default:
                 debug {}
-                qa {}
-                release {}
+                qa.initWith debug
+                release.initWith qa
                 break
         }
     }
@@ -96,7 +96,7 @@ if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
 
     logger.quiet "[agent-test-app] applied NR [${newrelic.agent.version}] plugin"
 
-    // this allows integration testing
+    // this allows integration tests to configure plugin
     def testExtension = rootProject.file("nr-extension.gradle")
     if (testExtension.exists()) {
         apply from: testExtension.absolutePath
@@ -106,11 +106,11 @@ if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
             // use a common buildId for all variants (default: true)
             variantMapsEnabled = true
 
-            // Tag and report Proguard maps for these build types (default: release):
+            // Tag and report Proguard/DexGuard maps for these build types:
             if (withProductFlavors && withProductFlavors.toBoolean()) {
-                uploadMapsForVariant 'googleRelease', 'amazonQa'
+                uploadMapsForVariant 'googleQa', 'amazonQa'
             } else {
-                uploadMapsForVariant 'release', 'qa'
+                uploadMapsForVariant 'qa'
             }
 
             // do not instrument these variant builds
@@ -120,21 +120,14 @@ if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
             excludePackageInstrumentation 'com.newrelic'
 
             try {
+                // allow overrides for specific (DexGuard) configuration
                 variantConfigurations {
-                    debug {
-                        mappingFile = "build/outputs/mapping/qa/mapping.txt"
-                    }
-
                     qa {
                         uploadMappingFile = true
-                        mappingFile = "build/outputs/mapping/qa/mapping.txt"
-                    }
-
-                    release {
-                        uploadMappingFile = true
-                        mappingFile = "build/outputs/mapping/release/mapping.txt"
+                        mappingFile = "build/outputs/dexguard/mapping/qa/qa-mapping.txt"
                     }
                 }
+
             } catch (Exception e) {
                 logger.error(e.toString())
             }

@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.test.library
+package com.newrelic.agent.android.testapp.library
 
 class Library {
-    static final String NAME ="Library"
-
+    companion object {
+        val NAME: String = "Agent-Test-App Library"
+    }
 }

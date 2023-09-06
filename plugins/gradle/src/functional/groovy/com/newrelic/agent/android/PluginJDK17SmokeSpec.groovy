@@ -28,6 +28,9 @@ class PluginJDK17SmokeSpec extends PluginSpec {
     @Shared
     def testVariants = ['googleRelease']
 
+    @Shared
+    def mapUploadVariants = ["amazonQa"]
+
     def setupSpec() {
         given: "create the build runner"
         def runner = provideRunner()
@@ -40,7 +43,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                         "-PwithProductFlavors=true",
                         "--debug",
                         "clean",
-                        testTask)
+                        testTask, "assembleQa")
 
         when: "run the build *once* and cache the results"
         buildResult = runner.build()
@@ -89,14 +92,14 @@ class PluginJDK17SmokeSpec extends PluginSpec {
         expect:
         filteredOutput.contains("Maps will be tagged and uploaded for variants [")
 
-        testVariants.each { var ->
+        mapUploadVariants.each { var ->
             buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
-
             with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
+                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") ||
+                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
             }
         }
     }
@@ -106,6 +109,8 @@ class PluginJDK17SmokeSpec extends PluginSpec {
         testVariants.each { var ->
             (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                     buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+        }
+        mapUploadVariants.each { var ->
             buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
         }
     }

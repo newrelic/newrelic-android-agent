@@ -28,9 +28,9 @@ buildscript {
                 gradle  : hasOptional("newrelic.gradle.version", "7.6"),
                 agp     : [
                         plugin    : hasOptional('newrelic.agp.version', "7.0.+"),
-                        targetSdk : 30,
-                        compileSdk: 30,
-                        minSdk    : 24,
+                        targetSdk : 31,
+                        compileSdk: 31,
+                        minSdk    : 26,
                         supportLib: "28.+"
                 ],
                 dexguard: [
@@ -41,8 +41,6 @@ buildscript {
                 gson    : '2.10.1'
         ]
     }
-
-    // logger.debug "[newrelic] $project.properties"
 
     dependencies {
         classpath newrelic.deps.plugin
@@ -83,6 +81,13 @@ android {
 }
 
 apply from: "android.gradle"
+
+if (project.includeLibrary && Boolean.valueOf(project.includeLibrary)) {
+    dependencies {
+        // Dependency on local test library module
+        implementation project(':library')
+    }
+}
 
 project.tasks.register("cleanRoot", Delete) {
     delete rootProject.buildDir

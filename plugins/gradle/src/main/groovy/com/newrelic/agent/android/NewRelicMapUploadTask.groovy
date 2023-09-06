@@ -69,21 +69,24 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
                 if (taggedMappingFiles.isPresent() && !taggedMappingFiles.get().empty) {
                     def infile = mappingFile.asFile.get()
                     taggedMappingFiles.get().files.add(project.file(mappingFile))
-                    def outfile = taggedMappingFiles.first().asFile.get()
-                    outfile?.with {
-                        parentFile.mkdirs()
-                        text = infile.text + BuildHelper.NEWLN +
-                                Proguard.NR_MAP_PREFIX + buildId.get() + BuildHelper.NEWLN
-                    }
                     mapFilePath = taggedMappingFiles.get().files.first().asFile
                 }
 
                 if (mapFilePath?.exists()) {
                     logger.debug("Map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
+
                     agentOptions.put(Proguard.MAPPING_FILE_KEY, mapFilePath.absolutePath)
                     agentOptions.put(Proguard.MAPPING_PROVIDER_KEY, mapProvider.get())
                     agentOptions.put(Proguard.VARIANT_KEY, variantName.get())
                     agentOptions.put(BuildId.BUILD_ID_KEY, buildId.get())
+
+                    // tag the map now to avoid Gradle race conditions
+                    mapFilePath.with {
+                        if (!text.contains(Proguard.NR_MAP_PREFIX)) {
+                            text = text + BuildHelper.NEWLN +
+                                    Proguard.NR_MAP_PREFIX + buildId.get() + BuildHelper.NEWLN
+                        }
+                    }
 
                     new Proguard(NewRelicGradlePlugin.LOGGER, agentOptions).findAndSendMapFile()
                 } else {
