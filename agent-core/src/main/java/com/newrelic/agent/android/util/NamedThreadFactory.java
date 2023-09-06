@@ -15,17 +15,13 @@ public class NamedThreadFactory implements ThreadFactory {
     final AtomicInteger threadNumber = new AtomicInteger(1);
 
     public NamedThreadFactory(String factoryName) {
-        SecurityManager s = System.getSecurityManager();
-        group = (s != null) ? s.getThreadGroup() :
-                Thread.currentThread().getThreadGroup();
+        group = Thread.currentThread().getThreadGroup();
         namePrefix = "NR_" + factoryName + "-";
     }
 
     @Override
     public Thread newThread(Runnable r) {
-        Thread t = new Thread(group, r,
-                namePrefix + threadNumber.getAndIncrement(),
-                0);
+        Thread t = new Thread(group, r, namePrefix + threadNumber.getAndIncrement(), 0);
         if (t.isDaemon()) {
             t.setDaemon(false);
         }
