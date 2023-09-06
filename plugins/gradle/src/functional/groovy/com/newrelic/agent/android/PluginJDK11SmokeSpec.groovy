@@ -73,6 +73,7 @@ class PluginJDK11SmokeSpec extends PluginSpec {
                     "/generated/java/newrelicConfig${var.capitalize()}/com/newrelic/agent/android/NewRelicConfig.java")
             configTmpl.exists() && configTmpl.canRead()
             configTmpl.text.find(~/BUILD_ID = \"(.*)\".*/)
+            configTmpl.text.contains("Boolean OBFUSCATED = true;")
 
             def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
             configClass.exists() && configClass.canRead()
