@@ -15,7 +15,7 @@ jobs:
       matrix:
         agp: [ '8.0.0','8.0.1','8.0.2','8.1.0']
 
-    name: AGP Matrix Release - AGP ${{ matrix.agp }} - Integrations ${{ matrix.integrations }}
+    name: AGP Matrix Test - AGP ${{ matrix.agp }}
     env:
       VERSION_AGP: ${{ matrix.agp }}
     steps:
@@ -24,12 +24,17 @@ jobs:
       uses: actions/setup-java@v3
       with:
         java-version: '17'
-        distribution: 'temurin'     
-
+        distribution: 'temurin'
+        check-latest: true
+    - name: Set up Gradle
+      uses: gradle/gradle-build-action@v2.4.2
+      with:
+        gradle-version: 8.0
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    - name: Stage with Gradle
+      run: ./gradlew install publish
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: |
-         ./gradlew wrapper --gradle-version=8.0
-         ./gradlew sync
-         ./gradlew build
+      run: ./gradlew clean build
