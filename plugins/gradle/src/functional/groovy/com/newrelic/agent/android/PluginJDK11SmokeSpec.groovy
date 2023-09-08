@@ -32,6 +32,7 @@ class PluginJDK11SmokeSpec extends PluginSpec {
 
         def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
+                .forwardStdOutput(printFilter)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",

@@ -32,20 +32,21 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
 
     def "verify config task with incremental builds"() {
         given: "Build the app again without cleaning"
-        def runner = provideRunner().withArguments(
-                "-Pnewrelic.agent.version=${agentVersion}",
-                "-Pnewrelic.agp.version=${agpVersion}",
-                "-Pcompiler=r8",
-                "-PagentRepo=${localEnv["M2_REPO"]}",
-                "-PwithProductFlavors=false",
-                testTask)
+        def runner = provideRunner()
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-Pcompiler=r8",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PwithProductFlavors=false",
+                        testTask)
 
-        when:
+        when: "run the initial build"
         instrumentationVariants = ["release"]
         buildResult = runner.build()
 
         and:
-        // rerun the build use local results
+        // rerun the build using cached results
         buildResult = runner.build()
 
         then:
@@ -185,7 +186,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
     def "verify product flavors"() {
         given: "Build with flavor dimensions enabled"
         def runner = provideRunner()
-                .withArguments("--debug",
+                .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",

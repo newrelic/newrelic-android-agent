@@ -132,18 +132,21 @@ dependencies {
     testRuntimeOnly(files(toolingApiBuildersJar))
 }
 
-tasks.withType(JavaCompile).configureEach {
+tasks.named("compileKotlin").configure {
     dependsOn(":instrumentation:jar")
 }
 
-tasks.named("compileKotlin").configure {
+tasks.withType(JavaCompile).configureEach {
     dependsOn(":instrumentation:jar")
 }
 
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
     failFast = true
-
+    /*
+        minHeapSize = "1g"
+        maxHeapSize = "4g"
+    */
     ["newrelic.agent.args", "newrelic.agent.version", "integrations", "regressions"].each {
         if (project.hasProperty(it)) {
             systemProperty it, project.property(it)
@@ -162,9 +165,14 @@ tasks.withType(Copy).all {
 
 test {
     useJUnitPlatform()
-    minHeapSize = "2g"
-    maxHeapSize = "8g"
     failFast = true
+    minHeapSize = "1g"
+    maxHeapSize = "4g"
+    jvmArgs '-XX:MaxPermSize=4g'
+    testLogging {
+        events "skipped", "failed"
+    }
+    forkEvery 2
 }
 
 def integrationTestTask = tasks.register("integrationTests", Test) {

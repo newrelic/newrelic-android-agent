@@ -21,7 +21,6 @@ class PrintFilter extends StringWriter {
             buf.findAll(~/\[newrelic[\.\]].*\n/).each {
                 filteredLog.append(it)
             }
-            buf.setLength(0)
         }
     }
 }
