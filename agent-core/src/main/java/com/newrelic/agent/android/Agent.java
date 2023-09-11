@@ -17,7 +17,7 @@ import java.util.List;
 public class Agent {
     public static final String VERSION = "#VERSION#";
     public static final String MONO_INSTRUMENTATION_FLAG = "#MONO_INSTRUMENTATION_FLAG#";
-    public static final String UNITY_INSTRUMENTATION_FLAG = "#UNITY_INSTRUMENTATION_FLAG#";
+
     public static final String DEFAULT_BUILD_ID = "#DEFAULT_BUILD_ID#";
 
     private static final AgentImpl NULL_AGENT_IMPL = new NullAgentImpl();
@@ -56,7 +56,7 @@ public class Agent {
             if (buildId == null) {
                 String build_id = "";
 
-                if (getMonoInstrumentationFlag().equals("YES") || getUnityInstrumentationFlag().equals("YES")) {
+                if (getMonoInstrumentationFlag().equals("YES")) {
                     build_id = DEFAULT_BUILD_ID;
                 } else {
                     try {
@@ -212,8 +212,5 @@ public class Agent {
         return getImpl().isInstantApp();
     }
 
-    public static String getUnityInstrumentationFlag() {
-        return UNITY_INSTRUMENTATION_FLAG;
-    }
 
 }
