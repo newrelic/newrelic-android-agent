@@ -1,0 +1,17 @@
+newrelic {
+    // Tag and report Proguard maps for these build types (default: release):
+    uploadMapsForVariant 'qa'
+
+    // do not instrument these variant builds
+    excludeVariantInstrumentation 'debug'
+
+    // do not instrument these specific packages
+    excludePackageInstrumentation 'com.newrelic'
+
+    // Allow overriders for specific values (DexGuard)
+    variantConfigurations {
+        qa {
+            mappingFile = 'build/outputs/dexguard/mapping/qa/qa-mapping.txt'
+        }
+    }
+}

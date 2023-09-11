@@ -52,7 +52,7 @@ abstract class NewRelicConfigTask extends DefaultTask {
                         final class NewRelicConfig {
                             static final String VERSION = "${InstrumentationAgent.getVersion()}";
                             static final String BUILD_ID = "${buildId.get()}";
-                            static final Boolean MINIFIED = ${minifyEnabled.getOrElse(false)};
+                            static final Boolean OBFUSCATED = ${minifyEnabled.getOrElse(false)};
                             static final String MAP_PROVIDER = "${mapProvider.get()}";
                             static final String METRICS = "${buildMetrics.getOrElse("")}";
                             public static String getBuildId() {

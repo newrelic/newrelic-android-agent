@@ -14,10 +14,9 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 @Stepwise
-@Requires({ jvm.isJava17Compatible() })
+@Requires({ jvm.isJavaVersionCompatible(minJdkVersion) })
 class PluginJDK17IntegrationSpec extends PluginSpec {
 
-    static final jdkVersion = 17
     static final agpVersion = "8.0.+"
     static final gradleVersion = "8.2"
 
@@ -42,7 +41,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                 testTask)
 
         when:
-        testVariants = ["release"]
+        instrumentationVariants = ["release"]
         buildResult = runner.build()
 
         and:
@@ -50,7 +49,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         buildResult = runner.build()
 
         then:
-        testVariants.each { var ->
+        instrumentationVariants.each { var ->
             with(buildResult.task(":${NewRelicConfigTask.NAME}${var.capitalize()}")) {
                 outcome == SKIPPED || outcome == UP_TO_DATE
             }

@@ -156,6 +156,10 @@ tasks.withType(Test).configureEach {
     }
 }
 
+tasks.withType(Copy).all {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 test {
     useJUnitPlatform()
     minHeapSize = "2g"

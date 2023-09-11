@@ -1,18 +1,7 @@
 name: Android Functional Test Workflows
 
 on:
-#  release:
-#    types: [created]
-#  push:
-#    branches: [ "develop", "main" ]
-#  pull_request:
-#    branches: [ "develop", "main" ]
   workflow_dispatch:
-    inputs:
-      agent:
-        description: 'NewRelic Android agent version to test'
-        default: '7.+'
-        required: false
 
 jobs:
   functional-jdk17-plugin:
@@ -103,7 +92,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 5
 
-  functional-jdk17-regression:
+  functional-jdk17-regressions:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -130,4 +119,3 @@ jobs:
           path: plugins/gradle/build/reports/tests/test
           if-no-files-found: ignore
           retention-days: 5
-

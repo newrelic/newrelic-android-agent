@@ -180,8 +180,8 @@ public class Proguard {
                 } else if (lastLine.startsWith(NR_MAP_PREFIX)) {
                     // replace build id with parsed value
                     buildId = lastLine.substring(NR_MAP_PREFIX.length());
-                    log.info("Map [" + file.getAbsolutePath() + "] has already been tagged with buildID [" + buildId + "] - resending.");
-                    return true;        // send it again
+                    log.debug("Map [" + file.getAbsolutePath() + "] has already been tagged with buildID [" + buildId + "].");
+                    return true;        // send it
                 } else {
                     buildId = agentOptions.getOrDefault(BuildId.BUILD_ID_KEY, buildId);
                     log.info("Tagging map [" + file.getAbsolutePath() + "] with buildID [" + buildId + "]");
@@ -420,7 +420,7 @@ public class Proguard {
 
     private void logRecourse() {
         log.error("To de-obfuscate crashes, upload the build's ProGuard/DexGuard 'mapping.txt' manually,");
-        log.error("or run the 'newRelicMapUpload<Variant>' or 'newRelicProguardScanTask' Gradle tasks.");
+        log.error("or run the 'newRelicMapUpload<Variant>' Gradle task.");
         log.error("For more help, see 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/android-agent-crash-reporting'");
     }
 
