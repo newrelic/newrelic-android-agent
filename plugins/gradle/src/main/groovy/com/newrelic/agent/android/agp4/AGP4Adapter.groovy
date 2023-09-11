@@ -178,7 +178,7 @@ class AGP4Adapter extends VariantAdapter {
 
         // If all else fails, default to default map locations
         def f = buildHelper.project.layout.buildDirectory.file("outputs/mapping/${variant.dirName}/mapping.txt")
-        return objectFactory.fileProperty().fileValue(f)
+        return objectFactory.fileProperty().value(f)
     }
 
     @Override

@@ -51,12 +51,12 @@ class DexGuardHelper {
         this.objectFactory = buildHelper.project.objects
         this.variantConfigurations = objectFactory.mapProperty(String, Object)
 
-        if (buildHelper.project.plugins.hasPlugin(DexGuardHelper.PLUGIN_EXTENSION_NAME)) {
+        if (buildHelper.project.getPlugins().hasPlugin(DexGuardHelper.PLUGIN_EXTENSION_NAME)) {
             try {
-                this.extension = buildHelper.project.extensions.getByName(DexGuardHelper.PLUGIN_EXTENSION_NAME)
+                this.extension = buildHelper.project.getExtensions().getByName(DexGuardHelper.PLUGIN_EXTENSION_NAME)
                 this.extension?.with() { ext ->
                     try {
-                        ext.version?.with() { version ->
+                        ext.getVersion()?.with() { version ->
                             this.currentVersion = version
                         }
                     } catch (Exception ignored) {
@@ -83,7 +83,7 @@ class DexGuardHelper {
                     }
                 }
             } catch (Exception e) {
-                logger.error(e)
+                logger.error(e.message)
             }
             this.enabled = true
         }
@@ -116,7 +116,9 @@ class DexGuardHelper {
 
     protected wireDexGuardMapProviders(String variantName) {
         try {
-            def mapUploadProvider = buildHelper.variantAdapter.wiredWithMapUploadProvider(variantName)
+            // create a map upload task for this variant
+            buildHelper.variantAdapter.wiredWithMapUploadProvider(variantName)
+
             buildHelper.project.afterEvaluate {
                 def wiredTaskNames = [DEXGUARD_APK_TASK, DEXGUARD_AAB_TASK, DEXGUARD_BUNDLE_TASK, DEXGUARD_AAR_TASK].collect { it + variantName.capitalize() }
                 buildHelper.wireTaskProviderToDependencyNames(Set.of(wiredTaskNames)) { taskProvider ->
@@ -173,7 +175,7 @@ class DexGuardHelper {
                     }
 
                 } catch (Exception e) {
-                    logger.debug("configureDexGuardTasks: Desugaring task [" + desugarTaskName + "]: " + e)
+                    logger.debug("configureDexGuard: Desugaring task [" + desugarTaskName + "]: " + e)
                 }
 
                 buildHelper.variantAdapter.getJavaCompileProvider(variant.name).configure {
@@ -193,7 +195,7 @@ class DexGuardHelper {
 
             } catch (UnknownTaskException e) {
                 // task for this variant not available
-                logger.debug("configureDexGuardTasks: " + e)
+                logger.debug("configureDexGuard: " + e)
             }
         }
     }

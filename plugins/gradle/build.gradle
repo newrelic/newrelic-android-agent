@@ -55,12 +55,6 @@ compileKotlin {
 classes.dependsOn compileKotlin
 
 dependencies {
-    def toolingApiBuildersJar = (project as ProjectInternal).services.get(ModuleRegistry.class)
-            .getModule("gradle-tooling-api-builders")
-            .classpath
-            .asFiles
-            .first()
-
     implementation project(path: ':instrumentation', configuration: 'shadow')
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 
@@ -76,60 +70,34 @@ dependencies {
     compileOnly localGroovy()
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
-    // testImplementation(project)
     testImplementation project(path: ':instrumentation', configuration: 'default')
-    testImplementation gradleApi()
-    testImplementation gradleTestKit()
     testImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
-    testImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
     testImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
     testImplementation 'com.google.guava:guava:' + project.versions.java.guava
+
     testImplementation 'junit:junit:' + project.versions.test.junit
     testImplementation 'org.junit.jupiter:junit-jupiter-api:' + project.versions.test.jupiter
     testImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
     testImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
-    testImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
-    testImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
-        exclude group: 'org.codehaus.groovy'
-    }
 
-    // integrations
-    integrationImplementation(project)
-    integrationImplementation project(path: ':instrumentation', configuration: 'default')
-    integrationImplementation gradleApi()
+    // integration tests
     integrationImplementation gradleTestKit()
-    integrationImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
-    integrationImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    integrationImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
-    integrationImplementation 'com.google.guava:guava:' + project.versions.java.guava
-    integrationImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
-    integrationImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
-    integrationImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
-    integrationImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
-    integrationImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
-        exclude group: 'org.codehaus.groovy'
-    }
+    // this is unnecessary in Gradle 7.6 and higher
+    def toolingApiBuildersJar = (project as ProjectInternal).services.get(ModuleRegistry.class)
+            .getModule("gradle-tooling-api-builders")
+            .classpath
+            .asFiles
+            .first()
+    integrationImplementation(files(toolingApiBuildersJar))
 
-    // end-to-end, regressions
-    functionalImplementation(project)
-    functionalImplementation project(path: ':instrumentation', configuration: 'default')
-    functionalImplementation gradleApi()
+    // end-to-end and regression tests
     functionalImplementation gradleTestKit()
-    functionalImplementation 'com.android.tools.build:gradle:' + project.versions.agp.plugin
-    functionalImplementation 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    functionalImplementation 'commons-io:commons-io:' + project.versions.java.commonsIO
-    functionalImplementation 'com.google.guava:guava:' + project.versions.java.guava
-    functionalImplementation 'org.junit.jupiter:junit-jupiter-api:' + project.versions.test.jupiter
-    functionalImplementation 'org.junit.jupiter:junit-jupiter:' + project.versions.test.jupiter
-    functionalImplementation 'org.junit.vintage:junit-vintage-engine:' + project.versions.test.jupiter
-    functionalImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
     functionalImplementation platform("org.spockframework:spock-bom:2.3-groovy-3.0")
     functionalImplementation('org.spockframework:spock-core:2.3-groovy-3.0') {
         exclude group: 'org.codehaus.groovy'
     }
-
-    testRuntimeOnly(files(toolingApiBuildersJar))
 }
 
 tasks.named("compileKotlin").configure {
@@ -143,10 +111,8 @@ tasks.withType(JavaCompile).configureEach {
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
     failFast = true
-    /*
-        minHeapSize = "1g"
-        maxHeapSize = "4g"
-    */
+    minHeapSize = "1g"
+    maxHeapSize = "4g"
     ["newrelic.agent.args", "newrelic.agent.version", "integrations", "regressions"].each {
         if (project.hasProperty(it)) {
             systemProperty it, project.property(it)
@@ -172,7 +138,6 @@ test {
     testLogging {
         events "skipped", "failed"
     }
-    forkEvery 2
 }
 
 def integrationTestTask = tasks.register("integrationTests", Test) {

@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android
 
-
 import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.agp7.AGP70Adapter
 import com.newrelic.agent.android.agp7.AGP74Adapter
@@ -20,7 +19,6 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.util.GradleVersion
-import org.slf4j.LoggerFactory
 
 abstract class VariantAdapter {
     final static Logger logger = NewRelicGradlePlugin.LOGGER

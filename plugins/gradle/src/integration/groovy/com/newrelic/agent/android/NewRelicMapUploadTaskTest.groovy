@@ -5,21 +5,18 @@
 
 package com.newrelic.agent.android
 
-import org.gradle.api.file.DirectoryProperty;
 import org.junit.Assert
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-
 class NewRelicMapUploadTaskTest extends PluginTest {
-
     NewRelicExtension ext
     BuildHelper buildHelper
     VariantAdapter variantAdapter
     def provider
 
     NewRelicMapUploadTaskTest() {
-        super(false);
+        super(true);
     }
 
     @BeforeEach
