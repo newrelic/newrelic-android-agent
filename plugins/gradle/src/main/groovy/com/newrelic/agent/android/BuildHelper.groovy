@@ -36,7 +36,7 @@ class BuildHelper {
      * 7.3              7.4
      * 7.4              7.5
      * 8.0              8.0
-     * 8.1              8.0
+     * 8.1              8.2
      *
      **/
 
@@ -68,8 +68,6 @@ class BuildHelper {
     static final AtomicReference<BuildHelper> INSTANCE = new AtomicReference<BuildHelper>(null)
 
     static BuildHelper register(Project project) {
-        //  FIXME INSTANCE.compareAndSet(null, new BuildHelper(project))
-        //  return INSTANCE.get()
         return new BuildHelper(project)
     }
 
@@ -195,16 +193,6 @@ class BuildHelper {
         }
 
         return reportedVersion
-    }
-
-    /**
-     * Proguard/R8/DG8 report through AGP to this location
-     * @param variantDirName Variant directory name used in file template
-     * @return RegularFileProperty
-     */
-    RegularFileProperty getDefaultMapPathProvider(String variantDirName) {
-        def f = project.layout.buildDirectory.file("outputs/mapping/${variantDirName}/mapping.txt")
-        return project.objects.fileProperty().value(f.get())
     }
 
     def withDexGuardHelper(final DexGuardHelper dexguardHelper) {

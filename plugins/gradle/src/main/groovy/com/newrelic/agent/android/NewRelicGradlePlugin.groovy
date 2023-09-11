@@ -51,8 +51,6 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             if (pluginExtension.getEnabled()) {
 
                 project.afterEvaluate {
-                    def buildMap = getDefaultBuildMap()
-
                     // set global enable flag
                     BuildId.setVariantMapsEnabled(pluginExtension.variantMapsEnabled.get())
 
@@ -80,6 +78,10 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
 
         pluginExtension.with {
+            if (!variantExclusions.isEmpty()) {
+                LOGGER.info("Instrumentation will be disabled for variants ${variantExclusions}")
+            }
+
             // Do all the variants if variant maps are disabled, or only those provided
             // in the extension. The default is ['release'].
             if (!variantMapsEnabled.get() || variantMapUploads.isEmpty()) {

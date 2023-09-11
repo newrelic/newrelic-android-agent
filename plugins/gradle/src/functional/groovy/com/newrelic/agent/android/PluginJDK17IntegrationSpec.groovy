@@ -216,7 +216,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         """
 
         def runner = provideRunner()
-                .withArguments("--debug",
+                .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
@@ -266,7 +266,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         """
 
         def runner = provideRunner()
-                .withArguments("--debug",
+                .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
@@ -291,6 +291,60 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                     with(task(":${taskName}")) {
                         outcome == SUCCESS || outcome == UP_TO_DATE
                     }
+                }
+            }
+        }
+    }
+
+    def "verify plugin instrumentation exclusions"() {
+        def mapUploadInclusions = List.of("qa")
+        def instrumentationExclusions = List.of(
+                "amazonDebug",
+                "amazonQa",
+                "googleDebug",
+                "amazonRelease"
+        )
+
+        given: "Configure the plugin using the extension API methods"
+        extensionsFile << """
+            newrelic {
+                uploadMapsForVariant(${mapUploadInclusions.collect { "\"${it}\"" }.join(", ")})
+                excludeVariantInstrumentation(${instrumentationExclusions.collect { "\"${it}\"" }.join(", ")})
+            }
+            """
+
+        def runner = provideRunner()
+                .forwardStdOutput(printFilter)
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PincludeLibrary=false",
+                        "-PwithProductFlavors=true",
+                        "assemble")
+
+        when: "run the build"
+        buildResult = runner.build()
+
+        then:
+        with(buildResult) {
+            def assembleTasks = tasks.findAll { it.path.startsWith(":assemble") }
+            def instrumentTasks = tasks.findAll { it.path.startsWith(":${ClassTransformWrapperTask.NAME}") }
+            def configTasks = tasks.findAll { it.path.startsWith(":${NewRelicConfigTask.NAME}") }
+            def mapTasks = tasks.findAll { it.path.startsWith(":${NewRelicMapUploadTask.NAME}") }
+
+            // assertions:
+            assembleTasks.size == 12
+            instrumentTasks.size == 2
+            configTasks.size() == 6
+            mapTasks.size() == 2
+
+            instrumentationExclusions.each { var ->
+                var = var.capitalize()
+                task(":${NewRelicConfigTask.NAME}${var}") == null
+                task(":${ClassTransformWrapperTask.NAME}${var}") == null
+                with(task(":assemble${var}")) {
+                    outcome == SUCCESS || outcome == UP_TO_DATE
                 }
             }
         }

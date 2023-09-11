@@ -52,6 +52,8 @@ class AGP70Adapter extends VariantAdapter {
             if (shouldInstrumentVariant(variant.name)) {
                 def transformProvider = getTransformProvider(variant.name)
                 def configProvider = getConfigProvider(variant.name)
+            } else {
+                logger.info("Excluding instrumentation of variant[${variant.name}]")
             }
 
             if (shouldUploadVariantMap(variant.name)) {

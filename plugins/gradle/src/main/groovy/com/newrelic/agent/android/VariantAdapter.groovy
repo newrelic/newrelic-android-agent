@@ -20,6 +20,7 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.util.GradleVersion
+import org.slf4j.LoggerFactory
 
 abstract class VariantAdapter {
     final static Logger logger = NewRelicGradlePlugin.LOGGER
@@ -260,7 +261,7 @@ abstract class VariantAdapter {
      */
     def assembleDataModel(String variantName) {
         // assemble and configure model
-        if( buildHelper.extension.shouldIncludeVariant(variantName)) {
+        if (buildHelper.extension.shouldIncludeVariant(variantName)) {
             wiredWithTransformProvider(variantName)
         }
 

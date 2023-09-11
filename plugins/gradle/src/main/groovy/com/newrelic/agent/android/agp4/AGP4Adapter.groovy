@@ -38,6 +38,8 @@ class AGP4Adapter extends VariantAdapter {
                     variants.put(variant.name.toLowerCase(), variant)
                     buildTypes.put(variant.name, getBuildTypeProvider(variant.name).get())
                     assembleDataModel(variant.name)
+                } else {
+                    logger.info("Excluding instrumentation of variant[${variant.name}]")
                 }
             }
         } else if (android instanceof LibraryExtension) {
@@ -46,6 +48,8 @@ class AGP4Adapter extends VariantAdapter {
                     variants.put(variant.name.toLowerCase(), variant)
                     buildTypes.put(variant.name, getBuildTypeProvider(variant.name).get())
                     assembleDataModel(variant.name)
+                } else {
+                    logger.info("Excluding library instrumentation of variant[${variant.name}]")
                 }
             }
         }

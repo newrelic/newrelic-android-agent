@@ -54,6 +54,10 @@ abstract class NewRelicExtension {
         })
     }
 
+    boolean setEnabled(boolean state) {
+        return enabled.set(state)
+    }
+
     boolean getEnabled() {
         return enabled.get()
     }
@@ -107,7 +111,7 @@ abstract class NewRelicExtension {
         }
     }
 
-    void uploadMapsForVariant(Object... e) {
+    void uploadMapsForVariant(String... e) {
         variantMapUploads.clear()
         variantMapUploads.addAll(e.collect { i -> i.toString().toLowerCase() })
 
@@ -119,7 +123,7 @@ abstract class NewRelicExtension {
         }
     }
 
-    void excludeVariantInstrumentation(Object... e) {
+    void excludeVariantInstrumentation(String... e) {
         variantExclusions.clear()
         variantExclusions.addAll(e.collect { i -> i.toString().toLowerCase() })
 
@@ -131,7 +135,7 @@ abstract class NewRelicExtension {
         }
     }
 
-    void excludePackageInstrumentation(Object... e) {
+    void excludePackageInstrumentation(String... e) {
         packageExclusions.clear()
         packageExclusions.addAll(e.collect { i -> i.toString().toLowerCase() })
 
@@ -146,7 +150,7 @@ abstract class NewRelicExtension {
         variantConfigurations.findByName(variantName.toLowerCase())?.with {
             return instrument
         }
-        return !variantExclusions.findAll { variantName == it || variantName.endsWith(it.capitalize()) }.empty
+        return !variantExclusions.findAll { variantName.toLowerCase() == it || variantName.endsWith(it.capitalize()) }.empty
     }
 
     boolean shouldIncludeVariant(String variantName) {
@@ -161,6 +165,8 @@ abstract class NewRelicExtension {
         variantConfigurations.findByName(variantName.toLowerCase())?.with {
             return uploadMappingFile
         }
-        return variantMapUploads.isEmpty() || variantMapUploads.contains(variantName.toLowerCase())
+
+        return variantMapUploads.isEmpty() ||
+                !variantMapUploads.findAll { variantName.toLowerCase() == it || variantName.endsWith(it.capitalize()) }.empty
     }
 }
