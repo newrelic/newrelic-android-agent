@@ -17,6 +17,7 @@ import java.util.List;
 public class Agent {
     public static final String VERSION = "#VERSION#";
     public static final String MONO_INSTRUMENTATION_FLAG = "#MONO_INSTRUMENTATION_FLAG#";
+
     public static final String DEFAULT_BUILD_ID = "#DEFAULT_BUILD_ID#";
 
     private static final AgentImpl NULL_AGENT_IMPL = new NullAgentImpl();
@@ -210,5 +211,6 @@ public class Agent {
     public static boolean isInstantApp() {
         return getImpl().isInstantApp();
     }
+
 
 }

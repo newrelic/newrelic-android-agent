@@ -12,5 +12,7 @@ public enum ApplicationFramework {
     Flutter,
     Capacitor,
     Xamarin,
-    MAUI
+    MAUI,
+
+    Unity
 }
