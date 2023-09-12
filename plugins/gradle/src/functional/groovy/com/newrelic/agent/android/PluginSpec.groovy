@@ -103,8 +103,6 @@ abstract class PluginSpec extends Specification {
 
         def runner = GradleRunner.create()
                 .withProjectDir(projectRootDir)
-                .forwardStdOutput(printFilter)
-                .forwardStdError(errorOutput)
                 .withGradleVersion(gradleVersion)
 
         return debuggable ? runner.withDebug(true) : runner.withEnvironment(localEnv)

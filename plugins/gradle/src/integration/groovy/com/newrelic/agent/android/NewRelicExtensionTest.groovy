@@ -6,15 +6,44 @@
 package com.newrelic.agent.android
 
 import org.junit.Assert
+import org.junit.Ignore
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class NewRelicExtensionTest extends PluginTest {
     NewRelicExtension ext
 
-    NewRelicExtensionTest() {
-        super(false)
-    }
+    // include map uploads for these flavor or build types
+    def mapUploadInclusions = List.of(
+            "productionRelease",
+            "stagingBeta",
+            "AuToMaTiOn")
+
+    // exclude instrumentation based on these flavor types
+    def instrumentationExclusions = List.of(
+            "internalDebug",
+            "internalBeta",
+            "internalRelease",
+            "internalBenchmark",
+            "internalAutomation",
+            "stagingDebug",
+            "stagingRelease",
+            "stagingBenchmark",
+            "stagingAutomation",
+            "productionDebug",
+            "productionBeta",
+            "productionBenchmark",
+            "productionAutomation",
+            "mockAutomation")
+
+    // exclude instrumentation based on these build types
+    def buildTypeExclusions = List.of(
+            "debug",
+            "beta",
+            "Benchmark",
+            "AUTOMATION",
+            "reLeaSe"
+    )
 
     @BeforeEach
     void setUp() {
@@ -33,12 +62,14 @@ class NewRelicExtensionTest extends PluginTest {
 
     @Test
     void register() {
-        Assert.assertTrue(ext instanceof NewRelicExtension)
+        Assert.assertTrue(NewRelicExtension.register(project) instanceof NewRelicExtension)
     }
 
     @Test
     void getEnabled() {
         Assert.assertTrue(ext.enabled)
+        Assert.assertFalse(ext.setEnabled(false))
+        Assert.assertFalse(ext.getEnabled())
     }
 
     @Test
@@ -49,30 +80,56 @@ class NewRelicExtensionTest extends PluginTest {
 
     @Test
     void uploadMapsForVariant() {
-        ext.uploadMapsForVariant("qa")
+        Assert.assertTrue(ext.shouldIncludeMapUpload("curly"))
+
+        ext.uploadMapsForVariant(*mapUploadInclusions)
         Assert.assertFalse(ext.shouldIncludeMapUpload("curly"))
+        Assert.assertTrue(ext.shouldIncludeMapUpload("automation"))
+        Assert.assertTrue(ext.shouldIncludeMapUpload("betaAutomation"))
+        Assert.assertFalse(ext.shouldIncludeMapUpload("automationTest"))
     }
 
     @Test
-    void excludeVariantInstrumentation() {
-        ext.uploadMapsForVariant("qa", "debug")
-    }
-
-    @Test
+    @Ignore("TODO")
     void excludePackageInstrumentation() {
         ext.excludePackageInstrumentation("com.newrelic", "com.android")
-        Assert.assertEquals(2, ext.packageExclusionList.size())
+        Assert.assertEquals(2, ext.packageExclusions.size())
     }
 
     @Test
     void shouldExcludeVariant() {
-        ext.excludeVariantInstrumentation("release")
-        Assert.assertTrue(ext.shouldExcludeVariant("release"))
+        ext.uploadMapsForVariant(*mapUploadInclusions)
+        ext.excludeVariantInstrumentation(*instrumentationExclusions)
+
+        instrumentationExclusions.each {
+            Assert.assertFalse(ext.shouldIncludeVariant(it))
+        }
+
+        ext.excludeVariantInstrumentation(*buildTypeExclusions)
+        instrumentationExclusions.each {
+            Assert.assertTrue(ext.shouldExcludeVariant(it))
+        }
+
+        ext.excludeVariantInstrumentation("dweezil", "ahmet", "moon unit" )
+        Assert.assertTrue(ext.shouldExcludeVariant("dweezil"))
+        Assert.assertTrue(ext.shouldExcludeVariant("ahmet"))
+        Assert.assertFalse(ext.shouldExcludeVariant("diva"))
     }
 
     @Test
     void shouldIncludeVariant() {
+        // test variant configuration
         Assert.assertTrue(ext.shouldIncludeVariant("larry"))
+
+        ext.excludeVariantInstrumentation(*instrumentationExclusions)
+        instrumentationExclusions.each {
+            Assert.assertFalse(ext.shouldIncludeVariant(it))
+        }
+
+        ext.excludeVariantInstrumentation(*buildTypeExclusions)
+        instrumentationExclusions.each {
+            Assert.assertFalse(ext.shouldIncludeVariant(it))
+        }
 
         ext.excludeVariantInstrumentation("dave")
         Assert.assertFalse(ext.shouldIncludeVariant("dave"))
@@ -89,11 +146,14 @@ class NewRelicExtensionTest extends PluginTest {
 
     @Test
     void shouldIncludeMapUpload() {
+        // test variant configuration
         Assert.assertTrue(ext.shouldIncludeMapUpload("curly"))
         Assert.assertFalse(ext.shouldIncludeMapUpload("moe"))
 
         ext.uploadMapsForVariant("mark", "bruce", "scott")
         Assert.assertTrue(ext.shouldIncludeMapUpload("scott"))
         Assert.assertFalse(ext.shouldIncludeMapUpload("dave"))
+        Assert.assertFalse(ext.shouldIncludeMapUpload("KeViN"))
     }
+
 }

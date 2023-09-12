@@ -46,6 +46,7 @@ class PluginDexGuardRegressionSpec extends PluginSpec {
         given: "Build the app using DexGuard"
         def runner = provideRunner()
                 .withGradleVersion(gradle)
+                .forwardStdOutput(printFilter)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agp}",

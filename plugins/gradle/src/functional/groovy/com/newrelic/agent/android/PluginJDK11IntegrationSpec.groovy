@@ -53,6 +53,7 @@ class PluginJDK11IntegrationSpec extends PluginSpec {
         given: "Apply an unsupported Gradle version"
         def runner = provideRunner()
                 .withGradleVersion("6.7.1")
+                .forwardStdError(errorOutput)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=4.+",
@@ -73,6 +74,7 @@ class PluginJDK11IntegrationSpec extends PluginSpec {
         given: "Apply an unsupported AGP version: AGP 3.+ Gradle 5.6.4"
         def runner = provideRunner()
                 .withGradleVersion("6.7.1")
+                .forwardStdError(errorOutput)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=4.1.+",

@@ -22,7 +22,7 @@ class PluginJDK11SmokeSpec extends PluginSpec {
     static final gradleVersion = "7.6.1"
 
     @Shared
-    def testVariants = ['googleRelease']        // when withProductFlavors=true
+    def testVariants = ['googleQa']        // when withProductFlavors=true
 
     def setupSpec() {
         given: "create the build runner"
@@ -32,6 +32,7 @@ class PluginJDK11SmokeSpec extends PluginSpec {
 
         def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
+                .forwardStdOutput(printFilter)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",

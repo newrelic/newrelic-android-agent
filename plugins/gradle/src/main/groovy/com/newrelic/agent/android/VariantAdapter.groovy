@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android
 
-
 import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.agp7.AGP70Adapter
 import com.newrelic.agent.android.agp7.AGP74Adapter
@@ -260,7 +259,7 @@ abstract class VariantAdapter {
      */
     def assembleDataModel(String variantName) {
         // assemble and configure model
-        if( buildHelper.extension.shouldIncludeVariant(variantName)) {
+        if (buildHelper.extension.shouldIncludeVariant(variantName)) {
             wiredWithTransformProvider(variantName)
         }
 

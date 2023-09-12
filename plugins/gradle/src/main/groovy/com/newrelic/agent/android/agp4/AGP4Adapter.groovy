@@ -38,6 +38,8 @@ class AGP4Adapter extends VariantAdapter {
                     variants.put(variant.name.toLowerCase(), variant)
                     buildTypes.put(variant.name, getBuildTypeProvider(variant.name).get())
                     assembleDataModel(variant.name)
+                } else {
+                    logger.info("Excluding instrumentation of variant[${variant.name}]")
                 }
             }
         } else if (android instanceof LibraryExtension) {
@@ -46,6 +48,8 @@ class AGP4Adapter extends VariantAdapter {
                     variants.put(variant.name.toLowerCase(), variant)
                     buildTypes.put(variant.name, getBuildTypeProvider(variant.name).get())
                     assembleDataModel(variant.name)
+                } else {
+                    logger.info("Excluding library instrumentation of variant[${variant.name}]")
                 }
             }
         }
@@ -174,7 +178,7 @@ class AGP4Adapter extends VariantAdapter {
 
         // If all else fails, default to default map locations
         def f = buildHelper.project.layout.buildDirectory.file("outputs/mapping/${variant.dirName}/mapping.txt")
-        return objectFactory.fileProperty().fileValue(f)
+        return objectFactory.fileProperty().value(f)
     }
 
     @Override

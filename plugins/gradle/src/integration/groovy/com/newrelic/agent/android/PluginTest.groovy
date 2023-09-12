@@ -46,21 +46,13 @@ abstract class PluginTest {
         def build = tmpProjectDir.newFile("build.gradle")
         Files.write(getClass().getResource("/gradle/build.gradle").bytes, build)
 
-        FileUtils.copyDirectory(projectDir, tmpProjectDir.root, new FileFilter() {
-            @Override
-            boolean accept(File file) {
-                return !(file.directory && (file.name == "build" || file.name == ".gradle" || file.name == "userHome"))
-            }
-        })
-
         project = ProjectBuilder.builder()
                 .withName("newrelic-plugin-test")
-                // .withProjectDir(projectDir)
                 .withProjectDir(tmpProjectDir.root)
                 .build()
 
         project.getPlugins().with {
-        agp = apply("com.android.application")
+            agp = apply("com.android.application")
             if (applyPlugin) {
                 plugin = apply("newrelic")
             }

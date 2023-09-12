@@ -1,14 +1,25 @@
-package gradle
-
 /*
  * Copyright (c) 2023 - present. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/*
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:7.+"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.+
+    }
+}
+
 plugins {
-    id 'com.android.application'
+    id 'com.android.application' version "7.+"
     id 'org.jetbrains.kotlin.android'
 }
+*/
 
 android {
     namespace 'com.newrelic.agent.android'
@@ -34,29 +45,11 @@ android {
         qa {
             minifyEnabled false
         }
-        staging {
-            minifyEnabled true
-        }
-        prod {
-            minifyEnabled true
-        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
-    buildFeatures {
-        viewBinding true
-    }
-}
-
-dependencies {
-    implementation newrelic.deps.agent
-    implementation 'androidx.core:core-ktx:1.10.0'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
 }
 
 if (project.plugins.hasPlugin("newrelic")) {
