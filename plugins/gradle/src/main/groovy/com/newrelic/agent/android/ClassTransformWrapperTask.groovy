@@ -62,8 +62,8 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                 }
                                 jarOutputStream.closeEntry()
                             }
-                        } catch (IOException ignored) {
-
+                        } catch (IOException fileException) {
+                            logger.error("[ClassTransformTask] [${classJar.asFile.path}] ${fileException.message}")
                         }
                     }
                 }
@@ -71,30 +71,23 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                 classJars.get().forEach { classJar ->
                     try (JarFile jar = new JarFile(classJar.asFile)) {
                         try {
-                            def instrumentable = transformer.verifyManifest(jar)
-
-                            if (!instrumentable) {
-                                return
-                            }
-
                             for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
-                                if (instrumentable) {
-                                    try {
-                                        JarEntry jarEntry = e.nextElement()
-                                        jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
-                                        jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
-                                            transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
-                                                jarOutputStream << it
-                                            }
+                                try {
+                                    JarEntry jarEntry = e.nextElement()
+                                    jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
+                                    jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
+                                        transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
+                                            jarOutputStream << it
                                         }
-                                        jarOutputStream.closeEntry()
-                                    } catch (IOException ignored) {
                                     }
+                                    jarOutputStream.closeEntry()
+                                } catch (IOException jarEntryException) {
+                                    logger.error("[ClassTransformTask] [${classJar.asFile.path}] ${jarEntryException.message}")
                                 }
                             }
 
-                        } catch (IOException e) {
-                            logger.warn(e.message)
+                        } catch (IOException jarException) {
+                            logger.error(("[ClassTransformTask] [${classJar.asFile.path}] ${jarException.message}"))
                         }
                     }
                 }
