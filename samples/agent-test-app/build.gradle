@@ -3,32 +3,46 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import org.gradle.util.GradleVersion
+import org.slf4j.LoggerFactory
 
 buildscript {
-    apply from: "$projectDir/buildconfig.gradle"
+    def logger = LoggerFactory.getLogger("newrelic")
 
-    logger.quiet "[newrelic] [agent-test-app] Agent plugin version [${newrelic.agent.version}]"
+    ext {
+        def hasOptional = { key, defaultValue -> rootProject.hasProperty(key) ? rootProject[key] : defaultValue }
 
-    repositories {
-        maven { url newrelic.agent.snapshotUri }
-
-        if (project.agentRepo) {
-            if (project.agentRepo.toLowerCase() == "local") {
-                mavenLocal()
-            } else if (project.file(agentRepo).exists()) {
-                logger.quiet "[newrelic] [agent-test-app] Agent using local [${agentRepo}] repo"
-                maven { url "${agentRepo}" }
-            }
-        }
-
-        mavenCentral()
-        google()
+        newrelic = [
+                agent: [
+                        version : hasOptional('newrelic.agent.version', '7.+'),
+                        snapshot: hasOptional('newrelic.agent.snapshot', null),
+                        ndk     : hasOptional('newrelic.ndk.version', '1.+')
+                ]
+        ]
+        newrelic.agent.snapshotUri = uri("https://oss.sonatype.org/content/repositories/comnewrelic-${newrelic.agent.snapshot}")
+        newrelic.deps = [
+                agent : "com.newrelic.agent.android:android-agent:${newrelic.agent.version}",
+                plugin: "com.newrelic.agent.android:agent-gradle-plugin:${newrelic.agent.version}",
+                ndk   : "com.newrelic.agent.android:agent-ndk:${newrelic.agent.ndk}",
+        ]
+        versions = [
+                gradle  : hasOptional("newrelic.gradle.version", "7.6"),
+                agp     : [
+                        plugin    : hasOptional('newrelic.agp.version', "7.0.+"),
+                        targetSdk : 31,
+                        compileSdk: 31,
+                        minSdk    : 26,
+                        supportLib: "28.+"
+                ],
+                dexguard: [
+                        base  : hasOptional('dexguard.base.version', '9.+'),
+                        plugin: hasOptional('dexguard.plugin.version', '9.+')
+                ],
+                kotlin  : hasOptional('newrelic.kotlin.version', '1.7.+'),
+                gson    : '2.10.1'
+        ]
     }
 
     dependencies {
-        classpath "com.android.tools.build:gradle:${versions.agp.plugin}"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
         classpath newrelic.deps.plugin
         if (project.compiler.startsWith('dexguard')) {
             classpath "com.guardsquare:dexguard-gradle-plugin:${versions.dexguard.plugin}"
@@ -36,74 +50,23 @@ buildscript {
     }
 }
 
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
 allprojects {
-    repositories {
-        if (project.agentRepo) {
-            if (project.agentRepo.toLowerCase() == "local") {
-                mavenLocal()
-            } else if (project.file(agentRepo).exists()) {
-                maven { url "${agentRepo}" }
-            }
-        }
-
-        maven { url newrelic.agent.snapshotUri }
-        maven { url "https://plugins.gradle.org/m2/" }
-        mavenCentral()
-        google()
-    }
+    ext.newrelic = rootProject.newrelic
 }
 
-subprojects {
-    buildscript {
-        repositories {
-            if (project.agentRepo) {
-                if (project.agentRepo.toLowerCase() == "local") {
-                    mavenLocal()
-                } else if (project.file(agentRepo).exists()) {
-                    logger.quiet "[newrelic] [agent-test-app] Agent using local [${agentRepo}] repo"
-                    maven { url "${agentRepo}" }
-                }
-            }
-
-            maven { url newrelic.agent.snapshotUri }
-            maven { url "https://plugins.gradle.org/m2/" }
-            mavenCentral()
-            google()
-        }
-        dependencies {
-            classpath 'com.android.tools.build:gradle:' + versions.agp.plugin
-            classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
-        }
-    }
+wrapper {
+    gradleVersion = versions.gradle
 }
-
-
-logger.quiet "[newrelic] [agent-test-app] JDK version [${System.getProperty('java.version')}]"
-logger.quiet "[newrelic] [agent-test-app] Gradle version [${GradleVersion.current().version}]"
-logger.quiet "[newrelic] [agent-test-app] AGP plugin version [${versions.agp.plugin}]"
-logger.quiet "[newrelic] [agent-test-app] withProductFlavors[${project.withProductFlavors.toBoolean()}]"
-logger.quiet "[newrelic] [agent-test-app] using dex compiler[$project.compiler]"
-logger.quiet "[newrelic] [agent-test-app] appy NR plugins[$project.applyPlugin]"
-
-project.tasks.register("cleanRoot", Delete) {
-    delete rootProject.buildDir
-}
-
 
 /**
  * Android app component
  * Keep app in rootDir for testing
  */
-apply plugin: "com.android.application"
-apply plugin: "org.jetbrains.kotlin.android"
-if (project.compiler && project.compiler.startsWith('dexguard')) {
-    logger.quiet "[newrelic] [agent-test-app] Dexguard license[${System.getProperty('dexguard.license', System.getenv('DEXGUARD_LICENSE'))}]"
-    logger.quiet "[newrelic] [agent-test-app] Dexguard home[${versions.dexguard.home}]"
-    logger.quiet "[newrelic] [agent-test-app] Dexguard base version[${versions.dexguard.base}]"
-    logger.quiet "[newrelic] [agent-test-app] Dexguard plugin version[${versions.dexguard.plugin}]"
-    apply plugin: 'dexguard'
-}
-apply from: "android.gradle"
 
 android {
     namespace "com.newrelic.agent.android.testapp"
@@ -116,3 +79,19 @@ android {
         dynamicFeatures = [':feature']
     }
 }
+
+apply from: "android.gradle"
+
+if (project.includeLibrary && Boolean.valueOf(project.includeLibrary)) {
+    dependencies {
+        // Dependency on local test library module
+        implementation project(':library')
+    }
+}
+
+project.tasks.register("cleanRoot", Delete) {
+    delete rootProject.buildDir
+    clean.finalizedBy(it)
+}
+
+

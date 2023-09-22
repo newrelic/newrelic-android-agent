@@ -7,7 +7,6 @@ package com.newrelic.agent.android
 
 import org.gradle.testkit.runner.UnexpectedBuildFailure
 import spock.lang.Ignore
-import spock.lang.Issue
 import spock.lang.Requires
 import spock.lang.Stepwise
 
@@ -16,9 +15,13 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 
 @Stepwise
 @Requires({ !jvm.isJava17Compatible() })
-class PluginIntegrationSpec extends PluginSpec {
+class PluginJDK11IntegrationSpec extends PluginSpec {
 
     def setup() {
+        with(new File(projectRootDir, ".gradle/configuration-cache")) {
+            it.deleteDir()
+        }
+
         provideRunner()
                 .withGradleVersion("7.3.3")
                 .withArguments("-Pnewrelic.agp.version=7.2.+", "clean")
@@ -35,6 +38,7 @@ class PluginIntegrationSpec extends PluginSpec {
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PincludeLibrary=false",   // FIXME https://github.com/JetBrains/compose-multiplatform/issues/2108
                         "clean",
                         testTask)
 
@@ -42,13 +46,14 @@ class PluginIntegrationSpec extends PluginSpec {
         buildResult = runner.build()
 
         then:
-        buildResult.task(":$testTask").outcome == SUCCESS
+        buildResult.task(":${testTask}").outcome == SUCCESS
     }
 
     def "verify unsupported Gradle version"() {
         given: "Apply an unsupported Gradle version"
         def runner = provideRunner()
                 .withGradleVersion("6.7.1")
+                .forwardStdError(errorOutput)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=4.+",
@@ -69,6 +74,7 @@ class PluginIntegrationSpec extends PluginSpec {
         given: "Apply an unsupported AGP version: AGP 3.+ Gradle 5.6.4"
         def runner = provideRunner()
                 .withGradleVersion("6.7.1")
+                .forwardStdError(errorOutput)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=4.1.+",
@@ -92,6 +98,7 @@ class PluginIntegrationSpec extends PluginSpec {
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPVersion}",
+                        "-PincludeLibrary=false",   // FIXME https://github.com/JetBrains/compose-multiplatform/issues/2108
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         testTask)
         when:
@@ -99,7 +106,7 @@ class PluginIntegrationSpec extends PluginSpec {
 
         then:
         with(buildResult) {
-            with(task(":$testTask")) {
+            with(task(":${testTask}")) {
                 outcome == SUCCESS
             }
         }
@@ -123,7 +130,7 @@ class PluginIntegrationSpec extends PluginSpec {
         e.message.contains("BUILD FAILED")
     }
 
-    @Ignore("TODO")
+    @Ignore("FIXME: map upload")
     def "verify invalidated cached map uploads"() {
         given: "Rerun the cached the task"
         def runner = provideRunner()
@@ -133,7 +140,7 @@ class PluginIntegrationSpec extends PluginSpec {
                         "-Pnewrelic.agp.version=${BuildHelper.minSupportedAGPConfigCacheVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "--configuration-cache",
-                        "clean", testTask)
+                        testTask)
         when:
         def preResult = runner.build()
 
@@ -142,7 +149,7 @@ class PluginIntegrationSpec extends PluginSpec {
 
         then:
         preResult.output.contains("Configuration cache entry stored")
-        preResult.task(":newrelicMapUploadRelease").outcome == SKIPPED
+        postResult.task(":newrelicMapUploadRelease").outcome == SKIPPED
     }
 
     def "verify min config cache supported agp/gradle"() {
@@ -169,27 +176,7 @@ class PluginIntegrationSpec extends PluginSpec {
         postResult.output.contains("Configuration cache entry reused")
     }
 
-    @Ignore("AGENT_ARGS in sys properties are no longer supported")
-    def "verify log level in agent options"() {
-        given: "Pass log level in system property"
-        def runner = provideRunner()
-                .withArguments("--debug",
-                        "-Dnewrelic.agent.args=\"loglevel=VERBOSE\"",
-                        "-Pnewrelic.agent.version=${agentVersion}",
-                        "-Pnewrelic.agp.version=${agpVersion}",
-                        "-PagentRepo=${localEnv["M2_REPO"]}",
-                        "newRelicConfigRelease")
-        when:
-        buildResult = runner.build()
-
-        then:
-        printFilter.toString().contains("loglevel=VERBOSE")
-    }
-
     def cleanup() {
         extensionsFile?.delete()
-        with(new File(projectRootDir, ".gradle/configuration-cache")) {
-            it.deleteDir()
-        }
     }
 }

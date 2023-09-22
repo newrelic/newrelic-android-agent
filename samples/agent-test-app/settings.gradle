@@ -3,47 +3,119 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+
+import org.gradle.api.initialization.resolve.RepositoriesMode
+import org.gradle.util.GradleVersion
+import org.slf4j.LoggerFactory
+
 pluginManagement {
+    def hasOptional = { key, defaultValue -> settings.hasProperty(key) ? settings[key] : defaultValue }
+    def logger = LoggerFactory.getLogger("newrelic")
+
     ext {
         versions = [
-                agent : "7.+",
-                agp   : "7.1.+",
-                kotlin: "1.6.+",
-                gradle: "7.2"
+                agent   : hasOptional('newrelic.agent.version', "+"),
+                agp     : hasOptional('newrelic.agp.version', "7.1.+"),
+                kotlin  : hasOptional('newrelic.kotlin.version', "1.6.+"),
+                gradle  : hasOptional('newrelic.gradle.version', "7.2"),
+                dexguard: [
+                        base  : hasOptional('dexguard.base.version', '9.+'),
+                        plugin: hasOptional('dexguard.plugin.version', '9.+'),
+                        home  : hasOptional('dexguard.home', null)
+                ],
         ]
     }
+
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == ("newrelic")) {
+                useModule("com.newrelic.agent.android:agent-gradle-plugin:${versions.agent}")
+            }
+            if (requested.id.id == "dexguard") {
+                useModule("com.guardsquare:dexguard-gradle-plugin:${versions.dexguard}")
+            }
+        }
+    }
+
+    logger.quiet "[agent-test-app] NR agent version [${versions.agent}]"
+    logger.quiet "[agent-test-app] AGP version [${versions.agp}]"
+    logger.quiet "[agent-test-app] Kotlin version [${versions.kotlin}]"
 
     repositories {
         gradlePluginPortal()
         mavenCentral()
-        mavenLocal()
         google()
+
+        if (agentRepo && agentRepo != 'null') {
+            if (settings.agentRepo.toLowerCase() == "local") {
+                mavenLocal()
+            } else if (file(agentRepo)?.exists()) {
+                logger.quiet "[agent-test-app] Using agent .M2 repo [${agentRepo}]"
+                maven { url "${agentRepo}" }
+            } else {
+                throw new RuntimeException("Agent .M2 repo not found in [${agentRepo}]")
+            }
+        }
+
+        if (compiler.startsWith('dexguard')) {
+            if (versions.dexguard.home) {
+                flatDir { dirs "${versions.dexguard.home}/${versions.dexguard.plugin}/lib" }
+                logger.quiet "[agent-test-app] Dexguard home[${versions.dexguard.home}]"
+            } else {
+                maven {
+                    credentials {
+                        username = "maven"
+                        password = System.getProperty("DEXGUARD_MAVENTOKEN", "${dexguardMavenToken}")
+                    }
+                    url "https://maven.guardsquare.com"
+                    content {
+                        includeGroupByRegex "com\\.guardsquare.*"
+                    }
+                    authentication {
+                        basic(BasicAuthentication)
+                    }
+                }
+                logger.quiet "[agent-test-app] Dexguard version[${versions.dexguard.plugin}]"
+            }
+            logger.quiet "[agent-test-app] Dexguard license[${System.getProperty('dexguard.license', System.getenv('DEXGUARD_LICENSE'))}]"
+        }
     }
 
     plugins {
-        /* TODO  Can't pass the component versions through pluginManagement,
-            so we must use the legacy plugin scheme
-
         id("org.jetbrains.kotlin.android") version "${versions.kotlin}" apply false
         id("com.android.application") version "${versions.agp}" apply false
         id("com.android.library") version "${versions.agp}" apply false
+        id("com.android.dynamic-feature") version "${versions.agp}" apply false
+        id('dexguard') version "${versions.dexguard.plugin}" apply false
         id('newrelic') version "${versions.agent}" apply false
-        */
     }
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
-        gradlePluginPortal()
         mavenCentral()
-        mavenLocal()
         google()
+        if (agentRepo && agentRepo != 'null') {
+            if (settings.agentRepo.toLowerCase() == "local") {
+                mavenLocal()
+            } else if (file(agentRepo)?.exists()) {
+                maven { url "${agentRepo}" }
+            }
+        }
     }
 }
 
 rootProject.name = 'agent-test-app'
 
-include ":library"
+logger.quiet "[agent-test-app] JDK version [${System.getProperty('java.version')}]"
+logger.quiet "[agent-test-app] Gradle version [${GradleVersion.current().version}]"
 
-// TODO include ":feature"
+if (settings.includeLibrary && Boolean.valueOf(settings.includeLibrary)) {
+    include ":library"
+}
+
+if (settings.includeFeature && Boolean.valueOf(settings.includeFeature)) {
+    include ":feature"
+}
+

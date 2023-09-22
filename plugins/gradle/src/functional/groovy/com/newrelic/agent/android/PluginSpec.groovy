@@ -5,13 +5,10 @@
 
 package com.newrelic.agent.android
 
+import com.google.common.io.Files
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
-import org.gradle.testkit.runner.UnexpectedBuildFailure
 import spock.lang.*
-
-import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
-import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 abstract class PluginSpec extends Specification {
 
@@ -22,16 +19,17 @@ abstract class PluginSpec extends Specification {
     /* AGP/Gradle level 8+ require JDK 17 */
     static final minJdkVersion = 17
     static final agentVersion = System.getProperty("newrelic.agent.version", '7.+')
-    static final agpVersion = "8.0.+"
-    static final gradleVersion = "8.1.1"
+    static final agpVersion = System.getProperty("newrelic.agp.version", '8.0.+')
+    static final gradleVersion = "8.2"
 
+    @Shared
     def extensionsFile = new File(projectRootDir, "nr-extension.gradle")
 
     @Shared
     Map<String, String> localEnv = [:]
 
     @Shared
-    def modules = [":library"]
+    def modules = [":library", ":feature"]
 
     @Shared
     BuildResult buildResult
@@ -43,7 +41,10 @@ abstract class PluginSpec extends Specification {
     def testTask = 'assembleRelease'
 
     @Shared
-    def testVariants = ['release']
+    def instrumentationVariants = ["release", "qa"]
+
+    @Shared
+    def mapUploadVariants = ["qa"]
 
     @Shared
     def printFilter
@@ -75,6 +76,8 @@ abstract class PluginSpec extends Specification {
             } catch (Exception ignored) {
             }
         }
+
+        extensionsFile?.delete()
     }
 
     def setup() {
@@ -82,9 +85,16 @@ abstract class PluginSpec extends Specification {
         errorOutput = new StringWriter()
         extensionsFile = new File(projectRootDir, "nr-extension.gradle")
 
+        extensionsFile.delete()
+        extensionsFile.deleteOnExit()
+
         with(new File(projectRootDir, ".gradle/configuration-cache")) {
             it.deleteDir()
         }
+    }
+
+    def cleanup() {
+        extensionsFile?.delete()
     }
 
     def provideRunner() {
@@ -93,8 +103,6 @@ abstract class PluginSpec extends Specification {
 
         def runner = GradleRunner.create()
                 .withProjectDir(projectRootDir)
-                .forwardStdOutput(printFilter)
-                .forwardStdError(errorOutput)
                 .withGradleVersion(gradleVersion)
 
         return debuggable ? runner.withDebug(true) : runner.withEnvironment(localEnv)

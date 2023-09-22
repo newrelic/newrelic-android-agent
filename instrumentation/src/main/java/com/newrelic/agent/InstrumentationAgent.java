@@ -31,6 +31,10 @@ public final class InstrumentationAgent extends Constants {
     public static org.slf4j.Logger LOGGER = new Logger() {};
     private static Map<String, String> agentOptions = new HashMap<String, String>();
 
+    public static void setLogger(org.slf4j.Logger LOGGER) {
+        InstrumentationAgent.LOGGER = LOGGER;
+    }
+
     public static Throwable withAgentArgs(String agentArgs) {
         try {
             InstrumentationAgent.agentOptions = parseAgentArgs(agentArgs);

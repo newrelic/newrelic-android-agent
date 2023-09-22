@@ -27,7 +27,7 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v2.4.2
         with:
           gradle-version: current
       - name: Grant execute permission for gradlew
@@ -35,64 +35,12 @@ jobs:
       - name: Stage with Gradle
         run: ./gradlew install publish
       - name: Build with Gradle
-        run: ./gradlew :plugins:gradle:integrationTests --tests "com.newrelic.agent.android.PluginIntegrationSpec" -PintegrationTests
+        run: ./gradlew :plugins:gradle:integrationTests --tests "com.newrelic.agent.android.PluginIntegrationSpec" -Pintegrations
       - name: Upload build reports
         uses: actions/upload-artifact@v3
         with:
           name: build-reports
-          path: plugins/gradle/build/reports/
+          path: plugins/gradle/build/reports/tests/test
+          if-no-files-found: ignore
+          retention-days: 5
 
-  regression-jdk17-plugin:
-    if: ${{ false }}  # FIXME JDK 17 blows out the heap
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: set up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          gradle-version: current
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-      - name: Stage with Gradle
-        run: ./gradlew install publish
-      - name: Build with Gradle
-        run: ./gradlew :plugins:gradle:functionalTests
-      - name: Upload build reports
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-reports
-          path: plugins/gradle/build/reports/
-
-  regression-jdk11-plugin:
-    if: ${{ false }}  # FIXME JDK 11 also blows out the heap
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: set up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          gradle-version: current
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-      - name: Stage with Gradle
-        run: ./gradlew install publish
-      - name: Build with Gradle
-        id: test-step
-        run: ./gradlew :plugins:gradle:functionalTests
-      - name: Upload build reports
-        # if: failure() && steps.test-step.outcome != 'success'
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-reports
-          path: plugins/gradle/build/reports/

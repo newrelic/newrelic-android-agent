@@ -13,23 +13,25 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.Logger
-import org.gradle.api.logging.Logging
 import org.gradle.api.plugins.UnknownPluginException
+import org.slf4j.LoggerFactory
 
 class NewRelicGradlePlugin implements Plugin<Project> {
-    public static Logger LOGGER = Logging.getLogger(PLUGIN_EXTENSION_NAME)
+    public static Logger LOGGER = LoggerFactory.getLogger(PLUGIN_EXTENSION_NAME)
 
     public static final String PLUGIN_EXTENSION_NAME = "newrelic"
 
     private NewRelicExtension pluginExtension
     private BuildHelper buildHelper
 
+    NewRelicGradlePlugin() {
+        // bind the instrumentation agent's logger to the plugin's logger
+        InstrumentationAgent.logger = LOGGER
+    }
+
     @Override
     void apply(Project project) {
         project.getLogging().captureStandardOutput(LogLevel.WARN)
-
-        // bind the instrumentation agent's logger to the plugin's logger
-        InstrumentationAgent.LOGGER = LOGGER
 
         if (!isSupportedModule(project)) {
             throw new BuildCancelledException("Instrumentation of Android Dynamic feature modules is not supported in this version.")
@@ -49,8 +51,6 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             if (pluginExtension.getEnabled()) {
 
                 project.afterEvaluate {
-                    def buildMap = getDefaultBuildMap()
-
                     // set global enable flag
                     BuildId.setVariantMapsEnabled(pluginExtension.variantMapsEnabled.get())
 
@@ -78,12 +78,16 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
 
         pluginExtension.with {
+            if (!variantExclusions.isEmpty()) {
+                LOGGER.info("Instrumentation will be disabled for variants ${variantExclusions}")
+            }
+
             // Do all the variants if variant maps are disabled, or only those provided
             // in the extension. The default is ['release'].
-            if (!variantMapsEnabled.get() || variantMapUploadList.isEmpty()) {
+            if (!variantMapsEnabled.get() || variantMapUploads.isEmpty()) {
                 LOGGER.debug("Maps will be tagged and uploaded for all variants")
             } else {
-                LOGGER.debug("Maps will be tagged and uploaded for variants ${variantMapUploadList}")
+                LOGGER.debug("Maps will be tagged and uploaded for variants ${variantMapUploads}")
             }
         }
 

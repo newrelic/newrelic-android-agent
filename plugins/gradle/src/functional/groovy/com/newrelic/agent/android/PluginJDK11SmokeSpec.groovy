@@ -5,13 +5,16 @@
 
 package com.newrelic.agent.android
 
+import com.newrelic.agent.android.obfuscation.Proguard
 import spock.lang.Requires
+import spock.lang.Retry
 import spock.lang.Shared
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
-class PluginSmokeSpec extends PluginSpec {
+@Retry(delay = 15000, count=2)
+class PluginJDK11SmokeSpec extends PluginSpec {
 
     /* Last levels for JDK 11. Must use JDK 17 for AGP/Gradle 8.+    */
     static final jdkVersion = 11
@@ -19,12 +22,17 @@ class PluginSmokeSpec extends PluginSpec {
     static final gradleVersion = "7.6.1"
 
     @Shared
-    def testVariants = ['googleRelease']        // when withProductFlavors=true
+    def testVariants = ['googleQa']        // when withProductFlavors=true
 
     def setupSpec() {
         given: "create the build runner"
+            with(new File(projectRootDir, ".gradle/configuration-cache")) {
+                it.deleteDir()
+            }
+
         def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
+                .forwardStdOutput(printFilter)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
@@ -32,7 +40,6 @@ class PluginSmokeSpec extends PluginSpec {
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
                         "--debug",
-                        "--stacktrace",
                         "clean",
                         testTask)
 
@@ -48,7 +55,7 @@ class PluginSmokeSpec extends PluginSpec {
             with(task(":clean")) {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
-            with(task(":$testTask")) {
+            with(task(":${testTask}")) {
                 outcome == SUCCESS
             }
 
@@ -67,6 +74,7 @@ class PluginSmokeSpec extends PluginSpec {
                     "/generated/java/newrelicConfig${var.capitalize()}/com/newrelic/agent/android/NewRelicConfig.java")
             configTmpl.exists() && configTmpl.canRead()
             configTmpl.text.find(~/BUILD_ID = \"(.*)\".*/)
+            configTmpl.text.contains("Boolean OBFUSCATED = true;")
 
             def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
             configClass.exists() && configClass.canRead()
@@ -90,7 +98,7 @@ class PluginSmokeSpec extends PluginSpec {
 
             with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
                 exists()
-                text.contains("# NR_BUILD_ID -> ")
+                text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
                 filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
             }

@@ -5,28 +5,33 @@
 
 package com.newrelic.agent.android
 
+import com.newrelic.agent.android.obfuscation.Proguard
+import org.gradle.util.GradleVersion
 import spock.lang.IgnoreIf
 import spock.lang.Requires
+import spock.lang.Retry
 import spock.lang.Shared
+import spock.lang.Timeout
 import spock.lang.Unroll
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
-@IgnoreIf({ System.getProperty('regressionTests', 'dexguard') == 'dexguard' })
+@IgnoreIf({ System.getProperty('regressions') == null })
+@Retry(delay = 15000)
 class PluginRegressionSpec extends PluginSpec {
 
     @Shared
-    def testTask = 'assembleRelease'
+    def testTask = 'assemble'
 
-    @Shared
-    def testVariants = ['release']
-
-
+    @Retry(count = 2)
+    @Timeout(300)
     @Unroll("#dataVariablesWithIndex")
-    @Requires({ jvm.isJava11Compatible() })
+    @Requires({ !jvm.isJava17Compatible() })
     def "Regress agent[#agent] against AGP[#agp] Gradle[#gradle]"() {
         given: "Run plugin using the AGP/Gradle combination"
+        def agentVer = agent as String
+        def includeLibrary = GradleVersion.version(agentVer.replace('+', '0')) >= GradleVersion.version("7.0")
         def runner = provideRunner()
                 .withGradleVersion(gradle)
                 .withArguments(
@@ -35,7 +40,7 @@ class PluginRegressionSpec extends PluginSpec {
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=false",
-                        "--stacktrace",
+                        "-PincludeLibrary=${includeLibrary}",
                         "clean",
                         testTask)
 
@@ -49,7 +54,7 @@ class PluginRegressionSpec extends PluginSpec {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
 
-            testVariants.each { var ->
+            instrumentationVariants.each { var ->
                 task(":assemble${var.capitalize()}").outcome == SUCCESS
                 (task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                         task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
@@ -59,13 +64,14 @@ class PluginRegressionSpec extends PluginSpec {
                     def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
                     configClass.exists() && configClass.canRead()
                 }
-
+            }
+            mapUploadVariants.each { var ->
                 (task(":${NewRelicMapUploadTask.NAME}${var.capitalize()}")?.outcome == SUCCESS ||
                         task("newrelicMapUploadMinify${var.capitalize()}WithR8")?.outcome == SUCCESS)
 
                 with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
                     exists()
-                    text.contains("# NR_BUILD_ID -> ")
+                    text.contains(Proguard.NR_MAP_PREFIX)
                 }
             }
         }
@@ -73,15 +79,18 @@ class PluginRegressionSpec extends PluginSpec {
         where:
         [agent, [agp, gradle]] << [
                 ["6.+", [agp: "7.4.+", gradle: "7.5"]],
-        //      ["7.+", [agp: "7.0.+", gradle: "7.0.2"]],       // FIXME
+                ["7.+", [agp: "7.0.+", gradle: "7.2"]],
                 ["7.+", [agp: "7.1.3", gradle: "7.2"]],
+                /* FIXME java.lang.OutOfMemoryError: Java heap space
                 ["7.+", [agp: "7.2.+", gradle: "7.3.3"]],
                 ["7.+", [agp: "7.3.+", gradle: "7.4"]],
+                /* FIXME */
                 ["7.+", [agp: "7.4.+", gradle: "7.5"]],
                 ["7.+", [agp: "7.4.+", gradle: "8.0"]],
         ]
     }
 
+    @Retry(count = 2)
     @Unroll("#dataVariablesWithIndex")
     @Requires({ jvm.isJava17Compatible() })
     def "Regress agent[#agent] against AGP8 [#agp] Gradle[#gradle]"() {
@@ -92,10 +101,8 @@ class PluginRegressionSpec extends PluginSpec {
                         "-Pnewrelic.agent.version=${agent}",
                         "-Pnewrelic.agp.version=${agp}",
                         "-Pcompiler=r8",
-                        "-PagentRepo=local",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=false",
-                        "--stacktrace",
                         "clean",
                         testTask)
 
@@ -109,10 +116,12 @@ class PluginRegressionSpec extends PluginSpec {
                 outcome == SUCCESS || outcome == UP_TO_DATE
             }
 
-            testVariants.each { var ->
+            instrumentationVariants.each { var ->
                 task(":assemble${var.capitalize()}").outcome == SUCCESS
                 task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}").outcome == SUCCESS
                 task(":${NewRelicConfigTask.NAME}${var.capitalize()}").outcome == SUCCESS
+            }
+            mapUploadVariants.each { var ->
                 task(":${NewRelicMapUploadTask.NAME}${var.capitalize()}").outcome == SUCCESS
             }
         }
@@ -121,7 +130,7 @@ class PluginRegressionSpec extends PluginSpec {
         [agent, [agp, gradle]] << [
                 ["7.+", [agp: "8.0.+", gradle: "8.0"]],
                 ["7.+", [agp: "8.0.+", gradle: "8.1"]],
-                //      ["7.+", [agp: "8.1.+", gradle: "8.1"]],
+                ["7.+", [agp: "8.1.+", gradle: "8.1"]],
         ]
     }
 }

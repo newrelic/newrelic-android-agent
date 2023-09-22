@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 
 class BuildHelperTest extends PluginTest {
-
     BuildHelper buildHelper
 
     BuildHelperTest() {
@@ -26,15 +25,6 @@ class BuildHelperTest extends PluginTest {
 
     @BeforeEach
     void setUp() {
-        project.getPlugins().with {
-            agp = apply("com.android.application")
-            if (applyPlugin) {
-                plugin = apply("newrelic")
-            }
-        }
-
-        def ext = NewRelicExtension.register(project)
-
         buildHelper = Mockito.spy(BuildHelper.register(project))
         buildHelper.logger = Mockito.spy(buildHelper.logger)
     }
@@ -55,7 +45,7 @@ class BuildHelperTest extends PluginTest {
         Mockito.when(buildHelper.getGradleVersion()).thenReturn("1.2.3")
         buildHelper.validatePluginSettings()
         Mockito.verify(buildHelper, Mockito.times(1)).warnOrHalt(Mockito.anyString())
-        Mockito.verify(buildHelper.logger, Mockito.times(1)).warn(Mockito.anyString())
+        Mockito.verify(buildHelper.logger, Mockito.times(2)).warn(Mockito.anyString())
     }
 
     @Test
@@ -74,7 +64,7 @@ class BuildHelperTest extends PluginTest {
         Mockito.when(buildHelper.getAgpVersion()).thenReturn("99.88.77")
         buildHelper.validatePluginSettings()
         Mockito.verify(buildHelper, Mockito.times(1)).warnOrHalt(Mockito.anyString())
-        Mockito.verify(buildHelper.logger, Mockito.times(1)).warn(Mockito.anyString())
+        Mockito.verify(buildHelper.logger, Mockito.times(2)).warn(Mockito.anyString())
     }
 
     @Test
@@ -101,21 +91,46 @@ class BuildHelperTest extends PluginTest {
     }
 
     @Test
-    void getAGPVersion() {
+    void getReportedAGPVersion() {
         def ext = Mockito.spy(buildHelper.androidComponentsExtension)
         def pluginVersion = new AndroidPluginVersion(8, 1)
 
         Mockito.when(buildHelper.getAndroidComponentsExtension()).thenReturn(ext)
         Mockito.when(ext.getPluginVersion()).thenReturn(pluginVersion)
-        Assert.assertEquals("8.1.0", buildHelper.getAndNormalizeAGPVersion())
+        Assert.assertEquals("8.1.0", buildHelper.getReportedAGPVersion())
 
         pluginVersion = new AndroidPluginVersion(1, 2, 3).rc(4).dev()
         Mockito.when(ext.getPluginVersion()).thenReturn(pluginVersion)
-        Assert.assertEquals("1.2.3", buildHelper.getAndNormalizeAGPVersion())
+        Assert.assertEquals("1.2.3-dev0", buildHelper.getReportedAGPVersion())
 
         pluginVersion = new AndroidPluginVersion(4, 5, 6).alpha(7)
         Mockito.when(ext.getPluginVersion()).thenReturn(pluginVersion)
-        Assert.assertEquals("4.5.6", buildHelper.getAndNormalizeAGPVersion())
+        Assert.assertEquals("4.5.6-alpha7", buildHelper.getReportedAGPVersion())
+    }
+
+    @Test
+    void getAGPVersionAsSemver() {
+        Assert.assertEquals("8.1.0", buildHelper.getAGPVersionAsSemVer("8.1.0-rc01"))
+
+        def pluginVersion = new AndroidPluginVersion(1, 2, 3).toString()
+                .replace("Android Gradle Plugin version ", "")
+        Assert.assertEquals("1.2.3", buildHelper.getAGPVersionAsSemVer(pluginVersion))
+
+        pluginVersion = new AndroidPluginVersion(1, 2, 3).alpha(4).toString()
+                .replace("Android Gradle Plugin version ", "")
+        Assert.assertEquals("1.2.3", buildHelper.getAGPVersionAsSemVer(pluginVersion))
+
+        pluginVersion = new AndroidPluginVersion(1, 2, 3).beta(5).toString()
+                .replace("Android Gradle Plugin version ", "")
+        Assert.assertEquals("1.2.3", buildHelper.getAGPVersionAsSemVer(pluginVersion))
+
+        pluginVersion = new AndroidPluginVersion(1, 2, 3).rc(6).toString()
+                .replace("Android Gradle Plugin version ", "")
+        Assert.assertEquals("1.2.3", buildHelper.getAGPVersionAsSemVer(pluginVersion))
+
+        pluginVersion = new AndroidPluginVersion(1, 2, 3).dev().toString()
+                .replace("Android Gradle Plugin version ", "")
+        Assert.assertEquals("1.2.3", buildHelper.getAGPVersionAsSemVer(pluginVersion))
     }
 
     @Test
@@ -171,7 +186,10 @@ class BuildHelperTest extends PluginTest {
 
     @Test
     void configurationCacheEnabled() {
-        // TODO
+        Assert.assertFalse(buildHelper.configurationCacheEnabled())
+
+        Mockito.when(project.providers.gradleProperty("org.gradle.configuration-cache")).thenReturn(true)
+        Assert.assertTrue(buildHelper.configurationCacheEnabled())
     }
 
     @Test
@@ -196,16 +214,13 @@ class BuildHelperTest extends PluginTest {
         def waah = buildHelper.androidComponentsExtension.selector().withName("waah")
         Mockito.when(buildHelper.getAndroidComponentsExtension()).thenReturn(ext)
         Mockito.when(ext.selector()).thenReturn(waah)
-
-        // FIXME buildHelper.variantAdapter = VariantAdapter.register(buildHelper)
-        // FIXME Assert.assertFalse(buildHelper.isUsingLegacyTransform())
     }
 
     @Test
     void warnOrHalt() {
         buildHelper.warnOrHalt("warn")
         Mockito.verify(buildHelper, Mockito.times(1)).warnOrHalt(Mockito.anyString())
-        Mockito.verify(buildHelper.logger, Mockito.times(1)).warn(Mockito.anyString())
+        Mockito.verify(buildHelper.logger, Mockito.times(2)).warn(Mockito.anyString())
 
         try {
             Mockito.when(buildHelper.hasOptional(Mockito.anyString(), Mockito.any(Object.class))).thenReturn(true)
@@ -220,13 +235,14 @@ class BuildHelperTest extends PluginTest {
     @Test
     void buildMetrics() {
         def metrics = buildHelper.getBuildMetrics()
-        Assert.assertEquals(6, metrics.size())
+        Assert.assertEquals(7, metrics.size())
         Assert.assertTrue(metrics.containsKey("agent"))
         Assert.assertTrue(metrics.containsKey("agp"))
         Assert.assertTrue(metrics.containsKey("gradle"))
         Assert.assertTrue(metrics.containsKey("java"))
-        Assert.assertTrue(metrics.containsKey("dexguard"))
-        Assert.assertTrue(metrics.containsKey("configCache"))
+        Assert.assertTrue(metrics.containsKey("kotlin"))
+        Assert.assertTrue(metrics.containsKey("variants"))
+        Assert.assertTrue(metrics.containsKey("configCacheEnabled"))
     }
 
     @Test
@@ -236,52 +252,51 @@ class BuildHelperTest extends PluginTest {
 
         def jsonObj = new JsonSlurper().parseText(jsonStr)
         Assert.assertNotNull(jsonObj)
-        Assert.assertEquals(6, jsonObj.size())
+        Assert.assertEquals(7, jsonObj.size())
         Assert.assertTrue(jsonObj.containsKey("agent"))
         Assert.assertTrue(jsonObj.containsKey("agp"))
         Assert.assertTrue(jsonObj.containsKey("gradle"))
         Assert.assertTrue(jsonObj.containsKey("java"))
-        Assert.assertTrue(jsonObj.containsKey("dexguard"))
-        Assert.assertTrue(jsonObj.containsKey("configCache"))
-
-        def dexguard = jsonObj.get("dexguard")
-        Assert.assertEquals(2, dexguard.size())
-        Assert.assertTrue(dexguard.containsKey("enabled"))
-        Assert.assertTrue(dexguard.containsKey("version"))
-
-        def configCache = jsonObj.get("configCache")
-        Assert.assertEquals(2, configCache.size())
-        Assert.assertTrue(configCache.containsKey("supported"))
-        Assert.assertTrue(configCache.containsKey("enabled"))
+        Assert.assertTrue(jsonObj.containsKey("kotlin"))
+        Assert.assertTrue(jsonObj.containsKey("configCacheEnabled"))
+        Assert.assertTrue(jsonObj.containsKey("variants"))
+        Assert.assertFalse(jsonObj.get("configCacheEnabled"))
     }
 
     @Test
-    void injectMapUploadFinalizer() {
-        // FIXME
+    void checkDexGuard() {
+        Assert.assertFalse(buildHelper.checkDexGuard())
+
+        Mockito.when(project.plugins.hasPlugin("dexguard")).thenReturn(true)
+        Assert.assertTrue(buildHelper.checkDexGuard())
     }
 
     @Test
-    void testInjectMapUploadFinalizer() {
-        // FIXME
+    void checkApplication() {
+        Assert.assertTrue(buildHelper.checkApplication())
+
+        Mockito.when(project.plugins.hasPlugin("com.android.application")).thenReturn(false)
+        Assert.assertFalse(buildHelper.checkDexGuard())
     }
 
     @Test
-    void configureTransformTasks() {
-        // FIXME
+    void checkDynamicFeature() {
+        Assert.assertFalse(buildHelper.checkDynamicFeature())
+
+        Mockito.when(project.plugins.hasPlugin("com.android.dynamic-feature")).thenReturn(true)
+        Assert.assertTrue(buildHelper.checkDynamicFeature())
     }
 
     @Test
-    void configureMapUploadTasks() {
-        // FIXME
+    void checkLibrary() {
+        Assert.assertFalse(buildHelper.checkLibrary())
+
+        Mockito.when(project.plugins.hasPlugin("com.android.library")).thenReturn(true)
+        Assert.assertTrue(buildHelper.checkLibrary())
     }
 
     @Test
-    void configureConfigTasks() {
-        // FIXME
-    }
-
-    @Test
-    void getMapProvider() {
+    void getMapCompilerName() {
         Assert.assertEquals(buildHelper.getMapCompilerName(), Proguard.Provider.DEFAULT)
 
         buildHelper.dexguardHelper.enabled = true
@@ -290,5 +305,37 @@ class BuildHelperTest extends PluginTest {
         buildHelper.dexguardHelper.enabled = false
         buildHelper.agpVersion = "3.2"
         Assert.assertEquals(buildHelper.getMapCompilerName(), Proguard.Provider.PROGUARD_603)
+    }
+
+    @Test
+    void getTaskProvidersFromNames() {
+        def providers = buildHelper.getTaskProvidersFromNames(Set.of("assemble", "check", "build"))
+
+        Assert.assertEquals(3, providers.size())
+        Assert.assertNotNull(providers.find { it.name == "assemble" })
+        Assert.assertNotNull(providers.find { it.name == "check" })
+        Assert.assertNotNull(providers.find { it.name == "build" })
+        Assert.assertNull(providers.find { it.name == "clean" })
+    }
+
+    @Test
+    void wireTaskProviderToDependencyNames() {
+        buildHelper.wireTaskProviderToDependencyNames(Set.of("assemble", "check", "build")) {
+            Assert.assertTrue(it.name == "assemble" || it.name == "check" || it.name == "build")
+        }
+    }
+
+    @Test
+    void wireTaskProviderToDependencies() {
+        def providers = buildHelper.getTaskProvidersFromNames(Set.of("assemble", "check", "build"))
+        buildHelper.wireTaskProviderToDependencies(providers) {
+            Assert.assertTrue(it.name == "assemble" || it.name == "check" || it.name == "build")
+            Assert.assertFalse(it.name == "clean")
+        }
+    }
+
+    @Test
+    void hasOptional() {
+        Assert.assertEquals("value", buildHelper.hasOptional("key", "value"))
     }
 }

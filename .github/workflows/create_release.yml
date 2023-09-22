@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "**"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Changelog
+      uses: Bullrich/generate-release-changelog@master
+      id: Changelog
+      env:
+        REPO: ${{ github.repository }}
+    - name: Create release
+      uses: actions/create-release@v1
+      id: create_release
+      with:
+        draft: true
+        prerelease: false
+        release_name: ${{github.ref}}
+        tag_name: ${{ github.ref }}
+        body: |
+            ${{ steps.Changelog.outputs.changelog }}
+      env:
+        GITHUB_TOKEN: ${{ github.token }}

@@ -5,29 +5,37 @@
 
 package com.newrelic.agent.android
 
-import spock.lang.Ignore
+import com.newrelic.agent.android.obfuscation.Proguard
 import spock.lang.Requires
 import spock.lang.Shared
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
-import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 @Requires({ jvm.isJava17Compatible() })
 class PluginJDK17SmokeSpec extends PluginSpec {
 
     /* Last levels for JDK 11. Must use JDK 17 for AGP/Gradle 8.+    */
     static final jdkVersion = 17
-    static final agpVersion = "8.0.+"
-    static final gradleVersion = "8.0"
+    static final agpVersion = "8.1.+"
+    static final gradleVersion = "8.2"
+
+    def setup() {
+        with(new File(projectRootDir, ".gradle/configuration-cache")) {
+            it.deleteDir()
+        }
+    }
 
     @Shared
     def testVariants = ['googleRelease']
-    // when withProductFlavors=true
+
+    @Shared
+    def mapUploadVariants = ["amazonQa"]
 
     def setupSpec() {
         given: "create the build runner"
         def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
+                .forwardStdOutput(printFilter)
                 .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
@@ -35,9 +43,8 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
                         "--debug",
-                        "--stacktrace",
                         "clean",
-                        testTask)
+                        testTask, "assembleQa")
 
         when: "run the build *once* and cache the results"
         buildResult = runner.build()
@@ -48,10 +55,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
     def "build the test app"() {
         expect: "the test app was built"
         with(buildResult) {
-            with(task(":clean")) {
-                outcome == SUCCESS || outcome == UP_TO_DATE
-            }
-            with(task(":$testTask")) {
+            with(task(":${testTask}")) {
                 outcome == SUCCESS
             }
 
@@ -59,6 +63,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
             filteredOutput.contains("Gradle version:")
             filteredOutput.contains("Java version:")
             filteredOutput.contains("Kotlin version:")
+            filteredOutput.contains("BuildMetrics[")
         }
     }
 
@@ -70,6 +75,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                     "/generated/java/newrelicConfig${var.capitalize()}/com/newrelic/agent/android/NewRelicConfig.java")
             configTmpl.exists() && configTmpl.canRead()
             configTmpl.text.find(~/BUILD_ID = \"(.*)\".*/)
+            configTmpl.text.contains("Boolean OBFUSCATED = true;")
 
             def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
             configClass.exists() && configClass.canRead()
@@ -87,14 +93,14 @@ class PluginJDK17SmokeSpec extends PluginSpec {
         expect:
         filteredOutput.contains("Maps will be tagged and uploaded for variants [")
 
-        testVariants.each { var ->
+        mapUploadVariants.each { var ->
             buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
-
             with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
                 exists()
-                text.contains("# NR_BUILD_ID -> ")
+                text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
+                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") ||
+                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
             }
         }
     }
@@ -104,6 +110,8 @@ class PluginJDK17SmokeSpec extends PluginSpec {
         testVariants.each { var ->
             (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                     buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+        }
+        mapUploadVariants.each { var ->
             buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
         }
     }

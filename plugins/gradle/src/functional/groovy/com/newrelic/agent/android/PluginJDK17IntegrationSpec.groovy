@@ -14,12 +14,11 @@ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
 @Stepwise
-@Requires({ jvm.isJava17Compatible() })
+@Requires({ jvm.isJavaVersionCompatible(minJdkVersion) })
 class PluginJDK17IntegrationSpec extends PluginSpec {
 
-    static final jdkVersion = 17
     static final agpVersion = "8.0.+"
-    static final gradleVersion = "8.1.1"
+    static final gradleVersion = "8.2"
 
     def setup() {
         with(new File(projectRootDir, ".gradle/configuration-cache")) {
@@ -33,27 +32,27 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
 
     def "verify config task with incremental builds"() {
         given: "Build the app again without cleaning"
-        def runner = provideRunner().withArguments(
-                "-Pnewrelic.agent.version=${agentVersion}",
-                "-Pnewrelic.agp.version=${agpVersion}",
-                "-Pcompiler=r8",
-                "-PagentRepo=${localEnv["M2_REPO"]}",
-                "-PwithProductFlavors=false",
-                "--stacktrace",
-                testTask)
+        def runner = provideRunner()
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-Pcompiler=r8",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PwithProductFlavors=false",
+                        testTask)
 
-        when:
-        testVariants = ["release"]
+        when: "run the initial build"
+        instrumentationVariants = ["release"]
         buildResult = runner.build()
 
         and:
-        // rerun the build use local results
+        // rerun the build using cached results
         buildResult = runner.build()
 
         then:
-        testVariants.each { var ->
+        instrumentationVariants.each { var ->
             with(buildResult.task(":${NewRelicConfigTask.NAME}${var.capitalize()}")) {
-                outcome == SUCCESS || outcome == UP_TO_DATE
+                outcome == SKIPPED || outcome == UP_TO_DATE
             }
         }
     }
@@ -83,6 +82,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PincludeLibrary=false",
                         "--configuration-cache",
                         "clean", "newrelicConfigRelease")
         when:
@@ -136,6 +136,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PincludeLibrary=false",
                         "--configuration-cache",
                         "clean",
                         "newRelicConfigRelease")
@@ -185,7 +186,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
     def "verify product flavors"() {
         given: "Build with flavor dimensions enabled"
         def runner = provideRunner()
-                .withArguments("--debug",
+                .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
@@ -215,7 +216,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         """
 
         def runner = provideRunner()
-                .withArguments("--debug",
+                .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
@@ -265,7 +266,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         """
 
         def runner = provideRunner()
-                .withArguments("--debug",
+                .withArguments(
                         "-Pnewrelic.agent.version=${agentVersion}",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
@@ -290,6 +291,60 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                     with(task(":${taskName}")) {
                         outcome == SUCCESS || outcome == UP_TO_DATE
                     }
+                }
+            }
+        }
+    }
+
+    def "verify plugin instrumentation exclusions"() {
+        def mapUploadInclusions = List.of("qa")
+        def instrumentationExclusions = List.of(
+                "amazonDebug",
+                "amazonQa",
+                "googleDebug",
+                "amazonRelease"
+        )
+
+        given: "Configure the plugin using the extension API methods"
+        extensionsFile << """
+            newrelic {
+                uploadMapsForVariant(${mapUploadInclusions.collect { "\"${it}\"" }.join(", ")})
+                excludeVariantInstrumentation(${instrumentationExclusions.collect { "\"${it}\"" }.join(", ")})
+            }
+            """
+
+        def runner = provideRunner()
+                .forwardStdOutput(printFilter)
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-PincludeLibrary=false",
+                        "-PwithProductFlavors=true",
+                        "assemble")
+
+        when: "run the build"
+        buildResult = runner.build()
+
+        then:
+        with(buildResult) {
+            def assembleTasks = tasks.findAll { it.path.startsWith(":assemble") }
+            def instrumentTasks = tasks.findAll { it.path.startsWith(":${ClassTransformWrapperTask.NAME}") }
+            def configTasks = tasks.findAll { it.path.startsWith(":${NewRelicConfigTask.NAME}") }
+            def mapTasks = tasks.findAll { it.path.startsWith(":${NewRelicMapUploadTask.NAME}") }
+
+            // assertions:
+            assembleTasks.size == 12
+            instrumentTasks.size == 2
+            configTasks.size() == 6
+            mapTasks.size() == 2
+
+            instrumentationExclusions.each { var ->
+                var = var.capitalize()
+                task(":${NewRelicConfigTask.NAME}${var}") == null
+                task(":${ClassTransformWrapperTask.NAME}${var}") == null
+                with(task(":assemble${var}")) {
+                    outcome == SUCCESS || outcome == UP_TO_DATE
                 }
             }
         }

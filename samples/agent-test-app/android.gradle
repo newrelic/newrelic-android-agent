@@ -3,8 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import org.slf4j.LoggerFactory
+
+def logger = LoggerFactory.getLogger("newrelic")
+
 android {
-    compileSdkVersion versions.agp.compileSdk
+    compileSdk versions.agp.compileSdk
 
     defaultConfig {
         minSdkVersion versions.agp.minSdk
@@ -13,7 +17,10 @@ android {
         versionName "1.1"
     }
 
-    logger.quiet "[newrelic] [agent-test-app] minifyEnabled [${project.minify.toBoolean()}]"
+    logger.quiet "[agent-test-app] minifyEnabled [${project.minifyEnabled.toBoolean()}]"
+    logger.quiet "[agent-test-app] withProductFlavors[${project.withProductFlavors.toBoolean()}]"
+    logger.quiet "[agent-test-app] using dex compiler[$project.compiler]"
+
     buildTypes {
         switch (compiler) {
             case 'dexguard':
@@ -28,41 +35,26 @@ android {
                 }
                 break
 
-            case 'dexguardLegacy':
-                debug {
-                    proguardFile getDefaultDexGuardFile('dexguard-release.pro')
-                    minifyEnabled false
-                }
-                qa {
-                    proguardFile getDefaultDexGuardFile('dexguard-release.pro')
-                    minifyEnabled false
-                }
-                release {
-                    proguardFile getDefaultDexGuardFile('dexguard-release.pro')
-                    minifyEnabled false
-                }
-                break
-
             case 'r8':
             case 'proguard':
                 debug {
-                    proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-                    minifyEnabled minify.toBoolean()
+                    proguardFiles getDefaultProguardFile('proguard-android.txt'), "${rootDir}/proguard-rules.pro"
+                    minifyEnabled project.minifyEnabled.toBoolean()
                 }
                 qa {
-                    proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-                    minifyEnabled minify.toBoolean()
+                    proguardFiles getDefaultProguardFile('proguard-android.txt'), "${rootDir}/proguard-rules.pro"
+                    minifyEnabled project.minifyEnabled.toBoolean()
                 }
                 release {
-                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                    minifyEnabled minify.toBoolean()
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), "${rootDir}/proguard-rules.pro"
+                    minifyEnabled project.minifyEnabled.toBoolean()
                 }
                 break
 
             default:
                 debug {}
-                qa {}
-                release {}
+                qa.initWith debug
+                release.initWith qa
                 break
         }
     }
@@ -92,51 +84,19 @@ dependencies {
 //
 // DG 9.+
 //
-if (project.plugins.hasPlugin("dexguard")) {
-    if (compiler == 'dexguard') {
-        logger.quiet "[newrelic] [agent-test-app] using DexGuard[${versions.dexguard.base}]"
-        dexguard {
-            version = versions.dexguard.base
-
-            // Not needed when used with 'version' property:
-            // path = /path/to/dexguard/lib
-
-            // Can be set via a system property by adding the following in the gradle.properties file:
-            //  systemProp.dexguard.license=/path/to/dexguard-license.txt
-            // license = /path/to/dexguard-license.txt"
-
-            configurations {
-                debug {
-                    defaultConfiguration 'dexguard-release.pro'
-                    configuration 'dexguard-project.txt'
-                    configuration 'proguard-rules.pro'
-                }
-                qa {
-                    defaultConfiguration 'dexguard-release.pro'
-                    configuration 'dexguard-qa-project.txt'
-                }
-                release {
-                    defaultConfiguration 'dexguard-release.pro'
-                    configuration 'dexguard-project.txt'
-                    configuration 'proguard-rules.pro'
-                }
-            }
-        }
-    }
+if (project.compiler && project.compiler.startsWith('dexguard')) {
+    apply from: "dexguard.gradle"
 }
 
 //
 // NewRelic agent
 //
-
 if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
     apply plugin: 'newrelic'
-    logger.quiet "[newrelic] [agent-test-app] applied NR Plugin"
-}
 
-if (project.plugins.hasPlugin("newrelic")) {
+    logger.quiet "[agent-test-app] applied NR [${newrelic.agent.version}] plugin"
 
-    // this allows integration testing
+    // this allows integration tests to configure plugin
     def testExtension = rootProject.file("nr-extension.gradle")
     if (testExtension.exists()) {
         apply from: testExtension.absolutePath
@@ -144,13 +104,13 @@ if (project.plugins.hasPlugin("newrelic")) {
     } else {
         newrelic {
             // use a common buildId for all variants (default: true)
-            // variantMapsEnabled true
+            variantMapsEnabled = true
 
-            // Tag and report Proguard maps for these build types (default: release):
+            // Tag and report Proguard/DexGuard maps for these build types:
             if (withProductFlavors && withProductFlavors.toBoolean()) {
-                uploadMapsForVariant 'googleRelease', 'amazonQa'
+                uploadMapsForVariant 'googleQa', 'amazonQa'
             } else {
-                uploadMapsForVariant 'release', 'qa'
+                uploadMapsForVariant 'qa'
             }
 
             // do not instrument these variant builds
@@ -160,21 +120,16 @@ if (project.plugins.hasPlugin("newrelic")) {
             excludePackageInstrumentation 'com.newrelic'
 
             try {
+                // allow overrides for specific (DexGuard) configuration
                 variantConfigurations {
-                    debug {
-                        // mappingFile = 'build/outputs/dexguard/mapping/debug/debug-mapping.txt'
-                    }
-
                     qa {
-                        mappingFile = 'build/outputs/dexguard/mapping/qa/qa-mapping.txt'
-                    }
-
-                    release {
-                        // mappingFile = 'build/outputs/dexguard/mapping/bundle/release/mapping.txt'
+                        uploadMappingFile = true
+                        mappingFile = "build/outputs/dexguard/mapping/qa/qa-mapping.txt"
                     }
                 }
-            } catch (Exception) {
-                logger.info("DSL not implemented")
+
+            } catch (Exception e) {
+                logger.error(e.toString())
             }
         }
     }

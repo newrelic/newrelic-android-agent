@@ -110,8 +110,8 @@ public class Proguard {
     private boolean sslConnection = true;
 
     private static Map<String, String> agentOptions = Collections.emptyMap();
-    private static String buildId = BuildId.getBuildId(BuildId.DEFAULT_VARIANT);
 
+    private String buildId = BuildId.getBuildId(BuildId.DEFAULT_VARIANT);
     private Properties newRelicProps;
 
     public Proguard(final Logger log, final Map<String, String> agentOptions) {
@@ -180,11 +180,10 @@ public class Proguard {
                 } else if (lastLine.startsWith(NR_MAP_PREFIX)) {
                     // replace build id with parsed value
                     buildId = lastLine.substring(NR_MAP_PREFIX.length());
-                    log.info("Map [" + file.getAbsolutePath() + "] has already been tagged with buildID [" + buildId + "] - resending.");
-                    return true;        // send it again
+                    log.debug("Map [" + file.getAbsolutePath() + "] has already been tagged with buildID [" + buildId + "].");
+                    return true;        // send it
                 } else {
-                    String variant = agentOptions.get(VARIANT_KEY);
-                    buildId = BuildId.getBuildId(variant);
+                    buildId = agentOptions.getOrDefault(BuildId.BUILD_ID_KEY, buildId);
                     log.info("Tagging map [" + file.getAbsolutePath() + "] with buildID [" + buildId + "]");
                     // Write the build ID to the file so the user can uploaded it manually later.
                     try (final FileWriter fileWriter = new FileWriter(file, true)) {
@@ -421,7 +420,7 @@ public class Proguard {
 
     private void logRecourse() {
         log.error("To de-obfuscate crashes, upload the build's ProGuard/DexGuard 'mapping.txt' manually,");
-        log.error("or run the 'newRelicMapUpload<Variant>' or 'newRelicProguardScanTask' Gradle tasks.");
+        log.error("or run the 'newRelicMapUpload<Variant>' Gradle task.");
         log.error("For more help, see 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/android-agent-crash-reporting'");
     }
 

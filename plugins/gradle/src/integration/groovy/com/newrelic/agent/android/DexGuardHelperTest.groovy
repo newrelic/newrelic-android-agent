@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android
 
+import org.gradle.util.GradleVersion
 import org.junit.Assert
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -16,35 +17,43 @@ class DexGuardHelperTest extends PluginTest {
 
     @BeforeEach
     void setUp() {
-        def plugins = Mockito.spy(project.getPlugins())
+        def plugins = Mockito.spy(project.plugins)
 
         project = Mockito.spy(project)
-        Mockito.when(plugins.hasPlugin(DexGuardHelper.PLUGIN_EXTENSION_NAME)).thenReturn(true)
         Mockito.when(project.getPlugins()).thenReturn(plugins)
+        Mockito.when(plugins.hasPlugin(DexGuardHelper.PLUGIN_EXTENSION_NAME)).thenReturn(true)
 
-        buildHelper = BuildHelper.register(project)
+        buildHelper = Mockito.spy(BuildHelper.register(project))
+        buildHelper.variantAdapter.configure(buildHelper.extension)
+        Mockito.doReturn("7.6").when(buildHelper).getGradleVersion()
 
         dexGuardHelper = Mockito.spy(DexGuardHelper.register(buildHelper))
         Mockito.doReturn(true).when(dexGuardHelper).getEnabled()
         Mockito.doReturn(DexGuardHelper.minSupportedVersion).when(dexGuardHelper).getCurrentVersion()
+
     }
 
     @Test
     void isLegacyDexGuard() {
-        Mockito.doReturn(DexGuardHelper.minSupportedVersion).when(dexGuardHelper).getCurrentVersion()
+        Mockito.doReturn("8.3").when(dexGuardHelper).getCurrentVersion()
         Assert.assertFalse(dexGuardHelper.isDexGuard9())
     }
 
     @Test
     void isDexGuard9() {
+        // defaults to 9.0
+        Assert.assertTrue(dexGuardHelper.isDexGuard9())
+
         Mockito.doReturn("10.9.8").when(dexGuardHelper).getCurrentVersion()
-        // FIXME Assert.assertTrue(dexGuardHelper.isDexGuard9())
+        Assert.assertTrue(dexGuardHelper.isDexGuard9())
+
+        Mockito.doReturn("8.9.10").when(dexGuardHelper).getCurrentVersion()
+        Assert.assertFalse(dexGuardHelper.isDexGuard9())
     }
 
     @Test
     void getDefaultMapPath() {
-        def buildHelper = BuildHelper.register(project)
-        buildHelper.variantAdapter.configure(buildHelper.extension)
+        Assert.assertEquals(3, buildHelper.variantAdapter.getVariantValues().size())
         buildHelper.variantAdapter.getVariantValues().each { variant ->
             def mapPath = dexGuardHelper.getMappingFileProvider(variant.name)
             Assert.assertNotNull(mapPath)
@@ -56,14 +65,47 @@ class DexGuardHelperTest extends PluginTest {
     }
 
     @Test
-    void configureDexGuard9Tasks() {
-        // FIXME
+    void configureDexGuard() {
+        dexGuardHelper.configureDexGuard()
+        Assert.assertEquals(3, buildHelper.variantAdapter.getVariantValues().size())
+        buildHelper.variantAdapter.getVariantValues().each { variant ->
+            if (buildHelper.extension.shouldIncludeMapUpload(variant.name)) {
+                Mockito.verify(dexGuardHelper, Mockito.times(1)).wireDexGuardMapProviders(variant.name)
+            }
+        }
     }
 
     @Test
-    void configureDexGuardTasks() {
-        // FIXME
+    void wiredTaskNames() {
+        Assert.assertEquals(3, buildHelper.variantAdapter.getVariantValues().size())
+        buildHelper.variantAdapter.getVariantValues().each { variant ->
+            def taskNames = dexGuardHelper.wiredTaskNames(variant.name)
+            Assert.assertEquals(2, taskNames.size())
+            Assert.assertTrue(taskNames.contains("bundle"))
+            Assert.assertTrue(taskNames.contains("assemble"))
+        }
     }
 
+    @Test
+    void getTaskProvidersFromNames() {
+        Assert.assertEquals(3, buildHelper.variantAdapter.getVariantValues().size())
+        buildHelper.variantAdapter.getVariantValues().each { variant ->
+            def taskNames = dexGuardHelper.wiredTaskNames(variant.name)
+            def tasks = buildHelper.wireTaskProviderToDependencyNames(taskNames)
+            Assert.assertEquals(2, tasks.size())
+            Assert.assertNotNull(tasks.find { it.name == "bundle" })
+            Assert.assertNotNull(tasks.find { it.name == "assemble" })
+        }
+    }
+
+    @Test
+    void wireDexGuardMapProviders() {
+        Assert.assertEquals(3, buildHelper.variantAdapter.getVariantValues().size())
+        buildHelper.variantAdapter.getVariantValues().each { variant ->
+            if (buildHelper.extension.shouldIncludeMapUpload(variant.name)) {
+                Assert.assertNotNull(buildHelper.project.tasks.named("${NewRelicMapUploadTask.NAME}${variant.name.capitalize()}", NewRelicMapUploadTask.class))
+            }
+        }
+    }
 
 }

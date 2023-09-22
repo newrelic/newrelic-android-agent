@@ -56,14 +56,21 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                         try {
                             new FileInputStream(classFile).withCloseable { fileInputStream ->
                                 def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
-                                jarOutputStream.putNextEntry(jarEntry)
-                                transformer.processClassBytes(classFile, fileInputStream).withCloseable {
-                                    jarOutputStream << it
+                                try {
+                                    jarOutputStream.putNextEntry(jarEntry)
+                                    transformer.processClassBytes(classFile, fileInputStream).withCloseable {
+                                        jarOutputStream << it
+                                    }
+                                    jarOutputStream.closeEntry()
+                                } catch (IOException ioE) {
+                                    // ignore the duplicate file structure entry
+                                    if (!(jarEntry.directory || jarEntry.name.startsWith("META-INF/"))) {
+                                        throw ioE
+                                    }
                                 }
-                                jarOutputStream.closeEntry()
                             }
-                        } catch (IOException ignored) {
-
+                        } catch (IOException fileException) {
+                            logger.error("[ClassTransformTask] [${classJar.asFile.path}] ${fileException.message}")
                         }
                     }
                 }
@@ -71,16 +78,10 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                 classJars.get().forEach { classJar ->
                     try (JarFile jar = new JarFile(classJar.asFile)) {
                         try {
-                            def instrumentable = transformer.verifyManifest(jar)
-
-                            if (!instrumentable) {
-                                return
-                            }
-
                             for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
-                                if (instrumentable) {
+                                try {
+                                    JarEntry jarEntry = e.nextElement()
                                     try {
-                                        JarEntry jarEntry = e.nextElement()
                                         jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
                                         jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
                                             transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
@@ -88,13 +89,19 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                             }
                                         }
                                         jarOutputStream.closeEntry()
-                                    } catch (IOException ignored) {
+                                    } catch (IOException ioE) {
+                                        // ignore the duplicate file structure entry
+                                        if (!(jarEntry.directory || jarEntry.name.startsWith("META-INF/"))) {
+                                            throw ioE
+                                        }
                                     }
+                                } catch (IOException jarEntryException) {
+                                    logger.error("[ClassTransformTask] [${classJar.asFile.path}] ${jarEntryException.message}")
                                 }
                             }
 
-                        } catch (IOException e) {
-                            logger.warn(e.message)
+                        } catch (IOException jarException) {
+                            logger.error(("[ClassTransformTask] [${classJar.asFile.path}] ${jarException.message}"))
                         }
                     }
                 }

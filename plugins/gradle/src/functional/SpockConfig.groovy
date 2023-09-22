@@ -1,4 +1,3 @@
 runner {
-    filterStackTrace true
-    optimizeRunOrder true
+    // optimizeRunOrder true
 }

@@ -11,7 +11,6 @@ import org.junit.Assert
 import org.junit.Ignore
 import org.junit.jupiter.api.Test
 
-@Ignore
 class NewRelicGradlePluginTest extends PluginTest {
 
     @Test

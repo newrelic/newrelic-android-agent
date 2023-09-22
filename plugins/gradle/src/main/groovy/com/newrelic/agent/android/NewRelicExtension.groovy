@@ -24,9 +24,9 @@ abstract class NewRelicExtension {
      * Variant name spec is loose: it can be the literal name of the variant, the build type
      * or product flavor.
      */
-    protected final List<String> variantExclusionList = []              // ['Debug', 'staging']
-    protected final List<String> variantMapUploadList = ['release']     // ['Release', 'ProdRelease', 'Staging']
-    protected final List<String> packageExclusionList = []              // ['android.*', 'androidx.*']
+    protected final Set<String> variantExclusions = []              // ['Debug', 'staging']
+    protected final Set<String> variantMapUploads = ['release']     // ['Release', 'ProdRelease', 'Staging']
+    protected final Set<String> packageExclusions = []              // ['android.*', 'androidx.*']
 
     Property<Boolean> enabled
     Property<Boolean> instrumentTests
@@ -52,6 +52,10 @@ abstract class NewRelicExtension {
         this.variantConfigurations = objectFactory.domainObjectContainer(VariantConfiguration, { name ->
             objectFactory.newInstance(VariantConfiguration.class, name, project)
         })
+    }
+
+    boolean setEnabled(boolean state) {
+        return enabled.set(state)
     }
 
     boolean getEnabled() {
@@ -98,45 +102,46 @@ abstract class NewRelicExtension {
             def normalizedConfigName = config.name.toLowerCase()
 
             if (!config.instrument) {
-                variantExclusionList.add(normalizedConfigName)
+                variantExclusions.add(normalizedConfigName)
             }
+
             if (config.uploadMappingFile) {
-                variantMapUploadList.add(normalizedConfigName)
+                variantMapUploads.add(normalizedConfigName)
             }
         }
     }
 
-    void uploadMapsForVariant(Object... e) {
-        variantMapUploadList.clear()
-        variantMapUploadList.addAll(e.collect { i -> i.toString().toLowerCase() })
+    void uploadMapsForVariant(String... e) {
+        variantMapUploads.clear()
+        variantMapUploads.addAll(e.collect { i -> i.toString().toLowerCase() })
 
         // update variants configs with these values
-        variantMapUploadList.each { variantName ->
+        variantMapUploads.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
                 uploadMappingFile = true
             }
         }
     }
 
-    void excludeVariantInstrumentation(Object... e) {
-        variantExclusionList.clear()
-        variantExclusionList.addAll(e.collect { i -> i.toString().toLowerCase() })
+    void excludeVariantInstrumentation(String... e) {
+        variantExclusions.clear()
+        variantExclusions.addAll(e.collect { i -> i.toString().toLowerCase() })
 
         // update variants configs with these values
-        variantExclusionList.each { variantName ->
+        variantExclusions.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
                 instrument = false
             }
         }
     }
 
-    void excludePackageInstrumentation(Object... e) {
-        packageExclusionList.clear()
-        packageExclusionList.addAll(e.collect { i -> i.toString().toLowerCase() })
+    void excludePackageInstrumentation(String... e) {
+        packageExclusions.clear()
+        packageExclusions.addAll(e.collect { i -> i.toString().toLowerCase() })
 
-        variantMapUploadList.each { variantName ->
+        variantMapUploads.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                // FIXME
+                // TODO
             }
         }
     }
@@ -145,7 +150,7 @@ abstract class NewRelicExtension {
         variantConfigurations.findByName(variantName.toLowerCase())?.with {
             return instrument
         }
-        return !variantExclusionList.findAll { variantName == it || variantName.endsWith(it.capitalize()) }.empty
+        return !variantExclusions.findAll { variantName.toLowerCase() == it || variantName.endsWith(it.capitalize()) }.empty
     }
 
     boolean shouldIncludeVariant(String variantName) {
@@ -160,6 +165,8 @@ abstract class NewRelicExtension {
         variantConfigurations.findByName(variantName.toLowerCase())?.with {
             return uploadMappingFile
         }
-        return variantMapUploadList.isEmpty() || variantMapUploadList.contains(variantName.toLowerCase())
+
+        return variantMapUploads.isEmpty() ||
+                !variantMapUploads.findAll { variantName.toLowerCase() == it || variantName.endsWith(it.capitalize()) }.empty
     }
 }
