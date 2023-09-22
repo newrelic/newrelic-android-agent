@@ -134,7 +134,6 @@ test {
     failFast = true
     minHeapSize = "1g"
     maxHeapSize = "4g"
-    jvmArgs '-XX:MaxPermSize=4g'
     testLogging {
         events "skipped", "failed"
     }
@@ -157,8 +156,8 @@ def functionalTestTask = tasks.register("functionalTests", Test) {
 }
 
 tasks.named('check') {
-    // dependsOn(tasks.named("integrationTests"))
-    // dependsOn(tasks.named("functionalTests"))
+    dependsOn(tasks.named("integrationTests"))
+    dependsOn(tasks.named("functionalTests"))
 }
 
 artifacts {
