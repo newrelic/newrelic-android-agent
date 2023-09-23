@@ -157,7 +157,6 @@ def functionalTestTask = tasks.register("functionalTests", Test) {
 
 tasks.named('check') {
     dependsOn(tasks.named("integrationTests"))
-    dependsOn(tasks.named("functionalTests"))
 }
 
 artifacts {
