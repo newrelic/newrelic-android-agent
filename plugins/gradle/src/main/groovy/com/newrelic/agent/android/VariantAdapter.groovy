@@ -62,17 +62,13 @@ abstract class VariantAdapter {
      */
     static VariantAdapter register(BuildHelper buildHelper) {
         def currentGradleVersion = GradleVersion.version(buildHelper.getGradleVersion())
+        def currentAgpVersion = GradleVersion.version(buildHelper.getAgpVersion())
 
-        if (currentGradleVersion >= GradleVersion.version("7.4")) {
-            return new AGP74Adapter(buildHelper)
-        } else if (currentGradleVersion >= GradleVersion.version("7.2")) {
-            if (GradleVersion.version(buildHelper.agpVersion) < GradleVersion.version("7.2")) {
-                return new AGP4Adapter(buildHelper)
-            }
-            return new AGP70Adapter(buildHelper)
-        } else {
+        if (currentAgpVersion < GradleVersion.version("7.4")) {
             return new AGP4Adapter(buildHelper)
         }
+
+        return new AGP74Adapter(buildHelper)
     }
 
     Set<String> getVariantNames() {
@@ -259,7 +255,7 @@ abstract class VariantAdapter {
      */
     def assembleDataModel(String variantName) {
         // assemble and configure model
-        if (buildHelper.extension.shouldIncludeVariant(variantName)) {
+         if (buildHelper.extension.shouldIncludeVariant(variantName)) {
             wiredWithTransformProvider(variantName)
         }
 
