@@ -92,8 +92,7 @@ class VariantAdapterTest extends PluginTest {
     @Test
     void getMappingFile() {
         variantAdapter.getVariantValues().each { variant ->
-            def provider = variantAdapter.getMappingFileProvider("release")
-            // variant.name)
+            def provider = variantAdapter.getMappingFileProvider(variant.name)
             Assert.assertTrue(provider instanceof RegularFileProperty)
             Assert.assertTrue(provider.get().asFile.absolutePath.startsWith(project.layout.buildDirectory.asFile.get().absolutePath))
         }
