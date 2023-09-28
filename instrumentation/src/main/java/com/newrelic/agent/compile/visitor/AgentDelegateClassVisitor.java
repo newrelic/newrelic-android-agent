@@ -187,7 +187,7 @@ public abstract class AgentDelegateClassVisitor extends ClassVisitor {
                         for (int i = 0; i < method.getArgumentTypes().length; i++) {
                             loadArg(i);
                         }
-                        visitMethodInsn(Opcodes.INVOKESPECIAL, superName, method.getName(), method.getDescriptor(), false);
+                        visitMethodInsn(Opcodes.INVOKESPECIAL, context.getFriendlySuperClassName(), method.getName(), method.getDescriptor(), false);
                     }
                     injectIntoMethod(this, method, agentDelegateMethod);
                 }
