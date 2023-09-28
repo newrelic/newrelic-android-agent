@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022 - present. New Relic Corporation. All rights reserved.
+ * Copyright (c) 2021-2023. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -10,6 +10,7 @@ import static org.mockito.Mockito.times;
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.TestContext;
+import com.newrelic.agent.compile.visitor.ActivityClassVisitor;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -113,7 +114,7 @@ public class ComposeNavigatorClassVisitorTest {
             MethodNode mn = testContext.toMethodNode(cn, m.getName(), m.getDescriptor());
             if (mn != null) {
                 Method delegate = map.get(m);
-                targets.add("INVOKEVIRTUAL " + ActivityClassVisitor.applicationStateMonitorType.getClassName().replace('.', '/')
+                targets.add("INVOKEVIRTUAL " + ActivityClassVisitor.agentDelegateClassType.getClassName().replace('.', '/')
                         + "." + delegate.getName() + " " + delegate.getDescriptor());
             }
         }

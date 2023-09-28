@@ -14,11 +14,14 @@ import androidx.navigation.NavHostController;
 import androidx.navigation.NavOptions;
 import androidx.navigation.Navigator;
 
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.instrumentation.InstrumentationDelegate;
 import com.newrelic.agent.android.instrumentation.ReplaceCallSite;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Navigation classes are final so can't use WrapReturn
@@ -27,10 +30,15 @@ import java.util.Map;
 
 public class NavigationController extends InstrumentationDelegate {
 
+    private static Set<FeatureFlag> requiredFeatures = new HashSet<FeatureFlag>() {{
+        add(FeatureFlag.Jetpack);
+    }};
+
     @ReplaceCallSite(isStatic = true)
     static public void navigate$default(NavController navController, String route, NavOptions options, Navigator.Extras extras, int i, Object o) {
         navController.navigate(route, options, extras);
-        executor.submit(() -> {
+
+        submit(requiredFeatures, () -> {
             log.debug("navigate$default(NavController, String, NavOptions, Navigator.Extras, int, Object)");
             Map<String, Object> attrs = new HashMap<String, Object>() {{
                 put("span", "navigate");
@@ -66,6 +74,7 @@ public class NavigationController extends InstrumentationDelegate {
     @ReplaceCallSite(isStatic = true)
     static public void invoke(NavHostController navHostController, NavBackStackEntry navBackStackEntry, Composer composer, int cnt) {
         navHostController.navigate(navBackStackEntry.getDestination().getId(), navBackStackEntry.getArguments());
+
         executor.submit(() -> {
             log.debug("invoke(NavController, NavBackStackEntry, Composer, int)");
             Map<String, Object> attrs = new HashMap<String, Object>() {{
@@ -83,7 +92,8 @@ public class NavigationController extends InstrumentationDelegate {
     @ReplaceCallSite
     static public void navigate(NavController navController, int resId, Bundle bundle, NavOptions options, Navigator.Extras extras) {
         navController.navigate(resId, bundle, options, extras);
-        executor.submit(() -> {
+
+        submit(requiredFeatures, () -> {
             log.debug("navigate(NavController, int, Bundle, NavOptions, Navigator.Extras)");
             Map<String, Object> attrs = new HashMap<String, Object>() {{
                 put("span", "navigate");
@@ -112,7 +122,8 @@ public class NavigationController extends InstrumentationDelegate {
     @ReplaceCallSite
     static public boolean navigateUp(NavController navController) {
         boolean rc = navController.navigateUp();
-        executor.submit(() -> {
+
+        submit(requiredFeatures, () -> {
             log.debug("navigateUp(NavController)");
             Map<String, Object> attrs = new HashMap<String, Object>() {{
                 put("span", "navigateUp");
@@ -127,7 +138,8 @@ public class NavigationController extends InstrumentationDelegate {
     @ReplaceCallSite(isStatic = true)
     static public void popBackStack$default(NavController navController, String route, boolean inclusive, boolean saveState, int i, Object unused) {
         navController.popBackStack(route, inclusive, saveState);
-        executor.submit(() -> {
+
+        submit(requiredFeatures, () -> {
             log.debug("popBackStack$default(NavController, String, boolean, boolean, int, Object)");
             Map<String, Object> attrs = new HashMap<String, Object>() {{
                 put("span", "popBackStack");
@@ -137,12 +149,14 @@ public class NavigationController extends InstrumentationDelegate {
             }};
             analyticsController.recordBreadcrumb("Compose", attrs);
         });
+
     }
 
     @ReplaceCallSite
     static public boolean popBackStack(NavController navController, int destinationId, boolean inclusive, boolean saveState) {
         boolean rc = navController.popBackStack(destinationId, inclusive, saveState);
-        executor.submit(() -> {
+
+        submit(requiredFeatures, () -> {
             log.debug("popBackStack(NavController, int, boolean, boolean)");
             Map<String, Object> attrs = new HashMap<String, Object>() {{
                 put("span", "popBackStack");
@@ -160,7 +174,8 @@ public class NavigationController extends InstrumentationDelegate {
     @ReplaceCallSite
     static public boolean popBackStack(NavController navController, String route, boolean inclusive, boolean saveState) {
         boolean rc = navController.popBackStack(route, inclusive, saveState);
-        executor.submit(() -> {
+
+        submit(requiredFeatures, () -> {
             log.debug("popBackStack(NavController, String, boolean, boolean) ");
             Map<String, Object> attrs = new HashMap<String, Object>() {{
                 put("span", "popBackStack");
@@ -178,7 +193,8 @@ public class NavigationController extends InstrumentationDelegate {
     @ReplaceCallSite
     static public boolean popBackStack(NavHostController navHostController) {
         boolean rc = navHostController.popBackStack();
-        executor.submit(() -> {
+
+        submit(requiredFeatures, () -> {
             log.debug("boolean popBackStack(NavHostController)");
             Map<String, Object> attrs = new HashMap<String, Object>() {{
                 put("span", "popBackStack");
