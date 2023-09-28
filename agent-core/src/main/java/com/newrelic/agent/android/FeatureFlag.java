@@ -20,9 +20,10 @@ public enum FeatureFlag {
     DistributedTracing,
     NativeReporting,
     AppStartMetrics,
-    FedRampEnabled;
+    FedRampEnabled,
+    Jetpack;
 
-    private static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
+    public static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
 
     static {
         resetFeatures();

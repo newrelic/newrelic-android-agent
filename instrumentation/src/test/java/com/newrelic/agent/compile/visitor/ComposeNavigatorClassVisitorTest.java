@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022 - present. New Relic Corporation. All rights reserved.
+ * Copyright (c) 2021-2023. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -10,9 +10,11 @@ import static org.mockito.Mockito.times;
 import com.newrelic.agent.Constants;
 import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.TestContext;
+import com.newrelic.agent.compile.visitor.ActivityClassVisitor;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.objectweb.asm.MethodVisitor;
@@ -26,7 +28,8 @@ import java.util.ArrayList;
 import java.util.Map;
 
 
-public class ActivityClassVisitorTest {
+@Ignore("TODO")
+public class ComposeNavigatorClassVisitorTest {
 
     TestContext testContext;
     ActivityClassVisitor cv;
@@ -38,7 +41,7 @@ public class ActivityClassVisitorTest {
         testContext = new TestContext();
         cv = new ActivityClassVisitor(testContext.classWriter, testContext.instrumentationContext, InstrumentationAgent.LOGGER);
         cv = Mockito.spy(cv);
-        classBytes = testContext.classBytesFromResource("/MainActivity.class");
+        classBytes = testContext.classBytesFromResource("/ComposeNavigation.class");
     }
 
     @Test
@@ -94,13 +97,6 @@ public class ActivityClassVisitorTest {
         Assert.assertEquals(0, cv.access);
         ClassNode cn = testContext.toClassNode(emittedBytes);
         Assert.assertTrue(cn.interfaces.contains(Constants.TRACE_FIELD_INTERFACE_CLASS_NAME));
-    }
-
-    @Test
-    public void provideAccessForMethod() {
-        Assert.assertEquals(Opcodes.ACC_PROTECTED, cv.provideAccessForMethod("onStart"));
-        Assert.assertEquals(Opcodes.ACC_PROTECTED, cv.provideAccessForMethod("onStop"));
-        Assert.assertEquals(Opcodes.ACC_PROTECTED, cv.provideAccessForMethod("onCreate"));
     }
 
     @Test

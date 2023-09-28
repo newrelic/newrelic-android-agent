@@ -52,6 +52,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
 
                 classDirectories.get().forEach { directory ->
                     directory.asFile.traverse(type: FileType.FILES) { classFile ->
+                        // logger.quiet("classfile[${classFile.absolutePath}]")
                         String relativePath = directory.asFile.toURI().relativize(classFile.toURI()).getPath()
                         try {
                             new FileInputStream(classFile).withCloseable { fileInputStream ->

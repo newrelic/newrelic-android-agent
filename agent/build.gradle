@@ -78,32 +78,13 @@ android {
     }
 }
 
-/*
-androidComponents {
-    onVariants(selector().withBuildType("release")) { variant ->
-        logger.info("[FAT-JAR] Variant[${variant.name}]")
-        variant.ext.fatJarProvider = toFatJarTask(variant)
-        artifacts {
-            // The artifact is a fat jar
-            archives variant.ext.fatJarProvider
-        }
-
-        def assembleTask = project.tasks.named("assemble") {
-            dependsOn variant.ext.fatJarProvider
-        }
-
-        fatJarProvider.configure {
-            finalizedBy assembleTask
-        }
-    }
-}
-/**/
-
 dependencies {
     implementation project(path: ':agent-core', configuration: 'fat')
 
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk
+
+compileOnly "androidx.navigation:navigation-compose:${project.versions.jetpack}"
 
     testImplementation project(path: ':agent-core', configuration: 'fat')
     testImplementation fileTree(dir: 'libs', include: '*.jar')

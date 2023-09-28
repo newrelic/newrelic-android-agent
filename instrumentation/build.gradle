@@ -18,7 +18,7 @@ configurations {
     mappedClasses
 }
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
 }
@@ -31,7 +31,7 @@ dependencies {
     implementation "org.ow2.asm:asm-commons:${versions.java.asm}"
 
     // brittle: tread lightly
-    // mappedClasses fileTree(dir: rootProject.project(':agent').projectLibsDir, include: "android-agent-${version}.jar")
+    mappedClasses fileTree(dir: rootProject.project(':agent').projectLibsDir, include: "android-agent-${version}.jar")
 
     testImplementation "junit:junit:" + project.versions.test.junit
     testImplementation "org.mockito:mockito-core:" + project.versions.test.mockitoCore
@@ -131,7 +131,8 @@ project.afterEvaluate() {
 
     tasks.register("generateMapFile", JavaExec) {
         description "Extract relocation rules from instrumentation code and generate type_map properties file"
-        dependsOn compileStampedAgent
+        dependsOn(compileStampedAgent)
+        dependsOn(":agent:fatJarRelease")
         group "build"
         main 'com.newrelic.agent.util.MapFileGenerator'
         jvmArgs '-Xmx1024m'
