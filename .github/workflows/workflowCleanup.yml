@@ -20,7 +20,7 @@ on:
           - skipped
           - failure
         required: false
-      age:
+      maxage:
         description: 'Last updated age of runs (default 180 days)'
         required: false
         type: number
@@ -30,6 +30,11 @@ on:
         required: false
         type: number
         default: 100
+      dryrun:
+        description: 'Show runs that would be deleted'
+        required: false
+        type: boolean
+        default: true
   schedule:
     # run first of the month
     - cron: '0 0 1 * *'
@@ -45,5 +50,6 @@ jobs:
           PROTECTED_BRANCH: ${{ inputs.protected-branch }}
           WORKFLOW: ${{ inputs.workflow }}
           STATE: ${{ inputs.state }}
-          MAXAGE: ${{ inputs.age }}
+          MAXAGE: ${{ inputs.maxage }}
           LIMIT: ${{ inputs.limit }}
+          DRYRUN: ${{ inputs.dryrun }}
