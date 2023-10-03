@@ -2,7 +2,7 @@ name: Actions cleanup
 
 on:
   workflow_dispatch:
-    - inputs:
+    inputs:
       protected-branch:
         description: 'Ignore changes to this branch'
         required: false
