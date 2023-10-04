@@ -32,32 +32,32 @@ jobs:
         ./gradlew instrumentation:jacocoTestReport
         ./gradlew plugin:gradle:jacocoTestReport
 
-    - name: Generate report
-      uses: actions/upload-artifact@v2
-      with:
-        name: report 
-        path: |
-          ./agent/build/reports/jacoco
-          ./agent-core/build/reports/jacoco
-          ./instrumentation/build/reports/jacoco
-          ./plugin/gradle/build/reports/jacoco
+    # - name: Generate report
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: report 
+    #     path: |
+    #       ./agent/build/reports/jacoco
+    #       ./agent-core/build/reports/jacoco
+    #       ./instrumentation/build/reports/jacoco
+    #       ./plugin/gradle/build/reports/jacoco
 
-    - name: Download Test Reports Folder
-      uses: actions/download-artifact@v2
-      with:
-        name: report
-        path: |
-          ./agent/build/reports/jacoco
-          ./agent-core/build/reports/jacoco
-          ./instrumentation/build/reports/jacoco
-          ./plugin/gradle/build/reports/jacoco
+    # - name: Download Test Reports Folder
+    #   uses: actions/download-artifact@v2
+    #   with:
+    #     name: report
+    #     path: |
+    #       ./agent/build/reports/jacoco
+    #       ./agent-core/build/reports/jacoco
+    #       ./instrumentation/build/reports/jacoco
+    #       ./plugin/gradle/build/reports/jacoco
 
     - name: Upload Test Report
       uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: |
-          "./agent/build/reports/jacoco/report.xml"
-          "./agent-core/build/reports/jacoco/report.xml"
-          "./instrumentation/build/reports/jacoco/report.xml"
-          "./plugin/gradle/build/reports/jacoco/report.xml"
+          "./agent/build/reports/jacoco/testReleaseUnitTestCoverage.xml"
+          "./agent-core/build/reports/jacoco/jacocoTestReport.xml"
+          "./instrumentation/build/reports/jacoco/jacocoTestReport.xml"
+          "./plugin/gradle/build/reports/jacoco/jacocoTestReport.xml"
