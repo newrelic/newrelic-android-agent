@@ -15,10 +15,7 @@ def setupKotlinReporting() {
         dependsOn test
         reports {
             xml.required = true
-            html {
-                required = true
-                destination file("${buildDir}/coverage-report")
-            }
+            html.required = true
         }
         afterEvaluate {
             classDirectories.from = files(classDirectories.files.collect {
@@ -88,10 +85,7 @@ def setupAndroidReporting() {
 
                 reports {
                     xml.required = true
-                    html {
-                        required = true
-                        destination file("${buildDir}/coverage-report")
-                    }
+                    html.required = true
                 }
             }
         }
