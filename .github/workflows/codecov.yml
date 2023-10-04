@@ -28,9 +28,9 @@ jobs:
     - name: Run jacoco
       run: |
         ./gradlew agent:testReleaseUnitTestCoverage
-        agent-core:jacocoTestReport
-        instrumentation:jacocoTestReport
-        plugin:gradle:jacocoTestReport
+        ./gradlew agent-core:jacocoTestReport
+        ./gradlew instrumentation:jacocoTestReport
+        ./gradlew plugin:gradle:jacocoTestReport
 
     - name: Generate report
       uses: actions/upload-artifact@v2
