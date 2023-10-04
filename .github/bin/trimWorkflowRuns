@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+# Requires GitHub CLI installed and authenticated. 
+
+# ignore changes to this branch
+# PROTECTED_BRANCH=develop
+
+# name of a specific workflow job to filter
+# WORKFLOW=
+
+# conclusion state of run: [success, failure, skipped] (empty for all)
+# STATE=failure
+
+# age of last run update in days (default is 180)
+MAXAGE=${MAXAGE:=180}
+
+# number of records to query (default is 1000)
+LIMIT=${LIMIT:=1000}
+
+# set to print the command without running it
+# DRYRUN=
+
+# GH query defaults
+GH="gh run list -L ${LIMIT} --json workflowName,databaseId,conclusion,updatedAt,headBranch"
+
+# construct a jq filter from all records
+FILTER=".[]"
+
+# avoid changes to protected branch
+[[ ${PROTECTED_BRANCH} ]] && echo "PROTECTED_BRANCH[${PROTECTED_BRANCH}]"
+[[ ${PROTECTED_BRANCH} ]] && FILTER="${FILTER} | select(.headBranch != \"${PROTECTED_BRANCH}\")"
+
+# include records whose conclusion matches STATE
+[[ ${STATE} ]] && echo "STATE[${STATE}]"
+[[ ${STATE} ]] && FILTER="${FILTER} | select(.conclusion == \"${STATE}\")"
+
+# include records whose last update is older than N days
+[[ ${MAXAGE} ]] && echo "MAXAGE[${MAXAGE}] days"
+[[ ${MAXAGE} ]] && FILTER="${FILTER} | select((now - (${MAXAGE}*24*60*60)) > (.updatedAt | fromdate))"
+
+# include records whose workflow name matches WORKFLOW
+[[ ${WORKFLOW} ]] && echo "WORKFLOW[${WORKFLOW}]"
+[[ ${WORKFLOW} ]] && FILTER="${FILTER} | select(.workflowName==\"${WORKFLOW}\")"
+
+# fetch the run data, save as array
+echo "${GH} | jq -c '${FILTER}'"
+RUNS=$(eval "${GH} | jq -c '${FILTER}'")
+[[ "${RUNS}" == "" ]] && echo "No records" && exit
+# print the query results
+echo "${RUNS}"
+
+[[ ${DRYRUN} ]] || read -p "Delete run records? (y/n) " yn
+case $yn in
+    Y|y|yes )
+        # save db ids as array
+        IDS=($(echo "${RUNS}" | jq '.databaseId'))
+        # Iterate through list an delete each run specifically
+        for ID in "${IDS[@]}" ; do eval "gh run delete ${ID}" ; done
+        ;;
+    * )
+        ;;
+esac
+echo
