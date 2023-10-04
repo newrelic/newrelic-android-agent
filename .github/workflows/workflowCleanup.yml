@@ -16,28 +16,29 @@ on:
         description: 'Final state of the workflow run'
         type: choice
         options:
+          -
           - success
           - skipped
           - failure
         required: false
       maxage:
-        description: 'Last updated age of runs (default 180 days)'
+        description: 'Last updated age of runs (in days)'
         required: false
         type: number
         default: 180
       limit:
-        description: 'Maximum number of runs to fetch (default 100)'
+        description: 'Maximum number of runs to fetch'
         required: false
         type: number
         default: 100
       dryrun:
-        description: 'Show runs that would be deleted'
+        description:  'Show runs that would be deleted (TBA)'
         required: false
         type: boolean
         default: true
   schedule:
-    # run first of the month
-    - cron: '0 0 1 * *'
+    # run second day of the month
+    - cron: '0 0 2 * *'
 
 jobs:
   actions-cleanup:
@@ -46,7 +47,9 @@ jobs:
       - uses: actions/checkout@v3
       - run: |
           echo n | .github/bin/trimWorkflowRuns
+        shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           PROTECTED_BRANCH: ${{ inputs.protected-branch }}
           WORKFLOW: ${{ inputs.workflow }}
           STATE: ${{ inputs.state }}
