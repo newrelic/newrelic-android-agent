@@ -29,13 +29,13 @@ jobs:
         ./gradlew instrumentation:jacocoTestReport
         ./gradlew plugin:gradle:jacocoTestReport
 
-    - name: Upload Test Report
+    - name: Upload Test Report Part 1
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: '**/testReleaseUnitTestCoverage.xml'
 
-    - name: Upload Test Report
+    - name: Upload Test Report Part 2
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

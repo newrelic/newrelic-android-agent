@@ -5,9 +5,11 @@ private static boolean isAndroidModule(Project project) {
 }
 
 afterEvaluate { project ->
-    def projectName = project.name
-    if (isAndroidModule(project)) setupAndroidReporting()
-    else setupKotlinReporting()
+    if (isAndroidModule(project)) {
+        setupAndroidReporting()
+    } else {
+        setupKotlinReporting()
+    }
 }
 
 def setupKotlinReporting() {
@@ -40,7 +42,10 @@ def setupAndroidReporting() {
         flavor.name
     }
     // When no product flavors defined, use empty
-    if (!productFlavors) productFlavors.add('')
+    if (!productFlavors) {
+        productFlavors.add('')
+    }
+
     productFlavors.each { productFlavorName ->
         buildTypes.each { buildTypeName ->
             def sourceName, sourcePath
@@ -51,10 +56,11 @@ def setupAndroidReporting() {
                 sourcePath = "${productFlavorName}/${buildTypeName}"
             }
             def testTaskName = "test${sourceName.capitalize()}UnitTest"
-            System.out.println("Task -> $testTaskName")
+            def coverageTaskName = "${testTaskName}Coverage"
 
             // Create coverage task of form 'testFlavorTypeCoverage' depending on 'testFlavorTypeUnitTest'
-            task "${testTaskName}Coverage"(type: JacocoReport, dependsOn: "$testTaskName") {
+            tasks.register(coverageTaskName, JacocoReport) {
+                dependsOn testTaskName
                 group = "Reporting"
                 description = "Generate Jacoco coverage reports on the ${sourceName.capitalize()} build."
 
