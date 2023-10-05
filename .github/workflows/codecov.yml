@@ -45,4 +45,6 @@ jobs:
       uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: '**/testReleaseUnitTestCoverage.xml', '**/jacocoTestReport.xml'
+        files: |
+          '**/testReleaseUnitTestCoverage.xml'
+          '**/jacocoTestReport.xml'
