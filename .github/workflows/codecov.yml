@@ -57,7 +57,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: 
-          ./agent/build/reports/jacoco/testReleaseUnitTestCoverage.xml,
-          ./agent-core/build/reports/jacoco/jacocoTestReport.xml,
-          ./instrumentation/build/reports/jacoco/jacocoTestReport.xml,
-          ./plugin/gradle/build/reports/jacoco/jacocoTestReport.xml
+          ./agent/build/reports/jacoco/test/testReleaseUnitTestCoverage.xml,
+          ./agent-core/build/reports/jacoco/test/jacocoTestReport.xml,
+          ./instrumentation/build/reports/jacoco/test/jacocoTestReport.xml,
+          ./plugin/gradle/build/reports/jacoco/test/jacocoTestReport.xml

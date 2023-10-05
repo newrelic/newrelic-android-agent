@@ -19,20 +19,7 @@ def setupKotlinReporting() {
         }
         afterEvaluate {
             classDirectories.from = files(classDirectories.files.collect {
-                fileTree(dir: it, exclude: [
-                        // dagger
-                        '**/*_MembersInjector.class',
-                        '**/Dagger*Component.class',
-                        '**/Dagger*Component$Builder.class',
-                        '**/Dagger*Subcomponent*.class',
-                        '**/*Subcomponent$Builder.class',
-                        '**/*Module_*Factory.class',
-                        '**/di/module/*',
-                        '**/*_Factory*.*',
-                        '**/*Module*.*',
-                        '**/*Dagger*.*',
-                        '**/*Hilt*.*',
-                ])
+                fileTree(dir: it, exclude: [])
             })
         }
     }
