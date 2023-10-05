@@ -29,20 +29,12 @@ jobs:
         ./gradlew instrumentation:jacocoTestReport
         ./gradlew plugin:gradle:jacocoTestReport
 
-    - name: Generate report
-      uses: actions/upload-artifact@v2
-      with:
-        name: report 
-        path: '**/build/reports/jacoco'
-
-    - name: Download Test Reports Folder
-      uses: actions/download-artifact@v2
-      with:
-        name: report
-        path: '**/build/reports/jacoco'
-
     - name: Upload Test Report
       uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: '**/jacocoTestReport.xml'
+        files: |
+          ./agent/build/reports/jacoco/testReleaseUnitTestCoverage/testReleaseUnitTestCoverage.xml,
+          ./agent-core/build/reports/jacoco/test/jacocoTestReport.xml,
+          ./instrumentation/build/reports/jacoco/test/jacocoTestReport.xml,
+          ./plugins/gradle/build/reports/jacoco/test/jacocoTestReport.xml
