@@ -14,7 +14,7 @@ buildscript {
     }
 
     dependencies {
-        classpath "org.jacoco:org.jacoco.core:$versions.test.jacoco"
+        classpath "org.jacoco:org.jacoco.core:${versions.test.jacoco}"
     }
 }
 
