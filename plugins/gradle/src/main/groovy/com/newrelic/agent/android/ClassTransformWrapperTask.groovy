@@ -7,6 +7,7 @@ package com.newrelic.agent.android
 
 import com.newrelic.agent.compile.ClassTransformer
 import groovy.io.FileType
+import org.apache.commons.io.IOUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
@@ -59,8 +60,16 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                 def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
                                 try {
                                     jarOutputStream.putNextEntry(jarEntry)
-                                    transformer.processClassBytes(classFile, fileInputStream).withCloseable {
-                                        jarOutputStream << it
+                                    try {
+                                        transformer.processClassBytes(classFile, fileInputStream).withCloseable {
+                                            jarOutputStream << it
+                                        }
+                                    } catch (RuntimeException re) {
+                                        logger.warn("[ClassTransformTask] encountered a RuntimeException: " + re.getMessage() + ", output the original jar file")
+                                        IOUtils.copy(fileInputStream, jarOutputStream)
+                                    } catch (IOException ioE) {
+                                        logger.warn("[ClassTransformTask] encountered a IOException: " + ioE.getMessage() + ", output the original jar file")
+                                        IOUtils.copy(fileInputStream, jarOutputStream)
                                     }
                                     jarOutputStream.closeEntry()
                                 } catch (IOException ioE) {
@@ -85,8 +94,16 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                     try {
                                         jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
                                         jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
-                                            transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
-                                                jarOutputStream << it
+                                            try {
+                                                transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
+                                                    jarOutputStream << it
+                                                }
+                                            } catch (RuntimeException re) {
+                                                logger.warn("[ClassTransformTask] encountered a RuntimeException: " + re.getMessage() + ", output the original jar file")
+                                                IOUtils.copy(jarEntryInputStream, jarOutputStream)
+                                            } catch (IOException ioE) {
+                                                logger.warn("[ClassTransformTask] encountered a IOException: " + ioE.getMessage() + ", output the original jar file")
+                                                IOUtils.copy(jarEntryInputStream, jarOutputStream)
                                             }
                                         }
                                         jarOutputStream.closeEntry()
