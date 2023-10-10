@@ -12,6 +12,10 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://oss.sonatype.org/content/repositories/comnewrelic-${project.versions.agent}" }
     }
+
+    dependencies {
+        classpath "org.jacoco:org.jacoco.core:${versions.test.jacoco}"
+    }
 }
 
 plugins {
@@ -49,6 +53,8 @@ allprojects { project ->
 
     // The libsDir method has been deprecated. This is scheduled to be removed in Gradle 6.0.
     ext.projectLibsDir = project.file("${project.buildDir}/${project.libsDirName}").getAbsolutePath()
+
+    apply plugin: 'jacoco'
 }
 
 subprojects { project ->

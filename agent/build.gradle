@@ -11,6 +11,8 @@ plugins {
     id("com.android.library")
 }
 
+apply from: "$project.rootDir/jacoco.gradle"
+
 version = project.versions.agent
 archivesBaseName = "android-agent"
 
@@ -56,6 +58,10 @@ android {
             returnDefaultValues = true
             all {
                 forkEvery = 1
+                jacoco {
+                    includeNoLocationClasses = true
+                    excludes = ['jdk.internal.*']
+                }
             }
         }
     }
@@ -84,7 +90,7 @@ dependencies {
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk
 
-compileOnly "androidx.navigation:navigation-compose:${project.versions.jetpack}"
+    compileOnly "androidx.navigation:navigation-compose:${project.versions.jetpack}"
 
     testImplementation project(path: ':agent-core', configuration: 'fat')
     testImplementation fileTree(dir: 'libs', include: '*.jar')

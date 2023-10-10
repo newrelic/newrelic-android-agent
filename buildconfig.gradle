@@ -48,6 +48,7 @@ buildscript {
                         mockitoCore : '4.11.0',
                         robolectric : '4.9.+',
                         androidxCore: '1.5.+',
+                        jacoco: '0.8.6'
                 ],
 
                 agp   : [
