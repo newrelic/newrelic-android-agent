@@ -59,8 +59,16 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                 def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
                                 try {
                                     jarOutputStream.putNextEntry(jarEntry)
-                                    transformer.processClassBytes(classFile, fileInputStream).withCloseable {
-                                        jarOutputStream << it
+                                    try {
+                                        transformer.processClassBytes(classFile, fileInputStream).withCloseable {
+                                            jarOutputStream << it
+                                        }
+                                    } catch (RuntimeException re) {
+                                        logger.warn("[ClassTransformTask] Instrumentation is disabled for " + classFile.name + " with exception: "+ re.getLocalizedMessage())
+                                        jarOutputStream << fileInputStream
+                                    } catch (IOException ioE) {
+                                        logger.warn("[ClassTransformTask] Instrumentation is disabled for " + classFile.name + " with exception: "+ ioE.getLocalizedMessage())
+                                        jarOutputStream << fileInputStream
                                     }
                                     jarOutputStream.closeEntry()
                                 } catch (IOException ioE) {
@@ -85,8 +93,16 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                     try {
                                         jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
                                         jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
-                                            transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
-                                                jarOutputStream << it
+                                            try {
+                                                transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
+                                                    jarOutputStream << it
+                                                }
+                                            } catch (RuntimeException re) {
+                                                logger.warn("[ClassTransformTask] Instrumentation is disabled for " + jarEntry.name + " with exception: "+ re.getLocalizedMessage())
+                                                jarOutputStream << jarEntryInputStream
+                                            } catch (IOException ioE) {
+                                                logger.warn("[ClassTransformTask] Instrumentation is disabled for " + jarEntry.name + " with exception: "+ ioE.getLocalizedMessage())
+                                                jarOutputStream << jarEntryInputStream
                                             }
                                         }
                                         jarOutputStream.closeEntry()
