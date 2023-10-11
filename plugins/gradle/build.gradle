@@ -8,6 +8,8 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
 }
 
+apply from: "$project.rootDir/jacoco.gradle"
+
 import org.gradle.api.internal.classpath.ModuleRegistry
 import org.gradle.api.internal.project.ProjectInternal
 

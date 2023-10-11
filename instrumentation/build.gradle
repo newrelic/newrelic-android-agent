@@ -8,6 +8,8 @@ plugins {
     id("java")
 }
 
+apply from: "$project.rootDir/jacoco.gradle"
+
 version = project.versions.agent
 archivesBaseName = "instrumentation"
 

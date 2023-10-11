@@ -1,0 +1,42 @@
+name: Generate Codecov Report
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ develop, main ]
+
+jobs:
+  codecov_report:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: ${{ github.head_ref }}
+        fetch-depth: 0
+          
+    - name: set up JDK 11
+      uses: actions/setup-java@v2
+      with:
+        java-version: '11'
+        distribution: 'adopt'
+        cache: gradle
+
+    - name: Run jacoco
+      run: |
+        ./gradlew agent:testReleaseUnitTestCoverage
+        ./gradlew agent-core:jacocoTestReport
+        ./gradlew instrumentation:jacocoTestReport
+        ./gradlew plugin:gradle:jacocoTestReport
+
+    - name: Upload Test Report Part 1
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: '**/testReleaseUnitTestCoverage.xml'
+
+    - name: Upload Test Report Part 2
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: '**/jacocoTestReport.xml'
