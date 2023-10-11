@@ -7,7 +7,6 @@ package com.newrelic.agent.android
 
 import com.newrelic.agent.compile.ClassTransformer
 import groovy.io.FileType
-import org.apache.commons.io.IOUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
@@ -65,11 +64,11 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                             jarOutputStream << it
                                         }
                                     } catch (RuntimeException re) {
-                                        logger.warn("[ClassTransformTask] encountered a RuntimeException: " + re.getMessage() + ", output the original jar file")
-                                        IOUtils.copy(fileInputStream, jarOutputStream)
+                                        logger.warn("[ClassTransformTask] Instrumentation is disabled for " + classFile.name + " with exception: "+ re.getLocalizedMessage())
+                                        jarOutputStream << fileInputStream
                                     } catch (IOException ioE) {
-                                        logger.warn("[ClassTransformTask] encountered a IOException: " + ioE.getMessage() + ", output the original jar file")
-                                        IOUtils.copy(fileInputStream, jarOutputStream)
+                                        logger.warn("[ClassTransformTask] Instrumentation is disabled for " + classFile.name + " with exception: "+ ioE.getLocalizedMessage())
+                                        jarOutputStream << fileInputStream
                                     }
                                     jarOutputStream.closeEntry()
                                 } catch (IOException ioE) {
@@ -99,11 +98,11 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                                     jarOutputStream << it
                                                 }
                                             } catch (RuntimeException re) {
-                                                logger.warn("[ClassTransformTask] encountered a RuntimeException: " + re.getMessage() + ", output the original jar file")
-                                                IOUtils.copy(jarEntryInputStream, jarOutputStream)
+                                                logger.warn("[ClassTransformTask] Instrumentation is disabled for " + jarEntry.name + " with exception: "+ re.getLocalizedMessage())
+                                                jarOutputStream << jarEntryInputStream
                                             } catch (IOException ioE) {
-                                                logger.warn("[ClassTransformTask] encountered a IOException: " + ioE.getMessage() + ", output the original jar file")
-                                                IOUtils.copy(jarEntryInputStream, jarOutputStream)
+                                                logger.warn("[ClassTransformTask] Instrumentation is disabled for " + jarEntry.name + " with exception: "+ ioE.getLocalizedMessage())
+                                                jarOutputStream << jarEntryInputStream
                                             }
                                         }
                                         jarOutputStream.closeEntry()
