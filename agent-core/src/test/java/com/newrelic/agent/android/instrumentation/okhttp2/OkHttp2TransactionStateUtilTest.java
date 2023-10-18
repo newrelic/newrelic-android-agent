@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.instrumentation.okhttp2;
 
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.distributedtracing.TraceParent;
 import com.newrelic.agent.android.distributedtracing.TracePayload;
 import com.newrelic.agent.android.distributedtracing.TraceState;
@@ -30,6 +31,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.newrelic.agent.android.harvest.type.HarvestErrorCodes.NSURLErrorDNSLookupFailed;
 import static org.junit.Assert.assertEquals;
@@ -41,10 +44,15 @@ public class OkHttp2TransactionStateUtilTest {
     private TransactionState transactionState;
     private OkHttpClient client = new OkHttpClient();
 
+    private List<String> headers;
+
     @Before
     public void setUp() throws Exception {
         transactionState = Providers.provideTransactionState();
         client = new OkHttpClient();
+        headers = new ArrayList<>();
+        headers.add("X-Custom-Header-1");
+        HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);
     }
 
     @Test
@@ -205,6 +213,55 @@ public class OkHttp2TransactionStateUtilTest {
         Assert.assertNotNull(transactionState.getTrace());
 
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
+    }
+
+    @Test
+    public void testHeadersCaptureFromRequestForCustomAttribute() {
+        final String requestUrl = "http://www.foo.com/";
+        final String appId = "some-app-id";
+
+        final StubAgentImpl agent = StubAgentImpl.install();
+
+        assertEquals(0, agent.getTransactionData().size());
+
+        final Request.Builder builder = new Request.Builder().
+                url(requestUrl).
+                header(Constants.Network.APPLICATION_ID_HEADER, appId).
+                header("X-Custom-Header-1", "custom").
+                get();
+
+        final Request request = OkHttp2Instrumentation.build(builder);
+
+        CallExtension call = (CallExtension) OkHttp2Instrumentation.newCall(client, request);
+        transactionState = call.getTransactionState();
+
+        Assert.assertNotNull(transactionState.getParams());
+
+    }
+
+    @Test
+    public void testHeadersCaptureWhenHeadersRemoved() {
+        final String requestUrl = "http://www.foo.com/";
+        final String appId = "some-app-id";
+
+        HttpHeaders.getInstance().removeHttpHeaderAsAttribute("X-Custom-Header-1");
+        final StubAgentImpl agent = StubAgentImpl.install();
+
+        assertEquals(0, agent.getTransactionData().size());
+
+        final Request.Builder builder = new Request.Builder().
+                url(requestUrl).
+                header(Constants.Network.APPLICATION_ID_HEADER, appId).
+                header("X-Custom-Header-1", "custom").
+                get();
+
+        final Request request = OkHttp2Instrumentation.build(builder);
+
+        CallExtension call = (CallExtension) OkHttp2Instrumentation.newCall(client, request);
+        transactionState = call.getTransactionState();
+
+        Assert.assertEquals(0, transactionState.getParams().size());
+
     }
 
     private Request provideRequest() {

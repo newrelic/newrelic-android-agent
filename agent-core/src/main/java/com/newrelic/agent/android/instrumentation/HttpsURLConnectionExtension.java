@@ -45,7 +45,7 @@ import javax.net.ssl.SSLSocketFactory;
 // The constraints that apply to HttpURLConnectionExtension also apply to this class.
 //
 public class HttpsURLConnectionExtension extends HttpsURLConnection {
-    private HttpsURLConnection impl;
+    private final HttpsURLConnection impl;
     private TransactionState transactionState;
     private CountingInputStream errorStream = null;
 
@@ -84,6 +84,7 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
     @Override
     public void addRequestProperty(String field, String newValue) {
         impl.addRequestProperty(field, newValue);
+        TransactionStateUtil.addHeadersAsCustomAttribute(transactionState, field, newValue);
     }
 
     @Override
@@ -111,6 +112,7 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
         //     and we'll never know about it. That's okay.
         //
         getTransactionState();
+
 
         try {
             impl.connect();
@@ -217,7 +219,7 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
                 }
             }
         } catch (Exception e) {
-            log.error("HttpsURLConnectionExtension: " + e.toString());
+            log.error("HttpsURLConnectionExtension: " + e);
             return impl.getErrorStream();
         }
         return errorStream;
@@ -527,6 +529,7 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
     @Override
     public void setRequestProperty(String field, String newValue) {
         impl.setRequestProperty(field, newValue);
+        TransactionStateUtil.addHeadersAsCustomAttribute(transactionState, field, newValue);
     }
 
     @Override
@@ -599,7 +602,7 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
                         responseBody = ((CountingInputStream) errorStream).getBufferAsString();
                     }
                 } catch (Exception e1) {
-                    log.error("HttpsURLConnectionExtension.error: " + e1.toString());
+                    log.error("HttpsURLConnectionExtension.error: " + e1);
                 }
 
                 transactionData.setResponseBody(responseBody);
@@ -625,7 +628,7 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
                     responseBody = ((CountingInputStream) errorStream).getBufferAsString();
                 }
             } catch (Exception e) {
-                log.error("HttpsURLConnectionExtension.addTransactionAndErrorData: " + e.toString());
+                log.error("HttpsURLConnectionExtension.addTransactionAndErrorData: " + e);
             }
 
             // If there is a Content-Type header present, add it to the error param map.
@@ -642,8 +645,12 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
             params.put(Constants.Transactions.CONTENT_LENGTH, transactionState.getBytesReceived() + "");
 
             transactionData.setResponseBody(responseBody);
-            transactionData.setParams(params);
 
+            if (transactionData.getParams() != null) {
+                transactionData.getParams().putAll(params);
+            } else {
+                transactionData.setParams(params);
+            }
         }
 
         TaskQueue.queue(new HttpTransactionMeasurement(transactionData));

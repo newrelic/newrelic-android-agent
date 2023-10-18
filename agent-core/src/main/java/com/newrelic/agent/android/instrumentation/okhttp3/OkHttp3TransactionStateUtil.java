@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.instrumentation.okhttp3;
 
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.Measurements;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
@@ -158,7 +157,11 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
                 }
 
                 transactionData.setResponseBody(responseBodyString);
-                transactionData.setParams(params);
+                if (transactionData.getParams() != null) {
+                    transactionData.getParams().putAll(params);
+                } else {
+                    transactionData.setParams(params);
+                }
 
             }
 

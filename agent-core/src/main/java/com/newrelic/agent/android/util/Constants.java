@@ -12,6 +12,30 @@ public final class Constants {
         public static final String CONTENT_TYPE = "content_type";
     }
 
+    public static final class ApolloGraphQLHeader {
+        public static final String OPERATION_NAME = "X-APOLLO-OPERATION-NAME";
+        public static final String OPERATION_TYPE = "X-APOLLO-OPERATION-TYPE";
+        public static final String OPERATION_ID = "X-APOLLO-OPERATION-ID";
+
+        public static final String OPERATION_NORMALIZE_NAME = "operationName";
+        public static final String OPERATION_NORMALIZE_TYPE = "operationType";
+        public static final String OPERATION_NORMALIZE_ID = "operationId";
+
+        public static String normalizeApolloHeader(String s) {
+
+            switch (s) {
+                case OPERATION_NAME:
+                    return OPERATION_NORMALIZE_NAME;
+                case OPERATION_ID:
+                    return OPERATION_NORMALIZE_ID;
+                case OPERATION_TYPE:
+                    return OPERATION_NORMALIZE_TYPE;
+                default:
+                    return s;
+            }
+        }
+    }
+
     public final class Network {
         public static final String APPLICATION_LICENSE_HEADER = "X-App-License-Key";
         public static final String APPLICATION_ID_HEADER = "X-APPLICATION-ID";

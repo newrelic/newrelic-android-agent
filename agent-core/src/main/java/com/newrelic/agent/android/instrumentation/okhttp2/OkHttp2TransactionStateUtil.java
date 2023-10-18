@@ -132,8 +132,11 @@ public class OkHttp2TransactionStateUtil extends TransactionStateUtil {
                 }
 
                 transactionData.setResponseBody(responseBodyString);
-                transactionData.setParams(params);
-
+                if (transactionData.getParams() != null) {
+                    transactionData.getParams().putAll(params);
+                } else {
+                    transactionData.setParams(params);
+                }
 
                 response = setDistributedTraceHeaders(transactionState, response);
             }

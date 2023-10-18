@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.instrumentation.okhttp3;
 
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.instrumentation.HttpURLConnectionExtension;
@@ -14,10 +15,13 @@ import com.newrelic.agent.android.instrumentation.ReplaceCallSite;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.util.Constants;
 
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -42,6 +46,7 @@ public class OkHttp3Instrumentation {
     @ReplaceCallSite
     public static Call newCall(OkHttpClient client, Request request) {
         TransactionState transactionState = new TransactionState();
+        addHeadersAsCustomAttribute(transactionState, request);
         if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
             try {
                 // start the trace with a new call
@@ -56,6 +61,17 @@ public class OkHttp3Instrumentation {
             }
         }
         return new CallExtension(client, request, client.newCall(request), transactionState);
+    }
+
+    private static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
+
+        Map<String, String> headers = new HashMap<>();
+        for (String s : HttpHeaders.getInstance().getHttpHeaders()) {
+            if (request.headers().get(s) != null) {
+                headers.put(Constants.ApolloGraphQLHeader.normalizeApolloHeader(s), request.headers().get(s));
+            }
+        }
+        transactionState.setParams(headers);
     }
 
     @ReplaceCallSite

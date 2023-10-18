@@ -19,6 +19,7 @@ import com.newrelic.agent.android.util.Util;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Map;
 
 public class TransactionState {
 
@@ -45,6 +46,16 @@ public class TransactionState {
     private String contentType;
     private TransactionData transactionData;
     private TraceContext trace;
+
+    private Map<String, String> params = null;
+
+    public Map<String, String> getParams() {
+        return params;
+    }
+
+    public void setParams(Map<String, String> params) {
+        this.params = params;
+    }
 
     public TransactionState() {
         this.startTime = System.currentTimeMillis();
@@ -229,7 +240,7 @@ public class TransactionState {
                     bytesSent,
                     bytesReceived,
                     appData,
-                    wanType, trace, null);
+                    wanType, trace,"",params, null);
         }
 
         return transactionData;
