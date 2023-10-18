@@ -7,6 +7,7 @@ package com.newrelic.agent.android.instrumentation;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.Measurements;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.distributedtracing.TraceParent;
@@ -43,12 +44,16 @@ import javax.net.ssl.HttpsURLConnection;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class HttpURLConnectionExtensionTest {
     TestHarvest testHarvest = new TestHarvest();
+
+    final String headerName = "X-Custom-Header-1";
+    final String headerValue = "Custom-Value";
 
     @Before
     public void beforeTests() {
@@ -230,6 +235,9 @@ public class HttpURLConnectionExtensionTest {
 
     @Test
     public void testErrorStreamResponseBody() throws Exception {
+
+        HttpHeaders.getInstance().addHttpHeaderAsAttribute(headerName);
+
         final HttpURLConnection mockConnection = mock(HttpURLConnection.class);
         when(mockConnection.getURL()).thenReturn(new URL(requestUrl));
         when(mockConnection.getResponseCode()).thenReturn(418);
@@ -238,6 +246,7 @@ public class HttpURLConnectionExtensionTest {
         when(mockConnection.getErrorStream()).thenReturn(new ByteArrayInputStream(responseData.getBytes()));
 
         final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(mockConnection);
+        instrumentedConnection.addRequestProperty(headerName, headerValue);
 
         TransactionState transactionState = instrumentedConnection.getTransactionState();
         TransactionStateUtil.inspectAndInstrument(transactionState, mockConnection);
@@ -290,7 +299,7 @@ public class HttpURLConnectionExtensionTest {
         assertEquals(418, transaction.getStatusCode());
         assertEquals(0, transaction.getBytesSent());
         assertEquals(responseData.length(), transaction.getBytesReceived());
-        assertEquals(null, transaction.getResponseBody());
+        assertNull(transaction.getResponseBody());
         assertNotNull(transaction.getTraceContext());
     }
 
@@ -335,17 +344,17 @@ public class HttpURLConnectionExtensionTest {
         when(mockConnection.getURL()).thenReturn(new URL(requestUrl));
         when(mockConnection.getResponseCode()).thenReturn(201);
         when(mockConnection.getContentLength()).thenReturn(responseData.length());
-        
+
         final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(mockConnection);
         TransactionState transactionState = instrumentedConnection.getTransactionState();
         TransactionStateUtil.setDistributedTraceHeaders(transactionState, mockConnection);
-        
+
         Assert.assertNotNull(transactionState.getTrace());
         Map<String, List<String>> headers = instrumentedConnection.getRequestProperties();
         // Assert.assertTrue(headers.containsKey(TracePayload.TRACE_PAYLOAD_HEADER));
         // Assert.assertTrue(headers.containsKey(TraceState.TRACE_STATE_HEADER));
         // Assert.assertTrue(headers.containsKey(TraceParent.TRACE_PARENT_HEADER));
-        
+
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
     }
 
@@ -364,9 +373,9 @@ public class HttpURLConnectionExtensionTest {
             Assert.assertNotNull(transactionState.getTrace());
 
             Map<String, List<String>> headers = instrumentedConnection.getHeaderFields();
-        }catch(IllegalStateException e){
+        } catch (IllegalStateException e) {
             Assert.fail(e.getMessage());
-        }catch(Exception e){
+        } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
 
@@ -389,13 +398,87 @@ public class HttpURLConnectionExtensionTest {
             Assert.assertTrue(requestPayload.containsKey(TracePayload.TRACE_PAYLOAD_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceState.TRACE_STATE_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceParent.TRACE_PARENT_HEADER));
-        }catch(IllegalStateException e){
+        } catch (IllegalStateException e) {
             Assert.fail(e.getMessage());
-        }catch(Exception e){
+        } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
 
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
+    }
+
+    @Test
+    public void testHeadersCaptureFromRequestForCustomAttribute() throws IOException {
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+        HttpHeaders.getInstance().addHttpHeaderAsAttribute(headerName);
+        try {
+            URL url = new URL(requestUrl);
+            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+            final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(urlConnection);
+            instrumentedConnection.setRequestProperty(headerName, headerValue);
+            TransactionState transactionState = instrumentedConnection.getTransactionState();
+            Assert.assertNotNull(transactionState.getTrace());
+
+            Assert.assertEquals(1, transactionState.getParams().size());
+            Assert.assertTrue(transactionState.getParams().containsKey(headerName));
+        } catch (Exception e) {
+            Assert.fail(e.getMessage());
+        }
+
+        FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
+    }
+
+    @Test
+    public void testHeadersCaptureFromRequestForCustomAttributeWhenNoHeadersToCapture() throws IOException {
+
+        HttpHeaders.getInstance().removeHttpHeaderAsAttribute(headerName);
+        try {
+            URL url = new URL(requestUrl);
+            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+            final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(urlConnection);
+            instrumentedConnection.setRequestProperty(headerName, headerValue);
+            TransactionState transactionState = instrumentedConnection.getTransactionState();
+            Assert.assertNotNull(transactionState.getTrace());
+
+            Assert.assertEquals(0, transactionState.getParams().size());
+        } catch (Exception e) {
+            Assert.fail(e.getMessage());
+        }
+
+        HttpHeaders.getInstance().addHttpHeaderAsAttribute(headerName);
+
+    }
+
+    @Test
+    public void testHeadersCaptureFromHttpTranscation() throws Exception {
+
+        HttpHeaders.getInstance().addHttpHeaderAsAttribute(headerName);
+
+        final HttpURLConnection mockConnection = mock(HttpURLConnection.class);
+        when(mockConnection.getURL()).thenReturn(new URL(requestUrl));
+        when(mockConnection.getResponseCode()).thenReturn(418);
+        when(mockConnection.getContentLength()).thenReturn(responseData.length());
+        when(mockConnection.getInputStream()).thenReturn(null);
+        when(mockConnection.getErrorStream()).thenReturn(new ByteArrayInputStream(responseData.getBytes()));
+
+        final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(mockConnection);
+        instrumentedConnection.addRequestProperty(headerName, headerValue);
+
+        TransactionState transactionState = instrumentedConnection.getTransactionState();
+        TransactionStateUtil.inspectAndInstrument(transactionState, mockConnection);
+        TransactionStateUtil.inspectAndInstrumentResponse(transactionState, mockConnection);
+        instrumentedConnection.addTransactionAndErrorData(transactionState);
+
+        // read the stream's data
+        assertEquals(responseData, TestUtil.slurp(instrumentedConnection.getErrorStream()));
+
+        TaskQueue.synchronousDequeue();
+
+        HarvestData harvestData = testHarvest.getHarvestData();
+        HttpTransactions transactions = harvestData.getHttpTransactions();
+        HttpTransaction transaction = transactions.getHttpTransactions().iterator().next();
+
+        assertTrue(transaction.getParams().containsKey(headerName));
     }
 
     private class TestHarvest extends Harvest {

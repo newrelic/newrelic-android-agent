@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android.instrumentation;
 
-import com.newrelic.agent.android.Measurements;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.instrumentation.io.CountingInputStream;
@@ -40,7 +39,7 @@ import java.util.TreeMap;
 // but I don't think it should otherwise affect us.
 //
 public class HttpURLConnectionExtension extends HttpURLConnection {
-    private HttpURLConnection impl;
+    private final HttpURLConnection impl;
     private TransactionState transactionState;
     private CountingInputStream errorStream = null;
 
@@ -59,6 +58,7 @@ public class HttpURLConnectionExtension extends HttpURLConnection {
     @Override
     public void addRequestProperty(String field, String newValue) {
         impl.addRequestProperty(field, newValue);
+        TransactionStateUtil.addHeadersAsCustomAttribute(transactionState, field, newValue);
     }
 
     @Override
@@ -186,7 +186,7 @@ public class HttpURLConnectionExtension extends HttpURLConnection {
                 errorStream = new CountingInputStream(impl.getErrorStream(), true);
             }
         } catch (Exception e) {
-            log.error("HttpsURLConnectionExtension: " + e.toString());
+            log.error("HttpsURLConnectionExtension: " + e);
             return impl.getErrorStream();
         }
         return errorStream;
@@ -496,6 +496,7 @@ public class HttpURLConnectionExtension extends HttpURLConnection {
     @Override
     public void setRequestProperty(String field, String newValue) {
         impl.setRequestProperty(field, newValue);
+        TransactionStateUtil.addHeadersAsCustomAttribute(transactionState, field, newValue);
     }
 
     @Override
@@ -538,7 +539,7 @@ public class HttpURLConnectionExtension extends HttpURLConnection {
                         responseBody = ((CountingInputStream) errorStream).getBufferAsString();
                     }
                 } catch (Exception e1) {
-                    log.error("HttpsURLConnectionExtension.error: " + e1.toString());
+                    log.error("HttpsURLConnectionExtension.error: " + e1);
                 }
 
                 transactionData.setResponseBody(responseBody);
@@ -564,7 +565,7 @@ public class HttpURLConnectionExtension extends HttpURLConnection {
                     responseBody = ((CountingInputStream) errorStream).getBufferAsString();
                 }
             } catch (Exception e) {
-                log.error("HttpURLConnectionExtension.addTransactionAndErrorData: " + e.toString());
+                log.error("HttpURLConnectionExtension.addTransactionAndErrorData: " + e);
             }
 
 
@@ -576,13 +577,14 @@ public class HttpURLConnectionExtension extends HttpURLConnection {
                 params.put(Constants.Transactions.CONTENT_TYPE, contentType);
             }
 
-			/* Also add Content-Length. TransactionState bytesReceived is set directly
+            /* Also add Content-Length. TransactionState bytesReceived is set directly
              * from the Content-Length header in this error case.
-			*/
+             */
             params.put(Constants.Transactions.CONTENT_LENGTH, transactionState.getBytesReceived() + "");
 
             transactionData.setResponseBody(responseBody);
-            transactionData.setParams(params);
+
+            transactionData.getParams().putAll(params);
 
         }
 
