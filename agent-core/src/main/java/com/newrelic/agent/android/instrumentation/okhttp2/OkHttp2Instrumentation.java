@@ -15,7 +15,6 @@ import com.newrelic.agent.android.instrumentation.ReplaceCallSite;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.util.Constants;
 import com.squareup.okhttp.Call;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
@@ -65,7 +64,7 @@ public class OkHttp2Instrumentation {
         Map<String, String> headers = new HashMap<>();
         for (String s : HttpHeaders.getInstance().getHttpHeaders()) {
             if (request.headers().get(s) != null) {
-                headers.put(Constants.ApolloGraphQLHeader.normalizeApolloHeader(s), request.headers().get(s));
+                headers.put(HttpHeaders.translateApolloHeader(s), request.headers().get(s));
             }
         }
         transactionState.setParams(headers);

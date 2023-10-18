@@ -14,7 +14,6 @@ import com.newrelic.agent.android.distributedtracing.TraceState;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,8 +48,6 @@ public class HttpsURLConnectionExtensionTest {
             Assert.assertTrue(requestPayload.containsKey(TracePayload.TRACE_PAYLOAD_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceState.TRACE_STATE_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceParent.TRACE_PARENT_HEADER));
-        } catch (IllegalStateException e) {
-            Assert.fail(e.getMessage());
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
@@ -87,7 +84,7 @@ public class HttpsURLConnectionExtensionTest {
     }
 
     @Test
-    public void testHeadersCaptureFromRequestForCustomAttributeWhenNoHeadersToCapture() throws IOException {
+    public void testHeadersCaptureFromRequestForCustomAttributeWhenNoHeadersToCapture() {
 
         HttpHeaders.getInstance().removeHttpHeaderAsAttribute(headerName);
         try {
@@ -98,7 +95,7 @@ public class HttpsURLConnectionExtensionTest {
             TransactionState transactionState = instrumentedConnection.getTransactionState();
             Assert.assertNotNull(transactionState.getTrace());
 
-            Assert.assertNull(transactionState.getParams());
+            Assert.assertEquals(0, transactionState.getParams().size());
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         }

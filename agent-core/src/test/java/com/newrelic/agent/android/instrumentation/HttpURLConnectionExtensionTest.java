@@ -44,6 +44,7 @@ import javax.net.ssl.HttpsURLConnection;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -245,7 +246,7 @@ public class HttpURLConnectionExtensionTest {
         when(mockConnection.getErrorStream()).thenReturn(new ByteArrayInputStream(responseData.getBytes()));
 
         final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(mockConnection);
-        instrumentedConnection.addRequestProperty(headerName,headerValue);
+        instrumentedConnection.addRequestProperty(headerName, headerValue);
 
         TransactionState transactionState = instrumentedConnection.getTransactionState();
         TransactionStateUtil.inspectAndInstrument(transactionState, mockConnection);
@@ -298,7 +299,7 @@ public class HttpURLConnectionExtensionTest {
         assertEquals(418, transaction.getStatusCode());
         assertEquals(0, transaction.getBytesSent());
         assertEquals(responseData.length(), transaction.getBytesReceived());
-        assertEquals(null, transaction.getResponseBody());
+        assertNull(transaction.getResponseBody());
         assertNotNull(transaction.getTraceContext());
     }
 
@@ -343,17 +344,17 @@ public class HttpURLConnectionExtensionTest {
         when(mockConnection.getURL()).thenReturn(new URL(requestUrl));
         when(mockConnection.getResponseCode()).thenReturn(201);
         when(mockConnection.getContentLength()).thenReturn(responseData.length());
-        
+
         final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(mockConnection);
         TransactionState transactionState = instrumentedConnection.getTransactionState();
         TransactionStateUtil.setDistributedTraceHeaders(transactionState, mockConnection);
-        
+
         Assert.assertNotNull(transactionState.getTrace());
         Map<String, List<String>> headers = instrumentedConnection.getRequestProperties();
         // Assert.assertTrue(headers.containsKey(TracePayload.TRACE_PAYLOAD_HEADER));
         // Assert.assertTrue(headers.containsKey(TraceState.TRACE_STATE_HEADER));
         // Assert.assertTrue(headers.containsKey(TraceParent.TRACE_PARENT_HEADER));
-        
+
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
     }
 
@@ -372,9 +373,9 @@ public class HttpURLConnectionExtensionTest {
             Assert.assertNotNull(transactionState.getTrace());
 
             Map<String, List<String>> headers = instrumentedConnection.getHeaderFields();
-        }catch(IllegalStateException e){
+        } catch (IllegalStateException e) {
             Assert.fail(e.getMessage());
-        }catch(Exception e){
+        } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
 
@@ -397,9 +398,9 @@ public class HttpURLConnectionExtensionTest {
             Assert.assertTrue(requestPayload.containsKey(TracePayload.TRACE_PAYLOAD_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceState.TRACE_STATE_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceParent.TRACE_PARENT_HEADER));
-        }catch(IllegalStateException e){
+        } catch (IllegalStateException e) {
             Assert.fail(e.getMessage());
-        }catch(Exception e){
+        } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
 
@@ -414,15 +415,13 @@ public class HttpURLConnectionExtensionTest {
             URL url = new URL(requestUrl);
             HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
             final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(urlConnection);
-            instrumentedConnection.setRequestProperty(headerName,headerValue);
+            instrumentedConnection.setRequestProperty(headerName, headerValue);
             TransactionState transactionState = instrumentedConnection.getTransactionState();
             Assert.assertNotNull(transactionState.getTrace());
 
-            Assert.assertEquals(1,transactionState.getParams().size());
+            Assert.assertEquals(1, transactionState.getParams().size());
             Assert.assertTrue(transactionState.getParams().containsKey(headerName));
-        }catch(IllegalStateException e){
-            Assert.fail(e.getMessage());
-        }catch(Exception e){
+        } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
 
@@ -437,12 +436,12 @@ public class HttpURLConnectionExtensionTest {
             URL url = new URL(requestUrl);
             HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
             final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(urlConnection);
-            instrumentedConnection.setRequestProperty(headerName,headerValue);
+            instrumentedConnection.setRequestProperty(headerName, headerValue);
             TransactionState transactionState = instrumentedConnection.getTransactionState();
             Assert.assertNotNull(transactionState.getTrace());
 
-            Assert.assertNull(transactionState.getParams());
-        } catch(Exception e){
+            Assert.assertEquals(0, transactionState.getParams().size());
+        } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
 
@@ -463,7 +462,7 @@ public class HttpURLConnectionExtensionTest {
         when(mockConnection.getErrorStream()).thenReturn(new ByteArrayInputStream(responseData.getBytes()));
 
         final HttpURLConnectionExtension instrumentedConnection = new HttpURLConnectionExtension(mockConnection);
-        instrumentedConnection.addRequestProperty(headerName,headerValue);
+        instrumentedConnection.addRequestProperty(headerName, headerValue);
 
         TransactionState transactionState = instrumentedConnection.getTransactionState();
         TransactionStateUtil.inspectAndInstrument(transactionState, mockConnection);

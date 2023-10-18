@@ -15,7 +15,6 @@ import com.newrelic.agent.android.instrumentation.ReplaceCallSite;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.util.Constants;
 
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
@@ -68,7 +67,7 @@ public class OkHttp3Instrumentation {
         Map<String, String> headers = new HashMap<>();
         for (String s : HttpHeaders.getInstance().getHttpHeaders()) {
             if (request.headers().get(s) != null) {
-                headers.put(Constants.ApolloGraphQLHeader.normalizeApolloHeader(s), request.headers().get(s));
+                headers.put(HttpHeaders.translateApolloHeader(s), request.headers().get(s));
             }
         }
         transactionState.setParams(headers);

@@ -1,31 +1,31 @@
 package com.newrelic.agent.android;
 
-import static com.newrelic.agent.android.util.Constants.ApolloGraphQLHeader.OPERATION_ID;
-import static com.newrelic.agent.android.util.Constants.ApolloGraphQLHeader.OPERATION_NAME;
-import static com.newrelic.agent.android.util.Constants.ApolloGraphQLHeader.OPERATION_TYPE;
+
+import com.newrelic.agent.android.util.Constants;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class HttpHeaders {
 
-    private static HttpHeaders instance = null;
+    protected static final AtomicReference<HttpHeaders> instance = new AtomicReference<>(new HttpHeaders());
     private final Set<String> httpHeaders;
 
+    public static final String OPERATION_NAME = "operationName";
+    public static final String OPERATION_TYPE = "operationType";
+    public static final String OPERATION_ID = "operationId";
 
     private HttpHeaders() {
         httpHeaders = new HashSet<>();
-        httpHeaders.add(OPERATION_NAME);
-        httpHeaders.add(OPERATION_ID);
-        httpHeaders.add(OPERATION_TYPE);
+        httpHeaders.add(Constants.ApolloGraphQLHeader.OPERATION_NAME);
+        httpHeaders.add(Constants.ApolloGraphQLHeader.OPERATION_ID);
+        httpHeaders.add(Constants.ApolloGraphQLHeader.OPERATION_TYPE);
     }
 
     public static HttpHeaders getInstance() {
-        if (instance == null) {
-            instance = new HttpHeaders();
-        }
-        return instance;
+        return instance.get();
     }
 
     public void addHttpHeaderAsAttribute(String httpHeader) {
@@ -33,7 +33,7 @@ public class HttpHeaders {
     }
 
     public void removeHttpHeaderAsAttribute(String httpHeader) {
-        if (!(OPERATION_ID.equalsIgnoreCase(httpHeader) || OPERATION_NAME.equalsIgnoreCase(httpHeader) || OPERATION_TYPE.equalsIgnoreCase(httpHeader)))
+        if (!(Constants.ApolloGraphQLHeader.OPERATION_ID.equalsIgnoreCase(httpHeader) || Constants.ApolloGraphQLHeader.OPERATION_NAME.equalsIgnoreCase(httpHeader) || Constants.ApolloGraphQLHeader.OPERATION_TYPE.equalsIgnoreCase(httpHeader)))
             httpHeaders.remove(httpHeader);
     }
 
@@ -43,5 +43,20 @@ public class HttpHeaders {
 
     public Set<String> getHttpHeaders() {
         return httpHeaders;
+    }
+
+
+    public static String translateApolloHeader(String s) {
+
+        switch (s) {
+            case Constants.ApolloGraphQLHeader.OPERATION_NAME:
+                return OPERATION_NAME;
+            case Constants.ApolloGraphQLHeader.OPERATION_ID:
+                return OPERATION_ID;
+            case Constants.ApolloGraphQLHeader.OPERATION_TYPE:
+                return OPERATION_TYPE;
+            default:
+                return s;
+        }
     }
 }

@@ -1,13 +1,19 @@
 package com.newrelic.agent.android;
 
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import com.newrelic.agent.android.util.Constants;
+
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-
-import static org.junit.Assert.*;
 
 public class HttpHeadersTest {
     private HttpHeaders httpHeaders;
@@ -50,6 +56,21 @@ public class HttpHeadersTest {
     public void testRemoveHttpHeaderAsAttribute() {
         httpHeaders.removeHttpHeaderAsAttribute("X-Custom-Header");
         assertFalse(httpHeaders.getHttpHeaders().contains("X-Custom-Header"));
+    }
+
+    @Test
+    public void testTranslateApolloHeader() {
+        String otherHeader = "otherHeader";
+
+        assertEquals(HttpHeaders.OPERATION_NAME,
+                HttpHeaders.translateApolloHeader(Constants.ApolloGraphQLHeader.OPERATION_NAME));
+        assertEquals(HttpHeaders.OPERATION_ID,
+                HttpHeaders.translateApolloHeader(Constants.ApolloGraphQLHeader.OPERATION_ID));
+        assertEquals(HttpHeaders.OPERATION_TYPE,
+                HttpHeaders.translateApolloHeader(Constants.ApolloGraphQLHeader.OPERATION_TYPE));
+
+        assertEquals(otherHeader,
+                HttpHeaders.translateApolloHeader(otherHeader));
     }
 
 

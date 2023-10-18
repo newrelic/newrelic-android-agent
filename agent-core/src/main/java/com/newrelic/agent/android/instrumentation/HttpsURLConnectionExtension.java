@@ -646,11 +646,8 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
 
             transactionData.setResponseBody(responseBody);
 
-            if (transactionData.getParams() != null) {
-                transactionData.getParams().putAll(params);
-            } else {
-                transactionData.setParams(params);
-            }
+            transactionData.getParams().putAll(params);
+
         }
 
         TaskQueue.queue(new HttpTransactionMeasurement(transactionData));
