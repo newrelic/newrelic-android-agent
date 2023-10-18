@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.instrumentation.okhttp2;
 
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.instrumentation.HttpURLConnectionExtension;
@@ -22,6 +23,8 @@ import com.squareup.okhttp.ResponseBody;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -41,6 +44,7 @@ public class OkHttp2Instrumentation {
     @ReplaceCallSite
     public static Call newCall(OkHttpClient client, Request request) {
         TransactionState transactionState = new TransactionState();
+        addHeadersAsCustomAttribute(transactionState, request);
         if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
             try {
                 // start the trace with a new call
@@ -53,6 +57,17 @@ public class OkHttp2Instrumentation {
             }
         }
         return new CallExtension(client, request, client.newCall(request), transactionState);
+    }
+
+    private static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
+
+        Map<String, String> headers = new HashMap<>();
+        for (String s : HttpHeaders.getInstance().getHttpHeaders()) {
+            if (request.headers().get(s) != null) {
+                headers.put(HttpHeaders.translateApolloHeader(s), request.headers().get(s));
+            }
+        }
+        transactionState.setParams(headers);
     }
 
     @ReplaceCallSite
