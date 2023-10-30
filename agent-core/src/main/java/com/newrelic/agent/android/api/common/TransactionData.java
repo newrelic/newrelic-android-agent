@@ -9,6 +9,7 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,9 +31,9 @@ public class TransactionData {
 
 
     // optionals
-    private int errorCode = 0;
-    private String responseBody = null;
-    private Map<String, String> params = null;
+    private int errorCode;
+    private String responseBody;
+    private Map<String, String> params;
 
 
     public TransactionData(final String url, final String httpMethod, final String carrier, final float time,
@@ -45,9 +46,8 @@ public class TransactionData {
                 endPos = url.length();
             }
         }
-        final String trimmedUrl = url.substring(0, endPos);
 
-        this.url = trimmedUrl;
+        this.url = url.substring(0, endPos);
         this.httpMethod = httpMethod;
         this.carrier = carrier;
         this.time = time;
@@ -59,7 +59,7 @@ public class TransactionData {
         this.wanType = wanType;
         this.timestamp = System.currentTimeMillis();
         this.responseBody = null;
-        this.params = null;
+        this.params = new HashMap<>();
         this.traceContext = traceContext;
         this.traceAttributes = traceAttributes;
     }

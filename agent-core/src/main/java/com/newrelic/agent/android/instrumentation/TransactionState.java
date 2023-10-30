@@ -19,6 +19,8 @@ import com.newrelic.agent.android.util.Util;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TransactionState {
 
@@ -36,7 +38,7 @@ public class TransactionState {
     private int errorCode = 0;
     private long bytesSent = 0;
     private long bytesReceived = 0;
-    private long startTime = 0;
+    private long startTime;
     private long endTime = 0;
     private String appData;
     private String carrier = CarrierType.UNKNOWN;
@@ -46,8 +48,19 @@ public class TransactionState {
     private TransactionData transactionData;
     private TraceContext trace;
 
+    private Map<String, String> params;
+
+    public Map<String, String> getParams() {
+        return params;
+    }
+
+    public void setParams(Map<String, String> params) {
+        this.params = params;
+    }
+
     public TransactionState() {
         this.startTime = System.currentTimeMillis();
+        this.params = new HashMap<>();
         TraceMachine.enterNetworkSegment("External/unknownhost");
     }
 
@@ -229,7 +242,7 @@ public class TransactionState {
                     bytesSent,
                     bytesReceived,
                     appData,
-                    wanType, trace, null);
+                    wanType, trace, "", params, null);
         }
 
         return transactionData;

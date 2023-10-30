@@ -12,6 +12,13 @@ public final class Constants {
         public static final String CONTENT_TYPE = "content_type";
     }
 
+    public static final class ApolloGraphQLHeader {
+        public static final String OPERATION_NAME = "X-APOLLO-OPERATION-NAME";
+        public static final String OPERATION_TYPE = "X-APOLLO-OPERATION-TYPE";
+        public static final String OPERATION_ID = "X-APOLLO-OPERATION-ID";
+
+    }
+
     public final class Network {
         public static final String APPLICATION_LICENSE_HEADER = "X-App-License-Key";
         public static final String APPLICATION_ID_HEADER = "X-APPLICATION-ID";

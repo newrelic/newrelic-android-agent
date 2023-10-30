@@ -36,6 +36,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -1058,5 +1059,10 @@ public final class NewRelic {
      */
     public static boolean recordJSErrorException(StackTrace stackTrace) {
         return DataController.sendAgentData(stackTrace);
+    }
+
+
+    public static boolean  addHTTPHeadersTrackingFor(List<String> headers) {
+        return HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);
     }
 }
