@@ -38,7 +38,8 @@ buildscript {
                         plugin: hasOptional('dexguard.plugin.version', '9.+')
                 ],
                 kotlin  : hasOptional('newrelic.kotlin.version', '1.7.+'),
-                gson    : '2.10.1'
+                gson    : '2.10.1',
+                bcprov  : '1.76'
         ]
     }
 
