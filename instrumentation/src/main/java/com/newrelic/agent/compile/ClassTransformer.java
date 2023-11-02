@@ -32,8 +32,7 @@ import java.util.jar.Manifest;
 
 public final class ClassTransformer {
     public static final String MANIFEST_TRANSFORMED_BY_KEY = "Transformed-By";
-    public static final String MANIFEST_SHA1_DIGEST_KEY = "SHA1-Digest";
-    public static final String MANIFEST_SHA_256_DIGEST_KEY = "SHA-256-Digest";
+    public static final String MANIFEST_SHA_DIGEST_REGEX = "^SHA-.*-Digest$";
 
     private final Logger log;
     private File inputFile;
@@ -127,14 +126,14 @@ public final class ClassTransformer {
      * Returned ByteArrayInputStream is Autocloseable, but caller *should* close stream once
      * the processed bytes have been consumed.
      *
-     * @param classFile            Name of file containing bytes, mostly for resource identification and logging
+     * @param classFilePath Path name of file containing bytes, mostly for resource identification and logging
      * @param classFileInputStream InputStream holding bytes
      * @return ByteArrayInputStream containing transformed bytes if successful, or the original
      * bytes otherwise.
      **/
-    public ByteArrayInputStream processClassBytes(File classFile, InputStream classFileInputStream) throws IOException {
+    public ByteArrayInputStream processClassBytes(String classFilePath, InputStream classFileInputStream) throws IOException {
         byte[] classBytes = Streams.slurpBytes(classFileInputStream);
-        byte[] transformedClassBytes = transformClassBytes(classFile.getPath(), classBytes);
+        byte[] transformedClassBytes = transformClassBytes(classFilePath, classBytes);
         final ByteArrayInputStream processedClassBytesStream;
 
         if (transformedClassBytes == null) {
@@ -142,7 +141,7 @@ public final class ClassTransformer {
         } else {
             if ((classBytes.length != transformedClassBytes.length) &&
                     (classData != null && classData.isModified())) {
-                log.debug("[ClassTransformer] Rewrote class[" + classFile.getPath() + "] bytes[" +
+                log.debug("[ClassTransformer] Rewrote class[" + classFilePath + "] bytes[" +
                         classBytes.length + "] rewritten[" + transformedClassBytes.length + "]");
             }
             processedClassBytesStream = new ByteArrayInputStream(transformedClassBytes);
@@ -183,7 +182,7 @@ public final class ClassTransformer {
                     classBytesInputStream = new FileInputStream(classFile);
 
                     if (FileUtils.isClass(classFile)) {
-                        classBytesOutputStream = processClassBytes(new File(classpath), classBytesInputStream);
+                        classBytesOutputStream = processClassBytes(classpath, classBytesInputStream);
                         didProcessClass = writeClassFile(classBytesOutputStream, transformedClassFile);
                     } else {
                         log.debug("[ClassTransformer] Class ignored: " + classFile.getName());
@@ -282,7 +281,7 @@ public final class ClassTransformer {
                         jarEntry.setTime(entry.getTime());
                         jarOutputStream.putNextEntry(jarEntry);
                         classBytesInputStream = jarFile.getInputStream(entry);
-                        classBytesOutputStream = processClassBytes(archiveClassFile, classBytesInputStream);
+                        classBytesOutputStream = processClassBytes(archiveClassFile.getPath(), classBytesInputStream);
 
                         if (explodeJar) {
                             didProcessArchive |= writeClassFile(classBytesOutputStream, archiveClassFile);
@@ -354,10 +353,8 @@ public final class ClassTransformer {
                 Attributes attrs = realManifest.getAttributes(entryKey);
                 for (Object attr : attrs.keySet()) {
                     String attrKeyName = attr.toString();
-                    if (MANIFEST_SHA1_DIGEST_KEY.equals(attrKeyName) ||
-                            MANIFEST_SHA_256_DIGEST_KEY.equals(attrKeyName)) {
+                    if (attrKeyName.matches(MANIFEST_SHA_DIGEST_REGEX))
                         return false;
-                    }
                 }
             }
 
@@ -375,12 +372,14 @@ public final class ClassTransformer {
         Manifest manifest = jarFile.getManifest();
         if (manifest == null) {
             manifest = new Manifest();
-            JarEntry manifestJarEntry = new JarEntry(JarFile.MANIFEST_NAME);
-            manifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
-            jarOutputStream.putNextEntry(manifestJarEntry);
-            jarOutputStream.flush();
-            jarOutputStream.closeEntry();
         }
+
+        JarEntry manifestJarEntry = new JarEntry(JarFile.MANIFEST_NAME);
+        manifest.getMainAttributes().put(new Attributes.Name(MANIFEST_TRANSFORMED_BY_KEY), "New Relic Android Agent");
+        jarOutputStream.putNextEntry(manifestJarEntry);
+        manifest.write(jarOutputStream);
+        jarOutputStream.flush();
+        jarOutputStream.closeEntry();
 
         return true;
     }
