@@ -118,7 +118,7 @@ abstract class NewRelicExtension {
         // update variants configs with these values
         variantMapUploads.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                uploadMappingFile = true
+                it.uploadMappingFile = true
             }
         }
     }
@@ -130,18 +130,19 @@ abstract class NewRelicExtension {
         // update variants configs with these values
         variantExclusions.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                instrument = false
+                it.instrument = false
             }
         }
     }
 
     void excludePackageInstrumentation(String... e) {
         packageExclusions.clear()
-        packageExclusions.addAll(e.collect { i -> i.toString().toLowerCase() })
+        packageExclusions.addAll(e.collect { i -> i.toString().toLowerCase().replace('/', '.') })
 
-        variantMapUploads.each { variantName ->
+        // update variants configs with these values
+        variantExclusions.each { variantName ->
             variantConfigurations.findByName(variantName)?.with {
-                // TODO
+                it.packageExclusions = packageExclusions
             }
         }
     }
@@ -168,5 +169,12 @@ abstract class NewRelicExtension {
 
         return variantMapUploads.isEmpty() ||
                 !variantMapUploads.findAll { variantName.toLowerCase() == it || variantName.endsWith(it.capitalize()) }.empty
+    }
+
+    boolean shouldExcludePackageInstrumentation(String packageName) {
+        def pkg = packageName.toLowerCase().replace('/', '.')
+        return !packageExclusions.findAll { it ->
+            pkg.toLowerCase().startsWith(it) || pkg.toLowerCase().matches(it)
+        }.empty
     }
 }

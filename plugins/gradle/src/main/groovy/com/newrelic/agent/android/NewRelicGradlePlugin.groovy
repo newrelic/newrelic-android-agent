@@ -82,6 +82,10 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                 LOGGER.info("Instrumentation will be disabled for variants ${variantExclusions}")
             }
 
+            if (!packageExclusions.isEmpty()) {
+                LOGGER.info("Instrumentation will be disabled for classes ${packageExclusions}")
+            }
+
             // Do all the variants if variant maps are disabled, or only those provided
             // in the extension. The default is ['release'].
             if (!variantMapsEnabled.get() || variantMapUploads.isEmpty()) {
