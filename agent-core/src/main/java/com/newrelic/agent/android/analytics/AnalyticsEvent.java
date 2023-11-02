@@ -48,7 +48,7 @@ public class AnalyticsEvent extends HarvestableObject {
 
     protected final static AnalyticsValidator validator = new AnalyticsValidator();
 
-    protected AnalyticsEvent(String name) {
+    public AnalyticsEvent(String name) {
         this(name, AnalyticsEventCategory.Custom, null, null);
     }
 
