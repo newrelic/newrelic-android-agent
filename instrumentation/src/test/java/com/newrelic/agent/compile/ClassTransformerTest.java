@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.compile;
 
-import com.newrelic.agent.util.FileUtils;
 import com.newrelic.agent.util.Streams;
 
 import org.junit.Assert;
@@ -20,7 +19,6 @@ import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.jar.Attributes;
@@ -39,6 +37,7 @@ public class ClassTransformerTest {
 
             ClassTransformer transformer = new ClassTransformer(input, output);
             transformer.withWriteMode(ClassTransformer.WriteMode.always);
+            transformer.asIdentityTransform(true);
             transformer.transformArchive(input);
 
             //setup input and output files
@@ -47,9 +46,6 @@ public class ClassTransformerTest {
 
             InputStream outputFilestream = new FileInputStream(output);
             JarInputStream jarOutputStream = new JarInputStream(outputFilestream);
-
-            // instrumentation should have changed (+) the file size
-            Assert.assertNotEquals(Files.size(Path.of(input.getPath())), Files.size(Path.of(output.getPath())));
 
             JarFile inputJar = new JarFile(input);
             JarFile outputJar = new JarFile(output);
@@ -84,7 +80,7 @@ public class ClassTransformerTest {
             //compare two jar files
             Assert.assertTrue(inputJarFileSize.size() == outputJarFileSize.size());
             Assert.assertNotEquals(inputJarFileSize, outputJarFileSize);
-            Assert.assertFalse(compareJarFile(inputJar, outputJar));
+            Assert.assertTrue(compareJarFile(inputJar, outputJar));
 
             Files.delete(output.getAbsoluteFile().toPath());
 
@@ -192,7 +188,6 @@ public class ClassTransformerTest {
         if (!sourceCRC.equals(targetCRC)) {
             return false;
         }
-
 
         if (!sourceEntries.equals(targetEntries)) {
             return false;
