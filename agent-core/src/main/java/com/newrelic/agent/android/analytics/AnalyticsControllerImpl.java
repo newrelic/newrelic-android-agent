@@ -1027,8 +1027,10 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
                         log.debug("EventManager: [" + pendingEvents.size() + "] events moved from buffer to HarvestData");
 
                         //remove events from pref
-                        for (AnalyticsEvent event : pendingEvents) {
-                            eventStore.delete(event);
+                        if (eventStore != null) {
+                            for (AnalyticsEvent event : pendingEvents) {
+                                eventStore.delete(event);
+                            }
                         }
                     }
 

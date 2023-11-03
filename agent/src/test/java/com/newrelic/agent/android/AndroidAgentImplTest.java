@@ -14,6 +14,7 @@ import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
+import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.analytics.EventManager;
 import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
@@ -57,6 +58,7 @@ public class AndroidAgentImplTest {
     private AndroidAgentImpl agentImpl;
     private AgentConfiguration agentConfig;
     private final int duration = 1000;
+    private AnalyticsEventStore eventStore;
 
     @BeforeClass
     public static void classSetUp() throws Exception {
@@ -267,6 +269,7 @@ public class AndroidAgentImplTest {
 
     @Test
     public void testCombinedAgentLifecycleGestures() throws Exception {
+        eventStore = agentConfig.getEventStore();
         ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
 
         final ApplicationStateEvent e = new ApplicationStateEvent(ApplicationStateMonitor.getInstance());
@@ -306,12 +309,12 @@ public class AndroidAgentImplTest {
         Assert.assertNotNull("Should contain app background event", getSessionEvent(queuedEvents));
 
         agentImpl.applicationForegrounded(e);
-        assertEquals("Should contain foreground user action events", eventManager.getEventsRecorded(), 1);
+        assertEquals("Should contain foreground user action events", eventManager.getEventsRecorded(), 4);
         queuedEvents = analyticsController.getEventManager().getQueuedEvents();
         Assert.assertNotNull("Should contain foreground (app launch) event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
 
         agentImpl.stop();
-        assertEquals("Should contain lifecycle user action events", eventManager.getEventsRecorded(), 3);
+        assertEquals("Should contain lifecycle user action events", eventManager.getEventsRecorded(), 6);
         queuedEvents = analyticsController.getEventManager().getQueuedEvents();
         Assert.assertNotNull("Should contain app background event", getEventByActionType(queuedEvents, UserActionType.AppBackground));
 
@@ -319,6 +322,7 @@ public class AndroidAgentImplTest {
         // turn the flag back off
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
         eventManager.empty();
+        eventStore.clear();
 
         agentImpl.start();
         assertEquals("Should not contain app launch user action event", eventManager.getEventsRecorded(), 0);
@@ -331,12 +335,12 @@ public class AndroidAgentImplTest {
         Assert.assertNull("Should contain app background event", getEventByActionType(queuedEvents, UserActionType.AppBackground));
 
         agentImpl.applicationForegrounded(e);
-        assertEquals("Should not contain foreground user action events", eventManager.getEventsRecorded(), 0);
+        assertEquals("Should not contain foreground user action events", eventManager.getEventsRecorded(), 1);
         queuedEvents = analyticsController.getEventManager().getQueuedEvents();
         Assert.assertNull("Should contain foreground (app launch) event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
 
         agentImpl.stop();
-        assertEquals("Should not contain lifecycle user action events", eventManager.getEventsRecorded(), 1);
+        assertEquals("Should not contain lifecycle user action events", eventManager.getEventsRecorded(), 2);
         queuedEvents = analyticsController.getEventManager().getQueuedEvents();
         Assert.assertNull("Should contain app background event", getEventByActionType(queuedEvents, UserActionType.AppBackground));
     }

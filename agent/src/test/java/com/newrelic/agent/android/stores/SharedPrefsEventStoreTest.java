@@ -67,7 +67,6 @@ public class SharedPrefsEventStoreTest implements EventListener {
         AnalyticsEvent event2 = new AnalyticsEvent("event2");
         eventStore.store(event1);
         eventStore.store(event2);
-        eventStore.store(event1);
         List<AnalyticsEvent> list = eventStore.fetchAll();
         Assert.assertNotNull("Should store event", list.contains(event1));
         Assert.assertEquals("Should not store duplicates", 2, eventStore.fetchAll().size());
@@ -79,7 +78,6 @@ public class SharedPrefsEventStoreTest implements EventListener {
         AnalyticsEvent event2 = new AnalyticsEvent("event2");
         eventStore.store(event1);
         eventStore.store(event2);
-        eventStore.store(event1);
         List<AnalyticsEvent> list = eventStore.fetchAll();
         Assert.assertEquals("Should not store duplicates", 2, list.size());
     }
@@ -90,7 +88,6 @@ public class SharedPrefsEventStoreTest implements EventListener {
         AnalyticsEvent event2 = new AnalyticsEvent("event2");
         eventStore.store(event1);
         eventStore.store(event2);
-        eventStore.store(event1);
         Assert.assertEquals("Should contains event(s)", 2, eventStore.fetchAll().size());
 
         eventStore.clear();

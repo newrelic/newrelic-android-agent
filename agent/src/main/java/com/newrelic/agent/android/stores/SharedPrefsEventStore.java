@@ -46,7 +46,7 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
                 SharedPreferences.Editor editor = this.sharedPrefs.edit();
                 editor.putString(String.valueOf(event.getTimestamp()), eventJson);
 
-//                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_SIZE_UNCOMPRESSED, eventJson.length());
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED, eventJson.length());
                 return editor.commit();
             } catch (Exception e) {
                 log.error("SharedPrefsStore.store(String, String): ", e);

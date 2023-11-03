@@ -62,7 +62,10 @@ public class EventManagerImpl implements EventManager, EventListener {
     @Override
     public void initialize(AgentConfiguration agentConfiguration) {
         eventStore = agentConfiguration.getEventStore();
-        List<AnalyticsEvent> storedEvents = eventStore.fetchAll();
+        List<AnalyticsEvent> storedEvents = new ArrayList<AnalyticsEvent>();
+        if (eventStore != null) {
+            storedEvents = eventStore.fetchAll();
+        }
 
         if (!initialized.compareAndSet(false, true)) {
             eventsRecorded.set(0);
@@ -200,7 +203,9 @@ public class EventManagerImpl implements EventManager, EventListener {
 
             if (events.get().add(event)) {
                 // log.audit("Event added: [" + event.asJson() + "]");
-                eventStore.store(event);
+                if (eventStore != null) {
+                    eventStore.store(event);
+                }
                 eventsRecorded.incrementAndGet();
                 return true;
             }
