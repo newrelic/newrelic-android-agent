@@ -79,6 +79,9 @@ dependencies {
 
     implementation "com.android.support:appcompat-v7:${versions.agp.supportLib}"
     implementation "com.google.code.gson:gson:${versions.gson}"
+
+    implementation fileTree(dir: 'libs', include: '*.jar')
+    implementation "org.bouncycastle:bcprov-jdk18on:${versions.bcprov}"
 }
 
 //

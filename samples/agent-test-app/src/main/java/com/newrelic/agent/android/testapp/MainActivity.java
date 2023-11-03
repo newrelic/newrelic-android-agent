@@ -2,6 +2,7 @@ package com.newrelic.agent.android.testapp;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -14,13 +15,27 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.NewRelic;
 import com.newrelic.agent.android.logging.AgentLog;
-import com.newrelic.agent.android.FeatureFlag;
+
+import org.bouncycastle.util.encoders.Hex;
+import org.bouncycastle.util.io.Streams;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.List;
+import java.util.Map;
+
+import javax.net.ssl.HttpsURLConnection;
 
 
 public class MainActivity extends AppCompatActivity
         implements NavigationDrawerFragment.NavigationDrawerCallbacks {
+
+    private static final String TAG = "agent-test-app";
 
     /**
      * Fragment managing the behaviors, interactions and presentation of the navigation drawer.
@@ -49,7 +64,8 @@ public class MainActivity extends AppCompatActivity
         // Add NewRelic
         NewRelic.enableFeature(FeatureFlag.NativeReporting);
         NewRelic.withApplicationToken("<APP-ID>")    // ## Provide application ID to test map uploads
-                .withLogLevel(AgentLog.AUDIT)
+                .withLogLevel(AgentLog.DEBUG)
+                .withLaunchActivityName("agent-test-app")
                 .start(this);
     }
 
@@ -131,6 +147,32 @@ public class MainActivity extends AppCompatActivity
             Bundle args = new Bundle();
             args.putInt(ARG_SECTION_NUMBER, sectionNumber);
             fragment.setArguments(args);
+
+            new Thread(() -> {
+                try {
+                    HttpsURLConnection conn = (HttpsURLConnection) new URL("https://reactnative.dev/movies.json").openConnection();
+                    conn.addRequestProperty("Customer-Header", "customer-value");
+                    conn.addRequestProperty("Customer-app", "agent-test-app");
+                    Map<String, List<String>> requestPayload = conn.getRequestProperties();
+                    int code = conn.getResponseCode();
+                    String response = conn.getResponseMessage();
+
+                    if (code == HttpURLConnection.HTTP_OK) {
+                        String string = new String(Streams.readAll(conn.getInputStream()));
+                        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                        byte[] hash = digest.digest(string.getBytes(StandardCharsets.UTF_8));
+                        String hex = new String(Hex.encode(hash));
+                        Log.i(TAG, response + ": requestPayload[" + requestPayload + "]");
+                        Log.i(TAG, "digest[" + digest + "] hash[" + hash + "] hex[" + hex + "}]");
+                    } else {
+                        Log.e(TAG, "GET request did not work.");
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }).start();
+
+
             return fragment;
         }
 
@@ -149,6 +191,7 @@ public class MainActivity extends AppCompatActivity
             super.onAttach(activity);
             ((MainActivity) activity).onSectionAttached(
                     getArguments().getInt(ARG_SECTION_NUMBER));
+
         }
     }
 

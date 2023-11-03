@@ -6,6 +6,7 @@
 package com.newrelic.agent.android
 
 import com.newrelic.agent.compile.ClassTransformer
+import com.newrelic.agent.util.FileUtils
 import groovy.io.FileType
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.Directory
@@ -38,11 +39,11 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
 
     @TaskAction
     void transformClasses() {
+        long tStart = System.currentTimeMillis()
         def transformer = new ClassTransformer()
         File outputJarFile = outputJar.asFile.get()
-        long tStart = System.currentTimeMillis()
 
-        logger.debug("[ClassTransformTask] Task[${getName()}] starting: Output JAR[${outputJarFile.getAbsolutePath()}]")
+        logger.debug("[ClassTransform] Task[${getName()}] starting: Output JAR[${outputJarFile.getAbsolutePath()}]")
         outputJarFile.parentFile.mkdirs()
 
         try (def outputFileStream = new FileOutputStream(outputJarFile)
@@ -52,22 +53,23 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
 
                 classDirectories.get().forEach { directory ->
                     directory.asFile.traverse(type: FileType.FILES) { classFile ->
-                        // logger.quiet("classfile[${classFile.absolutePath}]")
                         String relativePath = directory.asFile.toURI().relativize(classFile.toURI()).getPath()
+
                         try {
                             new FileInputStream(classFile).withCloseable { fileInputStream ->
                                 def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
                                 try {
                                     jarOutputStream.putNextEntry(jarEntry)
+                                    transformer.asIdentityTransform(!shouldInstrumentClassFile(classFile))
                                     try {
-                                        transformer.processClassBytes(classFile, fileInputStream).withCloseable {
+                                        transformer.processClassBytes(classFile.path, fileInputStream).withCloseable {
                                             jarOutputStream << it
                                         }
                                     } catch (RuntimeException re) {
-                                        logger.warn("[ClassTransformTask] Instrumentation is disabled for " + classFile.name + " with exception: "+ re.getLocalizedMessage())
+                                        logger.warn("[ClassTransform] Instrumentation is disabled for [${classFile.name}] with exception: " + re.getLocalizedMessage())
                                         jarOutputStream << fileInputStream
                                     } catch (IOException ioE) {
-                                        logger.warn("[ClassTransformTask] Instrumentation is disabled for " + classFile.name + " with exception: "+ ioE.getLocalizedMessage())
+                                        logger.warn("[ClassTransform] Instrumentation is disabled for [${classFile.name}] with exception: " + ioE.getLocalizedMessage())
                                         jarOutputStream << fileInputStream
                                     }
                                     jarOutputStream.closeEntry()
@@ -79,14 +81,18 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                 }
                             }
                         } catch (IOException fileException) {
-                            logger.error("[ClassTransformTask] [${classJar.asFile.path}] ${fileException.message}")
+                            logger.error("[ClassTransform] [${classJar.asFile.path}] ${fileException.message}")
                         }
                     }
                 }
 
                 classJars.get().forEach { classJar ->
                     try (JarFile jar = new JarFile(classJar.asFile)) {
+                        boolean shouldInstrument = shouldInstrumentArtifact(transformer, jar)
+
                         try {
+                            transformer.asIdentityTransform(!shouldInstrument);
+
                             for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
                                 try {
                                     JarEntry jarEntry = e.nextElement()
@@ -94,14 +100,14 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                         jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
                                         jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
                                             try {
-                                                transformer.processClassBytes(new File(jarEntry.name), jarEntryInputStream).withCloseable {
+                                                transformer.processClassBytes(jarEntry.name, jarEntryInputStream).withCloseable {
                                                     jarOutputStream << it
                                                 }
                                             } catch (RuntimeException re) {
-                                                logger.warn("[ClassTransformTask] Instrumentation is disabled for " + jarEntry.name + " with exception: "+ re.getLocalizedMessage())
+                                                logger.warn("[ClassTransform] Instrumentation is disabled for [${jarEntry.name}] with exception: " + re.getLocalizedMessage())
                                                 jarOutputStream << jarEntryInputStream
                                             } catch (IOException ioE) {
-                                                logger.warn("[ClassTransformTask] Instrumentation is disabled for " + jarEntry.name + " with exception: "+ ioE.getLocalizedMessage())
+                                                logger.warn("[ClassTransform] Instrumentation is disabled for [${jarEntry.name}] with exception: " + ioE.getLocalizedMessage())
                                                 jarOutputStream << jarEntryInputStream
                                             }
                                         }
@@ -113,21 +119,44 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                         }
                                     }
                                 } catch (IOException jarEntryException) {
-                                    logger.error("[ClassTransformTask] [${classJar.asFile.path}] ${jarEntryException.message}")
+                                    logger.error("[ClassTransform] [${classJar.asFile.path}] ${jarEntryException.message}")
                                 }
                             }
 
                         } catch (IOException jarException) {
-                            logger.error(("[ClassTransformTask] [${classJar.asFile.path}] ${jarException.message}"))
+                            logger.error(("[ClassTransform] [${classJar.asFile.path}] ${jarException.message}"))
                         }
                     }
                 }
 
-                logger.info("[ClassTransformTask] Finished in " + Double.valueOf((double) (
+                logger.info("[ClassTransform] Finished in " + Double.valueOf((double) (
                         System.currentTimeMillis() - tStart) / 1000f).toString() + " sec.")
             }
         }
 
+    }
+
+    boolean shouldInstrumentClassFile(File classFile) {
+        boolean shouldInstrument = FileUtils.isClass(classFile)
+        // TODO: exclude package names
+        shouldInstrument
+    }
+
+    boolean shouldInstrumentArtifact(ClassTransformer transformer, JarFile jar) {
+        boolean shouldInstrument = true;
+
+        try {
+            shouldInstrument = transformer.verifyManifest(jar)
+            if (!shouldInstrument) {
+                // signed or other unsupported JAR file, rewrite it unmodified
+                logger.warn("[ClassTransform] Signed dependency artifacts [${jar.name}] are not instrumented.")
+            }
+        } catch (IOException e) {
+            logger.error("[ClassTransform] Manifest error: ${e}");
+            shouldInstrument = false
+        }
+
+        shouldInstrument
     }
 
     @Internal

@@ -7,6 +7,7 @@ package com.newrelic.agent.android.instrumentation;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceHeader;
@@ -17,6 +18,8 @@ import com.newrelic.agent.android.util.ExceptionHelper;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.util.HashMap;
+import java.util.Map;
 
 @SuppressWarnings("deprecation")
 public class TransactionStateUtil {
@@ -90,6 +93,7 @@ public class TransactionStateUtil {
      * @param conn
      */
     static void setDistributedTraceHeaders(TransactionState transactionState, HttpURLConnection conn) {
+
         if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
             try {
                 TraceContext traceContext = transactionState.getTrace();
@@ -118,4 +122,16 @@ public class TransactionStateUtil {
         }
     }
 
+
+    public static void addHeadersAsCustomAttribute(TransactionState transactionState, String field, String newValue) {
+        if (HttpHeaders.getInstance().getHttpHeaders().contains(field)) {
+            if (transactionState.getParams() != null) {
+                transactionState.getParams().put(field, newValue);
+            } else {
+                Map<String, String> headers = new HashMap<>();
+                headers.put(field, newValue);
+                transactionState.setParams(headers);
+            }
+        }
+    }
 }
