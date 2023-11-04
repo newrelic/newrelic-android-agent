@@ -24,6 +24,13 @@ import java.util.jar.JarOutputStream
 abstract class ClassTransformWrapperTask extends DefaultTask {
     final static String NAME = "newrelicTransformClassesFor"
 
+    @Internal
+    NewRelicExtension ext
+
+    ClassTransformWrapperTask() {
+        this.ext = NewRelicExtension.register(project)
+    }
+
     @InputFiles
     abstract ListProperty<Directory> getClassDirectories();
 
@@ -52,17 +59,27 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
             new JarOutputStream(bufferedOutputStream).withCloseable { jarOutputStream ->
 
                 classDirectories.get().forEach { directory ->
+                    directory.asFile.traverse(type: FileType.DIRECTORIES) { classFileDir ->
+                        String relativePath = directory.asFile.toURI().relativize(classFileDir.toURI()).getPath()
+                        String normalizedPath = relativePath?.replace(File.separatorChar, '/' as char)
+
+                        if (ext.shouldExcludePackageInstrumentation(normalizedPath)) {
+                            logger.debug("[ClassTransform] Excluding package [${relativePath}] from instrumentation")
+                        }
+                    }
+
                     directory.asFile.traverse(type: FileType.FILES) { classFile ->
                         String relativePath = directory.asFile.toURI().relativize(classFile.toURI()).getPath()
+                        String normalizedPath = relativePath?.replace(File.separatorChar, '/' as char)
 
                         try {
                             new FileInputStream(classFile).withCloseable { fileInputStream ->
-                                def jarEntry = new JarEntry(relativePath.replace(File.separatorChar, '/' as char))
+                                def jarEntry = new JarEntry(normalizedPath)
                                 try {
                                     jarOutputStream.putNextEntry(jarEntry)
-                                    transformer.asIdentityTransform(!shouldInstrumentClassFile(classFile))
                                     try {
-                                        transformer.processClassBytes(classFile.path, fileInputStream).withCloseable {
+                                        transformer.asMutableTransform(shouldInstrumentClassFile(jarEntry.name))
+                                        transformer.transformClassByteStream(classFile.path, fileInputStream).withCloseable {
                                             jarOutputStream << it
                                         }
                                     } catch (RuntimeException re) {
@@ -88,19 +105,26 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
 
                 classJars.get().forEach { classJar ->
                     try (JarFile jar = new JarFile(classJar.asFile)) {
-                        boolean shouldInstrument = shouldInstrumentArtifact(transformer, jar)
+                        boolean instrumentable = shouldInstrumentArtifact(transformer, jar)
 
                         try {
-                            transformer.asIdentityTransform(!shouldInstrument);
-
+                            // transformer.asMutableTransform(instrumentable);
                             for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
                                 try {
                                     JarEntry jarEntry = e.nextElement()
                                     try {
                                         jarOutputStream.putNextEntry(new JarEntry(jarEntry.name))
+
+                                        if (jarEntry.directory) {
+                                            if (ext.shouldExcludePackageInstrumentation(jarEntry.name)) {
+                                                logger.debug("[ClassTransform] Excluding package [${jarEntry.name}] from instrumentation")
+                                            }
+                                        }
+
                                         jar.getInputStream(jarEntry).withCloseable { jarEntryInputStream ->
                                             try {
-                                                transformer.processClassBytes(jarEntry.name, jarEntryInputStream).withCloseable {
+                                                transformer.asMutableTransform(shouldInstrumentClassFile(jarEntry.name))
+                                                transformer.transformClassByteStream(jarEntry.name, jarEntryInputStream).withCloseable {
                                                     jarOutputStream << it
                                                 }
                                             } catch (RuntimeException re) {
@@ -136,27 +160,31 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
 
     }
 
-    boolean shouldInstrumentClassFile(File classFile) {
+    boolean shouldInstrumentClassFile(String classFile) {
         boolean shouldInstrument = FileUtils.isClass(classFile)
-        // TODO: exclude package names
-        shouldInstrument
+
+        if (shouldInstrument) {
+            if (ext.shouldExcludePackageInstrumentation(classFile)) {
+                return false
+            }
+        }
+
+        return shouldInstrument
     }
 
     boolean shouldInstrumentArtifact(ClassTransformer transformer, JarFile jar) {
-        boolean shouldInstrument = true;
-
         try {
-            shouldInstrument = transformer.verifyManifest(jar)
-            if (!shouldInstrument) {
+            if (!transformer.verifyManifest(jar)) {
                 // signed or other unsupported JAR file, rewrite it unmodified
-                logger.warn("[ClassTransform] Signed dependency artifacts [${jar.name}] are not instrumented.")
+                logger.warn("[ClassTransform] Excluding signed or incompatible artifact[${jar.name}]from instrumentation")
+                return false
             }
         } catch (IOException e) {
             logger.error("[ClassTransform] Manifest error: ${e}");
-            shouldInstrument = false
+            return false
         }
 
-        shouldInstrument
+        return true
     }
 
     @Internal

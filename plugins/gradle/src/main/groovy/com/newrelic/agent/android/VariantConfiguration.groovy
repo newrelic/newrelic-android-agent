@@ -16,6 +16,7 @@ abstract class VariantConfiguration {
     boolean instrument
     boolean uploadMappingFile
     File mappingFile
+    Set<String> packageExclusions
 
     @Inject
     VariantConfiguration(String name, Project project) {
@@ -24,6 +25,8 @@ abstract class VariantConfiguration {
         this.instrument = true
         this.uploadMappingFile = false
         this.mappingFile = null
+        this.packageExclusions = []
+
     }
 
     String getName() {
