@@ -1,0 +1,62 @@
+name: Android Smoke Test Workflows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke-test-jdk11:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'gradle'
+      - uses: gradle/gradle-build-action@v2.4.2
+        with:
+          gradle-version: current
+      - name: Stage with Gradle
+        run: ./gradlew publish
+      - name: Test with Gradle
+        run: ./gradlew :plugins:gradle:functionalTests --tests "com.newrelic.agent.android.PluginJDK11SmokeSpec"
+      - name: Upload build reports
+        if: ${{ !env.ACT }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: smoke-test-jdk11-reports
+          path: |
+            build/reports/tests/test/index.html
+            build/reports/tests/integrationTests/index.html
+          if-no-files-found: ignore
+          retention-days: 3
+
+  smoke-test-jdk17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+      - uses: gradle/gradle-build-action@v2.4.2
+        with:
+          gradle-version: current
+      - name: Stage with Gradle
+        run: ./gradlew publish
+      - name: Test with Gradle
+        run: ./gradlew :plugins:gradle:functionalTests --tests "com.newrelic.agent.android.PluginJDK17SmokeSpec"
+      - name: Upload build reports
+        if: ${{ !env.ACT }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: smoke-test-jdk17-reports
+          path: |
+            build/reports/tests/test/index.html
+            build/reports/tests/integrationTests/index.html
+          if-no-files-found: ignore
+          retention-days: 3
+

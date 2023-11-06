@@ -126,7 +126,7 @@ public class ClassTransformerTest {
         Assert.assertTrue(transformer.transformClassFile(classFile));
 
         try (InputStream inputFilestream = new ByteArrayInputStream(new FileInputStream(classFile).readAllBytes());
-             ByteArrayInputStream outputFilestream = transformer.processClassBytes(classFile.getName(), inputFilestream)) {
+             ByteArrayInputStream outputFilestream = transformer.transformClassByteStream(classFile.getName(), inputFilestream)) {
 
             inputFilestream.reset();
             ByteBuffer inBytes = ByteBuffer.wrap(inputFilestream.readAllBytes());
@@ -145,7 +145,7 @@ public class ClassTransformerTest {
         Assert.assertFalse(transformer.transformClassFile(classFile));
 
         try (InputStream inputFilestream = new ByteArrayInputStream(new FileInputStream(classFile).readAllBytes());
-             ByteArrayInputStream outputFilestream = transformer.processClassBytes(classFile.getName(), inputFilestream)) {
+             ByteArrayInputStream outputFilestream = transformer.transformClassByteStream(classFile.getName(), inputFilestream)) {
             inputFilestream.reset();
             ByteBuffer inBytes = ByteBuffer.wrap(inputFilestream.readAllBytes());
             ByteBuffer outBytes = ByteBuffer.wrap(outputFilestream.readAllBytes());

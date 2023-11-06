@@ -79,7 +79,7 @@ public class InvocationDispatcher {
 
         String lowercasePackageName = packageName.toLowerCase();
         for (String name : Constants.ANDROID_EXCLUDED_PACKAGES) {
-            if (lowercasePackageName.startsWith(name)) {
+            if (lowercasePackageName.startsWith(name) || lowercasePackageName.matches(name)) {
                 return true;
             }
         }
@@ -129,13 +129,6 @@ public class InvocationDispatcher {
 
             className = instrumentationContext.getClassName();
 
-/*
-            if (isAndroidSDKPackage(className)) {
-                log.info("COMPOSE:");
-                log.info("COMPOSE classname[" + className + "]");
-            }
-*/
-
             if (!instrumentationContext.hasTag(Constants.INSTRUMENTED_CLASS_NAME)) {
                 //
                 // Second pass to actually do the work
@@ -151,7 +144,7 @@ public class InvocationDispatcher {
                 } else if (isAndroidSDKPackage(className)) {
                     cv = new ActivityClassVisitor(cv, instrumentationContext, log);
                 } else if (isExcludedPackage(className)) {
-                    // log.warn("[InvocationDispatcher] Excluding class [" + className + "]");
+                    // log.debug("[InvocationDispatcher] Excluding class [" + className + "]");
                     return null;
                 } else {
                     cv = new AnnotatingClassVisitor(cv, instrumentationContext, log);

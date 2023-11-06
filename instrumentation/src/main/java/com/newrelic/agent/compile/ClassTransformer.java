@@ -93,16 +93,12 @@ public final class ClassTransformer {
      *
      * @param classPathname Used to discern resource type and logging
      * @param bytes Array of bytes containing the class bytecode
-     * @return Array of transformed bytes if class was processed; otherwise returns original
-     * array of bytes if transformation is disabled or class could not be transformed.
+     * @return Array of transformed bytes if class was processed; otherwise returns null
+     * if transformation is disabled or class could not be transformed.
      */
     public byte[] transformClassBytes(String classPathname, byte[] bytes) {
 
-        if (identityTransform) {
-            return bytes;
-        }
-
-        if (FileUtils.isClass(classPathname)) {
+        if (FileUtils.isClass(classPathname) && !identityTransform) {
             try {
                 if (bytes != null) {
                     classData = invocationDispatcher.visitClassBytes(bytes);
@@ -116,7 +112,7 @@ public final class ClassTransformer {
             }
         }
 
-        return bytes;
+        return null;
     }
 
     /*
@@ -131,7 +127,7 @@ public final class ClassTransformer {
      * @return ByteArrayInputStream containing transformed bytes if successful, or the original
      * bytes otherwise.
      **/
-    public ByteArrayInputStream processClassBytes(String classFilePath, InputStream classFileInputStream) throws IOException {
+    public ByteArrayInputStream transformClassByteStream(String classFilePath, InputStream classFileInputStream) throws IOException {
         byte[] classBytes = Streams.slurpBytes(classFileInputStream);
         byte[] transformedClassBytes = transformClassBytes(classFilePath, classBytes);
         final ByteArrayInputStream processedClassBytesStream;
@@ -182,7 +178,7 @@ public final class ClassTransformer {
                     classBytesInputStream = new FileInputStream(classFile);
 
                     if (FileUtils.isClass(classFile)) {
-                        classBytesOutputStream = processClassBytes(classpath, classBytesInputStream);
+                        classBytesOutputStream = transformClassByteStream(classpath, classBytesInputStream);
                         didProcessClass = writeClassFile(classBytesOutputStream, transformedClassFile);
                     } else {
                         log.debug("[ClassTransformer] Class ignored: " + classFile.getName());
@@ -281,7 +277,7 @@ public final class ClassTransformer {
                         jarEntry.setTime(entry.getTime());
                         jarOutputStream.putNextEntry(jarEntry);
                         classBytesInputStream = jarFile.getInputStream(entry);
-                        classBytesOutputStream = processClassBytes(archiveClassFile.getPath(), classBytesInputStream);
+                        classBytesOutputStream = transformClassByteStream(archiveClassFile.getPath(), classBytesInputStream);
 
                         if (explodeJar) {
                             didProcessArchive |= writeClassFile(classBytesOutputStream, archiveClassFile);
@@ -387,6 +383,10 @@ public final class ClassTransformer {
     public ClassTransformer asIdentityTransform(boolean identityTransform) {
         this.identityTransform = identityTransform;
         return this;
+    }
+
+    public ClassTransformer asMutableTransform(boolean mutableTransform) {
+        return asIdentityTransform(!mutableTransform);
     }
 
     public ClassTransformer withWriteMode(WriteMode writeMode) {

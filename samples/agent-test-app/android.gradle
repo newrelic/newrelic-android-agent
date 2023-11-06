@@ -120,7 +120,7 @@ if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
             excludeVariantInstrumentation 'debug'
 
             // do not instrument these specific packages
-            excludePackageInstrumentation 'com.newrelic'
+            excludePackageInstrumentation 'com.testapp', 'org.bouncycastle.crypto'
 
             try {
                 // allow overrides for specific (DexGuard) configuration
