@@ -55,6 +55,7 @@ public class SharedPrefsEventStoreTest implements EventListener {
 
     @Test
     public void store() throws Exception {
+        eventStore.clear();
         AnalyticsEvent event = new AnalyticsEvent("storeEvent");
         eventStore.store(event);
         List<AnalyticsEvent> list = eventStore.fetchAll();
@@ -63,32 +64,36 @@ public class SharedPrefsEventStoreTest implements EventListener {
 
     @Test
     public void fetchAll() throws Exception {
+        eventStore.clear();
         AnalyticsEvent event1 = new AnalyticsEvent("event1");
         AnalyticsEvent event2 = new AnalyticsEvent("event2");
         eventStore.store(event1);
         eventStore.store(event2);
+        eventStore.store(event1);
         List<AnalyticsEvent> list = eventStore.fetchAll();
         Assert.assertNotNull("Should store event", list.contains(event1));
-        Assert.assertEquals("Should not store duplicates", 2, eventStore.fetchAll().size());
+        Assert.assertEquals("Should not store duplicates", 2, list.size());
     }
 
     @Test
     public void count() throws Exception {
+        eventStore.clear();
         AnalyticsEvent event1 = new AnalyticsEvent("event1");
         AnalyticsEvent event2 = new AnalyticsEvent("event2");
         eventStore.store(event1);
         eventStore.store(event2);
+        eventStore.store(event1);
         List<AnalyticsEvent> list = eventStore.fetchAll();
         Assert.assertEquals("Should not store duplicates", 2, list.size());
     }
 
     @Test
     public void clear() throws Exception {
+        eventStore.clear();
         AnalyticsEvent event1 = new AnalyticsEvent("event1");
-        AnalyticsEvent event2 = new AnalyticsEvent("event2");
         eventStore.store(event1);
-        eventStore.store(event2);
-        Assert.assertEquals("Should contains event(s)", 2, eventStore.fetchAll().size());
+        List<AnalyticsEvent> list = eventStore.fetchAll();
+        Assert.assertEquals("Should contains event(s)", 1, list.size());
 
         eventStore.clear();
         Assert.assertTrue("Should remove all event(s)", eventStore.fetchAll().isEmpty());
@@ -96,6 +101,7 @@ public class SharedPrefsEventStoreTest implements EventListener {
 
     @Test
     public void delete() throws Exception {
+        eventStore.clear();
         AnalyticsEvent event1 = new AnalyticsEvent("event1");
         AnalyticsEvent event2 = new AnalyticsEvent("event2");
         eventStore.store(event1);
@@ -114,6 +120,7 @@ public class SharedPrefsEventStoreTest implements EventListener {
 
     @Test
     public void testStoreLotsOfEvents() throws Exception {
+        eventStore.clear();
         int reps = 20;
         for (Integer i = 0; i < reps; i++) {
             AnalyticsEvent event = new AnalyticsEvent("event" + i);
