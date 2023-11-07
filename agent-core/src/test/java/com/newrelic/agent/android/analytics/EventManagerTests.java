@@ -6,6 +6,8 @@
 package com.newrelic.agent.android.analytics;
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
@@ -44,6 +46,7 @@ public class EventManagerTests implements EventListener {
         AgentLogManager.setAgentLog(log);
 
         agentConfiguration = new AgentConfiguration();
+        agentConfiguration.setEventStore(new TestEventStore());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
     }
@@ -377,6 +380,19 @@ public class EventManagerTests implements EventListener {
         // reset
         manager.setEventListener(null);
         Assert.assertEquals(manager, manager.getListener());
+    }
+
+    @Test
+    public void testEventManagerInitWithEvents() {
+        AnalyticsEventStore eventStore = agentConfiguration.getEventStore();
+        eventStore.clear();
+        eventStore.store(new AnalyticsEvent("event1"));
+        eventStore.store(new AnalyticsEvent("event2"));
+        Assert.assertEquals(2, eventStore.fetchAll().size());
+
+        manager.initialize(agentConfiguration);
+        Assert.assertEquals(2, manager.getQueuedEvents().size());
+        Assert.assertEquals(2, manager.getEventsRecorded());
     }
 
     @Override
