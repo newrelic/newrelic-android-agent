@@ -151,4 +151,10 @@ public class AnalyticsEventTests {
             Assert.fail("Attributes should be mutable");
         }
     }
+
+    @Test
+    public void testEventUUID() {
+        AnalyticsEvent event = new AnalyticsEvent("testEvent");
+        Assert.assertNotNull(event.getEventUUID());
+    }
 }

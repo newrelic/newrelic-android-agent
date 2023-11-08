@@ -28,7 +28,7 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
     private static final String STORE_FILE = "NREventStore";
 
     public SharedPrefsEventStore(Context context) {
-        super(context, STORE_FILE);
+        this(context, STORE_FILE);
     }
 
     public SharedPrefsEventStore(Context context, String storeFilename) {
