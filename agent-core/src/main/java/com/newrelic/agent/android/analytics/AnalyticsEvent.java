@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 public class AnalyticsEvent extends HarvestableObject {
     protected final static AgentLog log = AgentLogManager.getAgentLog();
@@ -40,6 +41,7 @@ public class AnalyticsEvent extends HarvestableObject {
     // Use event type as name
     public static final String EVENT_NAME_IS_TYPE = null;
 
+    protected String uuid;
     protected String name;
     protected long timestamp;
     protected AnalyticsEventCategory category;
@@ -66,6 +68,7 @@ public class AnalyticsEvent extends HarvestableObject {
     }
 
     AnalyticsEvent(String name, AnalyticsEventCategory category, String eventType, long timeStamp, Set<AnalyticsAttribute> initialAttributeSet) {
+        this.uuid = UUID.randomUUID().toString();
         this.name = name;
         this.timestamp = timeStamp;
         this.category = validator.toValidCategory(category);
@@ -118,6 +121,10 @@ public class AnalyticsEvent extends HarvestableObject {
 
     public String getEventType() {
         return eventType;
+    }
+
+    public String getEventUUID() {
+        return uuid;
     }
 
     @Override

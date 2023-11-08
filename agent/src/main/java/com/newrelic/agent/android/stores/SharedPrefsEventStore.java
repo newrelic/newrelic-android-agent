@@ -44,7 +44,7 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
 
                 // events should be stored synchronously, since the app is terminating
                 SharedPreferences.Editor editor = this.sharedPrefs.edit();
-                editor.putString(String.valueOf(event.getName() + "_" + event.getTimestamp()), eventJson);
+                editor.putString(event.getEventUUID(), eventJson);
 
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED, eventJson.length());
                 return editor.commit();
@@ -76,7 +76,7 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
         try {
             synchronized (this) {
                 final SharedPreferences.Editor editor = sharedPrefs.edit();
-                editor.remove(String.valueOf(event.getName() + "_" + event.getTimestamp())).commit();
+                editor.remove(event.getEventUUID()).commit();
             }
         } catch (Exception e) {
             log.error("SharedPrefsEventStore.delete(): ", e);

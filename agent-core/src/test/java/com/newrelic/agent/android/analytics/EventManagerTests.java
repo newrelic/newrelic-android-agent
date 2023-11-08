@@ -38,6 +38,7 @@ public class EventManagerTests implements EventListener {
     private static AgentConfiguration agentConfiguration;
     private EventManagerImpl manager = null;
     private AnalyticsValidator validator = new AnalyticsValidator();
+    private AnalyticsEventStore eventStore;
 
     @BeforeClass
     public static void setupClass() {
@@ -57,15 +58,18 @@ public class EventManagerTests implements EventListener {
         manager = Mockito.spy(new TestEventManagerImpl());
         manager.initialize(agentConfiguration);
         manager.setEventListener(this);
+        eventStore = agentConfiguration.getEventStore();
     }
 
     @After
     public void tearDown() throws Exception {
+        eventStore.clear();
         manager.shutdown();
     }
 
     @Test
     public void testAddEvent() {
+        eventStore.clear();
         Assert.assertEquals("EventQueue initial size should be 0", 0, manager.size());
 
         manager.addEvent(new CustomEvent("test", null));
@@ -77,6 +81,8 @@ public class EventManagerTests implements EventListener {
 
     @Test
     public void testEmpty() {
+        eventStore.clear();
+        manager.initialize(agentConfiguration);
         manager.addEvent(new CustomEvent("test", null));
         manager.addEvent(new CustomEvent("test2", null));
         Assert.assertEquals("EventQueue initial size should be 2", 2, manager.size());
@@ -135,6 +141,8 @@ public class EventManagerTests implements EventListener {
 
     @Test
     public void testCountRecorded() {
+        eventStore.clear();
+        manager.initialize(agentConfiguration);
         Assert.assertEquals(0, manager.size());
         manager.setMaxEventPoolSize(2);
         manager.addEvent(new AnalyticsEvent("test"));
@@ -148,6 +156,7 @@ public class EventManagerTests implements EventListener {
 
     @Test
     public void testCountEjected() {
+        eventStore.clear();
         Assert.assertEquals(0, manager.size());
         manager.setMaxEventPoolSize(3);
         manager.addEvent(new AnalyticsEvent("test"));
@@ -161,6 +170,8 @@ public class EventManagerTests implements EventListener {
 
     @Test
     public void testGetQueuedEvents() {
+        eventStore.clear();
+        manager.initialize(agentConfiguration);
         manager.addEvent(new AnalyticsEvent("test"));
         manager.addEvent(new AnalyticsEvent("test"));
         manager.addEvent(new AnalyticsEvent("test"));
@@ -182,6 +193,7 @@ public class EventManagerTests implements EventListener {
 
     @Test
     public void testGetQueuedEventsSnapshot() {
+        eventStore.clear();
         manager.addEvent(new AnalyticsEvent("test"));
         manager.addEvent(new AnalyticsEvent("test"));
         manager.addEvent(new AnalyticsEvent("test"));
@@ -203,6 +215,8 @@ public class EventManagerTests implements EventListener {
 
     @Test
     public void testSubmitAfterShutdown() {
+        eventStore.clear();
+        manager.initialize(agentConfiguration);
         manager.addEvent(new AnalyticsEvent("test"));
         manager.addEvent(new AnalyticsEvent("test"));
         manager.addEvent(new AnalyticsEvent("test"));
@@ -227,7 +241,8 @@ public class EventManagerTests implements EventListener {
 
     @Test
     public void testConcurrentEventSubmission() throws InterruptedException {
-
+        eventStore.clear();
+        manager.initialize(agentConfiguration);
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
         final Collection<AnalyticsEvent> snapshot = manager.getQueuedEvents();
 
@@ -283,6 +298,8 @@ public class EventManagerTests implements EventListener {
 
     @Test
     public void testOldEventHandoff() throws InterruptedException {
+        eventStore.clear();
+        manager.initialize(agentConfiguration);
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(8);
         final Collection<AnalyticsEvent> snapshot = manager.getQueuedEvents();
         Assert.assertTrue(snapshot.isEmpty());
@@ -384,8 +401,8 @@ public class EventManagerTests implements EventListener {
 
     @Test
     public void testEventManagerInitWithEvents() {
-        AnalyticsEventStore eventStore = agentConfiguration.getEventStore();
         eventStore.clear();
+        manager.initialize(agentConfiguration);
         eventStore.store(new AnalyticsEvent("event1"));
         eventStore.store(new AnalyticsEvent("event2"));
         Assert.assertEquals(2, eventStore.fetchAll().size());
