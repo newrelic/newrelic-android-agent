@@ -12,12 +12,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventStore;
-import com.newrelic.agent.android.crash.Crash;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
-import com.newrelic.agent.android.util.SafeJsonPrimitive;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +44,7 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
                 SharedPreferences.Editor editor = this.sharedPrefs.edit();
                 editor.putString(event.getEventUUID(), eventJson);
 
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED, eventJson.length());
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED, eventJson.length());
                 return editor.commit();
             } catch (Exception e) {
                 log.error("SharedPrefsStore.store(String, String): ", e);
@@ -58,13 +56,13 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
     @Override
     public List<AnalyticsEvent> fetchAll() {
         final List<AnalyticsEvent> events = new ArrayList<AnalyticsEvent>();
-        for (Object object : super.fetchAll()) {
-            if (object instanceof String) {
+        Map<String, ?> objectStrings = sharedPrefs.getAll();
+        for (Map.Entry<String, ?> entry : objectStrings.entrySet()) {
+            if (entry.getValue() instanceof String) {
                 try {
-                    JsonObject eventObj = new Gson().fromJson((String) object, JsonObject.class);
-                    events.add(AnalyticsEvent.newFromJson(eventObj));
+                    events.add(AnalyticsEvent.eventFromJsonString(entry.getKey().toString(), (String) entry.getValue()));
                 } catch (Exception e) {
-                    log.error("Exception encountered while deserializing crash", e);
+                    log.error("Exception encountered while deserializing event", e);
                 }
             }
         }

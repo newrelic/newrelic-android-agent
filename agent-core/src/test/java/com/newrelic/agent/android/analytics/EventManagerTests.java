@@ -6,8 +6,6 @@
 package com.newrelic.agent.android.analytics;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.harvest.Harvest;
-import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;

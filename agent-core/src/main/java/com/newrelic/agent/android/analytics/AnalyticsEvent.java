@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.analytics;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -127,6 +128,10 @@ public class AnalyticsEvent extends HarvestableObject {
         return uuid;
     }
 
+    public void setEventUUID(String uuid) {
+        this.uuid = uuid;
+    }
+
     @Override
     public JsonObject asJsonObject() {
         final JsonObject data = new JsonObject();
@@ -198,6 +203,13 @@ public class AnalyticsEvent extends HarvestableObject {
         }
 
         return new AnalyticsEvent(name, category, eventType, timestamp, attributeSet);
+    }
+
+    public static AnalyticsEvent eventFromJsonString(String uuid, String eventString) {
+        JsonObject eventObj = new Gson().fromJson(eventString, JsonObject.class);
+        AnalyticsEvent event = newFromJson(eventObj);
+        event.setEventUUID(uuid);
+        return event;
     }
 
     /**

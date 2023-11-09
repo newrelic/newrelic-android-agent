@@ -385,7 +385,7 @@ public class EventManagerImpl implements EventManager, EventListener {
     /**
      * Notified when event buffer flush time has been exceeded. This normally occurs
      * between harvest cycles.
-     * <p>
+     *
      * The caller can update the limit using @link NewRelic.setMaxEventBufferTime()
      *
      * @param maxBufferTimeInSec
