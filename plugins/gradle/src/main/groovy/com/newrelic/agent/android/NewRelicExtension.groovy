@@ -50,7 +50,7 @@ abstract class NewRelicExtension {
         this.instrumentTests = objectFactory.property(Boolean.class).convention(false)
         this.variantMapsEnabled = objectFactory.property(Boolean.class).convention(true)
         this.variantConfigurations = objectFactory.domainObjectContainer(VariantConfiguration, { name ->
-            objectFactory.newInstance(VariantConfiguration.class, name, project)
+            objectFactory.newInstance(VariantConfiguration.class, name)
         })
     }
 
