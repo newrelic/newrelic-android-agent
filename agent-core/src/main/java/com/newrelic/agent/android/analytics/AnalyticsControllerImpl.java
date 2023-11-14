@@ -49,6 +49,8 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
     private AgentImpl agentImpl;
     private AnalyticsAttributeStore attributeStore;
 
+    private AnalyticsEventStore eventStore;
+
     class InteractionCompleteListener implements TraceLifecycleAware {
         @Override
         public void onEnterMethod() {
@@ -138,6 +140,7 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
         this.eventManager.initialize(agentConfiguration);
         this.isEnabled.set(agentConfiguration.getEnableAnalyticsEvents());
         this.attributeStore = agentConfiguration.getAnalyticsAttributeStore();
+        this.eventStore = agentConfiguration.getEventStore();
 
         loadPersistentAttributes();
 
@@ -1022,6 +1025,13 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
                     if (pendingEvents.size() > 0) {
                         harvestData.getAnalyticsEvents().addAll(pendingEvents);
                         log.debug("EventManager: [" + pendingEvents.size() + "] events moved from buffer to HarvestData");
+
+                        //remove events from pref
+                        if (eventStore != null) {
+                            for (AnalyticsEvent event : pendingEvents) {
+                                eventStore.delete(event);
+                            }
+                        }
                     }
 
                     // event buffer _should_ be empty, but...
