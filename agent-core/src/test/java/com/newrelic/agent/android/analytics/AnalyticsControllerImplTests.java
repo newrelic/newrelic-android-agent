@@ -10,6 +10,7 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.harvest.Harvester;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -70,6 +71,7 @@ public class AnalyticsControllerImplTests {
         AgentLogManager.getAgentLog().setLevel(0);
         config = new AgentConfiguration();
         config.setEnableAnalyticsEvents(true);
+        config.setEventStore(new TestEventStore());
         config.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
         controller = (AnalyticsControllerImpl) AnalyticsControllerImpl.getInstance();
         controller.shutdown();
@@ -1131,6 +1133,32 @@ public class AnalyticsControllerImplTests {
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
+    }
+
+    @Test
+    public void testEventDeletionOnHarvest() {
+        FeatureFlag.enableFeature(FeatureFlag.AnalyticsEvents);
+        AnalyticsEventStore eventStore = config.getEventStore();
+        eventStore.clear();
+
+        Harvest.initialize(config);
+        HarvestData data = Harvest.getInstance().getHarvestData();
+        ArrayList<AnalyticsEvent> events = new ArrayList<>();
+        TestStubAgentImpl agentImpl = new TestStubAgentImpl();
+        controller.initialize(config, agentImpl);
+        controller.getEventManager().setTransmitRequired();
+        AnalyticsEvent event1 = new AnalyticsEvent("event1");
+        AnalyticsEvent event2 = new AnalyticsEvent("event2");
+        controller.addEvent(event1);
+        controller.addEvent(event2);
+        events.add(event1);
+        events.add(event2);
+        data.setAnalyticsEvents(events);
+        data.setAnalyticsEnabled(true);
+        Assert.assertEquals(2, eventStore.count());
+
+        controller.onHarvest();
+        Assert.assertEquals(0, eventStore.count());
     }
 
     private static class TestStubAgentImpl extends StubAgentImpl {
