@@ -11,6 +11,8 @@ plugins {
     id("com.android.library")
 }
 
+apply from: "$project.rootDir/jacoco.gradle"
+
 version = project.versions.agent
 archivesBaseName = "android-agent"
 
@@ -56,6 +58,10 @@ android {
             returnDefaultValues = true
             all {
                 forkEvery = 1
+                jacoco {
+                    includeNoLocationClasses = true
+                    excludes = ['jdk.internal.*']
+                }
             }
         }
     }
@@ -78,32 +84,13 @@ android {
     }
 }
 
-/*
-androidComponents {
-    onVariants(selector().withBuildType("release")) { variant ->
-        logger.info("[FAT-JAR] Variant[${variant.name}]")
-        variant.ext.fatJarProvider = toFatJarTask(variant)
-        artifacts {
-            // The artifact is a fat jar
-            archives variant.ext.fatJarProvider
-        }
-
-        def assembleTask = project.tasks.named("assemble") {
-            dependsOn variant.ext.fatJarProvider
-        }
-
-        fatJarProvider.configure {
-            finalizedBy assembleTask
-        }
-    }
-}
-/**/
-
 dependencies {
     implementation project(path: ':agent-core', configuration: 'fat')
 
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk
+
+    compileOnly "androidx.navigation:navigation-compose:${project.versions.jetpack}"
 
     testImplementation project(path: ':agent-core', configuration: 'fat')
     testImplementation fileTree(dir: 'libs', include: '*.jar')
@@ -183,19 +170,20 @@ def toFatJarTask(def variant) {
 apply from: "${rootDir}/gradle/publishing.gradle"
 
 publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            android.libraryVariants.all { variant ->
-                artifact variant.ext.fatJarProvider
-            }
-            artifactId 'android-agent'
-            pom {
-                groupId = 'com.newrelic.agent.android'
-                artifactId = 'android-agent'
-                version = rootProject.version
-                name = 'New Relic Android Agent'
-                description = 'The New Relic Android agent provides performance monitoring instrumentation for Android applications'
+
+        publications {
+            mavenJava(MavenPublication) {
+                android.libraryVariants.all { variant ->
+                    artifact variant.ext.fatJarProvider
+                }
+                artifactId 'android-agent'
+                pom {
+                    groupId = 'com.newrelic.agent.android'
+                    artifactId = monoEnabled ? 'android-agent-static':'android-agent'
+                    version = rootProject.version
+                    name = 'New Relic Android Agent'
+                    description = 'The New Relic Android agent provides performance monitoring instrumentation for Android applications'
+                }
             }
         }
     }
-}

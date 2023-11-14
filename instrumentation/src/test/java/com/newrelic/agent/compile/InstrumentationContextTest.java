@@ -11,6 +11,7 @@ import com.newrelic.agent.util.BuildId;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -197,6 +198,17 @@ public class InstrumentationContextTest {
         Assert.assertFalse(r.isEmpty());
 
         r = instrumentation.getCallSiteReplacements("clazz", "executed", "([Ljava/lang/Object;)Landroid/os/AsyncTask;");
+        Assert.assertTrue(r.isEmpty());
+    }
+
+    @Ignore("TODO")
+    public void getShadowMethods() {
+        Collection<ClassMethod> r;
+
+        r = instrumentation.getShadowMethods("", "execute", "([Ljava/lang/Object;)Landroid/os/AsyncTask;");
+        Assert.assertFalse(r.isEmpty());
+
+        r = instrumentation.getShadowMethods("clazz", "executed", "([Ljava/lang/Object;)Landroid/os/AsyncTask;");
         Assert.assertTrue(r.isEmpty());
     }
 

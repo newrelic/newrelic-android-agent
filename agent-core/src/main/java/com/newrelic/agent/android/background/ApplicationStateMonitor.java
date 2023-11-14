@@ -57,14 +57,11 @@ public class ApplicationStateMonitor {
     }
 
     public void uiHidden() {
-        final Runnable runner = new Runnable() {
-            @Override
-            public void run() {
-                if (foregrounded.get()) {
-                    log.info("UI has become hidden (app backgrounded)");
-                    notifyApplicationInBackground();
-                    foregrounded.set(false);
-                }
+        final Runnable runner = () -> {
+            if (foregrounded.get()) {
+                log.info("UI has become hidden (app backgrounded)");
+                notifyApplicationInBackground();
+                foregrounded.set(false);
             }
         };
         executor.execute(runner);
@@ -84,13 +81,10 @@ public class ApplicationStateMonitor {
     }
 
     public void activityStarted() {
-        final Runnable runner = new Runnable() {
-            @Override
-            public void run() {
-                if (activityCount.incrementAndGet() == 1 && !foregrounded.get()) {
-                    foregrounded.set(true);
-                    notifyApplicationInForeground();
-                }
+        final Runnable runner = () -> {
+            if (activityCount.incrementAndGet() == 1 && !foregrounded.get()) {
+                foregrounded.set(true);
+                notifyApplicationInForeground();
             }
         };
 

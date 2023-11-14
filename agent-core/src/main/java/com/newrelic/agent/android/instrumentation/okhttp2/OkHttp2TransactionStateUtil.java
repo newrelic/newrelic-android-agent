@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.instrumentation.okhttp2;
 
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.Measurements;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
@@ -132,7 +131,7 @@ public class OkHttp2TransactionStateUtil extends TransactionStateUtil {
                 }
 
                 transactionData.setResponseBody(responseBodyString);
-                transactionData.setParams(params);
+                transactionData.getParams().putAll(params);
 
 
                 response = setDistributedTraceHeaders(transactionState, response);
@@ -185,9 +184,8 @@ public class OkHttp2TransactionStateUtil extends TransactionStateUtil {
                                 }
                             }
                         }
-                    } else {
-                        // read the response? bad!
-                    }
+                    }  // read the response? bad!
+
                 }
             }
         }

@@ -79,6 +79,9 @@ dependencies {
 
     implementation "com.android.support:appcompat-v7:${versions.agp.supportLib}"
     implementation "com.google.code.gson:gson:${versions.gson}"
+
+    implementation fileTree(dir: 'libs', include: '*.jar')
+    implementation "org.bouncycastle:bcprov-jdk18on:${versions.bcprov}"
 }
 
 //
@@ -117,7 +120,7 @@ if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
             excludeVariantInstrumentation 'debug'
 
             // do not instrument these specific packages
-            excludePackageInstrumentation 'com.newrelic'
+            excludePackageInstrumentation 'com.testapp', 'org.bouncycastle.crypto'
 
             try {
                 // allow overrides for specific (DexGuard) configuration

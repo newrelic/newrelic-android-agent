@@ -13,7 +13,7 @@ import spock.lang.Shared
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 
-@Retry(delay = 15000, count=2)
+@Retry(delay = 15000, count = 2)
 class PluginJDK11SmokeSpec extends PluginSpec {
 
     /* Last levels for JDK 11. Must use JDK 17 for AGP/Gradle 8.+    */
@@ -26,9 +26,9 @@ class PluginJDK11SmokeSpec extends PluginSpec {
 
     def setupSpec() {
         given: "create the build runner"
-            with(new File(projectRootDir, ".gradle/configuration-cache")) {
-                it.deleteDir()
-            }
+        with(new File(projectRootDir, ".gradle/configuration-cache")) {
+            it.deleteDir()
+        }
 
         def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
@@ -122,6 +122,10 @@ class PluginJDK11SmokeSpec extends PluginSpec {
                     buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
             buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
         }
+    }
+
+    def "verify package exclusion"() {
+        filteredOutput.contains("Package [org/bouncycastle/crypto] has been excluded from instrumentation");
     }
 
 }

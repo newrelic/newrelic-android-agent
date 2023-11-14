@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.instrumentation.okhttp3;
 
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.Measurements;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
@@ -94,7 +93,7 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
                     try {
                         contentLength = Long.parseLong(responseBodyString);
                     } catch (NumberFormatException var10) {
-                        log.debug("Failed to parse content length: " + var10.toString());
+                        log.debug("Failed to parse content length: " + var10);
                     }
                 } else {
                     Response networkResponse = response.networkResponse();
@@ -104,7 +103,7 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
                             try {
                                 contentLength = Long.parseLong(responseBodyString);
                             } catch (NumberFormatException var5) {
-                                log.debug("Failed to parse network response content length: " + var5.toString());
+                                log.debug("Failed to parse network response content length: " + var5);
                             }
                         } else {
                             if (networkResponse.body() != null) {
@@ -158,7 +157,8 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
                 }
 
                 transactionData.setResponseBody(responseBodyString);
-                transactionData.setParams(params);
+                transactionData.getParams().putAll(params);
+
 
             }
 

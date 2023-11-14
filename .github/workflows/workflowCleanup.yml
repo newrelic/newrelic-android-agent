@@ -1,0 +1,58 @@
+name: Actions cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      protected-branch:
+        description: 'Ignore changes to this branch'
+        required: false
+        default: 'develop'
+        type: string
+      workflow:
+        description: 'Name of the workflow job'
+        required: false
+        type: string
+      state:
+        description: 'Final state of the workflow run'
+        type: choice
+        options:
+          -
+          - success
+          - skipped
+          - failure
+        required: false
+      maxage:
+        description: 'Last updated age of runs (in days)'
+        required: false
+        type: number
+        default: 180
+      limit:
+        description: 'Maximum number of runs to fetch'
+        required: false
+        type: number
+        default: 100
+      dryrun:
+        description:  'Show runs that would be deleted (TBA)'
+        required: false
+        type: boolean
+        default: true
+  schedule:
+    # run second day of the month
+    - cron: '0 0 2 * *'
+
+jobs:
+  actions-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          echo n | .github/bin/trimWorkflowRuns
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROTECTED_BRANCH: ${{ inputs.protected-branch }}
+          WORKFLOW: ${{ inputs.workflow }}
+          STATE: ${{ inputs.state }}
+          MAXAGE: ${{ inputs.maxage }}
+          LIMIT: ${{ inputs.limit }}
+          DRYRUN: ${{ inputs.dryrun }}

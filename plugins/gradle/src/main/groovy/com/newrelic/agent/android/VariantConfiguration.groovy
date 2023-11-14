@@ -5,25 +5,24 @@
 
 package com.newrelic.agent.android
 
-import org.gradle.api.Project
 
 import javax.inject.Inject
 
 abstract class VariantConfiguration {
     final String name
-    final Project project
-
     boolean instrument
     boolean uploadMappingFile
     File mappingFile
+    Set<String> packageExclusions
 
     @Inject
-    VariantConfiguration(String name, Project project) {
+    VariantConfiguration(String name) {
         this.name = name.toLowerCase()
-        this.project = project
         this.instrument = true
         this.uploadMappingFile = false
         this.mappingFile = null
+        this.packageExclusions = []
+
     }
 
     String getName() {
@@ -59,7 +58,11 @@ abstract class VariantConfiguration {
      *   <dirName> The variant directory name component (usually the same as name)
      */
     void setMappingFile(Object mappingFilePath) {
-        this.mappingFile = project.file(mappingFilePath)
+        if (mappingFilePath instanceof String) {
+            this.mappingFile = new File(mappingFilePath as String)
+        } else if (mappingFilePath instanceof File) {
+            this.mappingFile = mappingFilePath
+        }
     }
 
 }

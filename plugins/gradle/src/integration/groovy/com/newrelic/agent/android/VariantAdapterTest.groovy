@@ -5,16 +5,14 @@
 
 package com.newrelic.agent.android
 
-import com.newrelic.agent.android.obfuscation.Proguard
+import com.newrelic.agent.android.agp4.AGP4Adapter
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.compile.JavaCompile
 import org.junit.Assert
-import org.junit.Ignore
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 
-@Ignore("TODO")
 class VariantAdapterTest extends PluginTest {
 
     BuildHelper buildHelper
@@ -28,23 +26,19 @@ class VariantAdapterTest extends PluginTest {
 
     @BeforeEach
     void setup() {
-        // Create the instances needed to test this class
         if (applyPlugin) {
             ext = plugin.pluginExtension
-            buildHelper = plugin.buildHelper
+            buildHelper = Mockito.spy(plugin.buildHelper)
         } else {
             ext = NewRelicExtension.register(project)
             buildHelper = Mockito.spy(BuildHelper.register(project))
-            Mockito.doReturn("7.6").when(buildHelper).getGradleVersion()
         }
         variantAdapter = buildHelper.variantAdapter
-        variantAdapter.configure(ext)
-
-        Assert.assertFalse(variantAdapter.getVariantValues().isEmpty())
     }
 
     @Test
     void getVariants() {
+        variantAdapter.configure(ext)
         Assert.assertFalse(variantAdapter.getVariantValues().isEmpty())
     }
 
@@ -98,7 +92,7 @@ class VariantAdapterTest extends PluginTest {
     @Test
     void getMappingFile() {
         variantAdapter.getVariantValues().each { variant ->
-            def provider = variantAdapter.getMappingFileProvider("release") // variant.name)
+            def provider = variantAdapter.getMappingFileProvider(variant.name)
             Assert.assertTrue(provider instanceof RegularFileProperty)
             Assert.assertTrue(provider.get().asFile.absolutePath.startsWith(project.layout.buildDirectory.asFile.get().absolutePath))
         }
@@ -135,4 +129,28 @@ class VariantAdapterTest extends PluginTest {
     void getLogger() {
         Assert.assertEquals(buildHelper.logger, NewRelicGradlePlugin.LOGGER)
     }
+
+    @Test
+    void getVariantAdapterByGradleVersion() {
+        buildHelper = Mockito.spy(BuildHelper.register(project))
+        Mockito.doReturn("7.2").when(buildHelper).getAgpVersion()
+        Mockito.doReturn("7.3.3").when(buildHelper).getGradleVersion()
+        def adapter = VariantAdapter.register(buildHelper)
+        Assert.assertTrue(adapter instanceof AGP4Adapter)
+
+        buildHelper = Mockito.spy(BuildHelper.register(project))
+        Mockito.doReturn("7.3").when(buildHelper).getAgpVersion()
+        Mockito.doReturn("7.4").when(buildHelper).getGradleVersion()
+        adapter = VariantAdapter.register(buildHelper)
+        Assert.assertTrue(adapter instanceof AGP4Adapter)
+    }
+
+    @Test
+    void getVariantAdapterByAGPVersion() {
+        buildHelper = Mockito.spy(BuildHelper.register(project))
+        Mockito.doReturn("7.3.3").when(buildHelper).getAgpVersion()
+        def adapter = VariantAdapter.register(buildHelper)
+        Assert.assertTrue(adapter instanceof AGP4Adapter)
+    }
+
 }

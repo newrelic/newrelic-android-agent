@@ -46,6 +46,8 @@ public class Constants {
     public static final String ASM_CLASS_NAME = "com/newrelic/agent/android/background/ApplicationStateMonitor";
     public static final String CRASH_CLASS_NAME = "com/newrelic/agent/android/crash/Crash";
     public static final String AGENT_CLASS_NAME = "com/newrelic/agent/android/Agent";
+    public static final String COMPOSE_COMPOSABLE_CLASS_NAME = "com/newrelic/agent/android/compose/Composable";
+    public static final String COMPOSE_NAVIGATION_CLASS_NAME = "com/newrelic/agent/android/instrumentation/androidx/compose/navigation/NavigationController";
 
     /**
      * The New Relic android agent jar names:
@@ -70,6 +72,7 @@ public class Constants {
      * This includes those package names we are very interested in
      */
     public static final HashSet<String> ANDROID_INCLUDED_PACKAGES = new HashSet<String>() {{
+        add("androidx/navigation/compose");
         add("androidx/appcompat/app/AppCompatActivity");
         add("androidx/core/app/ActivityCompat");
         add("androidx/fragment/app/");

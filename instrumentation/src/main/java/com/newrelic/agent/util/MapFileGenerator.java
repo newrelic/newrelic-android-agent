@@ -6,6 +6,7 @@
 package com.newrelic.agent.util;
 
 import com.newrelic.agent.android.instrumentation.ReplaceCallSite;
+import com.newrelic.agent.android.instrumentation.ShadowMethod;
 import com.newrelic.agent.android.instrumentation.WrapReturn;
 import com.newrelic.agent.compile.ClassRemapperConfig;
 
@@ -22,7 +23,7 @@ import java.util.Set;
 
 public class MapFileGenerator {
 
-    private static final int KNOWN_MAP_SIZE = 83;
+    private static final int KNOWN_MAP_SIZE = 91;
 
     public static void main(String[] args) {
         if (args.length != 1) {
@@ -68,7 +69,7 @@ public class MapFileGenerator {
 
     /**
      * Return a map of original class name to new class name by finding all of the classes with
-     * the {@link ReplaceCallSite} annotation.
+     * the {@link ReplaceCallSite}, {@link WrapReturn} and {@link ShadowMethod} annotations.
      *
      * @return
      */
@@ -132,6 +133,48 @@ public class MapFileGenerator {
                         newClassName + '.' + newMethodName + annotation.getMethodDesc());
             }
         }
+
+        Collection<MethodAnnotation> shadowAnnotation = Annotations.getMethodAnnotations(ShadowMethod.class, "com/newrelic/agent", urls);
+        for (MethodAnnotation annotation : shadowAnnotation) {
+            Boolean isStatic = (Boolean) annotation.getAttributes().get("isStatic");
+            String scope = (String) annotation.getAttributes().get("scope");
+
+            if (isStatic == null) isStatic = Boolean.FALSE;
+
+            String originalMethodName = annotation.getMethodName();
+            String originalMethodDesc = annotation.getMethodDesc();
+
+            //
+            // Strip out `this` argument unless we're instrumenting a static method.
+            //
+            if (!isStatic) {
+                final Type[] argTypes = Type.getArgumentTypes(originalMethodDesc);
+                final Type[] newArgTypes = new Type[argTypes.length - 1];
+                for (int i = 0; i < newArgTypes.length; i++) {
+                    newArgTypes[i] = argTypes[i + 1];
+                }
+                final Type returnType = Type.getReturnType(originalMethodDesc);
+                originalMethodDesc = Type.getMethodDescriptor(returnType, newArgTypes);
+            }
+
+            String newClassName = annotation.getClassName();
+            String newMethodName = annotation.getMethodName();
+
+            // Since we're not able to determine the full class hierarchy at compile time, we don't include the class name
+            // when indicating we want to instrument a method.  This works well when methods have unique names and signatures.
+            // However, some methods have very generic names and signatures (like object.toString()) and instrumentation of
+            // such methods would result in instrumentation leak.  Thus, the @ReplaceCallSite annotation supports a scope
+            // argument.  The purpose of scope is to limit instrumentation to a specific class at the cost of not
+            // instrumenting sub or super classes.
+            if (scope == null) {
+                classMap.put(ClassRemapperConfig.SHADOW_METHOD_IDENTIFIER + originalMethodName + originalMethodDesc,
+                        newClassName + '.' + newMethodName + annotation.getMethodDesc());
+            } else {
+                classMap.put(ClassRemapperConfig.SHADOW_METHOD_IDENTIFIER + scope.replace('.', '/') + "." + originalMethodName + originalMethodDesc,
+                        newClassName + '.' + newMethodName + annotation.getMethodDesc());
+            }
+        }
+
 
         /* MOBILE-6254 @TraceConstructor applied to JSONObject/JSONArray crashes during Dexing
         Collection<MethodAnnotation> constructorAnnotations = Annotations.getMethodAnnotations(TraceConstructor.class, "com/newrelic/agent", urls);

@@ -50,7 +50,7 @@ class NewRelicExtensionTest extends PluginTest {
         ext = NewRelicExtension.register(project)
         ext.variantConfigurations {
             ["larry", "moe", "curly"].each { name ->
-                def conf = project.objects.newInstance(VariantConfiguration.class, name, project).tap() {
+                def conf = project.objects.newInstance(VariantConfiguration.class, name).tap() {
                     instrument = name.length() > 3
                     uploadMappingFile = name.endsWith("y")
                     mappingFile = project.layout.buildDirectory.file("outputs/mapping/${name}/mapping.txt")
@@ -90,10 +90,20 @@ class NewRelicExtensionTest extends PluginTest {
     }
 
     @Test
-    @Ignore("TODO")
-    void excludePackageInstrumentation() {
-        ext.excludePackageInstrumentation("com.newrelic", "com.android")
+    void shouldExcludePackageInstrumentation() {
+        ext.excludePackageInstrumentation("com.newrelic.android", "com.android")
         Assert.assertEquals(2, ext.packageExclusions.size())
+        Assert.assertTrue(ext.shouldExcludePackageInstrumentation("com.newrelic.android.agent.Agent.class"))
+        Assert.assertFalse(ext.shouldExcludePackageInstrumentation("com.newrelic.agent.Agent.class"))
+
+        ext.excludePackageInstrumentation("com.newrelic.*Agent.class", ".*\\.android.*agent\\..*")
+        Assert.assertTrue(ext.shouldExcludePackageInstrumentation("com/newrelic/android/agentAgent.class"))
+        Assert.assertTrue(ext.shouldExcludePackageInstrumentation("com.newrelic.agent.Agent.class"))
+
+        ext.excludePackageInstrumentation("com/newrelic/.*Agent.class", ".*\\.android.*agent\\..*")
+        Assert.assertTrue(ext.shouldExcludePackageInstrumentation("com/newrelic/android/agent/Agent.class"))
+        Assert.assertTrue(ext.shouldExcludePackageInstrumentation("com.newrelic.agent.Agent.class"))
+        Assert.assertFalse(ext.shouldExcludePackageInstrumentation("com.newrelik.agent.Agent.class"))
     }
 
     @Test
@@ -110,7 +120,7 @@ class NewRelicExtensionTest extends PluginTest {
             Assert.assertTrue(ext.shouldExcludeVariant(it))
         }
 
-        ext.excludeVariantInstrumentation("dweezil", "ahmet", "moon unit" )
+        ext.excludeVariantInstrumentation("dweezil", "ahmet", "moon unit")
         Assert.assertTrue(ext.shouldExcludeVariant("dweezil"))
         Assert.assertTrue(ext.shouldExcludeVariant("ahmet"))
         Assert.assertFalse(ext.shouldExcludeVariant("diva"))

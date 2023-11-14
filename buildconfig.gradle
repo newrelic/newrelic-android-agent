@@ -26,7 +26,8 @@ buildscript {
 
         versions = [
                 agent : newrelic.agent.version,
-                gradle: '7.2',
+                gradle : "7.2",
+                jetpack: "2.5.3",
 
                 java  : [
                         minVersion : JavaVersion.VERSION_11,
@@ -47,6 +48,7 @@ buildscript {
                         mockitoCore : '4.11.0',
                         robolectric : '4.9.+',
                         androidxCore: '1.5.+',
+                        jacoco: '0.8.6'
                 ],
 
                 agp   : [
