@@ -1012,6 +1012,12 @@ public class NewRelicTest {
         Assert.assertEquals("Should trim custom device ID to a single space", AgentConfiguration.DEFAULT_DEVICE_UUID, agentConfiguration.getDeviceID());
     }
 
+    @Test
+    public void testLogReportingFeature() {
+        Assert.assertFalse(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+    }
 
     private static class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {
 
