@@ -23,7 +23,7 @@ import java.util.Set;
 
 public class MapFileGenerator {
 
-    private static final int KNOWN_MAP_SIZE = 91;
+    private static final int KNOWN_MAP_SIZE = 96;
 
     public static void main(String[] args) {
         if (args.length != 1) {
