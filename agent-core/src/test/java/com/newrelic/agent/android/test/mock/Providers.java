@@ -29,6 +29,9 @@ import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.MachineMeasurements;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
+import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
+import com.newrelic.agent.android.logging.LoggingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.tracing.Trace;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -55,6 +58,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 public class Providers {
 
@@ -359,7 +363,13 @@ public class Providers {
 
     public static AgentConfiguration provideAgentConfiguration() {
         final AgentConfiguration conf = new AgentConfiguration();
+        conf.setLogReportingConfiguration(provideLoggingConfiguration());
         return conf;
+    }
+
+    public static LogReportingConfiguration provideLoggingConfiguration() {
+        LogReportingConfiguration loggingConfiguration = new LogReportingConfiguration(UUID.randomUUID().toString(), false, LogReporting.LogLevel.NONE);
+        return loggingConfiguration;
     }
 }
 

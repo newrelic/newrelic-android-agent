@@ -10,6 +10,8 @@ import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
+import com.newrelic.agent.android.logging.LoggingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
@@ -65,6 +67,8 @@ public class AgentConfiguration {
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
+
+    LogReportingConfiguration logReportingConfiguration;
 
     public String getApplicationToken() {
         return applicationToken;
@@ -347,4 +351,13 @@ public class AgentConfiguration {
     public void setLaunchActivityClassName(String launchActivityClassName) {
         this.launchActivityClassName = launchActivityClassName;
     }
+
+    public LoggingConfiguration getLogReportingConfiguration() {
+        return logReportingConfiguration;
+    }
+
+    public void setLogReportingConfiguration(LogReportingConfiguration logReportingConfiguration) {
+        this.logReportingConfiguration = logReportingConfiguration;
+    }
+
 }
