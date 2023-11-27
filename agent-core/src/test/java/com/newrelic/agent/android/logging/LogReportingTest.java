@@ -11,11 +11,9 @@ import org.junit.Test;
 
 public class LogReportingTest {
 
-    LogReporting logReporting;
-
     @Before
     public void setUp() throws Exception {
-        LogReporting.setLogLevel("Warn");
+        LogReporting.setLogLevel("InFo");
     }
 
     @Test
@@ -25,64 +23,49 @@ public class LogReportingTest {
 
     @Test
     public void getLogLevel() {
-        Assert.assertEquals(LogReporting.getLogLevel(), LogReporting.LogLevel.WARN);
+        Assert.assertEquals(LogReporting.getLogLevel(), LogLevel.INFO);
     }
 
     @Test
     public void setLogLevelAsString() {
-        LogReporting.setLogLevel("Warn");
+        LogReporting.setLogLevel("verBOSE");
+        Assert.assertEquals(LogReporting.getLogLevel(), LogLevel.VERBOSE);
     }
 
     @Test
     public void testSetLogLevelAsInt() {
-        LogReporting.setLogLevel(LogReporting.LogLevel.DEBUG.ordinal());
+        LogReporting.setLogLevel(4);
+        Assert.assertEquals(4, LogReporting.getLogLevelAsInt());
+        Assert.assertEquals(LogReporting.getLogLevel(), LogLevel.DEBUG);
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.VERBOSE));
     }
 
     @Test
     public void testSetLogLevelAsEnum() {
-        LogReporting.setLogLevel(LogReporting.LogLevel.DEBUG);
+        LogReporting.setLogLevel(LogLevel.DEBUG);
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.VERBOSE));
     }
 
     @Test
     public void isLevelEnabled() {
-        Assert.assertTrue(LogReporting.isLevelEnabled(LogReporting.LogLevel.WARN));
-        LogReporting.setLogLevel(LogReporting.LogLevel.ERROR);
-        Assert.assertFalse(LogReporting.isLevelEnabled(LogReporting.LogLevel.WARN));
-        LogReporting.setLogLevel(LogReporting.LogLevel.VERBOSE);
-        Assert.assertTrue(LogReporting.isLevelEnabled(LogReporting.LogLevel.WARN));
+        Assert.assertTrue(LogReporting.isLevelEnabled(LogLevel.WARN));
+        LogReporting.setLogLevel(LogLevel.ERROR);
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.WARN));
+        LogReporting.setLogLevel(LogLevel.VERBOSE);
+        Assert.assertTrue(LogReporting.isLevelEnabled(LogLevel.WARN));
     }
 
     @Test
     public void testLoggingDisabled() {
-        LogReporting.setLogLevel(LogReporting.LogLevel.NONE);
-        Assert.assertFalse(LogReporting.isLevelEnabled(LogReporting.LogLevel.ERROR));
-        Assert.assertFalse(LogReporting.isLevelEnabled(LogReporting.LogLevel.WARN));
-        Assert.assertFalse(LogReporting.isLevelEnabled(LogReporting.LogLevel.INFO);
-        Assert.assertFalse(LogReporting.isLevelEnabled(LogReporting.LogLevel.DEBUG));
-        Assert.assertFalse(LogReporting.isLevelEnabled(LogReporting.LogLevel.VERBOSE));
-    }
-
-    @Test
-    public void isErrorEnabled() {
-    }
-
-    @Test
-    public void isWarnEnabled() {
-    }
-
-    @Test
-    public void isInfoEnabled() {
-    }
-
-    @Test
-    public void isDebugEnabled() {
+        LogReporting.setLogLevel(LogLevel.NONE);
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.ERROR));
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.WARN));
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.INFO));
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.DEBUG));
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.VERBOSE));
     }
 
     @Test
     public void notice() {
-    }
-
-    @Test
-    public void noticeWithLevel() {
     }
 }
