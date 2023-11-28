@@ -7,6 +7,8 @@ package com.newrelic.agent.android.harvest;
 
 import com.google.gson.annotations.SerializedName;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
+import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
@@ -15,6 +17,8 @@ import java.util.concurrent.TimeUnit;
  * This is the configuration data format sent by the collector in response to a {@code connect} call.
  */
 public class HarvestConfiguration {
+    private final static String NO_VALUE = "";
+
     private final static int DEFAULT_ACTIVITY_TRACE_LENGTH = (64 * 1024) - 2; //bytes
     private final static int DEFAULT_ACTIVITY_TRACE_MAX_REPORT_ATTEMPTS = 1;
     private final static int DEFAULT_REPORT_PERIOD = 60; // seconds
@@ -25,9 +29,9 @@ public class HarvestConfiguration {
     private final static int DEFAULT_MAX_TRANSACTION_COUNT = 1000; // transactions
     private final static float DEFAULT_ACTIVITY_TRACE_MIN_UTILIZATION = 0.3f;
     private final static String DEFAULT_PRIORITY_ENCODING_KEY = "d67afc830dab717fd163bfcb0b8b88423e9a1a3b";
-    private final static String DEFAULT_ACCOUNT_ID = "";
-    private final static String DEFAULT_APP_ID = "";
-    private final static String DEFAULT_TRUSTED_ACCOUNT_KEY = "";
+    private final static String DEFAULT_ACCOUNT_ID = NO_VALUE;
+    private final static String DEFAULT_APP_ID = NO_VALUE;
+    private final static String DEFAULT_TRUSTED_ACCOUNT_KEY = NO_VALUE;
 
     @SerializedName("collect_network_errors")
     private boolean collect_network_errors;
@@ -65,6 +69,8 @@ public class HarvestConfiguration {
     private String application_id;
     @SerializedName("trusted_account_key")
     private String trusted_account_key;
+    @SerializedName("log_reporting")
+    private LogReportingConfiguration log_reporting;
 
     private static HarvestConfiguration defaultHarvestConfiguration;
 
@@ -90,12 +96,16 @@ public class HarvestConfiguration {
         setAccount_id(DEFAULT_ACCOUNT_ID);
         setApplication_id(DEFAULT_APP_ID);
         setTrusted_account_key(DEFAULT_TRUSTED_ACCOUNT_KEY);
+        setLog_reporting(new LogReportingConfiguration(NO_VALUE, false, LogReporting.LogLevel.NONE));
     }
 
     public static HarvestConfiguration getDefaultHarvestConfiguration() {
-        if (defaultHarvestConfiguration != null)
+        if (defaultHarvestConfiguration != null) {
             return defaultHarvestConfiguration;
+        }
+
         defaultHarvestConfiguration = new HarvestConfiguration();
+
         return defaultHarvestConfiguration;
     }
 
@@ -128,6 +138,7 @@ public class HarvestConfiguration {
         setAccount_id(configuration.getAccount_id());
         setApplication_id(configuration.getApplication_id());
         setTrusted_account_key(configuration.getTrusted_account_key());
+        setLog_reporting(configuration.getLog_reporting());
     }
 
     public void setCollect_network_errors(boolean collect_network_errors) {
@@ -263,7 +274,7 @@ public class HarvestConfiguration {
 
     public String getApplication_id() {
         if (application_id == null) {
-            return "";
+            return NO_VALUE;
         }
         return application_id;
     }
@@ -274,7 +285,7 @@ public class HarvestConfiguration {
 
     public String getAccount_id() {
         if (account_id == null) {
-            return "";
+            return NO_VALUE;
         }
         return account_id;
     }
@@ -284,9 +295,8 @@ public class HarvestConfiguration {
     }
 
     public String getTrusted_account_key() {
-
         if (trusted_account_key == null) {
-            return "";
+            return NO_VALUE;
         }
         return trusted_account_key;
     }
@@ -295,46 +305,101 @@ public class HarvestConfiguration {
         this.trusted_account_key = trusted_account_key;
     }
 
+    public void setLog_reporting(final LogReportingConfiguration loggingConfiguration) {
+        this.log_reporting = loggingConfiguration;
+    }
+
+    public LogReportingConfiguration getLog_reporting() {
+        return log_reporting;
+    }
+
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         HarvestConfiguration that = (HarvestConfiguration) o;
 
-        if (collect_network_errors != that.collect_network_errors) return false;
-        if (data_report_period != that.data_report_period) return false;
-        if (error_limit != that.error_limit) return false;
-        if (report_max_transaction_age != that.report_max_transaction_age) return false;
-        if (report_max_transaction_count != that.report_max_transaction_count) return false;
-        if (response_body_limit != that.response_body_limit) return false;
-        if (stack_trace_limit != that.stack_trace_limit) return false;
-        if (activity_trace_max_size != that.activity_trace_max_size) return false;
-        if (activity_trace_max_report_attempts != that.activity_trace_max_report_attempts)
+        if (collect_network_errors != that.collect_network_errors) {
             return false;
-        if (cross_process_id == null && that.cross_process_id != null) return false;
-        if (cross_process_id != null && that.cross_process_id == null) return false;
-        if (cross_process_id != null && !cross_process_id.equals(that.cross_process_id))
+        }
+        if (data_report_period != that.data_report_period) {
             return false;
-        if (!priority_encoding_key.equals(that.priority_encoding_key)) return false;
-        if (account_id == null && that.account_id != null) return false;
-        if (account_id != null && that.account_id == null) return false;
-        if (account_id != null && !account_id.equals(that.account_id)) return false;
-        if (application_id == null && that.application_id != null) return false;
-        if (application_id != null && that.application_id == null) return false;
-        if (application_id != null && !application_id.equals(that.application_id)) return false;
-        if (trusted_account_key != null && !trusted_account_key.equals(that.trusted_account_key))
+        }
+        if (error_limit != that.error_limit) {
             return false;
+        }
+        if (report_max_transaction_age != that.report_max_transaction_age) {
+            return false;
+        }
+        if (report_max_transaction_count != that.report_max_transaction_count) {
+            return false;
+        }
+        if (response_body_limit != that.response_body_limit) {
+            return false;
+        }
+        if (stack_trace_limit != that.stack_trace_limit) {
+            return false;
+        }
+        if (activity_trace_max_size != that.activity_trace_max_size) {
+            return false;
+        }
+        if (activity_trace_max_report_attempts != that.activity_trace_max_report_attempts) {
+            return false;
+        }
+        if (cross_process_id == null && that.cross_process_id != null) {
+            return false;
+        }
+        if (cross_process_id != null && that.cross_process_id == null) {
+            return false;
+        }
+        if (cross_process_id != null && !cross_process_id.equals(that.cross_process_id)) {
+            return false;
+        }
+        if (!priority_encoding_key.equals(that.priority_encoding_key)) {
+            return false;
+        }
+        if (account_id == null && that.account_id != null) {
+            return false;
+        }
+        if (account_id != null && that.account_id == null) {
+            return false;
+        }
+        if (account_id != null && !account_id.equals(that.account_id)) {
+            return false;
+        }
+        if (application_id == null && that.application_id != null) {
+            return false;
+        }
+        if (application_id != null && that.application_id == null) {
+            return false;
+        }
+        if (application_id != null && !application_id.equals(that.application_id)) {
+            return false;
+        }
+        if (trusted_account_key != null && !trusted_account_key.equals(that.trusted_account_key)) {
+            return false;
+        }
+        if (log_reporting != null && !log_reporting.toString().equals(that.log_reporting.toString())) {
+            return false;
+        }
 
         // Round the double value to 2 places.
         int thisMinUtil = (int) activity_trace_min_utilization * 100;
         int thatMinUtil = (int) that.activity_trace_min_utilization * 100;
-        if (thisMinUtil != thatMinUtil) return false;
+        if (thisMinUtil != thatMinUtil) {
+            return false;
+        }
 
         @SuppressWarnings("UnnecessaryLocalVariable")
         boolean dataTokenEqual = Arrays.equals(data_token, that.data_token);
-        return dataTokenEqual;
 
+        return dataTokenEqual;
     }
 
     @Override
@@ -359,6 +424,7 @@ public class HarvestConfiguration {
         result = 31 * result + (application_id != null ? application_id.hashCode() : 0);
         result = 31 * result + (priority_encoding_key != null ? priority_encoding_key.hashCode() : 0);
         result = 31 * result + (trusted_account_key != null ? trusted_account_key.hashCode() : 0);
+        result = 31 * result + (log_reporting != null ? log_reporting.hashCode() : 0);
         return result;
     }
 
@@ -383,6 +449,7 @@ public class HarvestConfiguration {
                 ", account_id=" + account_id +
                 ", application_id=" + application_id +
                 ", trusted_account_key=" + trusted_account_key +
+                ", log_reporting=" + log_reporting +
                 '}';
     }
 }

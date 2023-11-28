@@ -5,27 +5,35 @@
 
 package com.newrelic.agent.android.logging;
 
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import com.google.gson.annotations.SerializedName;
 import com.newrelic.agent.android.AgentConfiguration;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+import java.lang.reflect.Type;
 
 public class LoggingConfiguration {
+    static final AgentLog log = AgentLogManager.getAgentLog();
 
     @SerializedName("enabled")
-    final AtomicBoolean enabled = new AtomicBoolean(false);
+    boolean enabled = false;
 
     @SerializedName("level")
-    final AtomicReference<LogReporting.LogLevel> level = new AtomicReference<>(LogReporting.LogLevel.WARN);
+    LogReporting.LogLevel level;
 
     public LoggingConfiguration() {
         this(false, LogReporting.LogLevel.NONE);
     }
 
     public LoggingConfiguration(boolean enabled, LogReporting.LogLevel level) {
-        this.enabled.set(enabled);
-        this.level.set(level);
+        this.enabled = enabled;
+        this.level = level;
     }
 
     public void setConfiguration(AgentConfiguration agentConfiguration) {
@@ -33,8 +41,8 @@ public class LoggingConfiguration {
     }
 
     public void setConfiguration(LoggingConfiguration loggingConfiguration) {
-        enabled.set(loggingConfiguration.enabled.get());
-        level.set(loggingConfiguration.level.get());
+        enabled = loggingConfiguration.enabled;
+        level = loggingConfiguration.level;
     }
 
     /**
@@ -43,7 +51,7 @@ public class LoggingConfiguration {
      * @return true if logging is enabled
      */
     public boolean getLoggingEnabled() {
-        return enabled.get();
+        return enabled;
     }
 
     /**
@@ -53,7 +61,7 @@ public class LoggingConfiguration {
      * @return Previous enabled atate
      */
     public boolean setLoggingEnabled(final boolean state) {
-        return enabled.getAndSet(state);
+        return enabled = state;
     }
 
     /**
@@ -62,7 +70,7 @@ public class LoggingConfiguration {
      * @return
      */
     public LogReporting.LogLevel getLogLevel() {
-        return level.get();
+        return level;
     }
 
     /**
@@ -71,11 +79,48 @@ public class LoggingConfiguration {
      * @param level
      */
     public void setLogLevel(LogReporting.LogLevel level) {
-        this.level.set(level);
+        this.level = level;
     }
 
     @Override
     public String toString() {
-        return "\"logging\" {" + "\"enabled\"=" + enabled + ", \"level\"=\"" + level.get().name().toUpperCase() + "\"}";
+        return "\"LoggingConfiguration\" {" + "\"enabled\"=" + enabled + ", \"level\"=\"" + level + "\"}";
     }
+
+    public static class LogLevelSerializer implements JsonSerializer<LogReporting.LogLevel> {
+        @Override
+        public JsonElement serialize(LogReporting.LogLevel src, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive(src.name());
+        }
+    }
+
+    public static class LogLevelDeserializer implements JsonDeserializer<LogReporting.LogLevel> {
+        @Override
+        public LogReporting.LogLevel deserialize(JsonElement root, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            return LogReporting.LogLevel.valueOf(root.getAsString());
+        }
+    }
+
+    public static class ConfigurationSerializer implements JsonSerializer<LoggingConfiguration> {
+        @Override
+        public JsonElement serialize(LoggingConfiguration src, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive("{\"enabled\"=" + src.enabled + ",\"level\"=\"" + src.getLogLevel() + "\"}");
+        }
+    }
+
+    public static class ConfigurationDeserializer implements JsonDeserializer<LoggingConfiguration> {
+        @Override
+        public LoggingConfiguration deserialize(JsonElement root, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            if (!root.isJsonObject()) {
+                log.error("Expected root element to be an object.");
+                return new LoggingConfiguration();
+            }
+
+            JsonObject jsonObject = root.getAsJsonObject();
+            return new LoggingConfiguration(
+                    jsonObject.get("enabled").getAsBoolean(),
+                    LogReporting.LogLevel.valueOf(jsonObject.get("level").getAsString()));
+        }
+    }
+
 }

@@ -15,6 +15,7 @@ import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.ActivityTrace;
@@ -394,12 +395,12 @@ public class Harvester {
      * @param response HarvestResponse from the collector.
      * @return a HarvestConfiguration deserialized from the HarvestResponse.
      */
-    private HarvestConfiguration parseHarvesterConfiguration(HarvestResponse response) {
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeAdapter(ActivityTraceConfiguration.class, new ActivityTraceConfigurationDeserializer());
-        Gson gson = gsonBuilder.create();
+    HarvestConfiguration parseHarvesterConfiguration(HarvestResponse response) {
         HarvestConfiguration config = null;
         try {
+            Gson gson = new GsonBuilder()
+                    .registerTypeAdapter(ActivityTraceConfiguration.class, new ActivityTraceConfigurationDeserializer())
+                    .create();
             config = gson.fromJson(response.getResponseBody(), HarvestConfiguration.class);
         } catch (JsonSyntaxException e) {
             log.error("Unable to parse collector configuration: " + e.getMessage());

@@ -33,4 +33,27 @@ public interface LogReporting {
         }
     }
 
+    /**
+     * Writes a message to the log using the provided log level
+     */
+
+    static void notice(LogLevel level, String message) {
+        if (isLevelEnabled(level)) {
+            // TODO
+        }
+    }
+
+    // TODO
+    static boolean isLevelEnabled(LogLevel level) {
+        return true;
+    }
+
+    // TODO
+    static int getLogLevel() {
+        return 0;
+    }
+
+    // TODO
+    static void setLogLevel(int level) {
+    }
 }

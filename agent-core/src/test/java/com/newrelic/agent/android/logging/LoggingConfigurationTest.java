@@ -73,7 +73,7 @@ public class LoggingConfigurationTest {
     @Test
     public void testToString() {
         String loggingConfigAsJson = defaultLoggingConfig.toString();
-        Assert.assertTrue(loggingConfigAsJson.matches("^\"logging\" \\{.*\\}$"));
+        Assert.assertTrue(loggingConfigAsJson.matches("^\"LoggingConfiguration\" \\{.*\\}$"));
         Assert.assertTrue(loggingConfigAsJson.matches(".*\"enabled\"=false.*"));
         Assert.assertTrue(loggingConfigAsJson.matches(".*\"level\"=\"NONE\".*"));
     }

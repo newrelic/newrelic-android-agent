@@ -11,7 +11,6 @@ import com.newrelic.agent.android.crash.CrashStore;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
-import com.newrelic.agent.android.logging.LoggingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
@@ -57,18 +56,14 @@ public class AgentConfiguration {
     private String customBuildId = null;
     private String region = null;
     private String launchActivityClassName = null;
-
     private CrashStore crashStore;
     private AnalyticsAttributeStore analyticsAttributeStore;
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
-
     private AnalyticsEventStore eventStore;
-
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
-
-    LogReportingConfiguration logReportingConfiguration;
+    private LogReportingConfiguration logReportingConfiguration;
 
     public String getApplicationToken() {
         return applicationToken;
@@ -352,7 +347,7 @@ public class AgentConfiguration {
         this.launchActivityClassName = launchActivityClassName;
     }
 
-    public LoggingConfiguration getLogReportingConfiguration() {
+    public LogReportingConfiguration getLogReportingConfiguration() {
         return logReportingConfiguration;
     }
 
