@@ -17,10 +17,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class LogReportingConfiguration extends LoggingConfiguration {
-    static final String NO_VALUE = "";
-
-    @SerializedName("entity_guid")
-    final String entityGuid;
+    static final long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.convert(30, TimeUnit.SECONDS);
+    static final long DEFAULT_EXPIRATION_PERIOD = TimeUnit.SECONDS.convert(2, TimeUnit.DAYS);
 
     @SerializedName("data_report_period")
     final Long harvestPeriod;
@@ -29,30 +27,24 @@ public class LogReportingConfiguration extends LoggingConfiguration {
     final Long expirationPeriod;
 
     public LogReportingConfiguration() {
-        this(NO_VALUE, false, LogReporting.LogLevel.NONE);
+        this(false, LogReporting.LogLevel.NONE);
     }
 
-    public LogReportingConfiguration(String entityGuid, boolean enabled, LogReporting.LogLevel level) {
+    public LogReportingConfiguration(boolean enabled, LogReporting.LogLevel level) {
         super(enabled, level);
-        this.entityGuid = entityGuid;
-        this.harvestPeriod = TimeUnit.SECONDS.convert(30, TimeUnit.SECONDS);
-        this.expirationPeriod = TimeUnit.SECONDS.convert(2, TimeUnit.DAYS);
+        this.harvestPeriod = DEFAULT_HARVEST_PERIOD;
+        this.expirationPeriod = DEFAULT_EXPIRATION_PERIOD;
     }
 
-    public LogReportingConfiguration(String entityGuid, long harvestPeriod, long expirationPeriod) {
-        this.entityGuid = entityGuid;
+    public LogReportingConfiguration(long harvestPeriod, long expirationPeriod) {
         this.harvestPeriod = harvestPeriod;
         this.expirationPeriod = expirationPeriod;
     }
 
-    public LogReportingConfiguration(boolean enabled, LogReporting.LogLevel level, String entityGuid, long harvestPeriod, long expirationPeriod) {
-        this(entityGuid, harvestPeriod, expirationPeriod);
+    public LogReportingConfiguration(boolean enabled, LogReporting.LogLevel level, long harvestPeriod, long expirationPeriod) {
+        this(harvestPeriod, expirationPeriod);
         this.enabled = enabled;
         this.level = level;
-    }
-
-    public String getEntityGuid() {
-        return entityGuid;
     }
 
     public long getHarvestPeriod() {
@@ -68,7 +60,6 @@ public class LogReportingConfiguration extends LoggingConfiguration {
         return "{"
                 + "\"enabled\"=" + enabled
                 + ",\"level\"=" + "\"" + level + "\""
-                + ",\"entity_guid\"=" + "\"" + entityGuid + "\""
                 + ",\"data_report_period\"=" + harvestPeriod
                 + ",\"expiration_period\"=" + expirationPeriod
                 + "}";
@@ -91,7 +82,6 @@ public class LogReportingConfiguration extends LoggingConfiguration {
             return new LogReportingConfiguration(
                     loggingConfiguration.getLoggingEnabled(),
                     loggingConfiguration.getLogLevel(),
-                    jsonObject.get("entity_guid").getAsString(),
                     jsonObject.get("data_report_period").getAsLong(),
                     jsonObject.get("expiration_period").getAsLong());
         }

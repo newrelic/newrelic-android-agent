@@ -22,19 +22,13 @@ public class LogReportingConfigurationTest {
 
     @Before
     public void setUp() throws Exception {
-        this.logReportingConfig = new LogReportingConfiguration(entityGuid, true, LogReporting.LogLevel.DEBUG);
+        this.logReportingConfig = new LogReportingConfiguration(true, LogReporting.LogLevel.DEBUG);
     }
 
     @Test
     public void testDefaultConfiguration() {
         Assert.assertTrue(logReportingConfig.getLoggingEnabled());
         Assert.assertEquals(LogReporting.LogLevel.DEBUG, logReportingConfig.getLogLevel());
-    }
-
-    @Test
-    public void testEntityGuid() {
-        Assert.assertNotNull(logReportingConfig.getEntityGuid());
-        Assert.assertEquals(entityGuid, logReportingConfig.getEntityGuid());
     }
 
     @Test
@@ -59,14 +53,13 @@ public class LogReportingConfigurationTest {
         String loggingConfig = "{" +
                 "  \"enabled\": true," +
                 "  \"level\": VERBOSE," +
-                "  \"entity_guid\": \"a4d39d21-588b-4342-ad87-967243533949\"," +
                 "  \"data_report_period\": 15," +
                 "  \"expiration_period\": 3600" +
                 "}";
 
         Gson gson = new GsonBuilder().create();
 
-        LogReportingConfiguration serialized = new LogReportingConfiguration(true, LogReporting.LogLevel.VERBOSE, "a4d39d21-588b-4342-ad87-967243533949", 15, 3600);
+        LogReportingConfiguration serialized = new LogReportingConfiguration(true, LogReporting.LogLevel.VERBOSE, 15, 3600);
         LogReportingConfiguration deserialized = gson.fromJson(loggingConfig, LogReportingConfiguration.class);
         Assert.assertTrue(serialized.toString().equals(deserialized.toString()));
 

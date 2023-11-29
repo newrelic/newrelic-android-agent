@@ -368,7 +368,7 @@ public class Providers {
     }
 
     public static LogReportingConfiguration provideLoggingConfiguration() {
-        LogReportingConfiguration loggingConfiguration = new LogReportingConfiguration(UUID.randomUUID().toString(), false, LogReporting.LogLevel.NONE);
+        LogReportingConfiguration loggingConfiguration = new LogReportingConfiguration(false, LogReporting.LogLevel.NONE);
         return loggingConfiguration;
     }
 }

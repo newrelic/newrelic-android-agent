@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.harvest;
 
+import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.logging.LogReporting;
@@ -69,6 +70,8 @@ public class HarvestConfiguration {
     private String application_id;
     @SerializedName("trusted_account_key")
     private String trusted_account_key;
+    @SerializedName("entity_guid")
+    private String entity_guid = NO_VALUE;
     @SerializedName("log_reporting")
     private LogReportingConfiguration log_reporting;
 
@@ -96,7 +99,8 @@ public class HarvestConfiguration {
         setAccount_id(DEFAULT_ACCOUNT_ID);
         setApplication_id(DEFAULT_APP_ID);
         setTrusted_account_key(DEFAULT_TRUSTED_ACCOUNT_KEY);
-        setLog_reporting(new LogReportingConfiguration(NO_VALUE, false, LogReporting.LogLevel.NONE));
+        setEntity_guid(NO_VALUE);
+        setLog_reporting(new LogReportingConfiguration(false, LogReporting.LogLevel.NONE));
     }
 
     public static HarvestConfiguration getDefaultHarvestConfiguration() {
@@ -138,6 +142,7 @@ public class HarvestConfiguration {
         setAccount_id(configuration.getAccount_id());
         setApplication_id(configuration.getApplication_id());
         setTrusted_account_key(configuration.getTrusted_account_key());
+        setEntity_guid(configuration.getEntity_guid());
         setLog_reporting(configuration.getLog_reporting());
     }
 
@@ -305,13 +310,30 @@ public class HarvestConfiguration {
         this.trusted_account_key = trusted_account_key;
     }
 
+    public void setEntity_guid(String value) {
+        this.entity_guid = value;
+    }
+
     public void setLog_reporting(final LogReportingConfiguration loggingConfiguration) {
         this.log_reporting = loggingConfiguration;
     }
 
+    /**
+     * Returns the Mobile entity guid synthesized by the Mobile Connect service.
+     * @return Entity GUID
+     */
+    public String getEntity_guid() {
+        return entity_guid;
+    }
+
+    /**
+     * Returns the current Log reporting config, if enabled;
+     * @return LogReporting configuraition returns by NerdGraph
+     */
     public LogReportingConfiguration getLog_reporting() {
         return log_reporting;
     }
+
 
     @Override
     public boolean equals(Object o) {
@@ -385,6 +407,9 @@ public class HarvestConfiguration {
         if (trusted_account_key != null && !trusted_account_key.equals(that.trusted_account_key)) {
             return false;
         }
+        if (entity_guid != null && !entity_guid.equals(that.entity_guid)) {
+            return false;
+        }
         if (log_reporting != null && !log_reporting.toString().equals(that.log_reporting.toString())) {
             return false;
         }
@@ -424,6 +449,7 @@ public class HarvestConfiguration {
         result = 31 * result + (application_id != null ? application_id.hashCode() : 0);
         result = 31 * result + (priority_encoding_key != null ? priority_encoding_key.hashCode() : 0);
         result = 31 * result + (trusted_account_key != null ? trusted_account_key.hashCode() : 0);
+        result = 31 * result + (entity_guid != null ? entity_guid.hashCode() : 0);
         result = 31 * result + (log_reporting != null ? log_reporting.hashCode() : 0);
         return result;
     }
@@ -449,6 +475,7 @@ public class HarvestConfiguration {
                 ", account_id=" + account_id +
                 ", application_id=" + application_id +
                 ", trusted_account_key=" + trusted_account_key +
+                ", entity_guid=" + entity_guid +
                 ", log_reporting=" + log_reporting +
                 '}';
     }
