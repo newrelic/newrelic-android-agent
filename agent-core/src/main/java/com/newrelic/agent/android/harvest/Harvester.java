@@ -140,6 +140,7 @@ public class Harvester {
                 return;
             }
 
+            fireOnHarvestConfigurationChanged();
             configureHarvester(configuration);
             StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest", response.getResponseTime());
             fireOnHarvestConnected();
@@ -187,6 +188,7 @@ public class Harvester {
                 log.warn("Harvest request has been throttled, and will retry during next harvest cycle.");
                 break;
 
+            case CONFIGURATION_UPDATE:      // should never get this on a connect
             default:
                 log.error("An unknown error occurred when connecting to the Collector.");
         }
@@ -266,6 +268,12 @@ public class Harvester {
                 // be expired using provided TTL values
                 case REQUEST_TIMEOUT:
                     log.warn("Harvest request has timed-out, and will retry during next harvest cycle.");
+                    break;
+
+                case CONFIGURATION_UPDATE:
+                    log.info("Harvest configuration has changed, and will be updated during next harvest cycle.");
+                    fireOnHarvestConfigurationChanged();    // notify listeners their configs may have changed
+                    transition(State.DISCONNECTED);         // will force a reconnect on next harvest
                     break;
 
                 case TOO_MANY_REQUESTS:
@@ -485,6 +493,7 @@ public class Harvester {
 
     public void expireHarvestData() {
         if (harvestData != null) {
+            // FIXME - never expire data when network unreachable
             expireHttpTransactions();
             expireActivityTraces();
             expireAnalyticsEvents();
@@ -699,6 +708,21 @@ public class Harvester {
             }
         } catch (Exception e) {
             log.error("Error in fireOnHarvestConnected", e);
+            AgentHealth.noticeException(e);
+        }
+    }
+
+    private void fireOnHarvestConfigurationChanged() {
+        // Notify all listeners that the harvester connected.
+        try {
+            // Invalidate the data token, which then forces a reconnect on next harvest
+            harvestData.getDataToken().clear();
+
+            for (HarvestLifecycleAware harvestAware : getHarvestListeners()) {
+                harvestAware.onHarvestConfigurationChanged();
+            }
+        } catch (Exception e) {
+            log.error("Error in fireOnHarvestConfigurationChanged", e);
             AgentHealth.noticeException(e);
         }
     }

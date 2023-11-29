@@ -5,7 +5,11 @@
 
 package com.newrelic.agent.android.harvest;
 
+import static com.newrelic.agent.android.analytics.AnalyticsAttributeTests.getAttributeByName;
+import static com.newrelic.agent.android.harvest.type.HarvestErrorCodes.NSURLErrorBadServerResponse;
+
 import com.google.gson.JsonArray;
+import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
@@ -36,9 +40,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import static com.newrelic.agent.android.analytics.AnalyticsAttributeTests.getAttributeByName;
-import static com.newrelic.agent.android.harvest.type.HarvestErrorCodes.NSURLErrorBadServerResponse;
 
 @RunWith(JUnit4.class)
 public class HarvestTests {
@@ -205,7 +206,10 @@ public class HarvestTests {
 
 
     public Harvester createTestHarvester(String token, String host) {
-        Harvest.getInstance().setHarvestConnection(Mockito.spy(Harvest.getInstance().getHarvestConnection()));
+        HarvestConnection connection = Harvest.getInstance().getHarvestConnection();
+
+        connection.setConnectInformation(new ConnectInformation(Agent.getApplicationInformation(), Agent.getDeviceInformation()));
+        Harvest.getInstance().setHarvestConnection(Mockito.spy(connection));
 
         Harvester harvester = new Harvester();
         AgentConfiguration agentConfiguration = new AgentConfiguration();
@@ -623,6 +627,61 @@ public class HarvestTests {
         }
     }
 
+    @Test
+    public void testHarvestConfigurationUpdated() {
+        Harvester harvester = createTestHarvester(ENABLED_APP_TOKEN_STAGING, COLLECTOR_HOST);
+        HarvestResponse mockedDataResponse = Mockito.spy(new HarvestResponse());
+        TestHarvestAdapter testAdapter = new TestHarvestAdapter();
+
+        harvester.getHarvestData().setDataToken(new DataToken(0xdead, 0xbeef));
+
+        Mockito.doReturn(true).when(mockedDataResponse).isError();
+        Mockito.doReturn(HarvestResponse.Code.CONFIGURATION_UPDATE).when(mockedDataResponse).getResponseCode();
+        Mockito.doReturn(mockedDataResponse).when(harvester.getHarvestConnection()).sendData(Mockito.any(HarvestData.class));
+
+        harvester.addHarvestListener(testAdapter);
+        harvester.transition(Harvester.State.CONNECTED);
+        harvester.execute();
+
+        Assert.assertTrue(testAdapter.didDisconnect());
+        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.DISCONNECTED);
+    }
+
+    @Test
+    public void testReconnectAndUploadOnHarvestConfigurationUpdated() {
+        Harvester harvester = createTestHarvester(ENABLED_APP_TOKEN_STAGING, COLLECTOR_HOST);
+        HarvestResponse mockedDataResponse = Mockito.spy(new HarvestResponse());
+        TestHarvestAdapter testAdapter = new TestHarvestAdapter();
+
+        harvester.getHarvestData().setDataToken(new DataToken(0xdead, 0xbeef));
+
+        Mockito.doReturn(true).when(mockedDataResponse).isError();
+        Mockito.doReturn(HarvestResponse.Code.CONFIGURATION_UPDATE).when(mockedDataResponse).getResponseCode();
+        Mockito.doReturn(mockedDataResponse).when(harvester.getHarvestConnection()).sendData(Mockito.any(HarvestData.class));
+
+        harvester.addHarvestListener(testAdapter);
+        harvester.transition(Harvester.State.CONNECTED);
+        harvester.execute();
+
+        Assert.assertTrue(testAdapter.didError());
+        Assert.assertTrue(testAdapter.didDisconnect());
+        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.DISCONNECTED);
+
+        HarvestResponse mockedConnectResponse = Mockito.spy(new HarvestResponse());
+        Mockito.doReturn(true).when(mockedConnectResponse).isOK();
+        Mockito.doReturn(HarvestResponse.Code.OK).when(mockedConnectResponse).getResponseCode();
+        Mockito.doReturn(Providers.provideJsonObject("/Connect-Spec-PORTED.json").toString()).when(mockedConnectResponse).getResponseBody();
+        Mockito.doReturn(mockedConnectResponse).when(harvester.getHarvestConnection()).sendConnect();
+
+        Mockito.doReturn(false).when(mockedDataResponse).isError();
+        Mockito.doReturn(mockedDataResponse).when(harvester.getHarvestConnection()).sendData(Mockito.any(HarvestData.class));
+
+        harvester.execute();
+
+        // agent should by now have reconnected and sent pending harvest payload
+        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.CONNECTED);
+        Assert.assertTrue(testAdapter.didHarvest());
+    }
 
     private class TestHarvestAdapter extends HarvestAdapter {
         private boolean started;

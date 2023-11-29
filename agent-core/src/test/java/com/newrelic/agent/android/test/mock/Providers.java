@@ -8,6 +8,8 @@ package com.newrelic.agent.android.test.mock;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
@@ -31,13 +33,13 @@ import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
-import com.newrelic.agent.android.logging.LoggingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.tracing.Trace;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TraceType;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
+import com.newrelic.agent.android.util.TestUtil;
 
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -52,13 +54,13 @@ import org.apache.http.message.BasicStatusLine;
 import org.junit.Assert;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 public class Providers {
 
@@ -370,6 +372,16 @@ public class Providers {
     public static LogReportingConfiguration provideLoggingConfiguration() {
         LogReportingConfiguration loggingConfiguration = new LogReportingConfiguration(false, LogReporting.LogLevel.NONE);
         return loggingConfiguration;
+    }
+
+    public static JsonObject provideJsonObject(String path) {
+        try (InputStream is = Providers.class.getResourceAsStream(path)) {
+            final String json = TestUtil.slurp(is);
+            JsonObject jsonObject = new Gson().fromJson(json, JsonObject.class);
+            return jsonObject;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
 

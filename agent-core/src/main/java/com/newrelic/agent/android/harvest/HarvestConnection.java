@@ -166,8 +166,9 @@ public class HarvestConnection implements HarvestErrorCodes {
      * @return The {@link HarvestResponse} from the collector {@code connect} call.
      */
     public HarvestResponse sendConnect() {
-        if (connectInformation == null)
+        if (connectInformation == null) {
             throw new IllegalArgumentException();
+        }
 
         HttpURLConnection connectPost = createConnectPost();
         if (connectPost == null) {
