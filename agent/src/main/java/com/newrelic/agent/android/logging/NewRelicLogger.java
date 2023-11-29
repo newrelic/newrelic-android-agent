@@ -19,11 +19,11 @@ public class NewRelicLogger {
     protected Context context;
     private static File agentLogFile;
 
-    private NewRelicLogger(Builder builder) {
-        this.remoteLoggingEnabled = builder.remoteLoggingEnabled;
-        this.logLevel = builder.logLevel;
-        this.context = builder.context;
-        agentLogFile = new File(context.getFilesDir(), "agentLog.txt");
+    private NewRelicLogger(Context context, boolean logEnabled, int logLevel) {
+        this.context = context;
+        this.remoteLoggingEnabled = logEnabled;
+        this.logLevel = logLevel;
+        agentLogFile = new File(context.getFilesDir(), "agentLog.txt_" + System.currentTimeMillis());
     }
 
     public void verbose(String message) {
@@ -116,33 +116,4 @@ public class NewRelicLogger {
             e.printStackTrace();
         }
     }
-
-
-    public static class Builder {
-        private boolean remoteLoggingEnabled;
-        private int logLevel;
-        private Context context;
-        // other fields
-
-        public Builder remoteLoggingEnabled(boolean remoteLoggingEnabled) {
-            this.remoteLoggingEnabled = remoteLoggingEnabled;
-            return this;
-        }
-
-        public Builder logLevel(int logLevel) {
-            this.logLevel = logLevel;
-            return this;
-        }
-
-        public Builder context(Context context) {
-            this.context = context;
-            return this;
-        }
-
-        // other setter methods
-        public NewRelicLogger build() {
-            return new NewRelicLogger(this);
-        }
-    }
-
 }
