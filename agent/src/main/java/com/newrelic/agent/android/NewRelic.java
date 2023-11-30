@@ -16,13 +16,14 @@ import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
-import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.hybrid.StackTrace;
 import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
+import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.NullAgentLog;
+import com.newrelic.agent.android.logging.ForwardingAgentLog;
 import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
@@ -98,6 +99,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, Boolean.toString(enabled)));
 
         this.loggingEnabled = enabled;
+
         return this;
     }
 
@@ -117,6 +119,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, Integer.toString(level)));
 
         logLevel = level;
+
         return this;
     }
 
@@ -172,6 +175,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, Boolean.toString(enabled)));
 
         agentConfiguration.setReportCrashes(enabled);
+
         return this;
     }
 
@@ -281,8 +285,14 @@ public final class NewRelic {
             return;
         }
         try {
-            AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
-            log.setLevel(logLevel);
+            AgentLog logger = loggingEnabled ? new AndroidAgentLog() : new NullAgentLog();
+
+            if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+                logger = new ForwardingAgentLog(agentConfiguration);
+            }
+
+            AgentLogManager.setAgentLog(logger);
+            log.setLevel(logLevel);     // sets the local logging level
 
             boolean instantApp = InstantApps.isInstantApp(context);
 
@@ -603,7 +613,7 @@ public final class NewRelic {
      *
      * @param attributes
      */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static void noticeNetworkFailure(Map<String, Object> attributes) {
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -1061,8 +1071,12 @@ public final class NewRelic {
         return DataController.sendAgentData(stackTrace);
     }
 
-
-    public static boolean  addHTTPHeadersTrackingFor(List<String> headers) {
+    /**
+     * Adds a set of request header instrumentation targets
+     *
+     * @param headers
+     */
+    public static boolean addHTTPHeadersTrackingFor(List<String> headers) {
         return HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);
     }
 }

@@ -7,11 +7,8 @@ package com.newrelic.agent.android.harvest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
-import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
-import com.newrelic.agent.android.logging.LoggingConfiguration;
 
 import org.junit.Assert;
 import org.junit.Test;

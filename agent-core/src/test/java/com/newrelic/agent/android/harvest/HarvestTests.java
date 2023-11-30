@@ -37,6 +37,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -52,7 +53,7 @@ public class HarvestTests {
 
     @BeforeClass
     public static void setUpClass() {
-        config = new AgentConfiguration();
+        config = Providers.provideAgentConfiguration();
         config.setEnableAnalyticsEvents(true);
         config.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
         AgentLogManager.setAgentLog(new ConsoleAgentLog());
@@ -63,6 +64,7 @@ public class HarvestTests {
     public void setUp() throws Exception {
         TestHarvest.setInstance(new TestHarvest());
         Harvest.initialize(config);
+        StatsEngine.reset();
     }
 
     @After
@@ -202,65 +204,6 @@ public class HarvestTests {
         Assert.assertTrue(testAdapter.didDisconnect());
         Assert.assertTrue("Should contain invalid data token supportability metric",
                 StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_INVALID_DATA_TOKEN));
-    }
-
-
-    public Harvester createTestHarvester(String token, String host) {
-        HarvestConnection connection = Harvest.getInstance().getHarvestConnection();
-
-        connection.setConnectInformation(new ConnectInformation(Agent.getApplicationInformation(), Agent.getDeviceInformation()));
-        Harvest.getInstance().setHarvestConnection(Mockito.spy(connection));
-
-        Harvester harvester = new Harvester();
-        AgentConfiguration agentConfiguration = new AgentConfiguration();
-
-        agentConfiguration.setApplicationToken(token);
-        if (host != null) {
-            agentConfiguration.setCollectorHost(host);
-        }
-
-        harvester.setAgentConfiguration(agentConfiguration);
-        harvester.setHarvestConnection(Harvest.getInstance().getHarvestConnection());
-        harvester.setHarvestData(new HarvestData());
-
-        return harvester;
-    }
-
-    private HarvestData addHarvestData(HarvestData harvestData) {
-        // Device information
-        DeviceInformation devInfo = new DeviceInformation();
-        devInfo.setOsName("Android");
-        devInfo.setOsVersion("2.3");
-        devInfo.setManufacturer("Dell");
-        devInfo.setModel("Streak");
-        devInfo.setAgentName("AndroidAgent");
-        devInfo.setAgentVersion("2.123");
-        devInfo.setDeviceId("389C9738-A761-44DE-8A66-1668CFD67DA1");
-
-        harvestData.setDeviceInformation(devInfo);
-
-        // Time since last harvest
-        harvestData.setHarvestTimeDelta(59.9);
-
-        // HTTP Transactions
-        HttpTransactions transactions = new HttpTransactions();
-
-        harvestData.setHttpTransactions(transactions);
-
-        // Machine Measurements
-        MachineMeasurements machineMeasurements = new MachineMeasurements();
-
-        machineMeasurements.addMetric("CPU/Total/Utilization", 0.1);
-
-        machineMeasurements.addMetric(MetricNames.SUPPORTABILITY_COLLECTOR + "Connect", 1191.1);
-        machineMeasurements.addMetric("CPU/System/Utilization", 0.1);
-        machineMeasurements.addMetric("CPU/User/Utilization", 0.1);
-        machineMeasurements.addMetric(MetricNames.SUPPORTABILITY_COLLECTOR + "ResponseStatusCodes/200", 1);
-        machineMeasurements.addMetric("Memory/Used", 19.76);
-
-        harvestData.setMachineMeasurements(machineMeasurements);
-
-        return harvestData;
     }
 
     @Test
@@ -455,7 +398,6 @@ public class HarvestTests {
         FeatureFlag.disableFeature(FeatureFlag.NetworkErrorRequests);
     }
 
-
     @Test
     public void testExpireActivityTraces() {
         lock.lock();
@@ -627,126 +569,87 @@ public class HarvestTests {
         }
     }
 
-    @Test
-    public void testHarvestConfigurationUpdated() {
-        Harvester harvester = createTestHarvester(ENABLED_APP_TOKEN_STAGING, COLLECTOR_HOST);
-        HarvestResponse mockedDataResponse = Mockito.spy(new HarvestResponse());
-        TestHarvestAdapter testAdapter = new TestHarvestAdapter();
-
-        harvester.getHarvestData().setDataToken(new DataToken(0xdead, 0xbeef));
-
-        Mockito.doReturn(true).when(mockedDataResponse).isError();
-        Mockito.doReturn(HarvestResponse.Code.CONFIGURATION_UPDATE).when(mockedDataResponse).getResponseCode();
-        Mockito.doReturn(mockedDataResponse).when(harvester.getHarvestConnection()).sendData(Mockito.any(HarvestData.class));
-
-        harvester.addHarvestListener(testAdapter);
-        harvester.transition(Harvester.State.CONNECTED);
-        harvester.execute();
-
-        Assert.assertTrue(testAdapter.didDisconnect());
-        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.DISCONNECTED);
-    }
-
-    @Test
-    public void testReconnectAndUploadOnHarvestConfigurationUpdated() {
-        Harvester harvester = createTestHarvester(ENABLED_APP_TOKEN_STAGING, COLLECTOR_HOST);
-        HarvestResponse mockedDataResponse = Mockito.spy(new HarvestResponse());
-        TestHarvestAdapter testAdapter = new TestHarvestAdapter();
-
-        harvester.getHarvestData().setDataToken(new DataToken(0xdead, 0xbeef));
-
-        Mockito.doReturn(true).when(mockedDataResponse).isError();
-        Mockito.doReturn(HarvestResponse.Code.CONFIGURATION_UPDATE).when(mockedDataResponse).getResponseCode();
-        Mockito.doReturn(mockedDataResponse).when(harvester.getHarvestConnection()).sendData(Mockito.any(HarvestData.class));
-
-        harvester.addHarvestListener(testAdapter);
-        harvester.transition(Harvester.State.CONNECTED);
-        harvester.execute();
-
-        Assert.assertTrue(testAdapter.didError());
-        Assert.assertTrue(testAdapter.didDisconnect());
-        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.DISCONNECTED);
-
-        HarvestResponse mockedConnectResponse = Mockito.spy(new HarvestResponse());
-        Mockito.doReturn(true).when(mockedConnectResponse).isOK();
-        Mockito.doReturn(HarvestResponse.Code.OK).when(mockedConnectResponse).getResponseCode();
-        Mockito.doReturn(Providers.provideJsonObject("/Connect-Spec-PORTED.json").toString()).when(mockedConnectResponse).getResponseBody();
-        Mockito.doReturn(mockedConnectResponse).when(harvester.getHarvestConnection()).sendConnect();
-
-        Mockito.doReturn(false).when(mockedDataResponse).isError();
-        Mockito.doReturn(mockedDataResponse).when(harvester.getHarvestConnection()).sendData(Mockito.any(HarvestData.class));
-
-        harvester.execute();
-
-        // agent should by now have reconnected and sent pending harvest payload
-        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.CONNECTED);
-        Assert.assertTrue(testAdapter.didHarvest());
-    }
-
-    private class TestHarvestAdapter extends HarvestAdapter {
-        private boolean started;
-        private boolean stopped;
-        private boolean harvested;
-        private boolean errored;
-        private boolean disabled;
-        private boolean disconnected;
+    static class TestHarvestAdapter extends HarvestAdapter {
+        HashSet<String> events = new HashSet();
 
         @Override
         public void onHarvestStart() {
-            started = true;
+            events.add("started");
         }
 
         @Override
         public void onHarvestStop() {
-            stopped = true;
+            events.add("stopped");
         }
 
         @Override
         public void onHarvestBefore() {
-            harvested = true;
+            events.add("harvested");
         }
 
         @Override
         public void onHarvestError() {
-            errored = true;
+            events.add("errored");
         }
 
         @Override
         public void onHarvestDisabled() {
-            disabled = true;
+            events.add("disabled");
         }
 
         @Override
         public void onHarvestDisconnected() {
-            disconnected = true;
+            events.add("disconnected");
         }
 
-        private boolean didStart() {
-            return started;
+        @Override
+        public void onHarvestConfigurationChanged() {
+            events.add("configUpdated");
         }
 
-        private boolean didStop() {
-            return stopped;
+        @Override
+        public void onHarvestComplete() {
+            events.add("completed");
         }
 
-        private boolean didHarvest() {
-            return harvested;
+        boolean didStart() {
+            return events.contains("started");
         }
 
-        private boolean didError() {
-            return errored;
+        boolean didStop() {
+            return events.contains("stopped");
         }
 
-        private boolean disabled() {
-            return disabled;
+        boolean didHarvest() {
+            return events.contains("harvested");
         }
 
-        private boolean didDisconnect() {
-            return disconnected;
+        boolean didComplete() {
+            return events.contains("completed");
+        }
+
+        boolean didError() {
+            return events.contains("errored");
+        }
+
+        boolean disabled() {
+            return events.contains("disabled");
+        }
+
+        boolean didDisconnect() {
+            return events.contains("disconnected");
+        }
+
+        boolean didUpdateConfig() {
+            return events.contains("configUpdated");
+        }
+
+        public void reset() {
+            events = new HashSet<>();
         }
     }
 
-    private class TestHarvest extends Harvest {
+    static class TestHarvest extends Harvest {
 
         public TestHarvest() {
         }
@@ -765,7 +668,7 @@ public class HarvestTests {
 
     }
 
-    private class TestActivityTrace extends ActivityTrace {
+    static class TestActivityTrace extends ActivityTrace {
 
         public TestActivityTrace() {
             rootTrace = new Trace();
@@ -785,6 +688,59 @@ public class HarvestTests {
         public JsonArray asJsonArray() {
             return new JsonArray();
         }
+    }
+
+    private Harvester createTestHarvester(String token, String host) {
+        HarvestConnection connection = Harvest.getInstance().getHarvestConnection();
+        connection.setConnectInformation(new ConnectInformation(Agent.getApplicationInformation(), Agent.getDeviceInformation()));
+        Harvest.getInstance().setHarvestConnection(Mockito.spy(connection));
+
+        AgentConfiguration agentConfiguration = config;
+        agentConfiguration.setApplicationToken(token);
+        if (host != null) {
+            agentConfiguration.setCollectorHost(host);
+        }
+
+        Harvester harvester = new Harvester();
+        harvester.setAgentConfiguration(agentConfiguration);
+        harvester.setHarvestConnection(Harvest.getInstance().getHarvestConnection());
+        harvester.setHarvestData(new HarvestData());
+
+        return harvester;
+    }
+
+    private HarvestData addHarvestData(HarvestData harvestData) {
+        // Device information
+        DeviceInformation devInfo = new DeviceInformation();
+        devInfo.setOsName("Android");
+        devInfo.setOsVersion("2.3");
+        devInfo.setManufacturer("Dell");
+        devInfo.setModel("Streak");
+        devInfo.setAgentName("AndroidAgent");
+        devInfo.setAgentVersion("2.123");
+        devInfo.setDeviceId("389C9738-A761-44DE-8A66-1668CFD67DA1");
+
+        harvestData.setDeviceInformation(devInfo);
+
+        // Time since last harvest
+        harvestData.setHarvestTimeDelta(59.9);
+
+        // HTTP Transactions
+        HttpTransactions transactions = new HttpTransactions();
+
+        harvestData.setHttpTransactions(transactions);
+
+        // Machine Measurements
+        MachineMeasurements machineMeasurements = new MachineMeasurements();
+
+        machineMeasurements.addMetric("CPU/System/Utilization", 0.1);
+        machineMeasurements.addMetric("CPU/User/Utilization", 0.1);
+        machineMeasurements.addMetric(MetricNames.SUPPORTABILITY_COLLECTOR + "ResponseStatusCodes/200", 1);
+        machineMeasurements.addMetric("Memory/Used", 19.76);
+
+        harvestData.setMachineMeasurements(machineMeasurements);
+
+        return harvestData;
     }
 
 }

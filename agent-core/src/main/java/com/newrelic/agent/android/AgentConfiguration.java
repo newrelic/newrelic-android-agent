@@ -8,6 +8,7 @@ package com.newrelic.agent.android;
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore;
 import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
@@ -47,7 +48,6 @@ public class AgentConfiguration {
     private String crashCollectorHost = DEFAULT_CRASH_COLLECTOR_HOST;
     private String applicationToken;
     private boolean useSsl = true;
-    private boolean useLocationService = false;
     private boolean reportCrashes = false;
     private boolean reportHandledExceptions = true;
     private boolean enableAnalyticsEvents = true;
@@ -63,7 +63,7 @@ public class AgentConfiguration {
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
-    private LogReportingConfiguration logReportingConfiguration;
+    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration();
 
     public String getApplicationToken() {
         return applicationToken;
@@ -355,4 +355,14 @@ public class AgentConfiguration {
         this.logReportingConfiguration = logReportingConfiguration;
     }
 
+    /**
+     * Update agent config with any changes returned in the harvest response.
+     * Currently, it is only log reporting config
+     *
+     * @param harvestConfiguration
+     */
+    public void reconfigure(HarvestConfiguration harvestConfiguration) {
+        // update the global agent config w/changes
+        this.setLogReportingConfiguration(harvestConfiguration.getLog_reporting());
+    }
 }

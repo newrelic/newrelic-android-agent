@@ -22,6 +22,6 @@
     "enabled": true,
     "level": "VERBOSE",
     "data_report_period": 30,
-    "expiration_period": 172800
+    "expiration_period": 3600
   }
 }

@@ -13,15 +13,16 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.ActivityTrace;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 
 /**
  * The {@code Harvester} is a state machine responsible for connecting to and posting data to the Collector.
@@ -57,12 +58,22 @@ public class Harvester {
      */
     protected boolean stateChanged;
 
-    private HarvestConnection harvestConnection;
     private AgentConfiguration agentConfiguration;
-    private HarvestConfiguration configuration = HarvestConfiguration.getDefaultHarvestConfiguration();
+    private HarvestConnection harvestConnection;
+    private HarvestConfiguration harvestConfiguration = HarvestConfiguration.getDefaultHarvestConfiguration();
     private HarvestData harvestData;
 
-    private final Collection<HarvestLifecycleAware> harvestListeners = new ArrayList<HarvestLifecycleAware>();
+    private final Collection<HarvestLifecycleAware> harvestListeners = new ArrayList<>() {{
+       add(new HarvestAdapter() {
+            @Override
+            public void onHarvestConfigurationChanged() {
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_HARVEST_CONFIGURATION_CHANGED);
+                AnalyticsControllerImpl.getInstance().recordBreadcrumb("FIXME harvestConfiguration", new HashMap<>() {{
+                    put("changed", true);
+                }});
+            }
+        });
+    }};
 
     public void start() {
         fireOnHarvestStart();
@@ -105,7 +116,7 @@ public class Harvester {
      * This state attempts to connect to the collector and handles {@code connect} error conditions.
      */
     protected void disconnected() {
-        if (null == configuration) {
+        if (null == harvestConfiguration) {
             configureHarvester(HarvestConfiguration.getDefaultHarvestConfiguration());
         }
 
@@ -140,7 +151,6 @@ public class Harvester {
                 return;
             }
 
-            fireOnHarvestConfigurationChanged();
             configureHarvester(configuration);
             StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest", response.getResponseTime());
             fireOnHarvestConnected();
@@ -148,6 +158,10 @@ public class Harvester {
             // Successfully connected!
             transition(State.CONNECTED);
             execute();
+
+            if (!this.harvestConfiguration.equals(configuration)) {
+                fireOnHarvestConfigurationChanged();    // notify listeners their configs may have changed
+            }
 
             return;
         }
@@ -272,7 +286,7 @@ public class Harvester {
 
                 case CONFIGURATION_UPDATE:
                     log.info("Harvest configuration has changed, and will be updated during next harvest cycle.");
-                    fireOnHarvestConfigurationChanged();    // notify listeners their configs may have changed
+                    harvestData.getDataToken().clear();     // invalidate dataToken to force reconnect
                     transition(State.DISCONNECTED);         // will force a reconnect on next harvest
                     break;
 
@@ -418,9 +432,10 @@ public class Harvester {
     }
 
     private void configureHarvester(final HarvestConfiguration harvestConfiguration) {
-        configuration.reconfigure(harvestConfiguration);
-        harvestData.setDataToken(configuration.getDataToken());
-        Harvest.setHarvestConfiguration(configuration);
+        this.harvestConfiguration.reconfigure(harvestConfiguration);
+        agentConfiguration.reconfigure(harvestConfiguration);
+        harvestData.setDataToken(this.harvestConfiguration.getDataToken());
+        Harvest.setHarvestConfiguration(this.harvestConfiguration);
     }
 
     // Change states and mark that the state has been changed.
@@ -508,7 +523,7 @@ public class Harvester {
         synchronized (transactions) {
             Collection<HttpTransaction> expiredTransactions = new ArrayList<HttpTransaction>();
             long now = System.currentTimeMillis();
-            long maxAge = configuration.getReportMaxTransactionAgeMilliseconds();
+            long maxAge = harvestConfiguration.getReportMaxTransactionAgeMilliseconds();
 
             // Find all HttpTransactions which should be expired.
             for (HttpTransaction txn : transactions.getHttpTransactions()) {
@@ -535,7 +550,7 @@ public class Harvester {
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
         synchronized (traces) {
             Collection<ActivityTrace> expiredTraces = new ArrayList<ActivityTrace>();
-            long maxAttempts = configuration.getActivity_trace_max_report_attempts();
+            long maxAttempts = harvestConfiguration.getActivity_trace_max_report_attempts();
 
             // Find all ActivityTraces which should be expired.
             for (ActivityTrace trace : traces.getActivityTraces()) {
@@ -562,6 +577,10 @@ public class Harvester {
 
     public void setAgentConfiguration(AgentConfiguration agentConfiguration) {
         this.agentConfiguration = agentConfiguration;
+    }
+
+    AgentConfiguration getAgentConfiguration() {
+        return this.agentConfiguration;
     }
 
     public void setHarvestConnection(HarvestConnection connection) {
@@ -727,11 +746,16 @@ public class Harvester {
         }
     }
 
-    public void setConfiguration(HarvestConfiguration configuration) {
-        this.configuration = configuration;
+    public void setHarvestConfiguration(HarvestConfiguration harvestConfiguration) {
+        this.harvestConfiguration = harvestConfiguration;
     }
 
-    private Collection<HarvestLifecycleAware> getHarvestListeners() {
-        return new ArrayList<HarvestLifecycleAware>(harvestListeners);
+    HarvestConfiguration getHarvestConfiguration() {
+        return harvestConfiguration;
     }
+
+    Collection<HarvestLifecycleAware> getHarvestListeners() {
+        return new ArrayList<>(harvestListeners);
+    }
+
 }

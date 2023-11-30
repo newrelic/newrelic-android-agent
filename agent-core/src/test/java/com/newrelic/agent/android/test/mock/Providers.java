@@ -34,6 +34,7 @@ import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 import com.newrelic.agent.android.tracing.Trace;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TraceType;
@@ -365,23 +366,31 @@ public class Providers {
 
     public static AgentConfiguration provideAgentConfiguration() {
         final AgentConfiguration conf = new AgentConfiguration();
-        conf.setLogReportingConfiguration(provideLoggingConfiguration());
+        conf.setApplicationToken("dead-beef-baad-f00d");
+        conf.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
+        conf.setLogReportingConfiguration(provideLogReportingConfiguration());
+
         return conf;
     }
 
-    public static LogReportingConfiguration provideLoggingConfiguration() {
-        LogReportingConfiguration loggingConfiguration = new LogReportingConfiguration(false, LogReporting.LogLevel.NONE);
-        return loggingConfiguration;
+    public static LogReportingConfiguration provideLogReportingConfiguration() {
+        final LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogReporting.LogLevel.NONE);
+        return logReportingConfiguration;
+    }
+
+    public static JsonObject provideJsonObject(Object obj, Class clazz) {
+        String json = new Gson().toJson(obj, clazz);
+        return new Gson().fromJson(json, JsonObject.class);
     }
 
     public static JsonObject provideJsonObject(String path) {
         try (InputStream is = Providers.class.getResourceAsStream(path)) {
             final String json = TestUtil.slurp(is);
-            JsonObject jsonObject = new Gson().fromJson(json, JsonObject.class);
-            return jsonObject;
+            return new Gson().fromJson(json, JsonObject.class);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
+
 }
 
