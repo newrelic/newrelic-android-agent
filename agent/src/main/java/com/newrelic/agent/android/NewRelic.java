@@ -22,8 +22,8 @@ import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
 import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.NullAgentLog;
-import com.newrelic.agent.android.logging.ForwardingAgentLog;
 import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
@@ -284,15 +284,38 @@ public final class NewRelic {
             log.debug("NewRelic is already running.");
             return;
         }
-        try {
-            AgentLog logger = loggingEnabled ? new AndroidAgentLog() : new NullAgentLog();
 
-            if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-                logger = new ForwardingAgentLog(agentConfiguration);
+        // For testing: set the log reporting to the same values used for agent logging
+        if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+            LogReporting.LogLevel level = LogReporting.LogLevel.NONE;
+
+            // translate the agent log level to LogReporting equivalent
+            switch (logLevel) {
+                case AgentLog.ERROR:
+                    level = LogReporting.LogLevel.ERROR;
+                    break;
+                case AgentLog.WARN:
+                    level = LogReporting.LogLevel.WARN;
+                    break;
+                case AgentLog.INFO:
+                    level = LogReporting.LogLevel.INFO;
+                    break;
+                case AgentLog.VERBOSE:
+                    level = LogReporting.LogLevel.VERBOSE;
+                    break;
+                case AgentLog.DEBUG:
+                case AgentLog.AUDIT:
+                    level = LogReporting.LogLevel.DEBUG;
+                    break;
+                default:
+                    break;
             }
+            agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(loggingEnabled, level));
+        }
 
-            AgentLogManager.setAgentLog(logger);
-            log.setLevel(logLevel);     // sets the local logging level
+        try {
+            AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
+            log.setLevel(logLevel);
 
             boolean instantApp = InstantApps.isInstantApp(context);
 
