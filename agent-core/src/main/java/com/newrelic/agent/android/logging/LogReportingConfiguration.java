@@ -5,16 +5,9 @@
 
 package com.newrelic.agent.android.logging;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 
-import java.lang.reflect.Type;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class LogReportingConfiguration extends LoggingConfiguration {
     static final long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.convert(30, TimeUnit.SECONDS);
@@ -63,28 +56,6 @@ public class LogReportingConfiguration extends LoggingConfiguration {
                 + ",\"data_report_period\"=" + harvestPeriod
                 + ",\"expiration_period\"=" + expirationPeriod
                 + "}";
-    }
-
-    public static class ConfigurationDeserializer extends LoggingConfiguration.ConfigurationDeserializer {
-        final AgentLog log = AgentLogManager.getAgentLog();
-
-        @Override
-        public LogReportingConfiguration deserialize(JsonElement root, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            LoggingConfiguration loggingConfiguration = super.deserialize(root, typeOfT, context);
-
-            if (!root.isJsonObject()) {
-                log.error("Expected root element to be an object.");
-                return new LogReportingConfiguration();
-            }
-
-            JsonObject jsonObject = root.getAsJsonObject();
-
-            return new LogReportingConfiguration(
-                    loggingConfiguration.getLoggingEnabled(),
-                    loggingConfiguration.getLogLevel(),
-                    jsonObject.get("data_report_period").getAsLong(),
-                    jsonObject.get("expiration_period").getAsLong());
-        }
     }
 
 }
