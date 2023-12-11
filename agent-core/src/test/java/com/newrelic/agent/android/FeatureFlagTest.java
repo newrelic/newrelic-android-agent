@@ -17,6 +17,7 @@ import static com.newrelic.agent.android.FeatureFlag.FedRampEnabled;
 import static com.newrelic.agent.android.FeatureFlag.HandledExceptions;
 import static com.newrelic.agent.android.FeatureFlag.HttpResponseBodyCapture;
 import static com.newrelic.agent.android.FeatureFlag.InteractionTracing;
+import static com.newrelic.agent.android.FeatureFlag.LogReporting;
 import static com.newrelic.agent.android.FeatureFlag.NetworkErrorRequests;
 import static com.newrelic.agent.android.FeatureFlag.NetworkRequests;
 
@@ -83,13 +84,21 @@ public class FeatureFlagTest {
         FeatureFlag.disableFeature(DistributedTracing);
         Assert.assertFalse("Distributed tracing is now disabled", FeatureFlag.featureEnabled(DistributedTracing));
 
+        Assert.assertFalse("LogReporting is disabled by default", FeatureFlag.featureEnabled(LogReporting));
+        FeatureFlag.enableFeature(LogReporting);
+        Assert.assertTrue("LogReporting is now enabled", FeatureFlag.featureEnabled(LogReporting));
+
+        Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
+        FeatureFlag.enableFeature(FedRampEnabled);
+        Assert.assertTrue("FedRampEnabled is now enabled", FeatureFlag.featureEnabled(FedRampEnabled));
+
         FeatureFlag.resetFeatures();
         Assert.assertTrue("CrashReporting is now enabled", FeatureFlag.featureEnabled(CrashReporting));
         Assert.assertTrue("NetworkRequests is now enabled", FeatureFlag.featureEnabled(NetworkRequests));
         Assert.assertTrue("NetworkErrorRequests is now enabled", FeatureFlag.featureEnabled(NetworkErrorRequests));
         Assert.assertTrue("Distributed tracing is now enabled", FeatureFlag.featureEnabled(DistributedTracing));
-
-        Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
+        Assert.assertFalse("LogReporting is now disabled", FeatureFlag.featureEnabled(LogReporting));
+        Assert.assertFalse("FedRamp is now disabled", FeatureFlag.featureEnabled(FedRampEnabled));
     }
 
 }

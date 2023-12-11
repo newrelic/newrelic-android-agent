@@ -41,7 +41,7 @@ public class Harvest {
     // Caches for incoming API calls during pre-initialization.
     private static final HarvestableCache activityTraceCache = new HarvestableCache();
 
-    private HarvestConfiguration configuration = HarvestConfiguration.getDefaultHarvestConfiguration();
+    private HarvestConfiguration harvestConfiguration = HarvestConfiguration.getDefaultHarvestConfiguration();
 
     /* Static access methods */
     public static void initialize(AgentConfiguration agentConfiguration) {
@@ -53,7 +53,7 @@ public class Harvest {
     public void initializeHarvester(AgentConfiguration agentConfiguration) {
         createHarvester();
         harvester.setAgentConfiguration(agentConfiguration);
-        harvester.setConfiguration(instance.getConfiguration());
+        harvester.setHarvestConfiguration(instance.getConfiguration());
         flushHarvestableCaches();
     }
 
@@ -342,7 +342,7 @@ public class Harvest {
     }
 
     public HarvestConfiguration getConfiguration() {
-        return configuration;
+        return harvestConfiguration;
     }
 
     public HarvestConnection getHarvestConnection() {
@@ -354,16 +354,16 @@ public class Harvest {
     }
 
     public boolean shouldCollectNetworkErrors() {
-        return configuration.isCollect_network_errors();
+        return harvestConfiguration.isCollect_network_errors();
     }
 
     public void setConfiguration(HarvestConfiguration newConfiguration) {
-        configuration.reconfigure(newConfiguration);
+        harvestConfiguration.reconfigure(newConfiguration);
 
-        harvestTimer.setPeriod(TimeUnit.MILLISECONDS.convert(configuration.getData_report_period(), TimeUnit.SECONDS));
-        harvestConnection.setServerTimestamp(configuration.getServer_timestamp());
-        harvestData.setDataToken(configuration.getDataToken());
-        harvester.setConfiguration(configuration);
+        harvestTimer.setPeriod(TimeUnit.MILLISECONDS.convert(harvestConfiguration.getData_report_period(), TimeUnit.SECONDS));
+        harvestConnection.setServerTimestamp(harvestConfiguration.getServer_timestamp());
+        harvestData.setDataToken(harvestConfiguration.getDataToken());
+        harvester.setHarvestConfiguration(harvestConfiguration);
     }
 
     public void setConnectInformation(ConnectInformation connectInformation) {
@@ -405,7 +405,7 @@ public class Harvest {
     }
 
     protected ActivityTraceConfiguration getActivityTraceConfiguration() {
-        return configuration.getAt_capture();
+        return harvestConfiguration.getAt_capture();
     }
 
     void finalizeSession() {

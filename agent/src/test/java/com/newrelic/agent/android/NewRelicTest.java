@@ -35,6 +35,7 @@ import com.newrelic.agent.android.harvest.HttpTransactions;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
+import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -50,14 +51,13 @@ import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 
-import org.junit.Assert;
-
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.message.BasicHttpResponse;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -118,6 +118,10 @@ public class NewRelicTest {
     @Before
     public void setUp() {
         spyContext = new SpyContext();
+
+        NewRelic.started = false;
+        NewRelic.isShutdown = false;
+
         nrInstance = NewRelic.withApplicationToken(APP_TOKEN).withLogLevel(AgentLog.DEBUG);
         Assert.assertNotNull(nrInstance);
 
@@ -1012,6 +1016,24 @@ public class NewRelicTest {
         Assert.assertEquals("Should trim custom device ID to a single space", AgentConfiguration.DEFAULT_DEVICE_UUID, agentConfiguration.getDeviceID());
     }
 
+    @Test
+    public void testLogReportingFeature() {
+        Assert.assertFalse("Remote logging is disabled by default", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+
+        // for testing:
+        Assert.assertFalse("Remote logging is disabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals("Remote logging level is NONE", LogReporting.LogLevel.NONE, agentConfiguration.getLogReportingConfiguration().getLogLevel());
+
+        nrInstance.withLoggingEnabled(true)
+                .withLogLevel(AgentLog.DEBUG)
+                .start(spyContext.getContext());
+
+        Assert.assertTrue("Remote logging is now enabled", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals("Remote logging level is updated", LogReporting.LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
+    }
 
     private static class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {
 

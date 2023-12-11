@@ -16,12 +16,13 @@ import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
-import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.hybrid.StackTrace;
 import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
+import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.NullAgentLog;
 import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -98,6 +99,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, Boolean.toString(enabled)));
 
         this.loggingEnabled = enabled;
+
         return this;
     }
 
@@ -117,6 +119,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, Integer.toString(level)));
 
         logLevel = level;
+
         return this;
     }
 
@@ -172,6 +175,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, Boolean.toString(enabled)));
 
         agentConfiguration.setReportCrashes(enabled);
+
         return this;
     }
 
@@ -280,6 +284,35 @@ public final class NewRelic {
             log.debug("NewRelic is already running.");
             return;
         }
+
+        // For testing: set the log reporting to the same values used for agent logging
+        if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+            LogReporting.LogLevel level = LogReporting.LogLevel.NONE;
+
+            // translate the agent log level to LogReporting equivalent
+            switch (logLevel) {
+                case AgentLog.ERROR:
+                    level = LogReporting.LogLevel.ERROR;
+                    break;
+                case AgentLog.WARN:
+                    level = LogReporting.LogLevel.WARN;
+                    break;
+                case AgentLog.INFO:
+                    level = LogReporting.LogLevel.INFO;
+                    break;
+                case AgentLog.VERBOSE:
+                    level = LogReporting.LogLevel.VERBOSE;
+                    break;
+                case AgentLog.DEBUG:
+                case AgentLog.AUDIT:
+                    level = LogReporting.LogLevel.DEBUG;
+                    break;
+                default:
+                    break;
+            }
+            agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(loggingEnabled, level));
+        }
+
         try {
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
             log.setLevel(logLevel);
@@ -603,7 +636,7 @@ public final class NewRelic {
      *
      * @param attributes
      */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static void noticeNetworkFailure(Map<String, Object> attributes) {
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -1061,8 +1094,12 @@ public final class NewRelic {
         return DataController.sendAgentData(stackTrace);
     }
 
-
-    public static boolean  addHTTPHeadersTrackingFor(List<String> headers) {
+    /**
+     * Adds a set of request header instrumentation targets
+     *
+     * @param headers
+     */
+    public static boolean addHTTPHeadersTrackingFor(List<String> headers) {
         return HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);
     }
 }
