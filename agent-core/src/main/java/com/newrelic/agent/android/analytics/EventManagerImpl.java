@@ -40,6 +40,8 @@ public class EventManagerImpl implements EventManager, EventListener {
     private final AtomicReference<EventListener> listener = new AtomicReference<EventListener>(this);
     AtomicReference<EventManager> instance = new AtomicReference<>(null);
 
+    private AnalyticsEventStore eventStore;
+
     public EventManagerImpl() {
         // Currently using 1000 max events, 5 minutes max buffer age
         this(DEFAULT_MAX_EVENT_BUFFER_SIZE, DEFAULT_MAX_EVENT_BUFFER_TIME);
@@ -59,8 +61,20 @@ public class EventManagerImpl implements EventManager, EventListener {
 
     @Override
     public void initialize(AgentConfiguration agentConfiguration) {
+        eventStore = agentConfiguration.getEventStore();
+        List<AnalyticsEvent> storedEvents = new ArrayList<AnalyticsEvent>();
+        if (eventStore != null) {
+            storedEvents = eventStore.fetchAll();
+        }
+
         if (!initialized.compareAndSet(false, true)) {
+            eventsRecorded.set(0);
+            eventsEvicted.set(0);
             log.verbose("EventManagerImpl.initialize(): Has already been initialized. Bypassing...");
+            //retrieve all the events from pref
+            for (AnalyticsEvent event : storedEvents) {
+                addEvent(event);
+            }
             return;
         }
 
@@ -68,6 +82,11 @@ public class EventManagerImpl implements EventManager, EventListener {
         eventsRecorded.set(0);
         eventsEvicted.set(0);
         empty();
+
+        //retrieve all the events from pref
+        for (AnalyticsEvent event : storedEvents) {
+            addEvent(event);
+        }
 
         listener.get().onStart(this);
     }
@@ -184,6 +203,9 @@ public class EventManagerImpl implements EventManager, EventListener {
 
             if (events.get().add(event)) {
                 // log.audit("Event added: [" + event.asJson() + "]");
+                if (eventStore != null) {
+                    eventStore.store(event);
+                }
                 eventsRecorded.incrementAndGet();
                 return true;
             }

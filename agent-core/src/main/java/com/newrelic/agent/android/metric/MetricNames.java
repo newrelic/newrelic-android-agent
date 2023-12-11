@@ -29,6 +29,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_EVENT_EVICTED = SUPPORTABILITY_EVENTS + "Evicted";
     public static final String SUPPORTABILITY_EVENT_QUEUE_SIZE_EXCEEDED = SUPPORTABILITY_EVENTS + "Queue/Size/Exceeded";
     public static final String SUPPORTABILITY_EVENT_QUEUE_TIME_EXCEEDED = SUPPORTABILITY_EVENTS + "Queue/Time/Exceeded";
+    public static final String SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED = SUPPORTABILITY_EVENTS + "Size/Uncompressed";
 
     public static final String SUPPORTABILITY_COLLECTOR = "Supportability/AgentHealth/Collector/";
 

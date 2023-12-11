@@ -50,7 +50,7 @@ class NewRelicExtensionTest extends PluginTest {
         ext = NewRelicExtension.register(project)
         ext.variantConfigurations {
             ["larry", "moe", "curly"].each { name ->
-                def conf = project.objects.newInstance(VariantConfiguration.class, name, project).tap() {
+                def conf = project.objects.newInstance(VariantConfiguration.class, name).tap() {
                     instrument = name.length() > 3
                     uploadMappingFile = name.endsWith("y")
                     mappingFile = project.layout.buildDirectory.file("outputs/mapping/${name}/mapping.txt")

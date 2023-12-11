@@ -6,6 +6,7 @@
 package com.newrelic.agent.android;
 
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore;
+import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -58,6 +59,8 @@ public class AgentConfiguration {
     private CrashStore crashStore;
     private AnalyticsAttributeStore analyticsAttributeStore;
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
+
+    private AnalyticsEventStore eventStore;
 
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
@@ -125,6 +128,14 @@ public class AgentConfiguration {
 
     public void setCrashStore(CrashStore crashStore) {
         this.crashStore = crashStore;
+    }
+
+    public AnalyticsEventStore getEventStore() {
+        return eventStore;
+    }
+
+    public void setEventStore(AnalyticsEventStore eventStore) {
+        this.eventStore = eventStore;
     }
 
     public boolean getReportHandledExceptions() {
