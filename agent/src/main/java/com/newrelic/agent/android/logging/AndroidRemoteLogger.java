@@ -1,6 +1,5 @@
 package com.newrelic.agent.android.logging;
 
-import android.content.Context;
 import android.util.Log;
 
 import org.json.JSONObject;
@@ -11,20 +10,10 @@ import java.io.FileWriter;
 import java.util.HashMap;
 import java.util.Map;
 
-public class NewRelicLogger {
-
-    protected static final String TAG = NewRelicLogger.class.getName();
-    protected boolean remoteLoggingEnabled = true;
-    protected int logLevel = Log.INFO;
-    protected Context context;
-    private static File agentLogFile;
-
-    private NewRelicLogger(Context context, boolean logEnabled, int logLevel) {
-        this.context = context;
-        this.remoteLoggingEnabled = logEnabled;
-        this.logLevel = logLevel;
-        agentLogFile = new File(context.getFilesDir(), "agentLog.txt_" + System.currentTimeMillis());
-    }
+public class AndroidRemoteLogger implements AgentLog {
+    protected static final String TAG = AndroidRemoteLogger.class.getName();
+    protected int logLevel = LogLevel.NONE.ordinal(); // default
+    protected static String agentLogFilePath = "";
 
     public void verbose(String message) {
         Log.v(TAG, message);
@@ -37,6 +26,7 @@ public class NewRelicLogger {
     public void verbose(String message, Throwable throwable, Map<String, String> attributes) {
         Log.v(TAG, message, throwable);
     }
+
 
     public void debug(String message) {
         Log.d(TAG, message);
@@ -53,6 +43,7 @@ public class NewRelicLogger {
     public void info(String message) {
         Log.i(TAG, message);
     }
+
 
     public void info(String message, Throwable throwable) {
         Log.i(TAG, message, throwable);
@@ -74,20 +65,56 @@ public class NewRelicLogger {
         Log.e(TAG, message, throwable);
     }
 
-    public void warning(String message) {
+    public void warn(String message) {
         Log.w(TAG, message);
     }
 
-    public void warning(String message, Throwable throwable) {
+    public void warn(String message, Throwable throwable) {
         Log.w(TAG, message, throwable);
     }
 
-    public void warning(String message, Throwable throwable, Map<String, String> attributes) {
+    public void warn(String message, Throwable throwable, Map<String, String> attributes) {
         Log.w(TAG, message, throwable);
+    }
+
+    @Override
+    public void audit(String message) {
+
+    }
+
+    public void logAttributes(Map<String, Object> attributes) {
+        //Requirement: logLevel is included in attributes
+        int level = Integer.valueOf(attributes.get("logLevel").toString());
+        //TODO: what do we want to print out about attributes
+    }
+
+    public void logAll(Throwable throwable, Map<String, Object> attributes) {
+        //Requirement: logLevel is included in attributes
+        int level = Integer.valueOf(attributes.get("logLevel").toString());
+        //TODO: what do we want to print out about attributes + throwable
+    }
+
+    @Override
+    public int getLevel() {
+        return 0;
+    }
+
+    @Override
+    public void setLevel(int level) {
+
+    }
+
+    public String getAgentLogFilePath() {
+        return agentLogFilePath;
+    }
+
+    public void setAgentLogFilePath(String agentLogFilePath) {
+        this.agentLogFilePath = agentLogFilePath;
     }
 
     public static void appendLog(String logLevel, String message, Throwable throwable, Map<String, String> attributes) {
         try {
+            File agentLogFile = new File(agentLogFilePath);
             if (!agentLogFile.exists()) {
                 agentLogFile.createNewFile();
             }
