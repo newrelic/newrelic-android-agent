@@ -7,6 +7,7 @@ package com.newrelic.agent.android;
 
 import static com.newrelic.agent.android.NewRelic.agentConfiguration;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -34,7 +35,10 @@ import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.AndroidRemoteLogger;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -50,18 +54,15 @@ import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 
-import org.junit.Assert;
-
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.message.BasicHttpResponse;
-import org.apache.http.message.BasicStatusLine;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.robolectric.RobolectricTestRunner;
 
 import java.io.File;
@@ -159,6 +160,14 @@ public class NewRelicTest {
     @Before
     public void setupDistributedTracing() {
         DistributedTracing.getInstance().setConfiguration(new TraceConfiguration(Providers.provideHarvestConfiguration()));
+    }
+
+    @Before
+    public void setupRemoteLogging() {
+        NewRelic.disableFeature(FeatureFlag.LogReporting);
+        NewRelic.remoteLogger = Mockito.spy(new AndroidRemoteLogger());
+
+        LogReporting.setLogLevel(LogLevel.VERBOSE);
     }
 
     @After
@@ -1019,6 +1028,238 @@ public class NewRelicTest {
         Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
     }
 
+    @Test
+    public void testLogInfo() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+
+        final String msg = "info message";
+        NewRelic.logInfo(msg);
+        verify(NewRelic.remoteLogger, times(1)).info(msg);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.INFO, msg, null, null);
+    }
+
+    @Test
+    public void testLogWarning() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+
+        final String msg = "info message";
+        NewRelic.logWarning(msg);
+        verify(NewRelic.remoteLogger, times(1)).warn(msg);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.WARN, msg, null, null);
+    }
+
+    @Test
+    public void testLogDebug() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+
+        final String msg = "info message";
+        NewRelic.logDebug(msg);
+        verify(NewRelic.remoteLogger, times(1)).debug(msg);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.DEBUG, msg, null, null);
+    }
+
+    @Test
+    public void testLogVerbose() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+
+        final String msg = "verbose message";
+        NewRelic.logVerbose(msg);
+        verify(NewRelic.remoteLogger, times(1)).verbose(msg);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.VERBOSE, msg, null, null);
+    }
+
+    @Test
+    public void testLogError() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+
+        final String msg = "error message";
+        NewRelic.logError(msg);
+        verify(NewRelic.remoteLogger, times(1)).error(msg);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.ERROR, msg, null, null);
+    }
+
+    @Test
+    public void testLog() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+
+        final String msg = "debug log message";
+        NewRelic.log(LogLevel.DEBUG, msg);
+        verify(NewRelic.remoteLogger, times(1)).log(LogLevel.DEBUG, msg);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.DEBUG, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+    }
+
+    @Test
+    public void testLogWithRemoteLoggingDisabled() {
+        FeatureFlag.disableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+
+        AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
+        AgentLogManager.setAgentLog(agentLogger);
+
+        final String msg = "error log message";
+        NewRelic.log(LogLevel.ERROR, msg);
+        verify(agentLogger, times(1)).error(msg);
+        verify(NewRelic.remoteLogger, times(1)).log(LogLevel.ERROR, msg);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.ERROR, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+    }
+
+    @Test
+    public void testLogWithLoggingDisabled() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        LogReporting.setLogLevel(LogLevel.NONE);
+        nrInstance.start(spyContext.getContext());
+
+        AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
+        AgentLogManager.setAgentLog(agentLogger);
+
+        final String msg = "error log message";
+        NewRelic.log(LogLevel.ERROR, msg);
+        verify(agentLogger, never()).error(msg);
+        verify(NewRelic.remoteLogger, never()).error(msg);
+        verify(NewRelic.remoteLogger, never()).appendLog(LogLevel.ERROR, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+    }
+
+    @Test
+    public void testLogThrowable() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+
+        final String msg = "An info log message with throwable";
+        Throwable throwable = new RuntimeException(msg);
+        NewRelic.logThrowable(LogLevel.INFO, msg, throwable);
+        verify(NewRelic.remoteLogger, times(1)).logThrowable(LogLevel.INFO, msg, throwable);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.INFO, msg, throwable, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "logThrowable/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.INFO.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+    }
+
+    @Test
+    public void testLogAttributes() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+
+        Map<String, Object> attributes = new HashMap<String, Object>() {{
+            put("level", "WARN");
+            put("message", "A stern WARNing");
+            put("cheddar", "wensleydale");
+        }};
+
+        final String msg  = (String) attributes.get("message");
+        NewRelic.logAttributes(attributes);
+        verify(NewRelic.remoteLogger, times(1)).logAttributes(attributes);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.WARN, msg, null, attributes);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "logAttributes/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.WARN.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+    }
+
+    @Test
+    public void testLogAll() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        Map<String, Object> attributes = new HashMap<String, Object>() {{
+            put("level", "dEbUg");
+            put("message", "Debug log message attributes with throwable");
+            put("cheddar", "stilton");
+        }};
+
+        final String msg = (String) attributes.get("message");
+        Throwable throwable = new RuntimeException(msg);
+        NewRelic.logAll(throwable, attributes);
+        verify(NewRelic.remoteLogger, times(1)).logAll(throwable, attributes);
+        verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.DEBUG, msg, throwable, attributes);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "logAll/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+    }
+
+    @Test
+    public void testRemoteLoggingBeforeAgentStart() {
+        final Map attrs = new HashMap<String, Object>() {{
+            put("level", "DEBUG");
+            put("message", "This is a debug message");
+        }};
+
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        Assert.assertTrue(LogReporting.getLogger() instanceof AgentLog);
+        Assert.assertTrue(LogReporting.getLogger() instanceof LogReporting);
+
+        // call API prior to starting the agent
+        NewRelic.logAll(new RuntimeException("LogReporting stopped"), attrs);
+
+        // start the agent w/LogReporting enabled
+        nrInstance.start(spyContext.getContext());
+
+        // call API after starting the agent
+        NewRelic.logAll(new RuntimeException("LogReporting started"), attrs);
+    }
+
+    @Test
+    public void testToggleRemoteLogging() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+
+        LogReporting logger = LogReporting.getLogger();
+        Assert.assertTrue(logger.isRemoteLoggingEnabled());
+
+        FeatureFlag.disableFeature(FeatureFlag.LogReporting);
+        Assert.assertFalse(logger.isRemoteLoggingEnabled());
+
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        Assert.assertTrue(logger.isRemoteLoggingEnabled());
+
+        logger.setLogLevel(LogLevel.NONE);
+        Assert.assertFalse(logger.isRemoteLoggingEnabled());
+    }
+
     private static class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {
 
         @Override
@@ -1059,17 +1300,6 @@ public class NewRelicTest {
         protected void addMetric(Metric newMetric) {
             super.addMetric(newMetric);
         }
-    }
-
-    private HttpResponse provideHttpResponse() {
-        ProtocolVersion proto = new ProtocolVersion("HTTP", 1, 1);
-        BasicStatusLine status = new BasicStatusLine(proto, 200, "test");
-        return provideCrossProcessHeaderResponse(new BasicHttpResponse(status));
-    }
-
-    private HttpResponse provideCrossProcessHeaderResponse(HttpResponse response) {
-        response.addHeader(Constants.Network.CROSS_PROCESS_ID_HEADER, "XPROCESS_ID");
-        return response;
     }
 
     private URLConnection provideUrlConnection() {

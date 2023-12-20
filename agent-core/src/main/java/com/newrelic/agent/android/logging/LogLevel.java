@@ -2,7 +2,8 @@ package com.newrelic.agent.android.logging;
 
 /**
  * Level names should correspond to iOS values.
- * The ordinal values are not shared and are used for priority ordering
+ * The ordinal values are not shared and are used for priority ordering.
+ * These values represent RFC 5424 (The Syslog Protocol) levels
  */
 public enum LogLevel {
 
