@@ -22,13 +22,13 @@ public class LogReportingConfigurationTest {
 
     @Before
     public void setUp() throws Exception {
-        this.logReportingConfig = new LogReportingConfiguration(true, LogReporting.LogLevel.DEBUG);
+        this.logReportingConfig = new LogReportingConfiguration(true, LogLevel.DEBUG);
     }
 
     @Test
     public void testDefaultConfiguration() {
         Assert.assertTrue(logReportingConfig.getLoggingEnabled());
-        Assert.assertEquals(LogReporting.LogLevel.DEBUG, logReportingConfig.getLogLevel());
+        Assert.assertEquals(LogLevel.DEBUG, logReportingConfig.getLogLevel());
     }
 
     @Test
@@ -59,7 +59,7 @@ public class LogReportingConfigurationTest {
 
         Gson gson = new GsonBuilder().create();
 
-        LogReportingConfiguration serialized = new LogReportingConfiguration(true, LogReporting.LogLevel.VERBOSE, 15, 3600);
+        LogReportingConfiguration serialized = new LogReportingConfiguration(true, LogLevel.VERBOSE, 15, 3600);
         LogReportingConfiguration deserialized = gson.fromJson(loggingConfig, LogReportingConfiguration.class);
         Assert.assertTrue(serialized.toString().equals(deserialized.toString()));
 

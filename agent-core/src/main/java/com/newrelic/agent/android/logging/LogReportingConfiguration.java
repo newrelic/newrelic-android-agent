@@ -20,21 +20,22 @@ public class LogReportingConfiguration extends LoggingConfiguration {
     final Long expirationPeriod;
 
     public LogReportingConfiguration() {
-        this(false, LogReporting.LogLevel.NONE);
+        this(false, LogLevel.NONE);
     }
 
-    public LogReportingConfiguration(boolean enabled, LogReporting.LogLevel level) {
+    public LogReportingConfiguration(boolean enabled, LogLevel level) {
         super(enabled, level);
         this.harvestPeriod = DEFAULT_HARVEST_PERIOD;
         this.expirationPeriod = DEFAULT_EXPIRATION_PERIOD;
     }
 
     public LogReportingConfiguration(long harvestPeriod, long expirationPeriod) {
+        super(true, LogLevel.NONE);
         this.harvestPeriod = harvestPeriod;
         this.expirationPeriod = expirationPeriod;
     }
 
-    public LogReportingConfiguration(boolean enabled, LogReporting.LogLevel level, long harvestPeriod, long expirationPeriod) {
+    public LogReportingConfiguration(boolean enabled, LogLevel level, long harvestPeriod, long expirationPeriod) {
         this(harvestPeriod, expirationPeriod);
         this.enabled = enabled;
         this.level = level;

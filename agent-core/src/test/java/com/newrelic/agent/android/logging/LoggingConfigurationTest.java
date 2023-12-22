@@ -23,10 +23,10 @@ public class LoggingConfigurationTest {
 
     @Test
     public void setConfiguration() {
-        LoggingConfiguration loggingConfig = new LoggingConfiguration(true, LogReporting.LogLevel.VERBOSE);
+        LoggingConfiguration loggingConfig = new LoggingConfiguration(true, LogLevel.VERBOSE);
         defaultLoggingConfig.setConfiguration(loggingConfig);
         Assert.assertTrue(loggingConfig.getLoggingEnabled());
-        Assert.assertEquals(LogReporting.LogLevel.VERBOSE, loggingConfig.getLogLevel());
+        Assert.assertEquals(LogLevel.VERBOSE, loggingConfig.getLogLevel());
     }
 
     @Test
@@ -35,19 +35,19 @@ public class LoggingConfigurationTest {
         Assert.assertNotNull(agentConfiguration.getLogReportingConfiguration());
         defaultLoggingConfig.setConfiguration(agentConfiguration);
         Assert.assertFalse(defaultLoggingConfig.getLoggingEnabled());
-        Assert.assertEquals(LogReporting.LogLevel.NONE, defaultLoggingConfig.getLogLevel());
+        Assert.assertEquals(LogLevel.NONE, defaultLoggingConfig.getLogLevel());
 
         agentConfiguration.getLogReportingConfiguration().setLoggingEnabled(true);
-        agentConfiguration.getLogReportingConfiguration().setLogLevel(LogReporting.LogLevel.VERBOSE);
+        agentConfiguration.getLogReportingConfiguration().setLogLevel(LogLevel.VERBOSE);
         defaultLoggingConfig.setConfiguration(agentConfiguration);
         Assert.assertTrue(defaultLoggingConfig.getLoggingEnabled());
-        Assert.assertEquals(LogReporting.LogLevel.VERBOSE, defaultLoggingConfig.getLogLevel());
+        Assert.assertEquals(LogLevel.VERBOSE, defaultLoggingConfig.getLogLevel());
     }
 
     @Test
     public void getLoggingEnabled() {
         Assert.assertFalse(defaultLoggingConfig.getLoggingEnabled());
-        Assert.assertEquals(LogReporting.LogLevel.NONE, defaultLoggingConfig.getLogLevel());
+        Assert.assertEquals(LogLevel.NONE, defaultLoggingConfig.getLogLevel());
         defaultLoggingConfig.setLoggingEnabled(false);
         Assert.assertFalse(defaultLoggingConfig.getLoggingEnabled());
     }
@@ -60,14 +60,14 @@ public class LoggingConfigurationTest {
 
     @Test
     public void getLogLevel() {
-        Assert.assertEquals(LogReporting.LogLevel.NONE, defaultLoggingConfig.getLogLevel());
+        Assert.assertEquals(LogLevel.NONE, defaultLoggingConfig.getLogLevel());
     }
 
     @Test
     public void setLogLevel() {
-        Assert.assertEquals(LogReporting.LogLevel.NONE, defaultLoggingConfig.getLogLevel());
-        defaultLoggingConfig.setLogLevel(LogReporting.LogLevel.VERBOSE);
-        Assert.assertEquals(LogReporting.LogLevel.VERBOSE, defaultLoggingConfig.getLogLevel());
+        Assert.assertEquals(LogLevel.NONE, defaultLoggingConfig.getLogLevel());
+        defaultLoggingConfig.setLogLevel(LogLevel.VERBOSE);
+        Assert.assertEquals(LogLevel.VERBOSE, defaultLoggingConfig.getLogLevel());
     }
 
     @Test

@@ -7,7 +7,7 @@ package com.newrelic.agent.android.harvest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 
 import org.junit.Assert;
@@ -57,7 +57,7 @@ public class HarvesterConfigurationTests {
         config.setApplication_id("100");
         config.setTrusted_account_key("33");
         config.setEntity_guid(entityGuid);
-        config.setLog_reporting(new LogReportingConfiguration(true, LogReporting.LogLevel.WARN));
+        config.setLog_reporting(new LogReportingConfiguration(true, LogLevel.WARN));
 
         Gson gson = new Gson();
         String configJson = gson.toJson(config);
@@ -177,7 +177,7 @@ public class HarvesterConfigurationTests {
     @Test
     public void testHarvesterConfigurationLogReporting() {
         HarvestConfiguration config = new HarvestConfiguration();
-        LogReportingConfiguration loggingConfig = new LogReportingConfiguration(true, LogReporting.LogLevel.VERBOSE);
+        LogReportingConfiguration loggingConfig = new LogReportingConfiguration(true, LogLevel.VERBOSE);
         config.setLog_reporting(loggingConfig);
 
         Gson gson = new GsonBuilder().create();

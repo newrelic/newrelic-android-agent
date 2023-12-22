@@ -5,55 +5,146 @@
 
 package com.newrelic.agent.android.logging;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.newrelic.agent.android.FeatureFlag;
+
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * LogReporting public interface, exposed to static API
+ * LogReporting public interface, exposed to NewRelic API
  */
+public abstract class LogReporting {
 
-public interface LogReporting {
+    private static Gson gson = new GsonBuilder().enableComplexMapKeySerialization().create();
+    private static Type gtype = new TypeToken<Map<String, Object>>(){}.getType();
 
-    /**
-     * Level names should correspond to iOS values.
-     * The ordinal values are not shared and are used for priority ordering
-     */
-    enum LogLevel {
+    static LogLevel logLevel = LogLevel.INFO;
+    static LogReporting instance = new LogReporting() {};
 
-        NONE(0),        // All logging disabled, not advised
-        ERROR(1),       // App and system errors
-        WARN(2),        // Errors and app warnings
-        INFO(3),        // Useful app messages
-        DEBUG(4),       // Messaging to assist static analysis
-        VERBOSE(5);     // When too much is just not enough
+    public static LogReporting getLogger() {
+        return instance;
+    }
 
-        final int value;
-        static final LogLevel levels[] = values();
+    public static LogReporting setLogger(LogReporting logger) {
+        LogReporting.instance = logger;
+        return LogReporting.instance;
+    }
 
-        LogLevel(final int value) {
-            this.value = value;
-        }
+    static LogLevel getLogLevel() {
+        return logLevel;
     }
 
     /**
-     * Writes a message to the log using the provided log level
+     * Return ordinal value of log level
+     *
+     * @return LogLevel enum
+     */
+    static int getLogLevelAsInt() {
+        return logLevel.ordinal();
+    }
+
+    /**
+     * Set log level by name
+     *
+     * @param logLevelAsString
+     */
+    public static void setLogLevel(String logLevelAsString) {
+        setLogLevel(LogLevel.valueOf(logLevelAsString.toUpperCase()));
+    }
+
+    /**
+     * Set log level by ordinal value
+     *
+     * @param logLevelAsValue
+     */
+    static void setLogLevel(int logLevelAsValue) {
+        logLevel = LogLevel.levels[logLevelAsValue];
+    }
+
+    /**
+     * Set log level by enum
+     *
+     * @param level
+     */
+    public static void setLogLevel(LogLevel level) {
+        logLevel = level;
+    }
+
+    public static boolean isLevelEnabled(LogLevel level) {
+        return logLevel.value >= level.value;
+    }
+
+    public boolean isRemoteLoggingEnabled() {
+        return FeatureFlag.featureEnabled(FeatureFlag.LogReporting) &&
+                getLogLevel() != LogLevel.NONE;
+    }
+
+    /**
+     * Writes a message to the agent log using the provided log level
      */
 
-    static void notice(LogLevel level, String message) {
+    public void log(LogLevel level, String message) {
         if (isLevelEnabled(level)) {
-            // TODO
+            final AgentLog agentLog = AgentLogManager.getAgentLog();
+
+            switch (level) {
+                case ERROR:
+                    agentLog.error(message);
+                    break;
+                case WARN:
+                    agentLog.warn(message);
+                    break;
+                case INFO:
+                    agentLog.info(message);
+                    break;
+                case VERBOSE:
+                    agentLog.verbose(message);
+                    break;
+                case DEBUG:
+                    agentLog.debug(message);
+                    break;
+            }
         }
     }
 
-    // TODO
-    static boolean isLevelEnabled(LogLevel level) {
-        return true;
+    public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
+        log(logLevel, message + ": " + throwable.getLocalizedMessage());
     }
 
-    // TODO
-    static int getLogLevel() {
-        return 0;
+    public void logAttributes(Map<String, Object> attributes) {
+        Map<String, Object> msgAttributes = getDefaultAttributes();
+        String level = (String) attributes.getOrDefault("level", "NONE");
+        log(LogLevel.valueOf(level.toUpperCase()), gson.toJson(msgAttributes, gtype));
     }
 
-    // TODO
-    static void setLogLevel(int level) {
+    public void logAll(Throwable throwable, Map<String, Object> attributes) {
+        String level = (String) attributes.getOrDefault("level", "NONE");
+        Map<String, Object> msgAttributes = new HashMap<>() {{
+            put("level", level.toUpperCase());
+            putAll(getDefaultAttributes());
+            if (throwable != null) {
+                put("error.message", throwable.getLocalizedMessage());
+                put("error.stack", throwable.getStackTrace()[0].toString());
+                put("error.class", throwable.getClass().getSimpleName());
+            }
+            putAll(attributes);
+        }};
+        log(LogLevel.valueOf(level.toUpperCase()), gson.toJson(msgAttributes, gtype));
     }
+
+    /**
+     *  WIP: return the collection of NR default attributes to add to log request
+     * @return
+     */
+    Map<String, Object> getDefaultAttributes() {
+        return new HashMap<>() {{
+            put("timestamp", System.currentTimeMillis());
+            put("entity-id", "** FIXME **");
+        }};
+    }
+
 }

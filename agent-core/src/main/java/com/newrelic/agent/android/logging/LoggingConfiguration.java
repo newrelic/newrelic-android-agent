@@ -15,13 +15,13 @@ public class LoggingConfiguration {
     boolean enabled = false;
 
     @SerializedName("level")
-    LogReporting.LogLevel level;
+    LogLevel level;
 
     public LoggingConfiguration() {
-        this(false, LogReporting.LogLevel.NONE);
+        this(false, LogLevel.NONE);
     }
 
-    public LoggingConfiguration(boolean enabled, LogReporting.LogLevel level) {
+    public LoggingConfiguration(boolean enabled, LogLevel level) {
         this.enabled = enabled;
         this.level = level;
     }
@@ -59,7 +59,7 @@ public class LoggingConfiguration {
      *
      * @return
      */
-    public LogReporting.LogLevel getLogLevel() {
+    public LogLevel getLogLevel() {
         return level;
     }
 
@@ -68,7 +68,7 @@ public class LoggingConfiguration {
      *
      * @param level
      */
-    public void setLogLevel(LogReporting.LogLevel level) {
+    public void setLogLevel(LogLevel level) {
         this.level = level;
     }
 

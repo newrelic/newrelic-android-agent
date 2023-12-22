@@ -8,7 +8,7 @@ package com.newrelic.agent.android.harvest;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
-import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -65,7 +65,7 @@ public class HarvesterTest {
 
         Assert.assertNotNull(harvestConfig.getLog_reporting());
         Assert.assertTrue(harvestConfig.getLog_reporting().getLoggingEnabled());
-        Assert.assertEquals(LogReporting.LogLevel.VERBOSE, harvestConfig.getLog_reporting().getLogLevel());
+        Assert.assertEquals(LogLevel.VERBOSE, harvestConfig.getLog_reporting().getLogLevel());
         Assert.assertEquals(30, harvestConfig.getLog_reporting().getHarvestPeriod());
         Assert.assertEquals(3600, harvestConfig.getLog_reporting().getExpirationPeriod());
     }
@@ -182,13 +182,13 @@ public class HarvesterTest {
     public void testUpdateAgentConfigOnHarvestConfigUpdate() {
         LogReportingConfiguration preValue = harvester.getAgentConfiguration().getLogReportingConfiguration();
         Assert.assertFalse(preValue.getLoggingEnabled());
-        Assert.assertEquals(LogReporting.LogLevel.NONE, preValue.getLogLevel());
+        Assert.assertEquals(LogLevel.NONE, preValue.getLogLevel());
 
         testReconnectAndUploadOnHarvestConfigurationUpdated();
 
         LogReportingConfiguration postValue = harvester.getAgentConfiguration().getLogReportingConfiguration();
         Assert.assertFalse(postValue.toString().equals(preValue.toString()));
         Assert.assertTrue(postValue.getLoggingEnabled());
-        Assert.assertEquals(LogReporting.LogLevel.VERBOSE, postValue.getLogLevel());
+        Assert.assertEquals(LogLevel.VERBOSE, postValue.getLogLevel());
     }
 }

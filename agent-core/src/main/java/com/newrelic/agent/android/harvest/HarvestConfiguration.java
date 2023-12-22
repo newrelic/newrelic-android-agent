@@ -8,6 +8,7 @@ package com.newrelic.agent.android.harvest;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
+import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 
@@ -100,7 +101,7 @@ public class HarvestConfiguration {
         setApplication_id(DEFAULT_APP_ID);
         setTrusted_account_key(DEFAULT_TRUSTED_ACCOUNT_KEY);
         setEntity_guid(NO_VALUE);
-        setLog_reporting(new LogReportingConfiguration(false, LogReporting.LogLevel.NONE));
+        setLog_reporting(new LogReportingConfiguration(false, LogLevel.NONE));
     }
 
     public static HarvestConfiguration getDefaultHarvestConfiguration() {

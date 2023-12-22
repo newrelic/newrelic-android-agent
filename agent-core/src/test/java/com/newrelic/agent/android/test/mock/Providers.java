@@ -31,6 +31,7 @@ import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.MachineMeasurements;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
+import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -374,7 +375,7 @@ public class Providers {
     }
 
     public static LogReportingConfiguration provideLogReportingConfiguration() {
-        final LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogReporting.LogLevel.NONE);
+        final LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.NONE);
         return logReportingConfiguration;
     }
 

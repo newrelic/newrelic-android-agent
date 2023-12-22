@@ -35,7 +35,7 @@ import com.newrelic.agent.android.harvest.HttpTransactions;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
-import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -1025,14 +1025,14 @@ public class NewRelicTest {
 
         // for testing:
         Assert.assertFalse("Remote logging is disabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
-        Assert.assertEquals("Remote logging level is NONE", LogReporting.LogLevel.NONE, agentConfiguration.getLogReportingConfiguration().getLogLevel());
+        Assert.assertEquals("Remote logging level is NONE", LogLevel.NONE, agentConfiguration.getLogReportingConfiguration().getLogLevel());
 
         nrInstance.withLoggingEnabled(true)
                 .withLogLevel(AgentLog.DEBUG)
                 .start(spyContext.getContext());
 
         Assert.assertTrue("Remote logging is now enabled", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
-        Assert.assertEquals("Remote logging level is updated", LogReporting.LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
+        Assert.assertEquals("Remote logging level is updated", LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
     }
 
     private static class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {
