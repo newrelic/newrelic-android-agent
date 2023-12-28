@@ -61,6 +61,7 @@ import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
 import com.newrelic.agent.android.util.Connectivity;
 import com.newrelic.agent.android.util.Encoder;
+import com.newrelic.agent.android.util.OfflineStorage;
 import com.newrelic.agent.android.util.PersistentUUID;
 import com.newrelic.agent.android.util.Reachability;
 import com.newrelic.agent.android.util.UiBackgroundListener;
@@ -71,6 +72,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -491,13 +493,13 @@ public class AndroidAgentImpl implements
         final EventManager eventManager = analyticsController.getEventManager();
 
         if (!NewRelic.isShutdown) {
-        // Emit a supportability metric that records the number of events recorded versus ejected
-        // during this session
-        int eventsRecorded = eventManager.getEventsRecorded();
-        int eventsEjected = eventManager.getEventsEjected();
+            // Emit a supportability metric that records the number of events recorded versus ejected
+            // during this session
+            int eventsRecorded = eventManager.getEventsRecorded();
+            int eventsEjected = eventManager.getEventsEjected();
 
-        Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
-                eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
+            Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
+                    eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
         }
 
         if (finalSendData) {
@@ -792,4 +794,13 @@ public class AndroidAgentImpl implements
         return InstantApps.isInstantApp(context);
     }
 
+    @Override
+    public void persistDataToDisk(String data) {
+        OfflineStorage.persistDataToDisk(data);
+    }
+
+    @Override
+    public Map<String, String> getAllOfflineData() {
+        return OfflineStorage.getAllOfflineData();
+    }
 }

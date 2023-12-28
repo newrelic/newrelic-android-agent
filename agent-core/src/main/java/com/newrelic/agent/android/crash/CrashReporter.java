@@ -106,7 +106,12 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                     log.info("CrashReporter: Crash [" + crash.getUuid().toString() + "] has become stale, and has been removed");
                     StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_REMOVED_STALE);
                 } else {
-                    reportCrash(crash);
+                    if (Agent.hasReachableNetworkConnection(null)) {
+                        reportCrash(crash);
+                    } else {
+                        //Offline storage: No network at all, don't send back data
+                        log.info("CrashReporter: Crashes report didn't send due to lack of network connectivity.");
+                    }
                 }
             }
         }
@@ -135,6 +140,9 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                                         .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
                                         .replace(MetricNames.TAG_SUBDESTINATION, "mobile_crash");
                                 StatsEngine.get().sampleMetricDataUsage(name, crash.asJsonObject().toString().getBytes().length, 0);
+                            } else {
+                                //Offline storage: No network at all, don't send back data
+                                log.info("CrashReporter didn't send due to lack of network connection");
                             }
                         }
 
@@ -181,7 +189,12 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
         try {
             // hand off crash to PayloadController
             if (jitCrashReporting) {
-                reportCrash(crash);
+                if (Agent.hasReachableNetworkConnection(null)) {
+                    reportCrash(crash);
+                } else {
+                    //Offline storage: No network at all, don't send back data
+                    log.info("CrashReporter: Crashes report didn't send due to lack of network connectivity.");
+                }
             } else if (stored) {
                 log.debug("CrashReporter: Crash has been recorded and will be uploaded during the next app launch.");
             } else {
