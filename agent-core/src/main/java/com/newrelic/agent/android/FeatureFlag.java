@@ -21,7 +21,8 @@ public enum FeatureFlag {
     NativeReporting,
     AppStartMetrics,
     FedRampEnabled,
-    Jetpack;
+    Jetpack,
+    OfflineStorage;
 
     public static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
 
@@ -55,5 +56,6 @@ public enum FeatureFlag {
         enableFeature(HandledExceptions);
         enableFeature(DistributedTracing);
         enableFeature(AppStartMetrics);
+        enableFeature(OfflineStorage);
     }
 }

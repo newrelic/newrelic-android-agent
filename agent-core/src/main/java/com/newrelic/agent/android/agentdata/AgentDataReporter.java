@@ -64,13 +64,18 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
         if (isInitialized()) {
             if (reportExceptions) {
                 Payload payload = new Payload(bytes);
-                if (Agent.hasReachableNetworkConnection(null)) {
+                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                    if (Agent.hasReachableNetworkConnection(null)) {
+                        instance.get().storeAndReportAgentData(payload);
+                        reported = true;
+                    } else {
+                        reported = false;
+                        //Offline storage: No network at all, don't send back data
+                        log.info("AgentDataReporter didn't send due to lack of network connection");
+                    }
+                } else {
                     instance.get().storeAndReportAgentData(payload);
                     reported = true;
-                } else {
-                    reported = false;
-                    //Offline storage: No network at all, don't send back data
-                    log.info("AgentDataReporter didn't send due to lack of network connection");
                 }
             }
         } else {
@@ -116,11 +121,15 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
             if (payloadStore != null) {
                 for (Payload payload : payloadStore.fetchAll()) {
                     if (!isPayloadStale(payload)) {
-                        if (Agent.hasReachableNetworkConnection(null)) {
-                            reportAgentData(payload);
+                        if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                            if (Agent.hasReachableNetworkConnection(null)) {
+                                reportAgentData(payload);
+                            } else {
+                                //Offline storage: No network at all, don't send back data
+                                log.info("AgentDataReporter didn't send due to lack of network connection");
+                            }
                         } else {
-                            //Offline storage: No network at all, don't send back data
-                            log.info("AgentDataReporter didn't send due to lack of network connection");
+                            reportAgentData(payload);
                         }
                     }
                 }
@@ -150,7 +159,9 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
                 } else {
                     // sender will remain in store and retry every harvest cycle
                     //Offline storage: No network at all, don't send back data
-                    log.info("AgentDataReporter didn't send due to lack of network connection");
+                    if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                        log.info("AgentDataReporter didn't send due to lack of network connection");
+                    }
                 }
             }
 

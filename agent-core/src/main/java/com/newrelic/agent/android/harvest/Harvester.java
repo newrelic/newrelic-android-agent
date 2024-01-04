@@ -10,6 +10,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
@@ -289,13 +290,15 @@ public class Harvester {
             return;
         } else {
             //Offline Storage
-            Map<String, String> harvestDataObjects = Agent.getAllOfflineData();
-            for (Map.Entry<String, String> entry : harvestDataObjects.entrySet()) {
-                HarvestData harvestData = new Gson().fromJson(entry.getValue(), HarvestData.class);
-                HarvestResponse eachResponse = harvestConnection.sendData(harvestData);
-                if (eachResponse.isOK()) {
-                    File file = new File(entry.getKey());
-                    file.deleteOnExit();
+            if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                Map<String, String> harvestDataObjects = Agent.getAllOfflineData();
+                for (Map.Entry<String, String> entry : harvestDataObjects.entrySet()) {
+                    HarvestData harvestData = new Gson().fromJson(entry.getValue(), HarvestData.class);
+                    HarvestResponse eachResponse = harvestConnection.sendData(harvestData);
+                    if (eachResponse.isOK()) {
+                        File file = new File(entry.getKey());
+                        file.deleteOnExit();
+                    }
                 }
             }
         }
@@ -725,6 +728,10 @@ public class Harvester {
 
     public void checkOfflineAndPersist() {
         try {
+            if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                return;
+            }
+
             //Offline Storage
             Set<AnalyticsAttribute> sessionAttributes = harvestData.getSessionAttributes();
             AnalyticsAttribute offlineAttributes = new AnalyticsAttribute("offline", true);

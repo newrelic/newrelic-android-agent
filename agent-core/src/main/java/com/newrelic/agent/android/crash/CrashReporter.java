@@ -106,11 +106,15 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                     log.info("CrashReporter: Crash [" + crash.getUuid().toString() + "] has become stale, and has been removed");
                     StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_REMOVED_STALE);
                 } else {
-                    if (Agent.hasReachableNetworkConnection(null)) {
-                        reportCrash(crash);
+                    if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                        if (Agent.hasReachableNetworkConnection(null)) {
+                            reportCrash(crash);
+                        } else {
+                            //Offline storage: No network at all, don't send back data
+                            log.info("CrashReporter: Crashes report didn't send due to lack of network connectivity.");
+                        }
                     } else {
-                        //Offline storage: No network at all, don't send back data
-                        log.info("CrashReporter: Crashes report didn't send due to lack of network connectivity.");
+                        reportCrash(crash);
                     }
                 }
             }
@@ -142,7 +146,9 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                                 StatsEngine.get().sampleMetricDataUsage(name, crash.asJsonObject().toString().getBytes().length, 0);
                             } else {
                                 //Offline storage: No network at all, don't send back data
-                                log.info("CrashReporter didn't send due to lack of network connection");
+                                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                                    log.info("CrashReporter didn't send due to lack of network connection");
+                                }
                             }
                         }
 
@@ -189,11 +195,15 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
         try {
             // hand off crash to PayloadController
             if (jitCrashReporting) {
-                if (Agent.hasReachableNetworkConnection(null)) {
-                    reportCrash(crash);
+                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                    if (Agent.hasReachableNetworkConnection(null)) {
+                        reportCrash(crash);
+                    } else {
+                        //Offline storage: No network at all, don't send back data
+                        log.info("CrashReporter: Crashes report didn't send due to lack of network connectivity.");
+                    }
                 } else {
-                    //Offline storage: No network at all, don't send back data
-                    log.info("CrashReporter: Crashes report didn't send due to lack of network connectivity.");
+                    reportCrash(crash);
                 }
             } else if (stored) {
                 log.debug("CrashReporter: Crash has been recorded and will be uploaded during the next app launch.");
