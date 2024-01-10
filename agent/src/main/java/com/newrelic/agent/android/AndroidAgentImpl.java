@@ -100,6 +100,7 @@ public class AndroidAgentImpl implements
 
     // Producers and consumers that are tightly coupled to Android implementations
     private MachineMeasurementConsumer machineMeasurementConsumer;
+    private OfflineStorage offlineStorageInstance;
 
     public AndroidAgentImpl(final Context context, final AgentConfiguration agentConfiguration) throws AgentInitializationException {
         // We want an Application context, not an Activity context.
@@ -120,6 +121,7 @@ public class AndroidAgentImpl implements
         agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
+        offlineStorageInstance = new OfflineStorage(context);
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
 
@@ -796,11 +798,11 @@ public class AndroidAgentImpl implements
 
     @Override
     public void persistDataToDisk(String data) {
-        OfflineStorage.persistDataToDisk(data);
+        offlineStorageInstance.persistDataToDisk(data);
     }
 
     @Override
     public Map<String, String> getAllOfflineData() {
-        return OfflineStorage.getAllOfflineData();
+        return offlineStorageInstance.getAllOfflineData();
     }
 }
