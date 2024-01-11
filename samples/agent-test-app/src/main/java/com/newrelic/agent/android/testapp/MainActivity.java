@@ -63,6 +63,8 @@ public class MainActivity extends AppCompatActivity
 
         // Add NewRelic
         NewRelic.enableFeature(FeatureFlag.NativeReporting);
+        NewRelic.enableFeature(FeatureFlag.LogReporting);
+
         NewRelic.withApplicationToken("<APP-ID>")    // ## Provide application ID to test map uploads
                 .withLogLevel(AgentLog.DEBUG)
                 .withLaunchActivityName("agent-test-app")

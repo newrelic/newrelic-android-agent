@@ -16,12 +16,14 @@ import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
-import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.hybrid.StackTrace;
 import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.AndroidRemoteLogger;
+import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.NullAgentLog;
 import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -32,6 +34,7 @@ import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -58,6 +61,8 @@ public final class NewRelic {
 
     protected boolean loggingEnabled = true;
     protected int logLevel = AgentLog.INFO;
+
+    protected static AndroidRemoteLogger remoteLogger = new AndroidRemoteLogger();
 
     protected NewRelic(String token) {
         agentConfiguration.setApplicationToken(token);
@@ -281,8 +286,15 @@ public final class NewRelic {
             return;
         }
         try {
-            AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
-            log.setLevel(logLevel);
+            if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+                File agentLogFile = new File(context.getFilesDir(), "newrelic/logreporting-" + System.currentTimeMillis() + ".log");
+                remoteLogger.setAgentLogFilePath(agentLogFile.getPath());
+                LogReporting.setLogger(remoteLogger);
+                //TODO: extra configuration
+            } else {
+                AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
+                log.setLevel(logLevel);
+            }
 
             boolean instantApp = InstantApps.isInstantApp(context);
 
@@ -603,7 +615,7 @@ public final class NewRelic {
      *
      * @param attributes
      */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static void noticeNetworkFailure(Map<String, Object> attributes) {
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -1061,8 +1073,117 @@ public final class NewRelic {
         return DataController.sendAgentData(stackTrace);
     }
 
-
-    public static boolean  addHTTPHeadersTrackingFor(List<String> headers) {
+    /**
+     * Adds set of names to network request header instrumentation
+     *
+     * @param headers
+     * @return true
+     */
+    public static boolean addHTTPHeadersTrackingFor(List<String> headers) {
         return HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);
+    }
+
+
+    /**
+     * Remote Logging API
+     */
+    public static void logInfo(String message) {
+        remoteLogger.info(message);
+    }
+
+    public static void logWarning(String message) {
+        remoteLogger.warn(message);
+    }
+
+    public static void logDebug(String message) {
+        remoteLogger.debug(message);
+    }
+
+    public static void logVerbose(String message) {
+        remoteLogger.verbose(message);
+    }
+
+    public static void logError(String message) {
+        remoteLogger.error(message);
+    }
+
+    /**
+     * Remote Logging API
+     *
+     * @param logLevel defined in LogLevel as enum
+     * @param message  log message
+     */
+    public static void log(LogLevel logLevel, String message) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, logLevel.name()));
+
+        if (LogReporting.isLevelEnabled(logLevel)) {
+            remoteLogger.log(logLevel, message);
+        }
+    }
+
+    /**
+     * Log a Json-encoded log message constructed from a passed message and Throwable
+     *
+     * @param logLevel  Log level as enum
+     * @param message   log message
+     * @param throwable Throwable class instance
+     */
+    public static void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "logThrowable/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, logLevel.name()));
+
+        if (LogReporting.isLevelEnabled(logLevel)) {
+            remoteLogger.logThrowable(logLevel, message, throwable);
+        }
+    }
+
+    /**
+     * Log a Json-encoded log message constructed from a passed attribute map
+     * The attribute keys should not override NR reserved attribute names,
+     * defined [here](https://source.datanerd.us/agents/agent-specs/blob/main/Application-Logging.md#log-record-attributes)
+     *
+     * @param attributes A map of key-value pairs containing optional exception attributes.
+     *                   The values must be of type String, Double, or Boolean.
+     *                   {"logLevel": xxx, //set a default value if not provided
+     *                   "message": xxx, //optional
+     *                   }
+     */
+    public static void logAttributes(Map<String, Object> attributes) {
+        final String level = String.valueOf(attributes.getOrDefault("level", LogLevel.NONE.toString()));
+        final LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
+
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "logAttributes/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, logLevel.name()));
+
+        if (LogReporting.isLevelEnabled(LogLevel.valueOf(level.toUpperCase()))) {
+            remoteLogger.logAttributes(attributes);
+        }
+    }
+
+    /**
+     * Log a Json-encoded log message constructed from a passed throwable and attribute map
+     *
+     * @param throwable  Throwable class instance
+     * @param attributes A map of key-value pairs containing optional exception attributes.
+     *                   The values must be of type String, Double, or Boolean.
+     *                   {"logLevel": xxx, //set a default value if not provided
+     *                   "message": xxx, //optional
+     *                   }
+     */
+    public static void logAll(Throwable throwable, Map<String, Object> attributes) {
+        final String level = String.valueOf(attributes.getOrDefault("level", LogLevel.NONE.toString()));
+        final LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
+
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "logAll/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, logLevel.name()));
+
+        if (LogReporting.isLevelEnabled(logLevel)) {
+            remoteLogger.logAll(throwable, attributes);
+        }
     }
 }

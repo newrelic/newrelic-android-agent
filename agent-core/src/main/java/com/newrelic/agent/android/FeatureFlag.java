@@ -21,7 +21,8 @@ public enum FeatureFlag {
     NativeReporting,
     AppStartMetrics,
     FedRampEnabled,
-    Jetpack;
+    Jetpack,
+    LogReporting;
 
     public static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
 
