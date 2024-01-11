@@ -32,7 +32,6 @@ import com.newrelic.agent.android.harvest.MachineMeasurements;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
 import com.newrelic.agent.android.logging.LogLevel;
-import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;

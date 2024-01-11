@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 public class HarvestConfiguration {
     private final static String NO_VALUE = "";
 
-    private final static int DEFAULT_ACTIVITY_TRACE_LENGTH = (64 * 1024) - 2; //bytes
+    private final static int DEFAULT_ACTIVITY_TRACE_LENGTH = (64 * 1024) - 1;   // bytes
     private final static int DEFAULT_ACTIVITY_TRACE_MAX_REPORT_ATTEMPTS = 1;
     private final static int DEFAULT_REPORT_PERIOD = 60; // seconds
     private final static int DEFAULT_ERROR_LIMIT = 50; // errors
