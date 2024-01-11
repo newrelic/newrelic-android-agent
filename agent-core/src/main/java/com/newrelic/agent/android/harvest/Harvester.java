@@ -293,11 +293,10 @@ public class Harvester {
             if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                 Map<String, String> harvestDataObjects = Agent.getAllOfflineData();
                 for (Map.Entry<String, String> entry : harvestDataObjects.entrySet()) {
-                    HarvestData harvestData = new Gson().fromJson(entry.getValue(), HarvestData.class);
-                    HarvestResponse eachResponse = harvestConnection.sendData(harvestData);
+                    HarvestResponse eachResponse = harvestConnection.sendData(entry.getValue());
                     if (eachResponse.isOK()) {
                         File file = new File(entry.getKey());
-                        file.deleteOnExit();
+                        file.delete();
                     }
                 }
             }
@@ -728,14 +727,16 @@ public class Harvester {
 
     public void checkOfflineAndPersist() {
         try {
-            if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+            if (!FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                 return;
             }
 
             //Offline Storage
             Set<AnalyticsAttribute> sessionAttributes = harvestData.getSessionAttributes();
-            AnalyticsAttribute offlineAttributes = new AnalyticsAttribute("offline", true);
-            sessionAttributes.add(offlineAttributes);
+            if (sessionAttributes.size() > 0) {
+                AnalyticsAttribute offlineAttributes = new AnalyticsAttribute("offline", true);
+                sessionAttributes.add(offlineAttributes);
+            }
             harvestData.setSessionAttributes(sessionAttributes);
             Agent.persistDataToDisk(harvestData.toJsonString());
             harvestData.reset();

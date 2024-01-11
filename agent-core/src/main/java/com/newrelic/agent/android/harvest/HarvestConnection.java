@@ -187,6 +187,7 @@ public class HarvestConnection implements HarvestErrorCodes {
     /**
      * Perform a {@code data} service call to the collector and return its {@link HarvestResponse}.
      *
+     * @param harvestable as Harvestable
      * @return The {@link HarvestResponse} from the collector {@code data} call.
      */
     public HarvestResponse sendData(Harvestable harvestable) {
@@ -199,6 +200,24 @@ public class HarvestConnection implements HarvestErrorCodes {
             return null;
         }
         return send(dataPost, harvestable.toJsonString());
+    }
+
+    /**
+     * Perform a {@code data} service call to the collector and return its {@link HarvestResponse}.
+     *
+     * @param harvestable as string
+     * @return The {@link HarvestResponse} from the collector {@code data} call.
+     */
+    public HarvestResponse sendData(String harvestable) {
+        if (harvestable == null)
+            throw new IllegalArgumentException();
+
+        HttpURLConnection dataPost = createDataPost();
+        if (dataPost == null) {
+            log.error("Failed to create data POST");
+            return null;
+        }
+        return send(dataPost, harvestable);
     }
 
     /**
