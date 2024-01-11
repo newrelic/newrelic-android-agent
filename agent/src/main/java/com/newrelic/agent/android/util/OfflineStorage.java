@@ -114,7 +114,7 @@ public class OfflineStorage {
             File[] files = offlineStorage.listFiles();
             if (files.length > 0) {
                 for (int i = 0; i < files.length; i++) {
-                    files[i].deleteOnExit();
+                    files[i].delete();
                 }
             }
         } catch (Exception e) {
