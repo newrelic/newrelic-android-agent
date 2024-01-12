@@ -39,6 +39,7 @@ import com.newrelic.agent.android.logging.AndroidRemoteLogger;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -172,6 +173,7 @@ public class NewRelicTest {
         NewRelic.remoteLogger = Mockito.spy(new AndroidRemoteLogger());
 
         LogReporting.setLogLevel(LogLevel.VERBOSE);
+        agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(false, LogLevel.NONE));
     }
 
     @After
