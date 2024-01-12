@@ -21,9 +21,10 @@ import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
-import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.AndroidRemoteLogger;
+import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.NullAgentLog;
 import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -103,6 +104,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, Boolean.toString(enabled)));
 
         this.loggingEnabled = enabled;
+
         return this;
     }
 
@@ -122,6 +124,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, Integer.toString(level)));
 
         logLevel = level;
+
         return this;
     }
 
@@ -177,6 +180,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, Boolean.toString(enabled)));
 
         agentConfiguration.setReportCrashes(enabled);
+
         return this;
     }
 
@@ -285,6 +289,35 @@ public final class NewRelic {
             log.debug("NewRelic is already running.");
             return;
         }
+
+        // For testing: set the log reporting to the same values used for agent logging
+        if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+            LogLevel level = LogLevel.NONE;
+
+            // translate the agent log level to LogReporting equivalent
+            switch (logLevel) {
+                case AgentLog.ERROR:
+                    level = LogLevel.ERROR;
+                    break;
+                case AgentLog.WARN:
+                    level = LogLevel.WARN;
+                    break;
+                case AgentLog.INFO:
+                    level = LogLevel.INFO;
+                    break;
+                case AgentLog.VERBOSE:
+                    level = LogLevel.VERBOSE;
+                    break;
+                case AgentLog.DEBUG:
+                case AgentLog.AUDIT:
+                    level = LogLevel.DEBUG;
+                    break;
+                default:
+                    break;
+            }
+            agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(loggingEnabled, level));
+        }
+
         try {
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
                 File agentLogFile = new File(context.getFilesDir(), "newrelic/logreporting-" + System.currentTimeMillis() + ".log");
@@ -1074,10 +1107,16 @@ public final class NewRelic {
     }
 
     /**
+<<<<<<< HEAD
      * Adds set of names to network request header instrumentation
      *
      * @param headers
      * @return true
+=======
+     * Adds a set of request header instrumentation targets
+     *
+     * @param headers
+>>>>>>> feature/nr169916-loggingConfiguration
      */
     public static boolean addHTTPHeadersTrackingFor(List<String> headers) {
         return HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);

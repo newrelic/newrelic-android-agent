@@ -119,6 +119,10 @@ public class NewRelicTest {
     @Before
     public void setUp() {
         spyContext = new SpyContext();
+
+        NewRelic.started = false;
+        NewRelic.isShutdown = false;
+
         nrInstance = NewRelic.withApplicationToken(APP_TOKEN).withLogLevel(AgentLog.DEBUG);
         Assert.assertNotNull(nrInstance);
 
@@ -1023,9 +1027,21 @@ public class NewRelicTest {
 
     @Test
     public void testLogReportingFeature() {
-        Assert.assertFalse(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+        Assert.assertFalse("Remote logging is disabled by default", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+
+        // for testing:
+        Assert.assertFalse("Remote logging is disabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals("Remote logging level is NONE", LogLevel.NONE, agentConfiguration.getLogReportingConfiguration().getLogLevel());
+
+        nrInstance.withLoggingEnabled(true)
+                .withLogLevel(AgentLog.DEBUG)
+                .start(spyContext.getContext());
+
+        Assert.assertTrue("Remote logging is now enabled", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals("Remote logging level is updated", LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
     }
 
     @Test
