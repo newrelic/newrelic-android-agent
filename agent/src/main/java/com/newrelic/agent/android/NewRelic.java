@@ -1107,16 +1107,12 @@ public final class NewRelic {
     }
 
     /**
-<<<<<<< HEAD
      * Adds set of names to network request header instrumentation
      *
      * @param headers
-     * @return true
-=======
-     * Adds a set of request header instrumentation targets
-     *
      * @param headers
->>>>>>> feature/nr169916-loggingConfiguration
+     * @return true
+     * Adds a set of request header instrumentation targets
      */
     public static boolean addHTTPHeadersTrackingFor(List<String> headers) {
         return HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);
@@ -1224,5 +1220,17 @@ public final class NewRelic {
         if (LogReporting.isLevelEnabled(logLevel)) {
             remoteLogger.logAll(throwable, attributes);
         }
+    }
+
+    /**
+     * Alternative way to pass in guid from the client side
+     *
+     * @param guid
+     */
+    public static void setEntityGuid(String guid) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setEntityGuid"));
+
+        LogReporting.setEntityGuid(guid);
     }
 }
