@@ -6,20 +6,22 @@
 
 package com.newrelic.agent.android.logging;
 
-import org.junit.Before;
+import org.junit.Assert;
 import org.junit.Test;
 
 public class AgentLogManagerTest {
 
-    @Before
-    public void setUp() throws Exception {
+    @Test
+    public void testGetAgentLog() {
+        Assert.assertNotNull(AgentLogManager.getAgentLog());
     }
 
     @Test
-    public void getAgentLog() {
-    }
+    public void testSetAgentLog() {
+        AgentLogManager.setAgentLog(null);
+        Assert.assertNotNull(AgentLogManager.getAgentLog());
 
-    @Test
-    public void setAgentLog() {
+        AgentLogManager.setAgentLog(new DefaultAgentLog());
+        Assert.assertTrue(AgentLogManager.getAgentLog() instanceof DefaultAgentLog);
     }
 }
