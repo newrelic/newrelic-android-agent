@@ -25,7 +25,7 @@ public abstract class LogReporting {
     static LogLevel logLevel = LogLevel.INFO;
     static LogReporting instance = new LogReporting() {};
 
-    public static String entityGuid = "";
+    private static String entityGuid = "";
 
     public static LogReporting getLogger() {
         return instance;

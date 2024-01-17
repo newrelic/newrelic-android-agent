@@ -1107,12 +1107,10 @@ public final class NewRelic {
     }
 
     /**
-     * Adds set of names to network request header instrumentation
+     * Adds a set of request header instrumentation targets
      *
      * @param headers
-     * @param headers
      * @return true
-     * Adds a set of request header instrumentation targets
      */
     public static boolean addHTTPHeadersTrackingFor(List<String> headers) {
         return HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);
