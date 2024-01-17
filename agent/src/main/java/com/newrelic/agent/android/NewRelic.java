@@ -1107,7 +1107,7 @@ public final class NewRelic {
     }
 
     /**
-     * Adds set of names to network request header instrumentation
+     * Adds a set of request header instrumentation targets
      *
      * @param headers
      * @return true
@@ -1218,5 +1218,17 @@ public final class NewRelic {
         if (LogReporting.isLevelEnabled(logLevel)) {
             remoteLogger.logAll(throwable, attributes);
         }
+    }
+
+    /**
+     * Alternative way to pass in guid from the client side
+     *
+     * @param guid
+     */
+    public static void setEntityGuid(String guid) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setEntityGuid"));
+
+        LogReporting.setEntityGuid(guid);
     }
 }

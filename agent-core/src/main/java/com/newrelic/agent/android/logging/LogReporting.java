@@ -25,6 +25,8 @@ public abstract class LogReporting {
     static LogLevel logLevel = LogLevel.INFO;
     static LogReporting instance = new LogReporting() {};
 
+    private static String entityGuid = "";
+
     public static LogReporting getLogger() {
         return instance;
     }
@@ -134,6 +136,14 @@ public abstract class LogReporting {
             putAll(attributes);
         }};
         log(LogLevel.valueOf(level.toUpperCase()), gson.toJson(msgAttributes, gtype));
+    }
+
+    public static String getEntityGuid() {
+        return entityGuid;
+    }
+
+    public static void setEntityGuid(String entityGuid) {
+        LogReporting.entityGuid = entityGuid;
     }
 
     /**

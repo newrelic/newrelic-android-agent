@@ -100,7 +100,7 @@ public class HarvestConfiguration {
         setAccount_id(DEFAULT_ACCOUNT_ID);
         setApplication_id(DEFAULT_APP_ID);
         setTrusted_account_key(DEFAULT_TRUSTED_ACCOUNT_KEY);
-        setEntity_guid(NO_VALUE);
+        setEntity_guid(LogReporting.getEntityGuid());
         setLog_reporting(new LogReportingConfiguration(false, LogLevel.NONE));
     }
 
