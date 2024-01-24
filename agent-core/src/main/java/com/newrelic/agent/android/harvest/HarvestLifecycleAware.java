@@ -7,29 +7,27 @@ package com.newrelic.agent.android.harvest;
 
 public interface HarvestLifecycleAware {
 
-    void onHarvestStart();
+    default void onHarvestStart() {}
 
-    void onHarvestStop();
+    default void onHarvestStop() {}
 
-    void onHarvestBefore();
+    default void onHarvestBefore() {}
 
-    void onHarvest();
+    default void onHarvest() {}
 
-    void onHarvestFinalize();
+    default void onHarvestFinalize() {}
 
-    void onHarvestError();
+    default void onHarvestError() {}
 
-    void onHarvestSendFailed();
+    default void onHarvestSendFailed() {}
 
-    void onHarvestComplete();
+    default void onHarvestComplete() {}
 
-    void onHarvestConnected();
+    default void onHarvestConnected() {}
 
-    void onHarvestDisconnected();
+    default void onHarvestDisconnected() {}
 
-    void onHarvestDisabled();
+    default void onHarvestDisabled() {}
 
-    default void onHarvestConfigurationChanged() {
-
-    }
+    default void onHarvestConfigurationChanged() {}
 }
