@@ -22,6 +22,7 @@ import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
 import com.newrelic.agent.android.logging.AndroidRemoteLogger;
+import com.newrelic.agent.android.logging.LogForwarding;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
@@ -320,10 +321,9 @@ public final class NewRelic {
 
         try {
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-                File agentLogFile = new File(context.getFilesDir(), "newrelic/logreporting-" + System.currentTimeMillis() + ".log");
-                remoteLogger.setAgentLogFilePath(agentLogFile.getPath());
+                LogForwarding.initialize(context.getFilesDir(), agentConfiguration);
                 LogReporting.setLogger(remoteLogger);
-                //TODO: extra configuration
+
             } else {
                 AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
                 log.setLevel(logLevel);
@@ -1121,23 +1121,43 @@ public final class NewRelic {
      * Remote Logging API
      */
     public static void logInfo(String message) {
-        remoteLogger.info(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.INFO.name()));
+
+        remoteLogger.log(LogLevel.INFO, message);
     }
 
     public static void logWarning(String message) {
-        remoteLogger.warn(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.WARN.name()));
+
+        remoteLogger.log(LogLevel.WARN, message);
     }
 
     public static void logDebug(String message) {
-        remoteLogger.debug(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name()));
+
+        remoteLogger.log(LogLevel.DEBUG, message);
     }
 
     public static void logVerbose(String message) {
-        remoteLogger.verbose(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.VERBOSE.name()));
+
+        remoteLogger.log(LogLevel.VERBOSE, message);
     }
 
     public static void logError(String message) {
-        remoteLogger.error(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name()));
+
+        remoteLogger.log(LogLevel.ERROR, message);
     }
 
     /**

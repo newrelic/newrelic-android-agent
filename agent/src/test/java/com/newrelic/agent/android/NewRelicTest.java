@@ -38,6 +38,7 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidRemoteLogger;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReporter;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
@@ -108,13 +109,13 @@ public class NewRelicTest {
     @Before
     public void removeFinalModifiers() throws Exception {
         /** FIXME Field is no longer accessible in JDK 11
-        Field field = Agent.class.getDeclaredField("MONO_INSTRUMENTATION_FLAG");
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        field.set(String.class, "YES");
-        /* FIXME */
+         Field field = Agent.class.getDeclaredField("MONO_INSTRUMENTATION_FLAG");
+         field.setAccessible(true);
+         Field modifiersField = Field.class.getDeclaredField("modifiers");
+         modifiersField.setAccessible(true);
+         modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+         field.set(String.class, "YES");
+         /* FIXME */
     }
 
     @Before
@@ -1054,8 +1055,8 @@ public class NewRelicTest {
 
         final String msg = "info message";
         NewRelic.logInfo(msg);
-        verify(NewRelic.remoteLogger, times(1)).info(msg);
         verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.INFO, msg, null, null);
+        verify(NewRelic.remoteLogger, times(1)).log(LogLevel.INFO, msg);
     }
 
     @Test
@@ -1066,7 +1067,7 @@ public class NewRelicTest {
 
         final String msg = "info message";
         NewRelic.logWarning(msg);
-        verify(NewRelic.remoteLogger, times(1)).warn(msg);
+        verify(NewRelic.remoteLogger, times(1)).log(LogLevel.WARN, msg);
         verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.WARN, msg, null, null);
     }
 
@@ -1078,7 +1079,7 @@ public class NewRelicTest {
 
         final String msg = "info message";
         NewRelic.logDebug(msg);
-        verify(NewRelic.remoteLogger, times(1)).debug(msg);
+        verify(NewRelic.remoteLogger, times(1)).log(LogLevel.DEBUG, msg);
         verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.DEBUG, msg, null, null);
     }
 
@@ -1090,7 +1091,7 @@ public class NewRelicTest {
 
         final String msg = "verbose message";
         NewRelic.logVerbose(msg);
-        verify(NewRelic.remoteLogger, times(1)).verbose(msg);
+        verify(NewRelic.remoteLogger, times(1)).log(LogLevel.VERBOSE, msg);
         verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.VERBOSE, msg, null, null);
     }
 
@@ -1102,7 +1103,7 @@ public class NewRelicTest {
 
         final String msg = "error message";
         NewRelic.logError(msg);
-        verify(NewRelic.remoteLogger, times(1)).error(msg);
+        verify(NewRelic.remoteLogger, times(1)).log(LogLevel.ERROR, msg);
         verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.ERROR, msg, null, null);
     }
 
@@ -1158,7 +1159,7 @@ public class NewRelicTest {
         final String msg = "error log message";
         NewRelic.log(LogLevel.ERROR, msg);
         verify(agentLogger, never()).error(msg);
-        verify(NewRelic.remoteLogger, never()).error(msg);
+        verify(NewRelic.remoteLogger, never()).log(LogLevel.ERROR, msg);
         verify(NewRelic.remoteLogger, never()).appendLog(LogLevel.ERROR, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
@@ -1201,7 +1202,7 @@ public class NewRelicTest {
             put("cheddar", "wensleydale");
         }};
 
-        final String msg  = (String) attributes.get("message");
+        final String msg = (String) attributes.get("message");
         NewRelic.logAttributes(attributes);
         verify(NewRelic.remoteLogger, times(1)).logAttributes(attributes);
         verify(NewRelic.remoteLogger, times(1)).appendLog(LogLevel.WARN, msg, null, attributes);
@@ -1245,7 +1246,6 @@ public class NewRelicTest {
         }};
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Assert.assertTrue(LogReporting.getLogger() instanceof AgentLog);
         Assert.assertTrue(LogReporting.getLogger() instanceof LogReporting);
 
         // call API prior to starting the agent
@@ -1274,7 +1274,7 @@ public class NewRelicTest {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         Assert.assertTrue(logger.isRemoteLoggingEnabled());
 
-        logger.setLogLevel(LogLevel.NONE);
+        LogReporting.setLogLevel(LogLevel.NONE);
         Assert.assertFalse(logger.isRemoteLoggingEnabled());
     }
 

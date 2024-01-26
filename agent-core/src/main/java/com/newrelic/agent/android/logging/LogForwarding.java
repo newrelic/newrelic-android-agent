@@ -5,51 +5,17 @@
 
 package com.newrelic.agent.android.logging;
 
-import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
+import com.newrelic.agent.android.AgentConfiguration;
 
-public class LogForwarding extends LogReporting implements HarvestLifecycleAware {
+import java.io.File;
 
-    @Override
-    public void onHarvestStart() {
-    }
+public class LogForwarding {
+    static final String LOG_REPORTS_DIR = "newrelic/logreporting";      // root dir for local data files
+    static final String LOG_FILE_MASK = "logdata%s%s";                  // log data file name. suffix will indicate working state
 
-    @Override
-    public void onHarvestStop() {
-    }
+    static File logDataStore = new File("").getAbsoluteFile();
 
-    @Override
-    public void onHarvestBefore() {
-    }
-
-    @Override
-    public void onHarvest() {
-    }
-
-    @Override
-    public void onHarvestFinalize() {
-    }
-
-    @Override
-    public void onHarvestError() {
-    }
-
-    @Override
-    public void onHarvestSendFailed() {
-    }
-
-    @Override
-    public void onHarvestComplete() {
-    }
-
-    @Override
-    public void onHarvestConnected() {
-    }
-
-    @Override
-    public void onHarvestDisconnected() {
-    }
-
-    @Override
-    public void onHarvestDisabled() {
+    public static void initialize(File rootDir, AgentConfiguration agentConfiguration) {
+        logDataStore = new File(rootDir, LOG_REPORTS_DIR);
     }
 }
