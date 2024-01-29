@@ -17,7 +17,7 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.NewRelic;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.logging.AndroidRemoteLogger;
+import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
 
@@ -37,13 +37,13 @@ public class LogInstrumentationTest {
     @Before
     public void setUp() throws Exception {
         NewRelic.disableFeature(FeatureFlag.LogReporting);
-        remoteLogger = Mockito.spy(new AndroidRemoteLogger());
+        remoteLogger = Mockito.spy(new RemoteLogger());
         agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
         AgentLogManager.setAgentLog(agentLogger);
         LogReporting.setLogger(remoteLogger);
         LogReporting.setLogLevel(LogLevel.VERBOSE);
 
-        Assert.assertTrue(remoteLogger instanceof AndroidRemoteLogger);
+        Assert.assertTrue(remoteLogger instanceof RemoteLogger);
 
         NewRelic.enableFeature(FeatureFlag.LogReporting);
     }

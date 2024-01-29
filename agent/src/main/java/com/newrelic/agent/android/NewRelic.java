@@ -21,9 +21,9 @@ import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
-import com.newrelic.agent.android.logging.AndroidRemoteLogger;
-import com.newrelic.agent.android.logging.LogForwarding;
+import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReporter;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.NullAgentLog;
@@ -36,7 +36,6 @@ import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 
-import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -64,7 +63,7 @@ public final class NewRelic {
     protected boolean loggingEnabled = true;
     protected int logLevel = AgentLog.INFO;
 
-    protected static AndroidRemoteLogger remoteLogger = new AndroidRemoteLogger();
+    protected static RemoteLogger remoteLogger = new RemoteLogger();
 
     protected NewRelic(String token) {
         agentConfiguration.setApplicationToken(token);
@@ -321,7 +320,7 @@ public final class NewRelic {
 
         try {
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-                LogForwarding.initialize(context.getFilesDir(), agentConfiguration);
+                LogReporter.initialize(context.getFilesDir(), agentConfiguration);
                 LogReporting.setLogger(remoteLogger);
 
             } else {

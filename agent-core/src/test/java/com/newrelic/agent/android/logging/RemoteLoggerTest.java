@@ -11,9 +11,6 @@ import static org.mockito.Mockito.atMostOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.content.Context;
-
-import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -21,8 +18,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.NewRelic;
-import com.newrelic.agent.android.SpyContext;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -30,9 +25,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.robolectric.RobolectricTestRunner;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -47,49 +40,50 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@RunWith(RobolectricTestRunner.class)
-public class AndroidRemoteLoggerTest {
+public class RemoteLoggerTest {
 
     private static Gson gson = new GsonBuilder()
             .setLenient()
             .enableComplexMapKeySerialization()
             .create();
 
-    private AndroidRemoteLogger logger;
+    private static File reportsDir;
+
+    private RemoteLogger logger;
     private long tStart;
-    private SpyContext spyContext = new SpyContext();
 
     @BeforeClass
     public static void beforeClass() throws Exception {
         LogReporting.setEntityGuid(UUID.randomUUID().toString());
+        AgentLogManager.setAgentLog(new ConsoleAgentLog());
+        reportsDir = Files.createTempDirectory("LogReporting-").toFile();
+        reportsDir.mkdirs();
     }
 
     @Before
     public void setUp() throws Exception {
-        LogForwarding.initialize(spyContext.getContext().getFilesDir(), new AgentConfiguration());
-        NewRelic.enableFeature(FeatureFlag.LogReporting);
+        LogReporter.initialize(reportsDir, new AgentConfiguration());
         LogReporting.setLogLevel(LogLevel.INFO);
         LogReporter.getWorkingLogfile().delete();
-        logger = Mockito.spy(new AndroidRemoteLogger());
+        logger = Mockito.spy(new RemoteLogger());
         tStart = System.currentTimeMillis();
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
     }
 
     @After
     public void tearDown() throws Exception {
-        logger.shutdown();
-        logger.onHarvestStop();
+        FeatureFlag.disableFeature(FeatureFlag.LogReporting);
     }
 
     @AfterClass
     public static void afterClass() throws Exception {
-        Path path = Paths.get(LogForwarding.logDataStore.getAbsolutePath());
+        Path path = Paths.get(LogReporter.logDataStore.getAbsolutePath());
         try (Stream<Path> stream = Files.list(Paths.get(path.toUri()))) {
             String logFileMask = String.format(Locale.getDefault(),
-                    LogForwarding.LOG_FILE_MASK, ".*\\", LogReporter.LogReportState.CLOSED.value);
+                    LogReporter.LOG_FILE_MASK, ".*\\", LogReporter.LogReportState.CLOSED.value);
 
             Set<File> files = stream
                     .filter(file -> !Files.isDirectory(file) && file.getFileName().toString().matches(logFileMask))
@@ -189,15 +183,15 @@ public class AndroidRemoteLoggerTest {
         Assert.assertNotNull(logger.workingLogFile);
         Assert.assertTrue(logger.workingLogFile.exists());
 
-        Assert.assertNotNull(logger.workingFileWriter.get());
-        BufferedWriter writer = logger.workingFileWriter.get();
+        Assert.assertNotNull(logger.workingLogFileWriter.get());
+        BufferedWriter writer = logger.workingLogFileWriter.get();
 
         File finalizedLogFile = logger.rollWorkingLogFile();
         Assert.assertTrue(finalizedLogFile.exists());
         Assert.assertTrue(logger.workingLogFile.exists());
         Assert.assertTrue("Should create a new log data file", finalizedLogFile.length() > 0);
         Assert.assertTrue("Should create a new working file", logger.workingLogFile.length() == 0);
-        Assert.assertNotEquals("Should create a new buffered writer", writer, logger.workingFileWriter.get());
+        Assert.assertNotEquals("Should create a new buffered writer", writer, logger.workingLogFileWriter.get());
     }
 
     @Test
@@ -266,11 +260,12 @@ public class AndroidRemoteLoggerTest {
     @Test
     public void testPayloadBudget() throws Exception {
         logger.uploadBudget = 1 + 1024;
-        logger.log(LogLevel.INFO, Strings.padEnd("Log message #", logger.uploadBudget, '.'));
+        while (logger.getBytesRemaining() > 0) {
+            logger.log(LogLevel.INFO, String.format("Log message #", logger.uploadBudget, '.'));
+        }
         logger.flushPendingRequests();
 
         verify(logger, atMostOnce()).rollWorkingLogFile();
-        Assert.assertEquals(AndroidRemoteLogger.VORTEX_PAYLOAD_LIMIT, logger.getBytesRemaining());
     }
 
     @Test
@@ -280,25 +275,25 @@ public class AndroidRemoteLoggerTest {
 
         logger.log(LogLevel.INFO, "Before onHarvestStart()");
         logger.onHarvestStart();
-        Assert.assertNotNull(logger.workingFileWriter.get());
+        Assert.assertNotNull(logger.workingLogFileWriter.get());
 
-        BufferedWriter writer = logger.workingFileWriter.get();
+        BufferedWriter writer = logger.workingLogFileWriter.get();
         logger.log(LogLevel.INFO, "After onHarvestStart()");
 
         logger.log(LogLevel.INFO, "Before onHarvest()");
         logger.onHarvest();
         Assert.assertTrue(logger.workingLogFile.exists());
         Assert.assertTrue("Should create a new working file", logger.workingLogFile.length() == 0);
-        Assert.assertNotEquals("Should create a new buffered writer", writer, logger.workingFileWriter.get());
+        Assert.assertNotEquals("Should create a new buffered writer", writer, logger.workingLogFileWriter.get());
         logger.log(LogLevel.INFO, "After onHarvest()");
         logger.log(LogLevel.INFO, "Before onHarvestStop()");
 
         logger.onHarvestStop();
         logger.flushPendingRequests();
         Assert.assertTrue(logger.workingLogFile.exists());
-        Assert.assertTrue("Should create a new working file", logger.workingLogFile.length() == 3); // '[\n'
-        Assert.assertNull("Should not create a new buffered writer", logger.workingFileWriter.get());
-        Assert.assertTrue("Shoudl shutdown executor", logger.executor.isShutdown());
+        Assert.assertTrue("Should create a new working file", logger.workingLogFile.length() == 3); // '[\n']
+        Assert.assertNull("Should not create a new buffered writer", logger.workingLogFileWriter.get());
+        Assert.assertTrue("Should shutdown executor", logger.executor.isShutdown());
 
         // logging after harvestStop()?
         logger.log(LogLevel.INFO, "After onHarvestStop()");
@@ -355,14 +350,14 @@ public class AndroidRemoteLoggerTest {
         logger.flushPendingRequests();
 
         // close working filewriter without finalizing
-        logger.workingFileWriter.get().flush();
-        logger.workingFileWriter.get().close();
+        logger.workingLogFileWriter.get().flush();
+        logger.workingLogFileWriter.get().close();
 
         try {
             verifyWorkingLogFile(3);
             Assert.fail("Open Json should not parse!");
         } catch (Exception e) {
-            logger = new AndroidRemoteLogger();
+            logger = new RemoteLogger();
             JsonArray jsonArray = verifyWorkingLogFile(3);
             Assert.assertNotNull(jsonArray);
         }
@@ -378,7 +373,7 @@ public class AndroidRemoteLoggerTest {
         logger.log(LogLevel.INFO, msg);
         logger.finalizeWorkingLogFile();
 
-        Assert.assertNull(logger.workingFileWriter.get());
+        Assert.assertNull(logger.workingLogFileWriter.get());
     }
 
     @Test
@@ -405,7 +400,7 @@ public class AndroidRemoteLoggerTest {
     private JsonArray verifyLogFile(File logFile, int expectedRecordCount) throws IOException {
         Path p = Paths.get(logFile.getAbsolutePath());
         List<String> lines = Files.readAllLines(p);
-        lines.removeIf(s -> s.startsWith("[") || s.startsWith("]"));
+        lines.removeIf(s -> "[".equals(s) || "]".equals(s));
         Assert.assertEquals("Expected records lines", expectedRecordCount, lines.size());
 
         JsonArray jsonArray = gson.fromJson(new String(Files.readAllBytes(p)), JsonArray.class);

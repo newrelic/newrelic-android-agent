@@ -35,10 +35,9 @@ import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.logging.AndroidRemoteLogger;
+import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
-import com.newrelic.agent.android.logging.LogReporter;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
@@ -171,7 +170,7 @@ public class NewRelicTest {
     @Before
     public void setupRemoteLogging() {
         NewRelic.disableFeature(FeatureFlag.LogReporting);
-        NewRelic.remoteLogger = Mockito.spy(new AndroidRemoteLogger());
+        NewRelic.remoteLogger = Mockito.spy(new RemoteLogger());
 
         LogReporting.setLogLevel(LogLevel.VERBOSE);
         agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(false, LogLevel.NONE));
@@ -1051,7 +1050,7 @@ public class NewRelicTest {
     public void testLogInfo() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
-        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
         final String msg = "info message";
         NewRelic.logInfo(msg);
@@ -1063,7 +1062,7 @@ public class NewRelicTest {
     public void testLogWarning() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
-        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
         final String msg = "info message";
         NewRelic.logWarning(msg);
@@ -1075,7 +1074,7 @@ public class NewRelicTest {
     public void testLogDebug() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
-        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
         final String msg = "info message";
         NewRelic.logDebug(msg);
@@ -1087,7 +1086,7 @@ public class NewRelicTest {
     public void testLogVerbose() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
-        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
         final String msg = "verbose message";
         NewRelic.logVerbose(msg);
@@ -1099,7 +1098,7 @@ public class NewRelicTest {
     public void testLogError() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
-        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
         final String msg = "error message";
         NewRelic.logError(msg);
@@ -1174,7 +1173,7 @@ public class NewRelicTest {
     public void testLogThrowable() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
-        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
         final String msg = "An info log message with throwable";
         Throwable throwable = new RuntimeException(msg);
@@ -1194,7 +1193,7 @@ public class NewRelicTest {
     public void testLogAttributes() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
-        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
         Map<String, Object> attributes = new HashMap<String, Object>() {{
             put("level", "WARN");
@@ -1263,7 +1262,7 @@ public class NewRelicTest {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
 
         nrInstance.start(spyContext.getContext());
-        Assert.assertTrue(LogReporting.getLogger() instanceof AndroidRemoteLogger);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
         LogReporting logger = LogReporting.getLogger();
         Assert.assertTrue(logger.isRemoteLoggingEnabled());
