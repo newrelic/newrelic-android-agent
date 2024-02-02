@@ -11,11 +11,10 @@ import static org.mockito.Mockito.atMostOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 
@@ -38,6 +37,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,15 +46,11 @@ import java.util.stream.Stream;
 
 public class RemoteLoggerTest {
 
-    private static Gson gson = new GsonBuilder()
-            .setLenient()
-            .enableComplexMapKeySerialization()
-            .create();
-
     private static File reportsDir;
 
     private RemoteLogger logger;
     private long tStart;
+    private LogReporter logReporter;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -65,16 +62,17 @@ public class RemoteLoggerTest {
 
     @Before
     public void setUp() throws Exception {
-        LogReporter.initialize(reportsDir, new AgentConfiguration());
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         LogReporting.setLogLevel(LogLevel.INFO);
-        LogReporter.getWorkingLogfile().delete();
+        logReporter = LogReporter.initialize(reportsDir, new AgentConfiguration());
+        logReporter.getWorkingLogfile().delete();
         logger = Mockito.spy(new RemoteLogger());
         tStart = System.currentTimeMillis();
-        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
     }
 
     @After
     public void tearDown() throws Exception {
+        logger.shutdown();
         FeatureFlag.disableFeature(FeatureFlag.LogReporting);
     }
 
@@ -96,30 +94,29 @@ public class RemoteLoggerTest {
 
     @Test
     public void log() throws Exception {
-        final String msg = "Log msg";
+        final String msg = "Log: ";
 
-        logger.log(LogLevel.INFO, msg);
-        logger.log(LogLevel.WARN, msg);
-        logger.log(LogLevel.ERROR, msg);
-        logger.log(LogLevel.VERBOSE, msg);
-        logger.log(LogLevel.DEBUG, msg);
+        logger.log(LogLevel.ERROR, msg + getRandomMsg(19));
+        logger.log(LogLevel.INFO, msg + getRandomMsg(7));
+        logger.log(LogLevel.WARN, msg + getRandomMsg(31));
+        logger.log(LogLevel.VERBOSE, msg + getRandomMsg(11));
+        logger.log(LogLevel.DEBUG, msg + getRandomMsg(23));
 
         verify(logger, times(5)).log(any(LogLevel.class), anyString());
-        verify(logger, times(3)).appendLog(any(LogLevel.class), anyString(), any(), any());
+        verify(logger, times(3)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(), any());
 
         JsonArray jsonArray = verifyWorkingLogFile(3);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
         Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
     }
 
     @Test
     public void logThrowable() throws Exception {
-        final Throwable throwable = new RuntimeException("logThrowable");
+        final Throwable throwable = new RuntimeException("logThrowable: " + getRandomMsg(127));
 
         logger.logThrowable(LogLevel.WARN, throwable.getMessage(), throwable);
-        verify(logger, times(1)).appendLog(LogLevel.WARN, throwable.getMessage(), throwable, null);
+        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.WARN, throwable.getMessage(), throwable, null);
 
         JsonArray jsonArray = verifyWorkingLogFile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
@@ -130,16 +127,15 @@ public class RemoteLoggerTest {
 
     @Test
     public void logAttributes() throws Exception {
-        final String msg = "logAttributes message";
+        final String msg = "logAttributes: " + getRandomMsg(17);
         final HashMap<String, Object> attrs = new HashMap<String, Object>() {{
             put("level", "INFO");
             put("message", msg);
         }};
 
         logger.logAttributes(attrs);
-        logger.flushPendingRequests();
 
-        verify(logger, times(1)).appendLog(LogLevel.INFO, msg, null, attrs);
+        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, attrs);
         JsonArray jsonArray = verifyWorkingLogFile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
@@ -148,15 +144,15 @@ public class RemoteLoggerTest {
 
     @Test
     public void logAll() throws Exception {
-        final String msg = "logAll msg";
-        final Throwable throwable = new RuntimeException("logAll");
-        final HashMap<String, Object> attrs = new HashMap<String, Object>() {{
+        final String msg = "logAll msg: " + getRandomMsg(12);
+        final Throwable throwable = new RuntimeException(msg);
+        final HashMap<String, Object> attrs = new HashMap() {{
             put("level", "INFO");
             put("message", msg);
         }};
 
         logger.logAll(throwable, attrs);
-        verify(logger, times(1)).appendLog(LogLevel.INFO, msg, throwable, attrs);
+        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, throwable, attrs);
 
         JsonArray jsonArray = verifyWorkingLogFile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
@@ -166,10 +162,10 @@ public class RemoteLoggerTest {
 
     @Test
     public void appendLog() throws Exception {
-        final String msg = "appendLog msg";
+        final String msg = "appendLog: " + getRandomMsg(24);
 
-        logger.appendLog(LogLevel.INFO, msg, null, null);
-        verify(logger, times(1)).appendLog(LogLevel.INFO, msg, null, null);
+        logger.appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
+        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
 
         JsonArray jsonArray = verifyWorkingLogFile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
@@ -186,29 +182,30 @@ public class RemoteLoggerTest {
         Assert.assertNotNull(logger.workingLogFileWriter.get());
         BufferedWriter writer = logger.workingLogFileWriter.get();
 
+        logger.log(LogLevel.INFO, getRandomMsg(10));
+        logger.flushPendingRequests();
+
         File finalizedLogFile = logger.rollWorkingLogFile();
         Assert.assertTrue(finalizedLogFile.exists());
         Assert.assertTrue(logger.workingLogFile.exists());
-        Assert.assertTrue("Should create a new log data file", finalizedLogFile.length() > 0);
-        Assert.assertTrue("Should create a new working file", logger.workingLogFile.length() == 0);
         Assert.assertNotEquals("Should create a new buffered writer", writer, logger.workingLogFileWriter.get());
     }
 
     @Test
     public void testConcurrentLoad() throws Exception {
-        ArrayList<Thread> threadArray = new ArrayList<Thread>() {
-            {
-                for (int t = 0; t < 10; t++) {
-                    add(new Thread(() -> {
-                        Thread thread = Thread.currentThread();
-                        for (int i = 0; i < 100; i++) {
-                            logger.log(LogLevel.INFO, "Called from thread " + thread.getName());
-                            thread.yield();
-                        }
-                    }));
-                }
+        int N_THREADS = RemoteLogger.POOL_SIZE * RemoteLogger.POOL_SIZE;
+        int N_MSGS = 1000;
+        ArrayList<Thread> threadArray = new ArrayList<>() {{
+            for (int t = 0; t < N_THREADS; t++) {
+                add(new Thread(() -> {
+                    Thread thread = Thread.currentThread();
+                    for (int i = 0; i < N_MSGS; i++) {
+                        logger.log(LogLevel.INFO, "Called from " + thread.getName() + ": " + getRandomMsg((int) (Math.random() * 256)));
+                        thread.yield();
+                    }
+                }));
             }
-        };
+        }};
 
         for (Thread thread : threadArray) {
             thread.start();
@@ -217,14 +214,24 @@ public class RemoteLoggerTest {
             thread.join();
         }
 
-        logger.flushPendingRequests();
+        logger.finalizeWorkingLogFile();
 
-        JsonArray jsonArray = verifyWorkingLogFile(10 * 100);
-        for (int i = 0; i < 10 * 100; i++) {
-            JsonObject jsonObject = jsonArray.get(i).getAsJsonObject();
-            Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
-            Assert.assertTrue(jsonObject.has(LogReporting.LOG_MESSAGE_ATTRIBUTE));
-            Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+        // the working logfile may rollover, so we need to cunt all generated files
+        try (Stream<Path> stream = Files.list(LogReporter.logDataStore.toPath())) {
+            Set<File> files = stream
+                    .filter(file -> !Files.isDirectory(file))
+                    .map(Path::toFile)
+                    .collect(Collectors.toSet());
+
+            Assert.assertFalse(files.isEmpty());
+
+            JsonArray jsonArray = verifySpannedLogFiles(files, N_THREADS * N_MSGS);
+            for (int i = 0; i < (N_THREADS * N_MSGS); i++) {
+                JsonObject jsonObject = jsonArray.get(i).getAsJsonObject();
+                Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
+                Assert.assertTrue(jsonObject.has(LogReporting.LOG_MESSAGE_ATTRIBUTE));
+                Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+            }
         }
     }
 
@@ -259,10 +266,10 @@ public class RemoteLoggerTest {
 
     @Test
     public void testPayloadBudget() throws Exception {
-        logger.uploadBudget = 1 + 1024;
-        while (logger.getBytesRemaining() > 0) {
-            logger.log(LogLevel.INFO, String.format("Log message #", logger.uploadBudget, '.'));
-        }
+        logger.uploadBudget = 1000;
+        logger.log(LogLevel.INFO, getRandomMsg(300));
+        logger.log(LogLevel.INFO, getRandomMsg(300));
+        logger.log(LogLevel.INFO, getRandomMsg(400));
         logger.flushPendingRequests();
 
         verify(logger, atMostOnce()).rollWorkingLogFile();
@@ -283,7 +290,7 @@ public class RemoteLoggerTest {
         logger.log(LogLevel.INFO, "Before onHarvest()");
         logger.onHarvest();
         Assert.assertTrue(logger.workingLogFile.exists());
-        Assert.assertTrue("Should create a new working file", logger.workingLogFile.length() == 0);
+        Assert.assertEquals("Should create a new working file", 0, logger.workingLogFile.length());
         Assert.assertNotEquals("Should create a new buffered writer", writer, logger.workingLogFileWriter.get());
         logger.log(LogLevel.INFO, "After onHarvest()");
         logger.log(LogLevel.INFO, "Before onHarvestStop()");
@@ -291,13 +298,10 @@ public class RemoteLoggerTest {
         logger.onHarvestStop();
         logger.flushPendingRequests();
         Assert.assertTrue(logger.workingLogFile.exists());
-        Assert.assertTrue("Should create a new working file", logger.workingLogFile.length() == 3); // '[\n']
+        Assert.assertEquals("Should create a new working file", 0, logger.workingLogFile.length());
         Assert.assertNull("Should not create a new buffered writer", logger.workingLogFileWriter.get());
-        Assert.assertTrue("Should shutdown executor", logger.executor.isShutdown());
-
-        // logging after harvestStop()?
+        Assert.assertFalse("Should not shutdown executor", logger.executor.isShutdown());
         logger.log(LogLevel.INFO, "After onHarvestStop()");
-        logger.finalizeWorkingLogFile();
     }
 
     @Test
@@ -306,20 +310,23 @@ public class RemoteLoggerTest {
     }
 
     @Test
-    public void testPayloadFormat() throws IOException, InterruptedException {
+    public void testPayloadFormat() throws IOException {
         // https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#payload-format
 
         final String msg = "{\"service-name\": \"login-service\", \"user\": {\"id\": 123, \"name\": \"alice\"}}";
         logger.log(LogLevel.INFO, msg);
 
-        final HashMap<String, Object> attrs = new HashMap<String, Object>() {{
-            put("level", "INFO");
-            put("action", "login");
-            put("user", new HashMap<String, Object>() {{
-                put("id", 123);
-                put("name", "alice");
-            }});
-        }};
+        // Gson does not serialize anonymous nested classes
+        final Map<String, Object> attrs = new HashMap<>();
+        final Map<String, Object> userAttributes = new HashMap<>();
+        attrs.put("level", "INFO");
+        attrs.put("service-name", "login-service");
+        attrs.put("action", "login");
+        attrs.put("user", userAttributes);
+        userAttributes.put("id", 123);
+        userAttributes.put("name", "alice");
+        userAttributes.put("login-result", false);
+
         logger.logAttributes(attrs);
 
         JsonArray jsonArray = verifyWorkingLogFile(2);
@@ -337,30 +344,32 @@ public class RemoteLoggerTest {
         // Element 2:
         JsonObject elem2 = jsonArray.get(1).getAsJsonObject();
         Assert.assertFalse(elem2.has(LogReporting.LOG_MESSAGE_ATTRIBUTE));
-        Assert.assertFalse(elem2.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+        Assert.assertTrue(elem2.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+        JsonObject attributes = elem2.get(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE).getAsJsonObject();
+        Assert.assertTrue(attributes.has("action"));
+        Assert.assertTrue(attributes.has("user"));
+        Assert.assertTrue(attributes.get("user").getAsJsonObject() instanceof JsonObject);
+        JsonObject user = attributes.get("user").getAsJsonObject();
+        Assert.assertEquals("alice", user.get("name").getAsString());
     }
 
     @Test
-    public void testIncompleteWorkingfile() throws InterruptedException, IOException {
-        final String msg = "Log msg";
+    public void testWorkingfileIOFailure() throws IOException {
+        final String msg = "";
 
-        logger.log(LogLevel.INFO, msg);
-        logger.log(LogLevel.INFO, msg);
-        logger.log(LogLevel.INFO, msg);
-        logger.flushPendingRequests();
+        logger.log(LogLevel.INFO, msg + getRandomMsg(8));
+        logger.log(LogLevel.INFO, msg + getRandomMsg(5));
+        logger.log(LogLevel.INFO, msg + getRandomMsg(11));
 
         // close working filewriter without finalizing
         logger.workingLogFileWriter.get().flush();
         logger.workingLogFileWriter.get().close();
 
-        try {
-            verifyWorkingLogFile(3);
-            Assert.fail("Open Json should not parse!");
-        } catch (Exception e) {
-            logger = new RemoteLogger();
-            JsonArray jsonArray = verifyWorkingLogFile(3);
-            Assert.assertNotNull(jsonArray);
-        }
+        verifyWorkingLogFile(3);
+        logger = new RemoteLogger();
+
+        JsonArray jsonArray = verifyWorkingLogFile(3);
+        Assert.assertNotNull(jsonArray);
     }
 
     @Test
@@ -378,17 +387,30 @@ public class RemoteLoggerTest {
 
     @Test
     public void shutdown() {
-        final String msg = "Log msg";
-
         Assert.assertFalse(logger.executor.isShutdown());
-        logger.log(LogLevel.INFO, msg);
-        logger.log(LogLevel.INFO, msg);
-        logger.log(LogLevel.INFO, msg);
-        logger.log(LogLevel.INFO, msg);
-        logger.log(LogLevel.INFO, msg);
+        logger.log(LogLevel.INFO, getRandomMsg(128));
+        logger.log(LogLevel.INFO, getRandomMsg(64));
         logger.shutdown();
 
         Assert.assertTrue(logger.executor.isShutdown());
+    }
+
+
+    private JsonArray slurpLogDataFile(File logfile) throws IOException {
+        JsonArray jsonArray = new JsonArray();
+
+        Files.newBufferedReader(logfile.toPath()).lines().forEach(s -> {
+            if (!(s == null || s.isEmpty())) {
+                try {
+                    JsonObject messageAsJson = LogReporting.gson.fromJson(s, JsonObject.class);
+                    jsonArray.add(messageAsJson);
+                } catch (JsonSyntaxException e) {
+                    Assert.fail("Invalid Json entry!");
+                }
+            }
+        });
+
+        return jsonArray;
     }
 
     private JsonArray verifyWorkingLogFile(int expectedRecordCount) throws IOException {
@@ -398,15 +420,44 @@ public class RemoteLoggerTest {
     }
 
     private JsonArray verifyLogFile(File logFile, int expectedRecordCount) throws IOException {
-        Path p = Paths.get(logFile.getAbsolutePath());
-        List<String> lines = Files.readAllLines(p);
-        lines.removeIf(s -> "[".equals(s) || "]".equals(s));
+        List<String> lines = Files.readAllLines(logFile.toPath());
+        lines.removeIf(s -> s.isEmpty() || ("[".equals(s) || "]".equals(s)));
         Assert.assertEquals("Expected records lines", expectedRecordCount, lines.size());
 
-        JsonArray jsonArray = gson.fromJson(new String(Files.readAllBytes(p)), JsonArray.class);
-        jsonArray.remove(jsonArray.size() - 1);   // FIXME remove last null record
+        JsonArray jsonArray = slurpLogDataFile(logFile);
         Assert.assertEquals("Expected JSON records", expectedRecordCount, jsonArray.size());
 
         return jsonArray;
     }
-}
+
+    private JsonArray verifySpannedLogFiles(Set<File> logFiles, int expectedRecordCount) throws IOException {
+        JsonArray jsonArray = new JsonArray();
+        for (File logFile : logFiles) {
+            jsonArray.addAll(slurpLogDataFile(logFile));
+        }
+        Assert.assertEquals("Expected JSON records", expectedRecordCount, jsonArray.size());
+
+        return jsonArray;
+    }
+
+    /**
+     * Generate a message of a minimum length with at least 12 words, each 1 to 15 chars in length
+     */
+    static String getRandomMsg(int msgLength) {
+        StringBuilder msg = new StringBuilder();
+
+        while (msg.length() < msgLength) {
+            new Random().ints(new Random().nextInt(12), 1, 15)
+                    .forEach(wordLength -> {
+                        msg.append(new Random().ints((int) 'a', (int) '~' + 1)
+                                        .limit(wordLength)
+                                        .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                                        .append(" ").toString().replace("\"", ":").trim())
+                                .append(". ");
+                    });
+        }
+
+        return msg.toString().trim();
+    }
+
+};

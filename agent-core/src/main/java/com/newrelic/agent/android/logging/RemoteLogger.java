@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android.logging;
 
-import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.util.NamedThreadFactory;
 
@@ -18,48 +17,45 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Callable;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class RemoteLogger extends LogReporting implements HarvestLifecycleAware {
-    static int VORTEX_PAYLOAD_LIMIT = 1 * 1024 * 1024;  // Vortex upload limit: 1 MB (10^6 B) compressed
-    static int POOL_SIZE = 4;  // Buffer up this this number of requests
+    static int VORTEX_PAYLOAD_LIMIT = (1 * 1024 * 1024);                                // Vortex upload limit: 1 MB (10^6 B) compressed
+    static int POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors() / 8); // Buffer up this this number of requests
 
+    private long QUEUE_THREAD_TTL = 1000;
+
+    // TODO enforce log message constraints
     static int MAX_ATTRIBUTES_PER_EVENT = 255;
     static int MAX_ATTRIBUTES_NAME_SIZE = 255;
     static int MAX_ATTRIBUTES_VALUE_SIZE = 4096;
 
-    private static ReentrantLock pauseLock = new ReentrantLock();
+    private static ReentrantLock workingFileLock = new ReentrantLock();
+
+    protected ThreadPoolExecutor executor = new ThreadPoolExecutor(2,
+            POOL_SIZE,
+            QUEUE_THREAD_TTL, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<Runnable>(),
+            new NamedThreadFactory("LogReporting"));
 
     protected AtomicReference<BufferedWriter> workingLogFileWriter = new AtomicReference<>(null);   // lazy initialized
-    /*
-        protected ThreadPoolExecutor executor = new ThreadPoolExecutor(2,
-                POOL_SIZE, 50L, TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(POOL_SIZE * 1000),
-                new NamedThreadFactory("LogReporting"),
-                new ThreadPoolExecutor.CallerRunsPolicy() {
-                    @Override
-                    public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
-                        logToAgent(LogLevel.ERROR, "e.submit(r)");        // re-submit
-                    }
-                });
-    */
-    protected ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newCachedThreadPool(new NamedThreadFactory("LogReporting"));
-
     protected int uploadBudget = VORTEX_PAYLOAD_LIMIT;
     protected File workingLogFile;
 
     public RemoteLogger() {
         try {
-            workingLogFileWriter.compareAndSet(null, getWorkingLogFileWriter());
-            executor.setCorePoolSize(POOL_SIZE);
+            executor.allowCoreThreadTimeOut(true);
             executor.prestartCoreThread();
 
+            resetWorkingLogFile();
+
         } catch (IOException e) {
-            AgentLogManager.getAgentLog().error(e.getLocalizedMessage());
+            AgentLogManager.getAgentLog().error(e.toString());
         }
     }
 
@@ -68,7 +64,7 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
         super.logToAgent(logLevel, message);
 
         if (isLevelEnabled(logLevel)) {
-            appendLog(logLevel, message, null, null);
+            appendToWorkingLogFile(logLevel, message, null, null);
         }
     }
 
@@ -77,7 +73,7 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
         super.logThrowable(logLevel, message, throwable);
 
         if (isLevelEnabled(logLevel)) {
-            appendLog(logLevel, message, throwable, null);
+            appendToWorkingLogFile(logLevel, message, throwable, null);
         }
     }
 
@@ -86,9 +82,9 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
         super.logAttributes(attributes);
 
         if (isLevelEnabled(logLevel)) {
-            String level = (String) attributes.getOrDefault("level", "NONE");
-            String message = (String) attributes.getOrDefault("message", null);
-            appendLog(LogLevel.valueOf(level.toUpperCase()), message, null, attributes);
+            String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.NONE.name());
+            String message = (String) attributes.getOrDefault(LogReporting.LOG_MESSAGE_ATTRIBUTE, null);
+            appendToWorkingLogFile(LogLevel.valueOf(level.toUpperCase()), message, null, attributes);
         }
     }
 
@@ -97,9 +93,9 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
         super.logAll(throwable, attributes);
 
         if (isLevelEnabled(logLevel)) {
-            String level = (String) attributes.getOrDefault("level", "NONE");
-            String message = (String) attributes.getOrDefault("message", null);
-            appendLog(LogLevel.valueOf(level.toUpperCase()), message, throwable, attributes);
+            String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.NONE.name());
+            String message = (String) attributes.getOrDefault(LogReporting.LOG_MESSAGE_ATTRIBUTE, null);
+            appendToWorkingLogFile(LogLevel.valueOf(level.toUpperCase()), message, throwable, attributes);
         }
     }
 
@@ -110,23 +106,19 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
      * @param @Nullable message
      * @param @Nullable throwable
      * @param @Nullable attributes
+     *                  Gson does not support serialization of anonymous nested classes. They will be serialized as JSON null.
+     *                  Convert the classes to static nested classes to enable serialization and deserialization for them.
      * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#simple-json
      */
-    public void appendLog(final LogLevel logLevel, @Nullable final String message, @Nullable final Throwable throwable, @Nullable final Map<String, Object> attributes) {
+    public void appendToWorkingLogFile(final LogLevel logLevel, @Nullable final String message, @Nullable final Throwable throwable, @Nullable final Map<String, Object> attributes) {
         if (!(isRemoteLoggingEnabled() && isLevelEnabled(logLevel))) {
             return;
         }
 
-        if (executor.isTerminating() || executor.isShutdown()) {
-            return;
-        }
+        Callable<Boolean> callable = () -> {
+            final Map<String, Object> logDataMap = new HashMap<>();
 
-        // always run the request on a background thread
-        executor.submit(() -> {
             try {
-                pauseLock.lock();
-
-                final Map<String, Object> logDataObjects = new HashMap<>();
 
                 /**
                  * Some specific attributes have additional restrictions:
@@ -141,22 +133,22 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
                  *
                  * @link reserved attributes: https://source.datanerd.us/agents/agent-specs/blob/main/Application-Logging.md#log-record-attributes
                  */
-                logDataObjects.put(AnalyticsAttribute.EVENT_TIMESTAMP_ATTRIBUTE, String.valueOf(System.currentTimeMillis()));
-                logDataObjects.put(LogReporting.LOG_LEVEL_ATTRIBUTE, logLevel.name().toUpperCase());
+                logDataMap.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, String.valueOf(System.currentTimeMillis()));
+                logDataMap.put(LogReporting.LOG_LEVEL_ATTRIBUTE, logLevel.name().toUpperCase());
 
                 // set data with reserved attribute values
-                logDataObjects.putAll(getCommonBlockAttributes());
+                logDataMap.putAll(getCommonBlockAttributes());
 
                 // translate a passed message to attributes
                 if (message != null) {
-                    logDataObjects.put(LogReporting.LOG_MESSAGE_ATTRIBUTE, message);
+                    logDataMap.put(LogReporting.LOG_MESSAGE_ATTRIBUTE, message);
                 }
 
                 // translate any passed throwable to attributes
                 if (throwable != null) {
-                    logDataObjects.put(LogReporting.LOG_ERROR_MESSAGE_ATTRIBUTE, throwable.getLocalizedMessage());
-                    logDataObjects.put(LogReporting.LOG_ERROR_STACK_ATTRIBUTE, throwable.getStackTrace()[0].toString());
-                    logDataObjects.put(LogReporting.LOG_ERROR_CLASS_ATTRIBUTE, throwable.getClass().getSimpleName());
+                    logDataMap.put(LogReporting.LOG_ERROR_MESSAGE_ATTRIBUTE, throwable.toString());
+                    logDataMap.put(LogReporting.LOG_ERROR_STACK_ATTRIBUTE, throwable.getStackTrace()[0].toString());
+                    logDataMap.put(LogReporting.LOG_ERROR_CLASS_ATTRIBUTE, throwable.getClass().getSimpleName());
                 }
 
                 // finally add any passed attributes, which should not override reserved keys
@@ -169,41 +161,57 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
                      * Length of attribute value: 4,094 characters are stored in NRDB as a Log event field
                      **/
 
-                    logDataObjects.put(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE, attributes);
+                    logDataMap.put(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE, attributes);
                 }
 
-                // pass data map to forwarder
-                appendLog(logDataObjects);
+                // pass data map to the reporter
+                appendToWorkingLogFile(logDataMap);
 
-            } catch (Exception e) {
-                AgentLogManager.getAgentLog().error(e.getLocalizedMessage());
+            } catch (IOException e) {
+                AgentLogManager.getAgentLog().error("Error recording log message: " + e.toString());
+
+                // try recovery:
+                if (!(executor.isTerminating() || executor.isShutdown())) {
+                    workingLogFileWriter.set(null);
+                    if (null != resetWorkingLogFile()) {
+                        logAttributes(logDataMap);
+                    }
+                }
+
+                return false;
+
             } finally {
-                pauseLock.unlock();
+                synchronized (executor) {
+                    executor.notify();
+                }
             }
-        });
-    }
 
-    BufferedWriter getWorkingLogFileWriter() throws IOException {
-        workingLogFile = LogReporter.getWorkingLogfile();
+            return true;
+        };
 
-        // BufferedWriter for performance, true to set append to file flag
-        workingLogFileWriter.compareAndSet(null, new BufferedWriter(new FileWriter(workingLogFile, true)));
-        uploadBudget = VORTEX_PAYLOAD_LIMIT;
+        if (executor.isTerminating() || executor.isShutdown()) {
+            try {
+                callable.call();        // Non-blocking
+            } catch (Exception e) {
+                AgentLogManager.getAgentLog().error(e.toString());
+            }
 
-        if (workingLogFile.length() == 0) {
-            workingLogFileWriter.get().append("[");    // start the json array
-            workingLogFileWriter.get().newLine();
+            return;
         }
 
-        return workingLogFileWriter.get();
+        // always run the request on a background thread
+        synchronized (executor) {
+            executor.submit(callable);
+        }
     }
 
     @Override
-    public synchronized void onHarvest() {
+    public void onHarvest() {
         try {
+            finalizeWorkingLogFile();
             rollWorkingLogFile();
         } catch (IOException e) {
-            AgentLogManager.getAgentLog().error(e.getLocalizedMessage());
+            AgentLogManager.getAgentLog().error(e.toString());
         }
     }
 
@@ -211,83 +219,125 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
     public void onHarvestStop() {
         try {
             onHarvest();
-            shutdown();
+            // TODO The logger can continue to run until the agent exists, collecting logdata
+            // to be picked up on the nex app launch.
+            // shutdown();
         } catch (Exception e) {
-            AgentLogManager.getAgentLog().error(e.getLocalizedMessage());
+            AgentLogManager.getAgentLog().error(e.toString());
         }
 
         workingLogFileWriter.set(null);
     }
 
+    /**
+     * Pending tasks are those queued and currently executing
+     *
+     * @return Sum of queued tasks
+     */
+    private int getPendingTaskCount() {
+        return (executor.getQueue().size() + executor.getActiveCount());
+    }
+
+    // Block until the in-progress tasks have completed
     protected void flushPendingRequests() {
-        try {
-            while (!executor.getQueue().isEmpty() && !executor.isTerminating() && !executor.isTerminated()) {
-                Thread.yield();
-                Thread.sleep(10);
+        synchronized (executor) {
+            try {
+                while (getPendingTaskCount() > 0 && !executor.isTerminating() && !executor.isTerminated()) {
+                    executor.wait(QUEUE_THREAD_TTL, 0);
+                }
+            } catch (InterruptedException e) {
+                logToAgent(LogLevel.ERROR, e.toString());
             }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
+    }
+
+    BufferedWriter resetWorkingLogFile() throws IOException {
+        workingLogFile = LogReporter.instance.get().getWorkingLogfile();
+
+        // BufferedWriter for performance, true to set append to file flag
+        workingLogFileWriter.set(new BufferedWriter(new FileWriter(workingLogFile, true)));
+        uploadBudget = VORTEX_PAYLOAD_LIMIT;
+
+        return workingLogFileWriter.get();
     }
 
     void finalizeWorkingLogFile() {
         try {
             flushPendingRequests();
-            pauseLock.lock();
-            workingLogFileWriter.get().append("]");
+
+            workingFileLock.lock();
             workingLogFileWriter.get().flush();
             workingLogFileWriter.get().close();
             workingLogFileWriter.set(null);
         } catch (Exception e) {
-            logToAgent(LogLevel.ERROR, e.getLocalizedMessage());
+            logToAgent(LogLevel.ERROR, e.toString());
         } finally {
-            pauseLock.unlock();
+            workingFileLock.unlock();
         }
     }
 
+    /**
+     * Close the working file with its current contents. Do not flush pending request.
+     *
+     * @return Updated working file
+     * @throws IOException
+     */
     File rollWorkingLogFile() throws IOException {
-        File closedLogFile = null;
+        File closedLogFile;
+
         try {
-            pauseLock.lock();
-            finalizeWorkingLogFile();
-            closedLogFile = LogReporter.rollLogfile(workingLogFile);
-            workingLogFile = LogReporter.getWorkingLogfile();
-            workingLogFileWriter.compareAndSet(null, getWorkingLogFileWriter());
+            workingFileLock.lock();
+            closedLogFile = LogReporter.instance.get().rollLogfile(workingLogFile);
+            workingLogFile = LogReporter.instance.get().getWorkingLogfile();
+            resetWorkingLogFile();
 
             logToAgent(LogLevel.DEBUG, "Finalized log data to [" + closedLogFile.getAbsolutePath() + "]");
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(e.toString());
         } finally {
-            pauseLock.unlock();
+            workingFileLock.unlock();
         }
 
         return closedLogFile;
     }
 
-    public int getBytesRemaining() {
-        return uploadBudget;
+    // FIXME Move to reporter
+    // @SuppressWarnings("NewApi")
+    public void appendToWorkingLogFile(Map<String, Object> logDataMap) throws IOException {
+        try {
+            // TODO validateLogData(logDataMap);
+            // TODO decorateLogData(logDataMap);
+
+            String logJsonData = gson.toJson(logDataMap, gtype);
+
+            workingFileLock.lock();
+
+            if (workingLogFileWriter.get() != null) {
+                workingLogFileWriter.get().append(logJsonData);
+                workingLogFileWriter.get().newLine();
+
+                // Check Vortex limits
+                uploadBudget -= (logJsonData.length() + System.lineSeparator().length());
+                if (0 > uploadBudget) {
+                    rollWorkingLogFile();
+                }
+            } else {
+                // the writer has closed, usually a result of the agent stopping
+                // FIXME super.logAttributes(logDataMap);
+            }
+
+        } finally {
+            workingFileLock.unlock();
+        }
     }
 
     void shutdown() {
-        finalizeWorkingLogFile();
         executor.shutdown();
         try {
-            executor.awaitTermination(1, TimeUnit.SECONDS);
+            executor.awaitTermination(3, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             executor.shutdownNow();
         }
     }
 
-    public void appendLog(Map<String, Object> logDataMap) throws IOException {
-        String logJsonData = gson.toJson(logDataMap, gtype);
-
-        // Check Vortex limits
-        uploadBudget -= logJsonData.length();
-        if (0 > uploadBudget) {
-            rollWorkingLogFile();
-        }
-
-        workingLogFileWriter.get().append(logJsonData + ",");
-        workingLogFileWriter.get().newLine();
-    }
 }

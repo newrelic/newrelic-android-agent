@@ -38,7 +38,7 @@ jar {
 
 dependencies {
     compileOnly fileTree(dir: 'libs', include: '*.jar')
-    implementation "org.jetbrains:annotations:15.0"
+    compileOnly "org.jetbrains:annotations:15.0"
 
     // all implementation dependencies will be shadowed
     implementation 'com.google.code.gson:gson:' + project.versions.java.gson

@@ -55,15 +55,13 @@ import java.util.Map;
 public final class NewRelic {
     private static final String UNKNOWN_HTTP_REQUEST_TYPE = "unknown";
 
-    protected static final AgentLog log = AgentLogManager.getAgentLog();
+    private static final AgentLog log = AgentLogManager.getAgentLog();
     protected static final AgentConfiguration agentConfiguration = new AgentConfiguration();
     protected static boolean started = false;
     protected static boolean isShutdown = false;
 
     protected boolean loggingEnabled = true;
     protected int logLevel = AgentLog.INFO;
-
-    protected static RemoteLogger remoteLogger = new RemoteLogger();
 
     protected NewRelic(String token) {
         agentConfiguration.setApplicationToken(token);
@@ -321,7 +319,7 @@ public final class NewRelic {
         try {
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
                 LogReporter.initialize(context.getFilesDir(), agentConfiguration);
-                LogReporting.setLogger(remoteLogger);
+                LogReporting.setLogger(new RemoteLogger());
 
             } else {
                 AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
@@ -1124,7 +1122,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, LogLevel.INFO.name()));
 
-        remoteLogger.log(LogLevel.INFO, message);
+        LogReporting.getLogger().log(LogLevel.INFO, message);
     }
 
     public static void logWarning(String message) {
@@ -1132,7 +1130,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, LogLevel.WARN.name()));
 
-        remoteLogger.log(LogLevel.WARN, message);
+        LogReporting.getLogger().log(LogLevel.WARN, message);
     }
 
     public static void logDebug(String message) {
@@ -1140,7 +1138,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name()));
 
-        remoteLogger.log(LogLevel.DEBUG, message);
+        LogReporting.getLogger().log(LogLevel.DEBUG, message);
     }
 
     public static void logVerbose(String message) {
@@ -1148,7 +1146,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, LogLevel.VERBOSE.name()));
 
-        remoteLogger.log(LogLevel.VERBOSE, message);
+        LogReporting.getLogger().log(LogLevel.VERBOSE, message);
     }
 
     public static void logError(String message) {
@@ -1156,7 +1154,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name()));
 
-        remoteLogger.log(LogLevel.ERROR, message);
+        LogReporting.getLogger().log(LogLevel.ERROR, message);
     }
 
     /**
@@ -1171,7 +1169,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (LogReporting.isLevelEnabled(logLevel)) {
-            remoteLogger.log(logLevel, message);
+            LogReporting.getLogger().log(logLevel, message);
         }
     }
 
@@ -1188,7 +1186,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (LogReporting.isLevelEnabled(logLevel)) {
-            remoteLogger.logThrowable(logLevel, message, throwable);
+            LogReporting.getLogger().logThrowable(logLevel, message, throwable);
         }
     }
 
@@ -1212,7 +1210,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (LogReporting.isLevelEnabled(LogLevel.valueOf(level.toUpperCase()))) {
-            remoteLogger.logAttributes(attributes);
+            LogReporting.getLogger().logAttributes(attributes);
         }
     }
 
@@ -1235,7 +1233,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (LogReporting.isLevelEnabled(logLevel)) {
-            remoteLogger.logAll(throwable, attributes);
+            LogReporting.getLogger().logAll(throwable, attributes);
         }
     }
 

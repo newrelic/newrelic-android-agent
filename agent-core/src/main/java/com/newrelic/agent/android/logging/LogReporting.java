@@ -5,8 +5,6 @@
 
 package com.newrelic.agent.android.logging;
 
-import static com.newrelic.agent.android.analytics.AnalyticsAttribute.EVENT_TIMESTAMP_ATTRIBUTE;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -16,45 +14,46 @@ import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * LogReporting public interface, exposed to NewRelic API
  */
 public abstract class LogReporting {
 
-    private static Gson gson = new GsonBuilder().enableComplexMapKeySerialization().create();
-    private static Type gtype = new TypeToken<Map>() {}.getType();
-
     // Logging payload attributes
-    static final String LOG_TIMESTAMP_ATTRIBUTE = EVENT_TIMESTAMP_ATTRIBUTE;
-    static final String LOG_LEVEL_ATTRIBUTE = "level";
-    static final String LOG_MESSAGE_ATTRIBUTE = "message";
-    static final String LOG_ATTRIBUTES_ATTRIBUTE = "attributes";
+    protected static final String LOG_TIMESTAMP_ATTRIBUTE = AnalyticsAttribute.EVENT_TIMESTAMP_ATTRIBUTE;
+    protected static final String LOG_LEVEL_ATTRIBUTE = "level";
+    protected static final String LOG_MESSAGE_ATTRIBUTE = "message";
+    protected static final String LOG_ATTRIBUTES_ATTRIBUTE = "attributes";
+    protected static final String LOG_ENTITY_ATTRIBUTE = "entity.guid";
+    protected static final String LOG_ERROR_MESSAGE_ATTRIBUTE = "error.message";
+    protected static final String LOG_ERROR_STACK_ATTRIBUTE = "error.stack";
+    protected static final String LOG_ERROR_CLASS_ATTRIBUTE = "error.class";
+    protected static final Type gtype = new TypeToken<Map<String, Object>>() {}.getType();
+    protected static final Gson gson = new GsonBuilder()
+            .enableComplexMapKeySerialization()
+            .create();
 
-    static final String LOG_ERROR_MESSAGE_ATTRIBUTE = "error.message";
-    static final String LOG_ERROR_STACK_ATTRIBUTE = "error.stack";
-    static final String LOG_ERROR_CLASS_ATTRIBUTE = "error.class";
+    protected static LogLevel logLevel = LogLevel.INFO;
+    protected static AtomicReference<LogReporting> instance = new AtomicReference<>(new LocalLogger());
 
-    static LogLevel logLevel = LogLevel.INFO;
-
-    static LogReporting instance = new LogReporting() {
-        @Override
-        public void log(LogLevel level, String message) {
-            logToAgent(level, message);
-        }
-    };
-
-    private static String entityGuid = "";
+    protected static String entityGuid = "";
 
     public static LogReporting getLogger() {
-        return instance;
+        return instance.get();
     }
 
     public static LogReporting setLogger(LogReporting logger) {
-        LogReporting.instance = logger;
-        return LogReporting.instance;
+        LogReporting.instance.set(logger);
+        return LogReporting.instance.get();
     }
 
+    /**
+     * Return the current log level
+     *
+     * @return LogLevel enum @link {LogLevel()}
+     */
     static LogLevel getLogLevel() {
         return logLevel;
     }
@@ -62,7 +61,7 @@ public abstract class LogReporting {
     /**
      * Return ordinal value of log level
      *
-     * @return LogLevel enum
+     * @return LogLevel enum @link {LogLevel#ordinal()}
      */
     static int getLogLevelAsInt() {
         return logLevel.ordinal();
@@ -71,7 +70,7 @@ public abstract class LogReporting {
     /**
      * Set log level by name
      *
-     * @param logLevelAsString
+     * @param logLevelAsString {@link LogLevel#name()}
      */
     public static void setLogLevel(String logLevelAsString) {
         setLogLevel(LogLevel.valueOf(logLevelAsString.toUpperCase()));
@@ -80,7 +79,7 @@ public abstract class LogReporting {
     /**
      * Set log level by ordinal value
      *
-     * @param logLevelAsValue
+     * @param logLevelAsValue @link {LogLevel()#ordinal()}
      */
     static void setLogLevel(int logLevelAsValue) {
         logLevel = LogLevel.levels[logLevelAsValue];
@@ -89,7 +88,7 @@ public abstract class LogReporting {
     /**
      * Set log level by enum
      *
-     * @param level
+     * @param level {@link LogLevel#name()}
      */
     public static void setLogLevel(LogLevel level) {
         logLevel = level;
@@ -101,7 +100,7 @@ public abstract class LogReporting {
 
     public boolean isRemoteLoggingEnabled() {
         return FeatureFlag.featureEnabled(FeatureFlag.LogReporting) &&
-                getLogLevel() != LogLevel.NONE;
+                LogLevel.NONE != getLogLevel();
     }
 
     /**
@@ -144,22 +143,22 @@ public abstract class LogReporting {
 
     public void logAttributes(Map<String, Object> attributes) {
         Map<String, Object> msgAttributes = getCommonBlockAttributes();
-        String level = (String) attributes.getOrDefault(LOG_LEVEL_ATTRIBUTE, "NONE");
-        msgAttributes.put(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE, attributes);
+        String level = (String) attributes.getOrDefault(LOG_LEVEL_ATTRIBUTE, LogLevel.NONE.name());
+        msgAttributes.put(LOG_ATTRIBUTES_ATTRIBUTE, attributes);
         logToAgent(LogLevel.valueOf(level.toUpperCase()), gson.toJson(msgAttributes, gtype));
     }
 
     public void logAll(Throwable throwable, Map<String, Object> attributes) {
-        String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, "NONE");
+        String level = (String) attributes.getOrDefault(LOG_LEVEL_ATTRIBUTE, LogLevel.NONE.name());
         Map<String, Object> msgAttributes = new HashMap<>() {{
-            put(LogReporting.LOG_LEVEL_ATTRIBUTE, level.toUpperCase());
+            put(LOG_LEVEL_ATTRIBUTE, level.toUpperCase());
             putAll(getCommonBlockAttributes());
             if (throwable != null) {
-                put(LogReporting.LOG_ERROR_MESSAGE_ATTRIBUTE, throwable.getLocalizedMessage());
-                put(LogReporting.LOG_ERROR_STACK_ATTRIBUTE, throwable.getStackTrace()[0].toString());
-                put(LogReporting.LOG_ERROR_CLASS_ATTRIBUTE, throwable.getClass().getSimpleName());
+                put(LOG_ERROR_MESSAGE_ATTRIBUTE, throwable.getLocalizedMessage());
+                put(LOG_ERROR_STACK_ATTRIBUTE, throwable.getStackTrace()[0].toString());
+                put(LOG_ERROR_CLASS_ATTRIBUTE, throwable.getClass().getSimpleName());
             }
-            put(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE, attributes);
+            put(LOG_ATTRIBUTES_ATTRIBUTE, attributes);
         }};
         logToAgent(LogLevel.valueOf(level.toUpperCase()), gson.toJson(msgAttributes, gtype));
     }
@@ -183,9 +182,84 @@ public abstract class LogReporting {
      */
     Map<String, Object> getCommonBlockAttributes() {
         return new HashMap<>() {{
-            put(EVENT_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
-        //  put(EVENT_ENTITY_ID_ATTRIBUTE, LogReporting.getEntityGuid());
+            put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
+            //  put(EVENT_ENTITY_ID_ATTRIBUTE, LogReporting.getEntityGuid());
         }};
     }
+
+    static class LocalLogger extends LogReporting {
+        @Override
+        public void log(LogLevel level, String message) {
+            if (isLevelEnabled(level)) {
+                final AgentLog agentLog = AgentLogManager.getAgentLog();
+                switch (level) {
+                    case ERROR:
+                        agentLog.error(message);
+                        break;
+                    case WARN:
+                        agentLog.warn(message);
+                        break;
+                    case INFO:
+                        agentLog.info(message);
+                        break;
+                    case VERBOSE:
+                        agentLog.verbose(message);
+                        break;
+                    case DEBUG:
+                        agentLog.debug(message);
+                        break;
+                }
+            }
+        }
+    }
+
+    // TODO
+    public interface LogMessageValidator {
+        String INVALID_KEYSET = "{}\\[\\]]";
+        String[] ANONYMIZATION_TARGETS = {
+                "http?//{.*}/{.*}",
+                "{.*}\\@{.*}\\.{.*}"
+        };
+
+        boolean validateAttributes(Map<String, Object> attributes);
+
+        default boolean anonymize(Map<String, Object> attributes) {
+            return true;
+        }
+
+        default boolean validateThrowable(final Throwable throwable) {
+            return true;
+        }
+    }
+
+    /**
+     * Validate and sanitize key/value data pairs
+     *
+     * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#supported-types
+     */
+    protected Map<String, Object> validateLogData(LogMessageValidator validator, Map<String, Object> logDataMap) {
+        logDataMap.forEach((key, value) -> {
+            if (value instanceof String) {
+                // TODO https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#message-attribute-parsin
+                // Enforce log message constraints:
+                //  static int MAX_ATTRIBUTES_PER_EVENT = 255;
+                //  static int MAX_ATTRIBUTES_NAME_SIZE = 255;
+                //  static int MAX_ATTRIBUTES_VALUE_SIZE = 4096;
+            }
+        });
+
+        return logDataMap;
+    }
+
+    /**
+     * Final decoration of log data attribute set
+     *
+     * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#supported-types
+     */
+    protected Map<String, Object> decorateLogData(LogMessageValidator validator, Map<String, Object> logDataMap) {
+        // TODO
+        return logDataMap;
+    }
+
 
 }
