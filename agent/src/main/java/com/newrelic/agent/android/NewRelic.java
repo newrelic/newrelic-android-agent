@@ -36,6 +36,7 @@ import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -317,13 +318,15 @@ public final class NewRelic {
         }
 
         try {
-            if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-                LogReporter.initialize(context.getFilesDir(), agentConfiguration);
-                LogReporting.setLogger(new RemoteLogger());
+            AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
+            log.setLevel(logLevel);
 
-            } else {
-                AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
-                log.setLevel(logLevel);
+            if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+                try {
+                    LogReporter.initialize(context.getFilesDir(), agentConfiguration);
+                } catch (IOException e) {
+                    AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e.toString());
+                }
             }
 
             boolean instantApp = InstantApps.isInstantApp(context);
