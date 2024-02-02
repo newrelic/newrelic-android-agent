@@ -2,9 +2,17 @@ name: Android CI
 
 on:
   push:
-    branches: [ "develop", "main" ]
+    branches: [ "develop", "main", "feature/*" ]
   pull_request:
     branches: [ "develop", "main" ]
+
+  workflow_dispatch:
+    inputs:
+    #  working-branch:
+    #    description: 'TBA: Build this branch (default is current)'
+    #    required: false
+    #    default: ${{ env.GITHUB_REF_NAME }}
+    #    type: string
 
 jobs:
   build:

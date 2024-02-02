@@ -4,7 +4,15 @@ on:
   pull_request:
     branches: [ develop, main ]
     types: [ opened, reopened ]
+  push:
+    branches: [ develop, main, "feature/*" ]
   workflow_dispatch:
+    # inputs:
+    #  working-branch:
+    #    description: 'TBA: Analyze this branch (default is current)'
+    #    required: false
+    #    default: ${{ env.GITHUB_REF_NAME }}
+    #   type: string
 
 jobs:
   codecov_report:
