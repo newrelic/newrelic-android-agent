@@ -14,10 +14,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -133,23 +131,39 @@ public class StreamsTest {
 
     @Test
     public void list() throws IOException {
-        List<File> r = Streams.listFiles(testInputFile.getParentFile()).collect(Collectors.toList());
-        Assert.assertFalse(r.isEmpty());
-        Assert.assertTrue(r.contains(testInputFile));
+        Set<File> fileSet = Streams.list(testInputFile.getParentFile()).collect(Collectors.toSet());
+        Assert.assertFalse(fileSet.isEmpty());
+        Assert.assertTrue(fileSet.contains(testInputFile));
     }
 
     @Test
     public void filteredList() throws IOException {
-        FilenameFilter filter = new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.equals(testInputFile.getName());
-            }
-        };
-
-        List<File> r = Streams.listFiles(testInputFile.getParentFile(), filter).collect(Collectors.toList());
-        Assert.assertFalse(r.isEmpty());
-        Assert.assertEquals("Shoudl filter to 1 file", 1, r.size());
-        Assert.assertTrue(r.contains(testInputFile));
+        Set<File> fileSet = Streams.list(testInputFile.getParentFile(),
+                pathname -> pathname.equals(testInputFile)).collect(Collectors.toSet());
+        Assert.assertFalse(fileSet.isEmpty());
+        Assert.assertEquals("Should filter to 1 file", 1, fileSet.size());
+        Assert.assertTrue(fileSet.contains(testInputFile));
     }
+
+    @Test
+    public void testInvalidList() {
+        try {
+            Streams.list(new File("")).collect(Collectors.toSet());
+            Assert.fail("Should throw exception");
+        } catch (IllegalArgumentException e) {
+        }
+
+        try {
+            Streams.list(null).collect(Collectors.toSet());
+            Assert.fail("Should throw exception");
+        } catch (IllegalArgumentException e) {
+        }
+
+        try {
+            Streams.list(new File("/dev/wtf")).collect(Collectors.toSet());
+            Assert.fail("Should throw exception");
+        } catch (IllegalArgumentException e) {
+        }
+    }
+
 }

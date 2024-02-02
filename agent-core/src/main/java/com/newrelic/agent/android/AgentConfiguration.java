@@ -20,6 +20,7 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -43,6 +44,8 @@ public class AgentConfiguration {
 
     static final String DEFAULT_DEVICE_UUID = "0";
     static final int DEVICE_UUID_MAX_LEN = 40;
+
+    protected static AtomicReference<AgentConfiguration> instance = new AtomicReference<>(new AgentConfiguration());
 
     private String collectorHost = DEFAULT_COLLECTOR_HOST;
     private String crashCollectorHost = DEFAULT_CRASH_COLLECTOR_HOST;
@@ -68,6 +71,7 @@ public class AgentConfiguration {
     public String getApplicationToken() {
         return applicationToken;
     }
+
 
     public void setApplicationToken(String applicationToken) {
         this.applicationToken = applicationToken;
@@ -364,5 +368,11 @@ public class AgentConfiguration {
     public void reconfigure(HarvestConfiguration harvestConfiguration) {
         // update the global agent config w/changes
         this.setLogReportingConfiguration(harvestConfiguration.getLog_reporting());
+    }
+
+    // return the default instance
+    public static AgentConfiguration getInstance() {
+        instance.compareAndSet(null, new AgentConfiguration());
+        return instance.get();
     }
 }

@@ -9,10 +9,10 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -147,23 +147,39 @@ public class Streams {
     /**
      * Returns the non-recursive contents of a directory as a stream of Files.
      *
-     * @param rootDir
+     * @param rootDir Directory to search
      * @return Stream of files contained in passed directory
      * @throws IOException
      */
-    public static Stream<File> listFiles(File rootDir) throws IOException {
-        return Arrays.stream(rootDir.listFiles());
+    public static Stream<File> list(File rootDir) throws IllegalArgumentException {
+        return Streams.list(rootDir, pathname -> true);
     }
 
     /**
      * Returns the non-recursive filtered contents of a directory as a stream of Files.
      *
-     * @param rootDir
+     * @param rootDir Directory to search
+     * @param filter  FileFilter
      * @return Stream of files contained in passed directory
      * @throws IOException
      */
-    public static Stream<File> listFiles(File rootDir, FilenameFilter filter) throws IOException {
+    public static Stream<File> list(File rootDir, FileFilter filter) throws IllegalArgumentException {
+        if (null == rootDir) {
+            throw new IllegalArgumentException("Invalid file argument: file is null");
+        }
+
+        if (!rootDir.exists()) {
+            throw new IllegalArgumentException("Invalid file argument: file does not exist");
+        }
+
+        if (!rootDir.isDirectory()) {
+            throw new IllegalArgumentException("Invalid file argument: file is not a directory");
+        }
+
+        if (null == filter) {
+            filter = pathname -> false;
+        }
+
         return Arrays.stream(rootDir.listFiles(filter));
     }
-
 }
