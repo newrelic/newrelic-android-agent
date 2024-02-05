@@ -55,6 +55,11 @@ public class Streams {
         }
     }
 
+    /**
+     * Byte array and Strings: the max capacity of a byte array int  0x7fffffff (2^31-1),
+     * while a File length is 0x7fffffffffffffffL (2^53-1);
+     */
+
     public static byte[] slurpBytes(final InputStream in) throws IOException {
         try (final ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             copy(in, out);

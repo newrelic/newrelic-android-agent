@@ -183,7 +183,7 @@ public abstract class LogReporting {
     Map<String, Object> getCommonBlockAttributes() {
         return new HashMap<>() {{
             put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
-            //  put(EVENT_ENTITY_ID_ATTRIBUTE, LogReporting.getEntityGuid());
+            put(LogReporting.LOG_ENTITY_ATTRIBUTE, LogReporting.getEntityGuid());
         }};
     }
 
