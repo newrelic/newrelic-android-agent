@@ -14,5 +14,8 @@ public enum ApplicationFramework {
     Xamarin,
     MAUI,
 
-    Unity
+    Unity,
+
+    Unreal
+
 }
