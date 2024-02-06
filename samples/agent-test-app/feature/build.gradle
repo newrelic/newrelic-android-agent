@@ -8,6 +8,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
+    apply plugin: 'newrelic'
+}
+
 project.compiler = "none"
 
 apply from: "${rootDir}/android.gradle"
