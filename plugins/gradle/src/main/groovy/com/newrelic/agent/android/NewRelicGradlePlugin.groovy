@@ -163,6 +163,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
     static def isSupportedModule(Project project) {
         return project.pluginManager.hasPlugin("com.android.application") ||
-                project.pluginManager.hasPlugin("com.android.library")
+                project.pluginManager.hasPlugin("com.android.library") ||
+                project.pluginManager.hasPlugin("com.android.dynamic-feature")
     }
 }
