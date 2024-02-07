@@ -4,11 +4,6 @@ on:
   pull_request:
     branches: ["main", "release/*"]
   workflow_dispatch:
-    inputs:
-      agent:
-        description: 'NewRelic Android agent deployment'
-        default: '6.+'
-        required: false
 
 jobs:
   assemble_project:

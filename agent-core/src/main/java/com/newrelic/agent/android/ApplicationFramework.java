@@ -13,6 +13,6 @@ public enum ApplicationFramework {
     Capacitor,
     Xamarin,
     MAUI,
-
-    Unity
+    Unity,
+    Unreal
 }
