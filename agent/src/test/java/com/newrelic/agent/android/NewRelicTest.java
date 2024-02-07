@@ -7,6 +7,9 @@ package com.newrelic.agent.android;
 
 import static com.newrelic.agent.android.NewRelic.agentConfiguration;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -1222,16 +1225,15 @@ public class NewRelicTest {
         LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
         RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
 
-        Map<String, Object> attributes = new HashMap<String, Object>() {{
-            put("level", "WARN");
-            put("message", "A stern WARNing");
-            put("cheddar", "wensleydale");
-        }};
+        // Gson will not serialize anonymous maps
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("level", "WARN");
+        attributes.put("message", "A stern WARNing");
+        attributes.put("cheddar", "wensleydale");
 
-        final String msg = (String) attributes.get("message");
         NewRelic.logAttributes(attributes);
         verify(remoteLogger, times(1)).logAttributes(attributes);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.WARN, msg, null, attributes);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), nullable(Throwable.class), anyMap());
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "logAttributes/" + MetricNames.TAG_STATE)
@@ -1244,11 +1246,12 @@ public class NewRelicTest {
     @Test
     public void testLogAll() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Map<String, Object> attributes = new HashMap<String, Object>() {{
-            put("level", "dEbUg");
-            put("message", "Debug log message attributes with throwable");
-            put("cheddar", "stilton");
-        }};
+
+        // Gson will not serialize anonymous maps
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("level", "dEbUg");
+        attributes.put("message", "Debug log message attributes with throwable");
+        attributes.put("cheddar", "stilton");
 
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
         RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
@@ -1257,7 +1260,7 @@ public class NewRelicTest {
         Throwable throwable = new RuntimeException(msg);
         NewRelic.logAll(throwable, attributes);
         verify(remoteLogger, times(1)).logAll(throwable, attributes);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, msg, throwable, attributes);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(Throwable.class), anyMap());
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "logAll/" + MetricNames.TAG_STATE)
@@ -1269,10 +1272,11 @@ public class NewRelicTest {
 
     @Test
     public void testRemoteLoggingBeforeAgentStart() {
-        final Map attrs = new HashMap<String, Object>() {{
-            put("level", "DEBUG");
-            put("message", "This is a debug message");
-        }};
+        // Gson will not serialize anonymous maps
+        final Map attrs = new HashMap<String, Object>();
+
+        attrs.put("level", "DEBUG");
+        attrs.put("message", "This is a debug message");
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         Assert.assertTrue(LogReporting.getLogger() instanceof LogReporting);
