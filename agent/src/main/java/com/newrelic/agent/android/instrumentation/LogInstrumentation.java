@@ -89,11 +89,11 @@ public class LogInstrumentation {
     }
 
     private static Map<String, Object> asAttributes(LogLevel logLevel, String tag, String message) {
-        return new HashMap<String, Object>() {{
-            put("tag", tag);
-            put("message", message);
-            put("level", logLevel.name().toUpperCase());
-        }};
+        HashMap<String, Object> attrs = new HashMap<>();
+        attrs.put("tag", tag);
+        attrs.put("message", message);
+        attrs.put("level", logLevel.name().toUpperCase());
+        return attrs;
     }
 
 }

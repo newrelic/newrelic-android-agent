@@ -116,7 +116,7 @@ public class HarvesterConfigurationTests {
                 "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\"," +
                 "\"application_id\":\"100\",\"trusted_account_key\":\"33\"," +
                 "\"entity_guid\":\""+entityGuid+"\"," +
-                "\"log_reporting\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":false,\"level\":\"NONE\"}" +
+                "\"log_reporting\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":false,\"level\":\"INFO\"}" +
                 "}";
 
         Gson gson = new Gson();

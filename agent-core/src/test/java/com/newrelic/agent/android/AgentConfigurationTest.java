@@ -156,6 +156,12 @@ public class AgentConfigurationTest {
     }
 
     @Test
+    public void shouldParseUnrealApplicationFramework() {
+        agentConfiguration.setApplicationFramework(ApplicationFramework.Unreal);
+        Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Unreal);
+    }
+
+    @Test
     public void testSetEventStore() {
         agentConfiguration.setEventStore(new TestEventStore());
         Assert.assertNotNull(agentConfiguration.getEventStore());

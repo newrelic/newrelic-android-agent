@@ -74,6 +74,9 @@ public class MetricNames {
     public static final String SUPPORTABILITY_NDK_REPORTS_EXCEPTION = SUPPORTABILITY_NDK + "Reports/NativeException";
     public static final String SUPPORTABILITY_NDK_REPORTS_FLUSH = SUPPORTABILITY_NDK + "Reports/Flush";
 
+    public static final String SUPPORTABILITY_LOG_REPORTING = "Supportability/LogReporting";
+    public static final String SUPPORTABILITY_LOG_REPORTING_INIT = SUPPORTABILITY_LOG_REPORTING + "Init";
+
     public static final String SUPPORTABILITY_DATA_TOKEN = SUPPORTABILITY_AGENT + "DataToken/";
     public static final String SUPPORTABILITY_INVALID_DATA_TOKEN = SUPPORTABILITY_DATA_TOKEN + "Invalid";
 

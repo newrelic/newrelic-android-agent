@@ -14,8 +14,8 @@ public enum LogLevel {
     DEBUG(4),       // Messaging to assist static analysis
     VERBOSE(5);     // When too much is just not enough
 
+    static final LogLevel[] levels = values();
     final int value;
-    static final LogLevel levels[] = values();
 
     LogLevel(final int value) {
         this.value = value;

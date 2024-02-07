@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android.instrumentation;
 
-import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -18,11 +17,9 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.NewRelic;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.logging.AndroidRemoteLogger;
+import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
-
-import net.bytebuddy.implementation.bytecode.Throw;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -30,7 +27,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.io.File;
 import java.io.IOException;
 
 public class LogInstrumentationTest {
@@ -41,15 +37,13 @@ public class LogInstrumentationTest {
     @Before
     public void setUp() throws Exception {
         NewRelic.disableFeature(FeatureFlag.LogReporting);
-        remoteLogger = Mockito.spy(new AndroidRemoteLogger());
+        remoteLogger = Mockito.spy(new RemoteLogger());
         agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
         AgentLogManager.setAgentLog(agentLogger);
         LogReporting.setLogger(remoteLogger);
         LogReporting.setLogLevel(LogLevel.VERBOSE);
 
-        Assert.assertTrue(remoteLogger instanceof AndroidRemoteLogger);
-        AndroidRemoteLogger androidRemoteLogger = (AndroidRemoteLogger) remoteLogger;
-        androidRemoteLogger.setAgentLogFilePath(File.createTempFile(LogInstrumentationTest.class.getSimpleName(), "log").getPath());
+        Assert.assertTrue(remoteLogger instanceof RemoteLogger);
 
         NewRelic.enableFeature(FeatureFlag.LogReporting);
     }
@@ -65,7 +59,7 @@ public class LogInstrumentationTest {
 
         Assert.assertNotEquals(0, LogInstrumentation.d("TAG", msg));
         verify(remoteLogger, times(1)).logAttributes(anyMap());
-        verify(remoteLogger, times(1)).log(any(LogLevel.class), anyString());
+        verify(remoteLogger, times(1)).logToAgent(any(LogLevel.class), anyString());
         verify(agentLogger, atLeastOnce()).debug(anyString());
     }
 
@@ -76,7 +70,7 @@ public class LogInstrumentationTest {
 
         Assert.assertNotEquals(0, LogInstrumentation.e("TAG", msg, throwable));
         verify(remoteLogger, times(1)).logAll(any(Throwable.class), anyMap());
-        verify(remoteLogger, times(1)).log(any(LogLevel.class), anyString());
+        verify(remoteLogger, times(1)).logToAgent(any(LogLevel.class), anyString());
         verify(agentLogger, atLeastOnce()).error(anyString());
     }
 
@@ -89,7 +83,7 @@ public class LogInstrumentationTest {
 
         Assert.assertEquals(0, LogInstrumentation.i("TAG", msg, throwable));
         verify(remoteLogger, times(1)).logAll(any(Throwable.class), anyMap());
-        verify(remoteLogger, times(1)).log(any(LogLevel.class), anyString());
+        verify(remoteLogger, times(1)).logToAgent(any(LogLevel.class), anyString());
         verify(agentLogger, never()).info(anyString());
     }
 }

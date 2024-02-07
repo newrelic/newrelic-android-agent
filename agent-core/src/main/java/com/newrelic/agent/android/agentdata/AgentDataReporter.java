@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android.agentdata;
 
-import com.google.flatbuffers.FlatBufferBuilder;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
@@ -20,15 +19,11 @@ import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.payload.PayloadStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 
-import java.io.ByteArrayOutputStream;
-import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class AgentDataReporter extends PayloadReporter implements HarvestLifecycleAware {
+public class AgentDataReporter extends PayloadReporter {
     protected static final AtomicReference<AgentDataReporter> instance = new AtomicReference<>(null);
     private static boolean reportExceptions = false;
 
@@ -178,54 +173,8 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
     }
 
     @Override
-    public void onHarvestStart() {
-    }
-
-    @Override
-    public void onHarvestStop() {
-    }
-
-    @Override
-    public void onHarvestBefore() {
-    }
-
-    @Override
     public void onHarvest() {
         PayloadController.submitCallable(reportCachedAgentDataCallable);
     }
 
-    @Override
-    public void onHarvestFinalize() {
-
-    }
-
-    @Override
-    public void onHarvestError() {
-
-    }
-
-    @Override
-    public void onHarvestSendFailed() {
-
-    }
-
-    @Override
-    public void onHarvestComplete() {
-
-    }
-
-    @Override
-    public void onHarvestConnected() {
-
-    }
-
-    @Override
-    public void onHarvestDisconnected() {
-
-    }
-
-    @Override
-    public void onHarvestDisabled() {
-
-    }
 }

@@ -570,7 +570,7 @@ public class HarvestTests {
     }
 
     static class TestHarvestAdapter extends HarvestAdapter {
-        HashSet<String> events = new HashSet();
+        HashSet<String> events = new HashSet<>();
 
         @Override
         public void onHarvestStart() {

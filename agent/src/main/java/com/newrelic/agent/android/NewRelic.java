@@ -21,8 +21,9 @@ import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
-import com.newrelic.agent.android.logging.AndroidRemoteLogger;
+import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReporter;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.NullAgentLog;
@@ -35,7 +36,7 @@ import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 
-import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -55,15 +56,13 @@ import java.util.Map;
 public final class NewRelic {
     private static final String UNKNOWN_HTTP_REQUEST_TYPE = "unknown";
 
-    protected static final AgentLog log = AgentLogManager.getAgentLog();
+    private static final AgentLog log = AgentLogManager.getAgentLog();
     protected static final AgentConfiguration agentConfiguration = new AgentConfiguration();
     protected static boolean started = false;
     protected static boolean isShutdown = false;
 
     protected boolean loggingEnabled = true;
     protected int logLevel = AgentLog.INFO;
-
-    protected static AndroidRemoteLogger remoteLogger = new AndroidRemoteLogger();
 
     protected NewRelic(String token) {
         agentConfiguration.setApplicationToken(token);
@@ -319,14 +318,15 @@ public final class NewRelic {
         }
 
         try {
+            AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
+            log.setLevel(logLevel);
+
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-                File agentLogFile = new File(context.getFilesDir(), "newrelic/logreporting-" + System.currentTimeMillis() + ".log");
-                remoteLogger.setAgentLogFilePath(agentLogFile.getPath());
-                LogReporting.setLogger(remoteLogger);
-                //TODO: extra configuration
-            } else {
-                AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
-                log.setLevel(logLevel);
+                try {
+                    LogReporter.initialize(context.getCacheDir(), agentConfiguration);
+                } catch (IOException e) {
+                    AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e.toString());
+                }
             }
 
             boolean instantApp = InstantApps.isInstantApp(context);
@@ -1121,23 +1121,43 @@ public final class NewRelic {
      * Remote Logging API
      */
     public static void logInfo(String message) {
-        remoteLogger.info(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.INFO.name()));
+
+        LogReporting.getLogger().log(LogLevel.INFO, message);
     }
 
     public static void logWarning(String message) {
-        remoteLogger.warn(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.WARN.name()));
+
+        LogReporting.getLogger().log(LogLevel.WARN, message);
     }
 
     public static void logDebug(String message) {
-        remoteLogger.debug(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name()));
+
+        LogReporting.getLogger().log(LogLevel.DEBUG, message);
     }
 
     public static void logVerbose(String message) {
-        remoteLogger.verbose(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.VERBOSE.name()));
+
+        LogReporting.getLogger().log(LogLevel.VERBOSE, message);
     }
 
     public static void logError(String message) {
-        remoteLogger.error(message);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name()));
+
+        LogReporting.getLogger().log(LogLevel.ERROR, message);
     }
 
     /**
@@ -1152,7 +1172,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (LogReporting.isLevelEnabled(logLevel)) {
-            remoteLogger.log(logLevel, message);
+            LogReporting.getLogger().log(logLevel, message);
         }
     }
 
@@ -1169,7 +1189,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (LogReporting.isLevelEnabled(logLevel)) {
-            remoteLogger.logThrowable(logLevel, message, throwable);
+            LogReporting.getLogger().logThrowable(logLevel, message, throwable);
         }
     }
 
@@ -1193,7 +1213,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (LogReporting.isLevelEnabled(LogLevel.valueOf(level.toUpperCase()))) {
-            remoteLogger.logAttributes(attributes);
+            LogReporting.getLogger().logAttributes(attributes);
         }
     }
 
@@ -1216,7 +1236,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (LogReporting.isLevelEnabled(logLevel)) {
-            remoteLogger.logAll(throwable, attributes);
+            LogReporting.getLogger().logAll(throwable, attributes);
         }
     }
 
