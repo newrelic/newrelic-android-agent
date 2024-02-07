@@ -103,10 +103,10 @@ public class RemoteLoggerTest extends LoggingTests {
     @Test
     public void logAttributes() throws Exception {
         final String msg = "logAttributes: " + getRandomMsg(17);
-        final HashMap<String, Object> attrs = new HashMap<>() {{
-            put("level", "INFO");
-            put("message", msg);
-        }};
+        final HashMap<String, Object> attrs = new HashMap<>();
+
+        attrs.put("level", "INFO");
+        attrs.put("message", msg);
 
         logger.logAttributes(attrs);
         logger.flushPendingRequests();
@@ -122,10 +122,10 @@ public class RemoteLoggerTest extends LoggingTests {
     public void logAll() throws Exception {
         final String msg = "logAll msg: " + getRandomMsg(12);
         final Throwable throwable = new RuntimeException(msg);
-        final HashMap<String, Object> attrs = new HashMap<>() {{
-            put("level", "INFO");
-            put("message", msg);
-        }};
+        final HashMap<String, Object> attrs = new HashMap<>();
+
+        attrs.put("level", "INFO");
+        attrs.put("message", msg);
 
         logger.logAll(throwable, attrs);
         verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, throwable, attrs);
@@ -161,10 +161,12 @@ public class RemoteLoggerTest extends LoggingTests {
         // Gson does not serialize anonymous nested classes
         final Map<String, Object> attrs = new HashMap<>();
         final Map<String, Object> userAttributes = new HashMap<>();
+
         attrs.put("level", "INFO");
         attrs.put("service-name", "login-service");
         attrs.put("action", "login");
         attrs.put("user", userAttributes);
+
         userAttributes.put("id", 123);
         userAttributes.put("name", "alice");
         userAttributes.put("login-result", false);

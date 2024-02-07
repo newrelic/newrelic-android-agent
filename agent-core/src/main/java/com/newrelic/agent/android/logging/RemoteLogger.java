@@ -59,7 +59,7 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
         super.logAttributes(attributes);
 
         if (isLevelEnabled(logLevel)) {
-            String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.NONE.name());
+            String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
             String message = (String) attributes.getOrDefault(LogReporting.LOG_MESSAGE_ATTRIBUTE, null);
             appendToWorkingLogFile(LogLevel.valueOf(level.toUpperCase()), message, null, attributes);
         }
@@ -70,7 +70,7 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
         super.logAll(throwable, attributes);
 
         if (isLevelEnabled(logLevel)) {
-            String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.NONE.name());
+            String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
             String message = (String) attributes.getOrDefault(LogReporting.LOG_MESSAGE_ATTRIBUTE, null);
             appendToWorkingLogFile(LogLevel.valueOf(level.toUpperCase()), message, throwable, attributes);
         }

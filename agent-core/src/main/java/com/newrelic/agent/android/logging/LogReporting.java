@@ -143,23 +143,29 @@ public abstract class LogReporting {
 
     public void logAttributes(Map<String, Object> attributes) {
         Map<String, Object> msgAttributes = getCommonBlockAttributes();
-        String level = (String) attributes.getOrDefault(LOG_LEVEL_ATTRIBUTE, LogLevel.NONE.name());
+        String level = (String) attributes.getOrDefault(LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
+        attributes.remove(LOG_LEVEL_ATTRIBUTE);
         msgAttributes.put(LOG_ATTRIBUTES_ATTRIBUTE, attributes);
         logToAgent(LogLevel.valueOf(level.toUpperCase()), gson.toJson(msgAttributes, gtype));
     }
 
     public void logAll(Throwable throwable, Map<String, Object> attributes) {
-        String level = (String) attributes.getOrDefault(LOG_LEVEL_ATTRIBUTE, LogLevel.NONE.name());
-        Map<String, Object> msgAttributes = new HashMap<>() {{
-            put(LOG_LEVEL_ATTRIBUTE, level.toUpperCase());
-            putAll(getCommonBlockAttributes());
-            if (throwable != null) {
-                put(LOG_ERROR_MESSAGE_ATTRIBUTE, throwable.getLocalizedMessage());
-                put(LOG_ERROR_STACK_ATTRIBUTE, throwable.getStackTrace()[0].toString());
-                put(LOG_ERROR_CLASS_ATTRIBUTE, throwable.getClass().getSimpleName());
-            }
-            put(LOG_ATTRIBUTES_ATTRIBUTE, attributes);
-        }};
+        String level = (String) attributes.getOrDefault(LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
+        Map<String, Object> msgAttributes = new HashMap<>();
+
+        attributes.remove(LOG_LEVEL_ATTRIBUTE);
+
+        msgAttributes.put(LOG_LEVEL_ATTRIBUTE, level.toUpperCase());
+        msgAttributes.putAll(getCommonBlockAttributes());
+        
+        if (throwable != null) {
+            msgAttributes.put(LOG_ERROR_MESSAGE_ATTRIBUTE, throwable.getLocalizedMessage());
+            msgAttributes.put(LOG_ERROR_STACK_ATTRIBUTE, throwable.getStackTrace()[0].toString());
+            msgAttributes.put(LOG_ERROR_CLASS_ATTRIBUTE, throwable.getClass().getSimpleName());
+        }
+        
+        msgAttributes.put(LOG_ATTRIBUTES_ATTRIBUTE, attributes);
+        
         logToAgent(LogLevel.valueOf(level.toUpperCase()), gson.toJson(msgAttributes, gtype));
     }
 
@@ -181,10 +187,12 @@ public abstract class LogReporting {
      * @return Map of common block attributes
      */
     Map<String, Object> getCommonBlockAttributes() {
-        return new HashMap<>() {{
-            put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
-            put(LogReporting.LOG_ENTITY_ATTRIBUTE, LogReporting.getEntityGuid());
-        }};
+        Map<String, Object> attrs = new HashMap<>();
+
+        attrs.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
+        attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, LogReporting.getEntityGuid());
+
+        return attrs;
     }
 
     static class LocalLogger extends LogReporting {

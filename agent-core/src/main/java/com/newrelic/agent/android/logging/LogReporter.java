@@ -28,6 +28,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +38,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -63,7 +65,7 @@ public class LogReporter extends PayloadReporter {
         }
     }
 
-    static int VORTEX_PAYLOAD_LIMIT = (1 * 1024 * 1024);                                // Vortex upload limit: 1 MB (10^6 B) compressed
+    static int VORTEX_PAYLOAD_LIMIT = (1024 * 1024);                                // Vortex upload limit: 1 MB (10^6 B) compressed
     protected int payloadBudget = VORTEX_PAYLOAD_LIMIT;
 
     // TODO Provide for EU and FedRamp collectors
@@ -77,9 +79,9 @@ public class LogReporter extends PayloadReporter {
     static final AtomicReference<LogReporter> instance = new AtomicReference<>(null);
     static final ReentrantLock workingFileLock = new ReentrantLock();
 
-    static File logDataStore = new File("/tmp/", "LogReporting").getAbsoluteFile();
+    static File logDataStore = new File("/tmp/", LOG_REPORTS_DIR).getAbsoluteFile();
 
-    protected long reportTTL = TimeUnit.MILLISECONDS.convert(3, TimeUnit.DAYS);     // log data file expiration period (in MS)
+    protected long reportTTL = TimeUnit.MILLISECONDS.convert(3, TimeUnit.HOURS);     // log data file expiration period (in MS)
     protected File workingLogFile;
     protected AtomicReference<BufferedWriter> workingLogFileWriter = new AtomicReference<>(null);   // lazy initialized
 
@@ -102,7 +104,6 @@ public class LogReporter extends PayloadReporter {
         LogReporting.setLogger(new RemoteLogger());
         log.debug("LogReporting: logger has been set to " + LogReporting.getLogger().getClass().getSimpleName());
 
-        Harvest.addHarvestListener(instance.get());
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_LOG_REPORTING_INIT);
 
         instance.get().start();
@@ -127,13 +128,21 @@ public class LogReporter extends PayloadReporter {
 
     @Override
     protected void start() {
+        Harvest.addHarvestListener(instance.get());
+
         if (isEnabled()) {
             onHarvestStart();   // sweep for any cached report from last session
         }
+
+        isStarted.set(true);
     }
 
     @Override
     protected void stop() {
+        Harvest.removeHarvestListener(instance.get());
+
+        isStarted.set(false);
+
         if (isEnabled()) {
             onHarvestStop();
         }
@@ -148,6 +157,15 @@ public class LogReporter extends PayloadReporter {
             ((HarvestLifecycleAware) logger).onHarvestStart();
         }
 
+        getCachedLogReports(LogReportState.ROLLUP).forEach(logReport -> {
+            if (postLogReport(logReport)) {
+                log.info("Uploaded remote log data [" + logReport.getName() + "]");
+                safeDelete(logReport);
+            } else {
+                log.error("Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
+            }
+        });
+
         // expire and delete leftover files
         expire(Math.toIntExact(reportTTL));
         cleanup();
@@ -156,13 +174,13 @@ public class LogReporter extends PayloadReporter {
     @Override
     public void onHarvestStop() {
         try {
-            // harvest any remaining log data
-            onHarvest();
-
             final LogReporting logger = LogReporting.getLogger();
             if (logger instanceof HarvestLifecycleAware) {
                 ((HarvestLifecycleAware) logger).onHarvestStop();
             }
+
+            // harvest any remaining log data
+            onHarvest();
 
             // The logger can continue to run collecting log data until the agent exists.
             // but will no longer be triggered by the harvest lifecycle
@@ -186,24 +204,32 @@ public class LogReporter extends PayloadReporter {
                 ((HarvestLifecycleAware) logger).onHarvest();
             }
 
-            finalizeWorkingLogFile();
-            rollWorkingLogFile();
+            workingFileLock.lock();
+
+            // roll the log only if data has been added to the working file
+            if (VORTEX_PAYLOAD_LIMIT > payloadBudget) {
+                finalizeWorkingLogFile();
+                rollWorkingLogFile();
+            }
 
         } catch (IOException e) {
-            log.error(e.toString());
+            log.error("LogReporter: " + e);
+
+        } finally {
+            workingFileLock.unlock();
+
         }
 
         if (isEnabled()) {
-            Set<File> rolledUpLogFiles = getCachedLogReports(LogReportState.ROLLUP);
+            // create a single log archive from all available closed files, up to 1Mb in size
+            File logReport = rollupLogDataFiles();
 
-            for (File logReport : rolledUpLogFiles) {
-                if (logReport.isFile()) {
-                    if (postLogReport(logReport)) {
-                        log.info("Uploaded remote log data [" + logReport.getName() + "]");
-                        LogReporter.safeDelete(logReport);
-                    } else {
-                        log.error("Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
-                    }
+            if (null != logReport && logReport.isFile()) {
+                if (postLogReport(logReport)) {
+                    log.info("Uploaded remote log data [" + logReport.getName() + "]");
+                    safeDelete(logReport);
+                } else {
+                    log.error("Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
                 }
             }
         }
@@ -251,71 +277,74 @@ public class LogReporter extends PayloadReporter {
      */
     protected File rollupLogDataFiles() {
         Set<File> logDataFiles = getCachedLogReports(LogReportState.CLOSED);
+        Set<File> mergedFiles = new HashSet<>();
 
         if (!logDataFiles.isEmpty()) {
             int payloadSizeBudget = LogReporter.VORTEX_PAYLOAD_LIMIT;
 
-            workingFileLock.lock();
-
             try {
-                File archivedLogFile = new File(LogReporter.logDataStore,
-                        String.format(Locale.getDefault(),
-                                LogReporter.LOG_FILE_MASK,
-                                String.valueOf(System.currentTimeMillis()),
-                                LogReportState.ROLLUP.extension));
+                workingFileLock.lock();
 
-                archivedLogFile.mkdirs();
-                archivedLogFile.delete();
-                archivedLogFile.createNewFile();
+                JsonArray jsonArray = new JsonArray();
 
-                try (BufferedWriter writer = Streams.newBufferedFileWriter(archivedLogFile)) {
-                    JsonArray jsonArray = new JsonArray();
-
-                    for (File file : logDataFiles) {
-                        if (file != null && file.exists()) {
-                            try {
-                                Streams.lines(file).forEach(line -> {
-                                    if (!line.isEmpty()) {
-                                        JsonObject messageAsJson = gson.fromJson(line, JsonObject.class);
-                                        jsonArray.add(messageAsJson);
-                                    }
-                                });
-
-                                // truncate at payload size limit
-                                payloadSizeBudget -= file.length();
-                                if (payloadSizeBudget < 0) {
-                                    break;
+                for (File file : logDataFiles) {
+                    if (null != file && file.exists() && file.length() > 0) {
+                        try {
+                            Streams.lines(file).forEach(line -> {
+                                if (!line.isEmpty()) {
+                                    JsonObject messageAsJson = gson.fromJson(line, JsonObject.class);
+                                    jsonArray.add(messageAsJson);
                                 }
+                            });
 
-                                // remove the completed file(s)
-                                safeDelete(file);
+                            // remove the completed file(s)
+                            mergedFiles.add(file);
 
-                            } catch (IOException e) {
-                                throw new RuntimeException(e.toString());
+                            // truncate at payload size limit
+                            payloadSizeBudget -= file.length();
+                            if (0 > payloadSizeBudget) {
+                                break;
                             }
+
+                        } catch (IOException e) {
+                            log.error("LogReporter: " + e.toString());
                         }
                     }
-
-                    writer.write(jsonArray.toString());
-                    writer.flush();
-                    writer.close();
-
-                    // critical section:
-                    archivedLogFile.setReadOnly();
-
-
-                } catch (Exception e) {
-                    log.error("Log file rollup failed: " + e);
                 }
 
-                return archivedLogFile;
+                if (jsonArray.size() > 0) {
+                    File archivedLogFile = new File(LogReporter.logDataStore,
+                            String.format(Locale.getDefault(),
+                                    LogReporter.LOG_FILE_MASK,
+                                    System.currentTimeMillis(),
+                                    LogReportState.ROLLUP.extension));
+
+                    archivedLogFile.mkdirs();
+                    archivedLogFile.delete();
+                    archivedLogFile.createNewFile();
+
+                    try (BufferedWriter writer = Streams.newBufferedFileWriter(archivedLogFile)) {
+                        writer.write(jsonArray.toString());
+                        writer.flush();
+                        writer.close();
+
+                        // critical section:
+                        archivedLogFile.setReadOnly();
+
+                    } catch (Exception e) {
+                        log.error("Log file rollup failed: " + e);
+                    }
+
+                    mergedFiles.forEach(file -> safeDelete(file));
+
+                    return archivedLogFile;
+                }
 
             } catch (IOException e) {
                 log.error(e.toString());
 
             } finally {
                 workingFileLock.unlock();
-
             }
         }
 
@@ -330,7 +359,12 @@ public class LogReporter extends PayloadReporter {
      */
     boolean postLogReport(File logDataFile) {
         if (true) {
-            return false;
+            try {
+                log.debug(new String(Streams.readAllBytes(logDataFile), StandardCharsets.UTF_8));
+                safeDelete(logDataFile);
+            } catch (Exception e) {
+            }
+            return true;
         }
 
         try {
@@ -394,10 +428,13 @@ public class LogReporter extends PayloadReporter {
         return false;
     }
 
-    static void safeDelete(File fileToDelete) {
+    void safeDelete(File fileToDelete) {
         // Potential race condition here so rename the file rather than deleting it.
         // Expired files will be removed during an expiration sweep.
-        fileToDelete.renameTo(new File(fileToDelete.getAbsolutePath() + LogReportState.EXPIRED.asExtension()));
+        if (!isLogfileTypeOf(fileToDelete, LogReportState.EXPIRED)) {
+            fileToDelete.setReadOnly();
+            fileToDelete.renameTo(new File(fileToDelete.getAbsolutePath() + LogReportState.EXPIRED.asExtension()));
+        }
     }
 
     /**
@@ -439,10 +476,10 @@ public class LogReporter extends PayloadReporter {
             closedLogFile = new File(LogReporter.logDataStore,
                     String.format(Locale.getDefault(),
                             LogReporter.LOG_FILE_MASK,
-                            String.valueOf(System.currentTimeMillis()),
+                            System.currentTimeMillis(),
                             LogReportState.CLOSED.extension));
 
-        } while (closedLogFile.exists() && closedLogFile.length() > 0);
+        } while (closedLogFile.exists() && 0 < closedLogFile.length());
 
         workingLogFile.renameTo(closedLogFile);
         closedLogFile.setLastModified(System.currentTimeMillis());
@@ -487,7 +524,7 @@ public class LogReporter extends PayloadReporter {
     }
 
     /**
-     * Restore closed log files. This is for testing at teh moment and will unlikely be included
+     * Restore closed log files. This is for testing at the moment and will unlikely be included
      * in GA, unless early adoption testing exposes a need for it.
      *
      * @return Set contain the File instance af call recovered log files.
@@ -495,6 +532,7 @@ public class LogReporter extends PayloadReporter {
     Set<File> recover() {
         Set<File> recoveredFiles = getCachedLogReports(LogReportState.EXPIRED);
         recoveredFiles.forEach(logReport -> {
+            logReport.setWritable(true);
             logReport.renameTo(new File(logReport.getAbsolutePath().replace(LogReportState.EXPIRED.asExtension(), "")));
         });
 
@@ -536,8 +574,7 @@ public class LogReporter extends PayloadReporter {
             resetWorkingLogFile();
 
             log.debug("Finalized log data to [" + closedLogFile.getAbsolutePath() + "]");
-        } catch (IOException e) {
-            throw new RuntimeException(e.toString());
+
         } finally {
             workingFileLock.unlock();
         }
@@ -575,7 +612,7 @@ public class LogReporter extends PayloadReporter {
 
             workingFileLock.lock();
 
-            if (workingLogFileWriter.get() != null) {
+            if (null != workingLogFileWriter.get()) {
                 workingLogFileWriter.get().append(logJsonData);
                 workingLogFileWriter.get().newLine();
 
@@ -585,9 +622,9 @@ public class LogReporter extends PayloadReporter {
                     finalizeWorkingLogFile();
                     rollWorkingLogFile();
                 }
+
             } else {
                 // the writer has closed, usually a result of the agent stopping
-                // FIXME super.logAttributes(logDataMap);
             }
 
         } finally {
@@ -596,7 +633,9 @@ public class LogReporter extends PayloadReporter {
     }
 
     void shutdown() {
-        Harvest.removeHarvestListener(instance.get());
+        if (isStarted.get()) {
+            stop();
+        }
         log.info("LogReporting: reporter instance has been shutdown");
     }
 
@@ -607,7 +646,7 @@ public class LogReporter extends PayloadReporter {
         final Map<String, String> parts = new HashMap<>();
         final Matcher matcher = LOG_FILE_REGEX.matcher(logDataFile.getAbsolutePath());
         if (matcher.matches()) {
-            if (matcher.groupCount() < 3) {
+            if (3 > matcher.groupCount()) {
                 log.error("Couldn't determine log filename components!");
             } else {
                 parts.put("path", matcher.group(1));
@@ -625,7 +664,7 @@ public class LogReporter extends PayloadReporter {
 
     LogReportState typeOfLogfile(final File logDatafile) throws IOException {
         String extension = logFileNameAsParts(logDatafile).getOrDefault("extension", "");
-        if (extension == null || extension.isEmpty()) {
+        if (null == extension || extension.isEmpty()) {
             throw new IOException("Could not parse the lg file name: " + logDatafile.getAbsolutePath());
         }
 

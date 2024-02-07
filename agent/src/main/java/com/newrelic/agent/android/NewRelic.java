@@ -323,7 +323,7 @@ public final class NewRelic {
 
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
                 try {
-                    LogReporter.initialize(context.getFilesDir(), agentConfiguration);
+                    LogReporter.initialize(context.getCacheDir(), agentConfiguration);
                 } catch (IOException e) {
                     AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e.toString());
                 }

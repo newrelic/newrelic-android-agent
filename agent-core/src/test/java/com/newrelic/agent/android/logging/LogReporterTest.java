@@ -65,7 +65,6 @@ public class LogReporterTest extends LoggingTests {
 
     @After
     public void tearDown() throws Exception {
-        logReporter.shutdown();
         FeatureFlag.disableFeature(FeatureFlag.LogReporting);
         Streams.list(LogReporter.logDataStore).forEach(file -> file.delete());
     }
@@ -144,9 +143,8 @@ public class LogReporterTest extends LoggingTests {
     public void onHarvest() throws Exception {
         seedLogData(2);
 
-        logReporter.rollupLogDataFiles();
         logReporter.onHarvest();
-        verify(logReporter, times(1)).getCachedLogReports(LogReporter.LogReportState.ROLLUP);
+        verify(logReporter, times(1)).rollupLogDataFiles();
         verify(logReporter, times(1)).postLogReport(any(File.class));
     }
 
@@ -182,10 +180,8 @@ public class LogReporterTest extends LoggingTests {
     public void mergeLogDataToArchiveWithOverflow() throws Exception {
         // Shush up logging (it takes more time to run)
         AgentLogManager.getAgentLog().setLevel(0);
-        seedLogData(5, LogReporter.VORTEX_PAYLOAD_LIMIT / 5);
-
         // add few more to overflow the rollup
-        seedLogData(7);
+        seedLogData(7, LogReporter.VORTEX_PAYLOAD_LIMIT / 5);
 
         File archivedLogFile = logReporter.rollupLogDataFiles();
 
@@ -195,6 +191,12 @@ public class LogReporterTest extends LoggingTests {
         // and a few leftover close files
         Set<File> leftOvers = logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED);
         Assert.assertFalse(leftOvers.isEmpty());
+    }
+
+    @Test
+    public void mergeLogDataToEmptyArchive() throws Exception {
+        File archivedLogFile = logReporter.rollupLogDataFiles();
+        Assert.assertNull(archivedLogFile);
     }
 
     @Test
@@ -250,12 +252,37 @@ public class LogReporterTest extends LoggingTests {
     }
 
     @Test
-    public void safeDelete() throws IOException {
+    public void safeDelete() throws Exception {
         File closedLogFile = logReporter.rollLogfile(logReporter.getWorkingLogfile());
         Assert.assertTrue(closedLogFile.exists());
-        LogReporter.safeDelete(closedLogFile);
+        logReporter.safeDelete(closedLogFile);
         Assert.assertFalse(closedLogFile.exists());
+        Assert.assertFalse(closedLogFile.canWrite());
         Assert.assertTrue(logReporter.isLogfileTypeOf(closedLogFile, LogReporter.LogReportState.CLOSED));
+    }
+
+    @Test
+    public void safeDeleteExpired() throws Exception {
+        seedLogData(3);
+        logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).forEach(file -> logReporter.safeDelete(file));
+        logReporter.getCachedLogReports(LogReporter.LogReportState.EXPIRED).forEach(file -> {
+            logReporter.safeDelete(file);
+            Assert.assertTrue(file.exists());
+        });
+    }
+
+    @Test
+    public void recover() throws Exception {
+        seedLogData(3);
+
+        logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).forEach(file -> logReporter.safeDelete(file));
+        Assert.assertTrue(logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).isEmpty());
+
+        logReporter.getCachedLogReports(LogReporter.LogReportState.EXPIRED).forEach(file -> Assert.assertFalse(file.canWrite()));
+        Assert.assertEquals(3, logReporter.getCachedLogReports(LogReporter.LogReportState.EXPIRED).size());
+
+        logReporter.recover();
+        logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).forEach(file -> Assert.assertTrue(file.canWrite()));
     }
 
     @Test
@@ -272,7 +299,7 @@ public class LogReporterTest extends LoggingTests {
     @Test
     public void cleanup() {
         Set<File> closedFiles = logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED);
-        closedFiles.forEach(LogReporter::safeDelete);
+        closedFiles.forEach(file -> logReporter.safeDelete(file));
         Set<File> expiredFiles = logReporter.getCachedLogReports(LogReporter.LogReportState.EXPIRED);
         logReporter.cleanup();
         expiredFiles.forEach(file -> {
