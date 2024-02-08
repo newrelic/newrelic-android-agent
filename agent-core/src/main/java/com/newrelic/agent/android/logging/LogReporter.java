@@ -16,19 +16,13 @@ import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.stats.StatsEngine;
-import com.newrelic.agent.android.stats.TicToc;
-import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.Streams;
 
 import java.io.BufferedWriter;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,12 +32,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import javax.net.ssl.HttpsURLConnection;
 
 public class LogReporter extends PayloadReporter {
 
@@ -65,7 +56,8 @@ public class LogReporter extends PayloadReporter {
         }
     }
 
-    static int VORTEX_PAYLOAD_LIMIT = (1024 * 1024);                                // Vortex upload limit: 1 MB (10^6 B) compressed
+    static int VORTEX_PAYLOAD_LIMIT = (1024 * 1024);                // Vortex upload limit: 1 MB (10^6 B) compressed
+    static int MIN_PAYLOAD_THRESHOLD = VORTEX_PAYLOAD_LIMIT / 4;    // Don't upload until we have at least this much data
     protected int payloadBudget = VORTEX_PAYLOAD_LIMIT;
 
     static final long LOG_ENDPOINT_TIMEOUT = 10;    // FIXME This is a guess, check with Logging team
@@ -277,8 +269,15 @@ public class LogReporter extends PayloadReporter {
     protected File rollupLogDataFiles() {
         Set<File> logDataFiles = getCachedLogReports(LogReportState.CLOSED);
         Set<File> mergedFiles = new HashSet<>();
+        int totalFileSize = logDataFiles.stream().mapToInt(file -> Math.toIntExact(file.length())).sum();
 
         if (!logDataFiles.isEmpty()) {
+            if (MIN_PAYLOAD_THRESHOLD > totalFileSize) {
+                log.debug("LogReporter: buffering log data until the total reaches " + MIN_PAYLOAD_THRESHOLD + " bytes");
+                return null;
+
+            }
+
             int payloadSizeBudget = LogReporter.VORTEX_PAYLOAD_LIMIT;
 
             try {
