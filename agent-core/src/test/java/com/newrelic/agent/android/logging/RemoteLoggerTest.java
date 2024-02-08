@@ -41,7 +41,6 @@ public class RemoteLoggerTest extends LoggingTests {
     public static void beforeClass() throws Exception {
         LoggingTests.beforeClass();
 
-        LogReporting.setEntityGuid(UUID.randomUUID().toString());
         AgentLogManager.setAgentLog(new ConsoleAgentLog());
     }
 

@@ -43,10 +43,6 @@ public class LogReporterTest extends LoggingTests {
     @BeforeClass
     public static void beforeClass() throws Exception {
         LoggingTests.beforeClass();
-
-        AgentLogManager.setAgentLog(new ConsoleAgentLog());
-        AgentLogManager.getAgentLog().setLevel(AgentLog.DEBUG);
-        LogReporting.setEntityGuid(UUID.randomUUID().toString());
     }
 
     @Before
