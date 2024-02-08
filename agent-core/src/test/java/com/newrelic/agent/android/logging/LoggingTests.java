@@ -8,8 +8,11 @@ package com.newrelic.agent.android.logging;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.util.Streams;
 
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -32,13 +35,13 @@ public class LoggingTests {
     public static void beforeClass() throws Exception {
         reportsDir = Files.createTempDirectory("LogReporting-").toFile();
         reportsDir.mkdirs();
+
+        AgentLogManager.setAgentLog(new ConsoleAgentLog());
+        AgentLogManager.getAgentLog().setLevel(AgentLog.DEBUG);
+        AgentConfiguration.getInstance().setApplicationToken("<APP-TOKEN>>");
+        LogReporting.setEntityGuid("ENTITY-GUID");
     }
 
-    @AfterClass
-    public static void afterClass() {
-        Streams.list(LogReporter.logDataStore).forEach(file -> file.delete());
-        LogReporter.logDataStore.deleteOnExit();
-    }
 
     public LoggingTests() {
         this.tStart = System.currentTimeMillis();
@@ -142,6 +145,7 @@ public class LoggingTests {
             final RemoteLogger remoteLogger = new RemoteLogger();
 
             logReporter.resetWorkingLogFile();
+
             while (logReporter.payloadBudget > 1024 &&
                     (LogReporter.VORTEX_PAYLOAD_LIMIT - logReporter.payloadBudget) < minFileSize) {
                 remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
