@@ -76,9 +76,7 @@ android {
         applicationId "com.newrelic"
     }
 
-    if (findProject(":feature")) {
-        dynamicFeatures = [':feature']
-    }
+    dynamicFeatures = [':dynamicfeature']
 }
 
 apply from: "android.gradle"
