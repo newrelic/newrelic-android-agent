@@ -74,8 +74,16 @@ public class MetricNames {
     public static final String SUPPORTABILITY_NDK_REPORTS_EXCEPTION = SUPPORTABILITY_NDK + "Reports/NativeException";
     public static final String SUPPORTABILITY_NDK_REPORTS_FLUSH = SUPPORTABILITY_NDK + "Reports/Flush";
 
-    public static final String SUPPORTABILITY_LOG_REPORTING = "Supportability/LogReporting";
+    public static final String SUPPORTABILITY_LOG_REPORTING = SUPPORTABILITY_AGENT + "LogReporting";
     public static final String SUPPORTABILITY_LOG_REPORTING_INIT = SUPPORTABILITY_LOG_REPORTING + "Init";
+    public static final String SUPPORTABILITY_LOG_UPLOAD_TIME = SUPPORTABILITY_LOG_REPORTING + "UploadTime";
+    public static final String SUPPORTABILITY_LOG_UPLOAD_TIMEOUT = SUPPORTABILITY_LOG_REPORTING + "UploadTimeOut";
+    public static final String SUPPORTABILITY_LOG_UPLOAD_THROTTLED = SUPPORTABILITY_LOG_REPORTING + "UploadThrottled";
+    public static final String SUPPORTABILITY_LOG_FAILED_UPLOAD = SUPPORTABILITY_LOG_REPORTING + "FailedUpload";
+    public static final String SUPPORTABILITY_LOG_REMOVED_REJECTED = SUPPORTABILITY_LOG_REPORTING + "Removed/Rejected";
+    public static final String SUPPORTABILITY_LOG_UNCOMPRESSED = SUPPORTABILITY_LOG_REPORTING + "Size/Uncompressed";
+    public static final String SUPPORTABILITY_LOG_EXPIRED = SUPPORTABILITY_LOG_REPORTING + "Expired";
+
 
     public static final String SUPPORTABILITY_DATA_TOKEN = SUPPORTABILITY_AGENT + "DataToken/";
     public static final String SUPPORTABILITY_INVALID_DATA_TOKEN = SUPPORTABILITY_DATA_TOKEN + "Invalid";

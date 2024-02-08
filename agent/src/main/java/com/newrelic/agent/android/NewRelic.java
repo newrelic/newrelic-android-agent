@@ -323,6 +323,13 @@ public final class NewRelic {
 
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
                 try {
+                    /**
+                     *  LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
+                     *  remove the oldest files when storage runs low, offloading some of the maintenance work from the reporter,
+                     *  but potentially resulting in unreported log file deletions.
+                     *
+                      * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
+                     *  */
                     LogReporter.initialize(context.getCacheDir(), agentConfiguration);
                 } catch (IOException e) {
                     AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e.toString());

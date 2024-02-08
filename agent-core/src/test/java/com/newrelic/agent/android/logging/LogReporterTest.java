@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public class LogReporterTest extends LoggingTests {
@@ -43,10 +42,6 @@ public class LogReporterTest extends LoggingTests {
     @BeforeClass
     public static void beforeClass() throws Exception {
         LoggingTests.beforeClass();
-
-        AgentLogManager.setAgentLog(new ConsoleAgentLog());
-        AgentLogManager.getAgentLog().setLevel(AgentLog.DEBUG);
-        LogReporting.setEntityGuid(UUID.randomUUID().toString());
     }
 
     @Before
@@ -58,6 +53,7 @@ public class LogReporterTest extends LoggingTests {
         agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(true, LogLevel.DEBUG));
 
         logReporter = Mockito.spy(LogReporter.initialize(reportsDir, agentConfiguration));
+        LogReporter.MIN_PAYLOAD_THRESHOLD = 0;  // disable min archive size checking
         LogReporter.instance.set(logReporter);
 
         logger = Mockito.spy((RemoteLogger) LogReporting.getLogger());
@@ -198,6 +194,22 @@ public class LogReporterTest extends LoggingTests {
         File archivedLogFile = logReporter.rollupLogDataFiles();
         Assert.assertNull(archivedLogFile);
     }
+
+    @Test
+    public void mergeLogDataToMinThresholdArchive() throws Exception {
+        LogReporter.MIN_PAYLOAD_THRESHOLD = LogReporter.VORTEX_PAYLOAD_LIMIT / 4;
+
+        seedLogData(1, LogReporter.MIN_PAYLOAD_THRESHOLD / 2);
+
+        File archivedLogFile = logReporter.rollupLogDataFiles();
+        Assert.assertNull("Don't archive of total log data size is below threshold", archivedLogFile);
+
+        seedLogData(2, LogReporter.MIN_PAYLOAD_THRESHOLD / 2);
+        archivedLogFile = logReporter.rollupLogDataFiles();
+        Assert.assertNotNull(archivedLogFile);
+        Assert.assertTrue((archivedLogFile.exists() && archivedLogFile.isFile() && archivedLogFile.length() > LogReporter.MIN_PAYLOAD_THRESHOLD));
+    }
+
 
     @Test
     public void postLogReport() throws Exception {

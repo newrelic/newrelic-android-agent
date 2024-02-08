@@ -16,19 +16,13 @@ import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.stats.StatsEngine;
-import com.newrelic.agent.android.stats.TicToc;
-import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.Streams;
 
 import java.io.BufferedWriter;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,12 +32,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import javax.net.ssl.HttpsURLConnection;
 
 public class LogReporter extends PayloadReporter {
 
@@ -65,11 +56,10 @@ public class LogReporter extends PayloadReporter {
         }
     }
 
-    static int VORTEX_PAYLOAD_LIMIT = (1024 * 1024);                                // Vortex upload limit: 1 MB (10^6 B) compressed
+    static int VORTEX_PAYLOAD_LIMIT = (1024 * 1024);                // Vortex upload limit: 1 MB (10^6 B) compressed
+    static int MIN_PAYLOAD_THRESHOLD = VORTEX_PAYLOAD_LIMIT / 4;    // Don't upload until we have at least this much data
     protected int payloadBudget = VORTEX_PAYLOAD_LIMIT;
 
-    // TODO Provide for EU and FedRamp collectors
-    static final String LOG_API_URL = "https://log-api.newrelic.com/mobile/logs";
     static final long LOG_ENDPOINT_TIMEOUT = 10;    // FIXME This is a guess, check with Logging team
 
     static final String LOG_REPORTS_DIR = "newrelic/logreporting";      // root dir for local data files
@@ -81,6 +71,7 @@ public class LogReporter extends PayloadReporter {
 
     static File logDataStore = new File("/tmp/", LOG_REPORTS_DIR).getAbsoluteFile();
 
+    // FIXME Change back to DAYS (not hours) for GA
     protected long reportTTL = TimeUnit.MILLISECONDS.convert(3, TimeUnit.HOURS);     // log data file expiration period (in MS)
     protected File workingLogFile;
     protected AtomicReference<BufferedWriter> workingLogFileWriter = new AtomicReference<>(null);   // lazy initialized
@@ -94,7 +85,7 @@ public class LogReporter extends PayloadReporter {
         logDataStore.mkdirs();
 
         if (!(logDataStore.exists() && logDataStore.canWrite())) {
-            throw new IOException("Reports directory [" + rootDir.getAbsolutePath() + "] must exist and be writable!");
+            throw new IOException("LogReporter: Reports directory [" + rootDir.getAbsolutePath() + "] must exist and be writable!");
         }
         log.debug("LogReporting: saving log reports to " + logDataStore.getAbsolutePath());
 
@@ -159,10 +150,10 @@ public class LogReporter extends PayloadReporter {
 
         getCachedLogReports(LogReportState.ROLLUP).forEach(logReport -> {
             if (postLogReport(logReport)) {
-                log.info("Uploaded remote log data [" + logReport.getName() + "]");
+                log.info("LogReporter: Uploaded remote log data [" + logReport.getName() + "]");
                 safeDelete(logReport);
             } else {
-                log.error("Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
+                log.error("LogReporter: Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
             }
         });
 
@@ -226,10 +217,10 @@ public class LogReporter extends PayloadReporter {
 
             if (null != logReport && logReport.isFile()) {
                 if (postLogReport(logReport)) {
-                    log.info("Uploaded remote log data [" + logReport.getName() + "]");
+                    log.info("LogReporter: Uploaded remote log data [" + logReport.getName() + "]");
                     safeDelete(logReport);
                 } else {
-                    log.error("Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
+                    log.error("LogReporter: Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
                 }
             }
         }
@@ -262,7 +253,7 @@ public class LogReporter extends PayloadReporter {
                     .collect(Collectors.toSet());
 
         } catch (Exception e) {
-            log.error("Can't query cached log reports: " + e);
+            log.error("LogReporter: Can't query cached log reports: " + e);
         }
 
         return reportSet;
@@ -278,8 +269,15 @@ public class LogReporter extends PayloadReporter {
     protected File rollupLogDataFiles() {
         Set<File> logDataFiles = getCachedLogReports(LogReportState.CLOSED);
         Set<File> mergedFiles = new HashSet<>();
+        int totalFileSize = logDataFiles.stream().mapToInt(file -> Math.toIntExact(file.length())).sum();
 
         if (!logDataFiles.isEmpty()) {
+            if (MIN_PAYLOAD_THRESHOLD > totalFileSize) {
+                log.debug("LogReporter: buffering log data until the total reaches " + MIN_PAYLOAD_THRESHOLD + " bytes");
+                return null;
+
+            }
+
             int payloadSizeBudget = LogReporter.VORTEX_PAYLOAD_LIMIT;
 
             try {
@@ -358,15 +356,6 @@ public class LogReporter extends PayloadReporter {
      * @return
      */
     boolean postLogReport(File logDataFile) {
-        if (true) {
-            try {
-                log.debug(new String(Streams.readAllBytes(logDataFile), StandardCharsets.UTF_8));
-                safeDelete(logDataFile);
-            } catch (Exception e) {
-            }
-            return true;
-        }
-
         try {
             if (logDataFile.exists()) {
                 if (!isLogfileTypeOf(logDataFile, LogReportState.ROLLUP)) {
@@ -374,55 +363,17 @@ public class LogReporter extends PayloadReporter {
                 }
 
                 if (logDataFile.exists() && isLogfileTypeOf(logDataFile, LogReportState.ROLLUP)) {
-                    // LogForwarder logForwarder = new LogForwarder(logDataFile, agentConfiguration);
-                    // logForwarder.call();
+                    LogForwarder logForwarder = new LogForwarder(logDataFile, agentConfiguration);
+                    logForwarder.call();
 
-                    URL url = new URL(LOG_API_URL);
-                    HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
-                    connection.setRequestMethod("POST");
-                    connection.setRequestProperty(Constants.Network.CONTENT_TYPE_HEADER, Constants.Network.ContentType.JSON);
-                    connection.setRequestProperty(Constants.Network.APPLICATION_LICENSE_HEADER, agentConfiguration.getApplicationToken());
-                    connection.setConnectTimeout((int) TimeUnit.MILLISECONDS.convert(LOG_ENDPOINT_TIMEOUT, TimeUnit.SECONDS));
-                    connection.setReadTimeout((int) TimeUnit.MILLISECONDS.convert(LOG_ENDPOINT_TIMEOUT, TimeUnit.SECONDS));
-                    connection.setDoOutput(true);
-                    connection.setDoInput(true);
-
-                    TicToc timer = new TicToc().tic();
-
-                    try (DataOutputStream dataOutputStream = new DataOutputStream(connection.getOutputStream())) {
-                        Streams.copy(new FileInputStream(logDataFile), dataOutputStream);
-                        dataOutputStream.flush();
-                    }
-
-                    switch (connection.getResponseCode()) {
-                        case HttpsURLConnection.HTTP_OK:
-                        case HttpsURLConnection.HTTP_ACCEPTED:
-                            log.info(String.format(Locale.getDefault(), "postLogReport: %d %s - %s",
-                                    connection.getResponseCode(),
-                                    connection.getResponseMessage(),
-                                    Streams.slurpString(connection.getInputStream())));
-
-                            log.info(String.format(Locale.getDefault(), "postLogReport: transferred %d bytes in %d ms.",
-                                    logDataFile.length(), timer.toc()));
-
-                            break;
-
-                        default:
-                            log.error(String.format(Locale.getDefault(), "postLogReport: %d %s - %s",
-                                    connection.getResponseCode(),
-                                    connection.getResponseMessage(),
-                                    Streams.slurpString(connection.getInputStream())));
-                            break;
-                    }
-
-                    return true;
+                    return logForwarder.isSuccessfulResponse();
                 }
 
             } else {
-                log.warn("Logfile [" + logDataFile.getName() + "] vanished before it could be uploaded.");
+                log.warn("LogReporter: Logfile [" + logDataFile.getName() + "] vanished before it could be uploaded.");
             }
         } catch (Exception e) {
-            AgentLogManager.getAgentLog().error("Log upload failed: " + e);
+            AgentLogManager.getAgentLog().error("LogReporter: Log upload failed: " + e);
         }
 
         return false;
@@ -498,7 +449,7 @@ public class LogReporter extends PayloadReporter {
 
         Set<File> expiredFiles = Streams.list(LogReporter.logDataStore, expirationFilter).collect(Collectors.toSet());
         expiredFiles.forEach(logReport -> {
-            log.error("Remote log data [" + logReport.getName() + "] has expired and will be removed.");
+            log.error("LogReporter: Remote log data [" + logReport.getName() + "] has expired and will be removed.");
             safeDelete(logReport);
         });
 
@@ -514,9 +465,9 @@ public class LogReporter extends PayloadReporter {
         Set<File> expiredFiles = getCachedLogReports(LogReportState.EXPIRED);
         expiredFiles.forEach(logReport -> {
             if (logReport.delete()) {
-                log.debug("Log data [" + logReport.getName() + "] removed.");
+                log.debug("LogReporter: Log data [" + logReport.getName() + "] removed.");
             } else {
-                log.error("Log data [" + logReport.getName() + "] not removed!");
+                log.error("LogReporter: Log data [" + logReport.getName() + "] not removed!");
             }
         });
 
@@ -573,7 +524,7 @@ public class LogReporter extends PayloadReporter {
             workingLogFile = getWorkingLogfile();
             resetWorkingLogFile();
 
-            log.debug("Finalized log data to [" + closedLogFile.getAbsolutePath() + "]");
+            log.debug("LogReporter: Finalized log data to [" + closedLogFile.getAbsolutePath() + "]");
 
         } finally {
             workingFileLock.unlock();
@@ -647,7 +598,7 @@ public class LogReporter extends PayloadReporter {
         final Matcher matcher = LOG_FILE_REGEX.matcher(logDataFile.getAbsolutePath());
         if (matcher.matches()) {
             if (3 > matcher.groupCount()) {
-                log.error("Couldn't determine log filename components!");
+                log.error("LogReporter: Couldn't determine log filename components. " + logDataFile.getAbsolutePath());
             } else {
                 parts.put("path", matcher.group(1));
                 parts.put("file", matcher.group(2));
@@ -665,7 +616,7 @@ public class LogReporter extends PayloadReporter {
     LogReportState typeOfLogfile(final File logDatafile) throws IOException {
         String extension = logFileNameAsParts(logDatafile).getOrDefault("extension", "");
         if (null == extension || extension.isEmpty()) {
-            throw new IOException("Could not parse the lg file name: " + logDatafile.getAbsolutePath());
+            throw new IOException("LogReporter:  Could not parse the log file name. " + logDatafile.getAbsolutePath());
         }
 
         return Arrays.stream(LogReportState.values()).filter(logReportState -> logReportState.extension.equals(extension)).findFirst().get();
