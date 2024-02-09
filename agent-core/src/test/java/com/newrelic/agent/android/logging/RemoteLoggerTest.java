@@ -64,6 +64,25 @@ public class RemoteLoggerTest extends LoggingTests {
     }
 
     @Test
+    public void logNone() throws Exception {
+        final String msg = "Log: ";
+
+        LogReporting.setLogLevel(LogLevel.NONE);
+        logger.log(LogLevel.ERROR, msg + getRandomMsg(19));
+        logger.log(LogLevel.INFO, msg + getRandomMsg(7));
+        logger.log(LogLevel.WARN, msg + getRandomMsg(31));
+        logger.log(LogLevel.VERBOSE, msg + getRandomMsg(11));
+        logger.log(LogLevel.DEBUG, msg + getRandomMsg(23));
+        logger.flushPendingRequests();
+
+        verify(logger, times(5)).log(any(LogLevel.class), anyString());
+        verify(logger, times(0)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(), any());
+
+        JsonArray jsonArray = verifyWorkingLogFile(0);
+        Assert.assertEquals(0, jsonArray.size());
+    }
+
+    @Test
     public void log() throws Exception {
         final String msg = "Log: ";
 

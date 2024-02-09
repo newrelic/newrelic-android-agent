@@ -41,7 +41,7 @@ public class LogInstrumentationTest {
         agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
         AgentLogManager.setAgentLog(agentLogger);
         LogReporting.setLogger(remoteLogger);
-        LogReporting.setLogLevel(LogLevel.VERBOSE);
+        LogReporting.setLogLevel(LogLevel.DEBUG);
 
         Assert.assertTrue(remoteLogger instanceof RemoteLogger);
 

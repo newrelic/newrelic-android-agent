@@ -11,8 +11,8 @@ public enum LogLevel {
     ERROR(1),       // App and system errors
     WARN(2),        // Errors and app warnings
     INFO(3),        // Useful app messages
-    DEBUG(4),       // Messaging to assist static analysis
-    VERBOSE(5);     // When too much is just not enough
+    VERBOSE(4),     // When too much is just not enough
+    DEBUG(5);       // Messaging to assist static analysis
 
     static final LogLevel[] levels = values();
     final int value;

@@ -175,7 +175,7 @@ public class NewRelicTest {
         NewRelic.disableFeature(FeatureFlag.LogReporting);
         LogReporting.setLogger(Mockito.spy(new RemoteLogger()));
 
-        LogReporting.setLogLevel(LogLevel.VERBOSE);
+        LogReporting.setLogLevel(LogLevel.DEBUG);
         agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(false, LogLevel.NONE));
     }
 
@@ -1071,7 +1071,7 @@ public class NewRelicTest {
         LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
         RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
 
-        final String msg = "info message";
+        final String msg = "warning message";
         NewRelic.logWarning(msg);
         verify(remoteLogger, times(1)).log(LogLevel.WARN, msg);
         verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.WARN, msg, null, null);
@@ -1085,7 +1085,7 @@ public class NewRelicTest {
         LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
         RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
 
-        final String msg = "info message";
+        final String msg = "debug message";
         NewRelic.logDebug(msg);
         verify(remoteLogger, times(1)).log(LogLevel.DEBUG, msg);
         verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, msg, null, null);

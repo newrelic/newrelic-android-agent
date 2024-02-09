@@ -123,10 +123,11 @@ public class LoggingTests {
             RemoteLogger remoteLogger = new RemoteLogger();
             logReporter.resetWorkingLogFile();
 
+            remoteLogger.log(LogLevel.ERROR, getRandomMsg((int) (Math.random() * 30) + 12));
+            remoteLogger.log(LogLevel.WARN, getRandomMsg((int) (Math.random() * 30) + 12));
             remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-            remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-            remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-            remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
+            remoteLogger.log(LogLevel.DEBUG, getRandomMsg((int) (Math.random() * 30) + 12));
+            remoteLogger.log(LogLevel.VERBOSE, getRandomMsg((int) (Math.random() * 30) + 12));
             remoteLogger.flushPendingRequests();
             logReporter.finalizeWorkingLogFile();
             reportSet.add(logReporter.rollWorkingLogFile());
@@ -148,10 +149,11 @@ public class LoggingTests {
 
             while (logReporter.payloadBudget > 1024 &&
                     (LogReporter.VORTEX_PAYLOAD_LIMIT - logReporter.payloadBudget) < minFileSize) {
+                remoteLogger.log(LogLevel.ERROR, getRandomMsg((int) (Math.random() * 30) + 12));
+                remoteLogger.log(LogLevel.WARN, getRandomMsg((int) (Math.random() * 30) + 12));
                 remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-                remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-                remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-                remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
+                remoteLogger.log(LogLevel.VERBOSE, getRandomMsg((int) (Math.random() * 30) + 12));
+                remoteLogger.log(LogLevel.DEBUG, getRandomMsg((int) (Math.random() * 30) + 12));
                 remoteLogger.flushPendingRequests();
             }
 

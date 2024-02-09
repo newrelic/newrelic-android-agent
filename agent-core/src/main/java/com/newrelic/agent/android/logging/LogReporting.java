@@ -35,7 +35,7 @@ public abstract class LogReporting {
             .enableComplexMapKeySerialization()
             .create();
 
-    protected static LogLevel logLevel = LogLevel.INFO;
+    protected static LogLevel logLevel = LogLevel.WARN;
     protected static AtomicReference<LogReporting> instance = new AtomicReference<>(new LocalLogger());
 
     protected static String entityGuid = "";
