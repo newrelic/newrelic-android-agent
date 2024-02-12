@@ -17,42 +17,63 @@ public class AndroidAgentLog implements AgentLog {
     public void audit(String message) {
         if (level == AUDIT) {
             Log.d(TAG, message);
+            if( LogReporting.getLogger() instanceof RemoteLogger) {
+                LogReporting.getLogger().log(LogLevel.DEBUG, message);
+            }
         }
     }
 
     public void debug(final String message) {
         if (level >= DEBUG) {
             Log.d(TAG, message);
+            if( LogReporting.getLogger() instanceof RemoteLogger) {
+                LogReporting.getLogger().log(LogLevel.DEBUG, message);
+            }
         }
 	}
 
     public void verbose(final String message) {
         if (level >= VERBOSE) {
             Log.v(TAG, message);
+            if( LogReporting.getLogger() instanceof RemoteLogger) {
+                LogReporting.getLogger().log(LogLevel.VERBOSE, message);
+            }
         }
     }
 
 	public void info(final String message) {
         if (level >= INFO) {
             Log.i(TAG, message);
+            if( LogReporting.getLogger() instanceof RemoteLogger) {
+                LogReporting.getLogger().log(LogLevel.INFO, message);
+            }
         }
 	}
 
     public void warn(final String message) {
         if (level >= WARN) {
             Log.w(TAG, message);
+            if( LogReporting.getLogger() instanceof RemoteLogger) {
+                LogReporting.getLogger().log(LogLevel.WARN, message);
+            }
         }
     }
 
     public void error(final String message) {
         if (level >= ERROR) {
             Log.e(TAG, message);
+            if( LogReporting.getLogger() instanceof RemoteLogger) {
+                LogReporting.getLogger().log(LogLevel.ERROR, message);
+            }
         }
 	}
 	
-	public void error(final String message, Throwable cause) {
+	public void error(final String message, Throwable throwable) {
         if (level >= ERROR) {
-            Log.e(TAG, message, cause);
+            Log.e(TAG, message, throwable);
+            if( LogReporting.getLogger() instanceof RemoteLogger) {
+                LogReporting.getLogger().logThrowable(LogLevel.ERROR, message, throwable);
+            }
         }
     }
 
