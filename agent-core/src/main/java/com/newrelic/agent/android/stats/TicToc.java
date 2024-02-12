@@ -36,4 +36,8 @@ public class TicToc {
         return (state == State.STARTED) ? System.currentTimeMillis() - startTime : 0;
     }
 
+    public long duration() {
+        return (state == State.STARTED) ? peek() : startTime - System.currentTimeMillis();
+
+    }
 }
