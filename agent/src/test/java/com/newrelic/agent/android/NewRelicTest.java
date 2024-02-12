@@ -38,6 +38,7 @@ import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.Logger;
 import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
@@ -1050,18 +1051,26 @@ public class NewRelicTest {
     }
 
     @Test
-    public void testLogInfo() {
+    public void testLogError() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
         LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
         RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
 
-        final String msg = "info message";
-        NewRelic.logInfo(msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
-        verify(remoteLogger, times(1)).log(LogLevel.INFO, msg);
+        final String msg = "error message";
+        NewRelic.logError(msg);
+        verify(remoteLogger, times(1)).log(LogLevel.ERROR, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
     }
+
 
     @Test
     public void testLogWarning() {
@@ -1075,20 +1084,34 @@ public class NewRelicTest {
         NewRelic.logWarning(msg);
         verify(remoteLogger, times(1)).log(LogLevel.WARN, msg);
         verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.WARN, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.WARN.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
     }
 
     @Test
-    public void testLogDebug() {
+    public void testLogInfo() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
         LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
         RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
 
-        final String msg = "debug message";
-        NewRelic.logDebug(msg);
-        verify(remoteLogger, times(1)).log(LogLevel.DEBUG, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, msg, null, null);
+        final String msg = "info message";
+        NewRelic.logInfo(msg);
+        verify(remoteLogger, times(1)).log(LogLevel.INFO, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.INFO.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
     }
 
     @Test
@@ -1103,20 +1126,34 @@ public class NewRelicTest {
         NewRelic.logVerbose(msg);
         verify(remoteLogger, times(1)).log(LogLevel.VERBOSE, msg);
         verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.VERBOSE, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.VERBOSE.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
     }
 
     @Test
-    public void testLogError() {
+    public void testLogDebug() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
         LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
         RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
 
-        final String msg = "error message";
-        NewRelic.logError(msg);
-        verify(remoteLogger, times(1)).log(LogLevel.ERROR, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+        final String msg = "debug message";
+        NewRelic.logDebug(msg);
+        verify(remoteLogger, times(1)).log(LogLevel.DEBUG, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
     }
 
     @Test
@@ -1154,7 +1191,6 @@ public class NewRelicTest {
 
         final String msg = "error log message";
         NewRelic.log(LogLevel.ERROR, msg);
-        verify(agentLogger, times(1)).error(msg);
         verify(remoteLogger, times(1)).log(LogLevel.ERROR, msg);
         verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
 
@@ -1273,13 +1309,13 @@ public class NewRelicTest {
     @Test
     public void testRemoteLoggingBeforeAgentStart() {
         // Gson will not serialize anonymous maps
-        final Map attrs = new HashMap<String, Object>();
+        final Map<String, Object> attrs = new HashMap<String, Object>();
 
         attrs.put("level", "DEBUG");
         attrs.put("message", "This is a debug message");
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Assert.assertTrue(LogReporting.getLogger() instanceof LogReporting);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
         // call API prior to starting the agent
         NewRelic.logAll(new RuntimeException("LogReporting stopped"), attrs);
@@ -1298,17 +1334,16 @@ public class NewRelicTest {
         nrInstance.start(spyContext.getContext());
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
-        LogReporting logger = LogReporting.getLogger();
-        Assert.assertTrue(logger.isRemoteLoggingEnabled());
+        Assert.assertTrue(LogReporting.isRemoteLoggingEnabled());
 
         FeatureFlag.disableFeature(FeatureFlag.LogReporting);
-        Assert.assertFalse(logger.isRemoteLoggingEnabled());
+        Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Assert.assertTrue(logger.isRemoteLoggingEnabled());
+        Assert.assertTrue(LogReporting.isRemoteLoggingEnabled());
 
         LogReporting.setLogLevel(LogLevel.NONE);
-        Assert.assertFalse(logger.isRemoteLoggingEnabled());
+        Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
     }
 
     private static class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {

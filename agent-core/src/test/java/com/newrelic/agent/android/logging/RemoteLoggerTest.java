@@ -15,6 +15,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.Streams;
 
 import org.junit.After;
@@ -30,7 +31,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 public class RemoteLoggerTest extends LoggingTests {
 
@@ -48,6 +48,8 @@ public class RemoteLoggerTest extends LoggingTests {
     public void setUp() throws Exception {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         LogReporting.setLogLevel(LogLevel.INFO);
+        LogReporter.MIN_PAYLOAD_THRESHOLD = 0;      // Disable for testing
+
         logReporter = Mockito.spy(LogReporter.initialize(reportsDir, new AgentConfiguration()));
 
         Assert.assertTrue("LogReporter should create RemoteLogger()", LogReporting.getLogger() instanceof RemoteLogger);
@@ -73,7 +75,7 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.log(LogLevel.WARN, msg + getRandomMsg(31));
         logger.log(LogLevel.VERBOSE, msg + getRandomMsg(11));
         logger.log(LogLevel.DEBUG, msg + getRandomMsg(23));
-        logger.flushPendingRequests();
+        logger.flush();
 
         verify(logger, times(5)).log(any(LogLevel.class), anyString());
         verify(logger, times(0)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(), any());
@@ -91,7 +93,7 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.log(LogLevel.WARN, msg + getRandomMsg(31));
         logger.log(LogLevel.VERBOSE, msg + getRandomMsg(11));
         logger.log(LogLevel.DEBUG, msg + getRandomMsg(23));
-        logger.flushPendingRequests();
+        logger.flush();
 
         verify(logger, times(5)).log(any(LogLevel.class), anyString());
         verify(logger, times(3)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(), any());
@@ -107,7 +109,7 @@ public class RemoteLoggerTest extends LoggingTests {
         final Throwable throwable = new RuntimeException("logThrowable: " + getRandomMsg(127));
 
         logger.logThrowable(LogLevel.WARN, throwable.getMessage(), throwable);
-        logger.flushPendingRequests();
+        logger.flush();
 
         verify(logger, times(1)).appendToWorkingLogFile(LogLevel.WARN, throwable.getMessage(), throwable, null);
 
@@ -127,7 +129,7 @@ public class RemoteLoggerTest extends LoggingTests {
         attrs.put("message", msg);
 
         logger.logAttributes(attrs);
-        logger.flushPendingRequests();
+        logger.flush();
         verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, attrs);
 
         JsonArray jsonArray = verifyWorkingLogFile(1);
@@ -159,7 +161,7 @@ public class RemoteLoggerTest extends LoggingTests {
         final String msg = "appendLog: " + getRandomMsg(24);
 
         logger.appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
-        logger.flushPendingRequests();
+        logger.flush();
         verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
 
         JsonArray jsonArray = verifyWorkingLogFile(1);
@@ -169,7 +171,7 @@ public class RemoteLoggerTest extends LoggingTests {
         Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
     }
 
-    // @Test FIXME Flakey failure on GHA jobs
+    @Test
     public void testPayloadFormat() throws IOException {
         // https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#payload-format
 
@@ -190,7 +192,7 @@ public class RemoteLoggerTest extends LoggingTests {
         userAttributes.put("login-result", false);
 
         logger.logAttributes(attrs);
-        logger.flushPendingRequests();
+        logger.flush();
 
         JsonArray jsonArray = verifyWorkingLogFile(2);
         for (JsonElement jsonElement : jsonArray) {
@@ -232,13 +234,91 @@ public class RemoteLoggerTest extends LoggingTests {
     }
 
     @Test
-    public void testEntityGuid() {
-        // TODO
+    public void testEntityGuid() throws IOException {
+        Assert.assertNotNull(LogReporting.getEntityGuid());
+        Assert.assertFalse(LogReporting.getEntityGuid().isEmpty());
+
+        final String msg = "testEntityGuid: " + getRandomMsg(33);
+
+        logger.log(LogLevel.ERROR, msg);
+        logger.flush();
+
+        JsonArray jsonArray = verifyWorkingLogFile(1);
+        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+        Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
+        Assert.assertEquals(jsonObject.get(LogReporting.LOG_ENTITY_ATTRIBUTE).getAsString(), LogReporting.getEntityGuid());
     }
 
+    /**
+     * Not a test per se, but try to determine an anecdotal throughput time
+     */
     @Test
-    public void testLoggingThroughput() {
-        // TODO
+    public void testLoggingThroughput() throws Exception {
+        final AgentLog agentLog = AgentLogManager.getAgentLog();
+
+        float baseLine = 0f;
+
+        // too many of any of these will blow out the heap
+        int iterations = 10;
+        int msgPerIteration = 10;
+        int msgSize = 128;
+        int testCnt = 5;
+
+        for (int testRun = 1; testRun <= testCnt; testRun++) {
+            agentLog.setLevel(AgentLog.WARN);   // shush
+
+            TicToc timer = new TicToc().tic();
+
+            for (int i = 1; i <= iterations; i++) {
+                for (int perIteration = 0; perIteration < msgPerIteration; perIteration++) {
+                    String msg = getRandomMsg(msgSize);
+
+                    Map<String, Object> attrs = new HashMap<>();
+                    attrs.put("level", LogLevel.INFO.name());
+                    attrs.put("message", msg);
+                    attrs.put("name", getRandomMsg(8));
+                    attrs.put("age", (double) Math.random() * 117);
+                    attrs.put("fun", (Math.random() * 2) > 1);
+                    attrs.put(getRandomMsg(128), getRandomMsg(1024));
+
+                    logger.logAttributes(attrs);
+
+                    Throwable throwable = new RuntimeException(msg);
+                    logger.logAll(throwable, attrs);
+                }
+            }
+
+            long tIteration = timer.toc();
+            int nMsgs = (iterations * msgPerIteration);
+            float tPerIteration = (float) tIteration / iterations;
+            float tPerMsg = (float) tIteration / nMsgs;
+
+            if (0 == baseLine) baseLine = tPerMsg;
+
+            TicToc fileIOTimer = new TicToc().tic();
+            logger.flush();
+            logReporter.finalizeWorkingLogFile();
+            logReporter.rollWorkingLogFile();
+            logReporter.resetWorkingLogFile();
+            agentLog.warn("Run[" + testRun + "] File finalization[" + fileIOTimer.peek() + "] ms");
+
+            logReporter.expire(0);
+            logReporter.cleanup();
+            agentLog.warn("Run[" + testRun + "] File cleanup[" + fileIOTimer.toc() + "] ms");
+
+            agentLog.setLevel(AgentLog.VERBOSE);
+            agentLog.info("Run[" + testRun + "] Iterations[" + iterations + "] Msgs[" + nMsgs + "]");
+            agentLog.info("Run[" + testRun + "] Iteration service time[" + tPerIteration + "] ms");
+            agentLog.info("Run[" + testRun + "] Service time per record[" + tPerMsg + "] ms");
+
+            iterations *= 2;
+            msgPerIteration *= 2;
+
+            // throughput time should scale (+-50 ms)
+            Assert.assertEquals(baseLine, tPerMsg, 50f);   // 50 ms drift
+        }
+
+        agentLog.info("Baseline service time per record[" + baseLine + "] ms");
     }
 
     @Test
@@ -264,7 +344,7 @@ public class RemoteLoggerTest extends LoggingTests {
             thread.join();
         }
 
-        logger.flushPendingRequests();
+        logger.flush();
         logReporter.finalizeWorkingLogFile();
 
         Set<File> files = logReporter.getCachedLogReports(LogReporter.LogReportState.ALL);

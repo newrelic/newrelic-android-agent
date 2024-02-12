@@ -255,7 +255,7 @@ public class LogReporterTest extends LoggingTests {
 
         RemoteLogger remoteLogger = new RemoteLogger();
         remoteLogger.log(LogLevel.INFO, getRandomMsg(10));
-        logger.flushPendingRequests();
+        logger.flush();
 
         File finalizedLogFile = logReporter.rollWorkingLogFile();
         Assert.assertTrue(finalizedLogFile.exists());
@@ -368,7 +368,7 @@ public class LogReporterTest extends LoggingTests {
         logger.log(LogLevel.INFO, getRandomMsg(300));
         logger.log(LogLevel.INFO, getRandomMsg(300));
         logger.log(LogLevel.INFO, getRandomMsg(400));
-        logger.flushPendingRequests();
+        logger.flush();
 
         verify(logReporter, atMostOnce()).rollWorkingLogFile();
     }
@@ -396,7 +396,7 @@ public class LogReporterTest extends LoggingTests {
         logger.log(LogReporting.getLogLevel(), "Before onHarvestStop()");
 
         logReporter.onHarvestStop();
-        logger.flushPendingRequests();
+        logger.flush();
         Assert.assertTrue(logReporter.workingLogFile.exists());
         Assert.assertEquals("Should create a new working file", 0, logReporter.workingLogFile.length());
         Assert.assertNotEquals("Should create a new buffered writer", writer, logReporter.workingLogFileWriter.get());
@@ -414,7 +414,7 @@ public class LogReporterTest extends LoggingTests {
         logger.log(LogLevel.DEBUG, msg + getRandomMsg(11));
         logger.log(LogLevel.VERBOSE, msg + getRandomMsg(11));
 
-        logger.flushPendingRequests();
+        logger.flush();
 
         // close working file writer without finalizing
         logReporter.workingLogFileWriter.get().flush();

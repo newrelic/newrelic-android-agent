@@ -8,13 +8,20 @@ package com.newrelic.agent.android.logging;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Type;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  * LogReporting public interface, exposed to NewRelic API
@@ -30,21 +37,18 @@ public abstract class LogReporting {
     protected static final String LOG_ERROR_MESSAGE_ATTRIBUTE = "error.message";
     protected static final String LOG_ERROR_STACK_ATTRIBUTE = "error.stack";
     protected static final String LOG_ERROR_CLASS_ATTRIBUTE = "error.class";
-    protected static final Type gtype = new TypeToken<Map<String, Object>>() {}.getType();
-    protected static final Gson gson = new GsonBuilder()
-            .enableComplexMapKeySerialization()
-            .create();
 
     protected static LogLevel logLevel = LogLevel.WARN;
-    protected static AtomicReference<LogReporting> instance = new AtomicReference<>(new LocalLogger());
+    protected static AgentLogger agentLogger = new AgentLogger();
+    protected static AtomicReference<Logger> instance = new AtomicReference<>(agentLogger);
 
     protected static String entityGuid = "";
 
-    public static LogReporting getLogger() {
+    public static Logger getLogger() {
         return instance.get();
     }
 
-    public static LogReporting setLogger(LogReporting logger) {
+    public static Logger setLogger(Logger logger) {
         LogReporting.instance.set(logger);
         return LogReporting.instance.get();
     }
@@ -98,75 +102,9 @@ public abstract class LogReporting {
         return logLevel.value >= level.value;
     }
 
-    public boolean isRemoteLoggingEnabled() {
+    public static boolean isRemoteLoggingEnabled() {
         return FeatureFlag.featureEnabled(FeatureFlag.LogReporting) &&
                 LogLevel.NONE != getLogLevel();
-    }
-
-    /**
-     * Writes a message to the current agent log using the provided log level.
-     * At runtime, this will be the Android logger (Log) instance.
-     */
-
-    public void logToAgent(LogLevel level, String message) {
-        if (isLevelEnabled(level)) {
-            final AgentLog agentLog = AgentLogManager.getAgentLog();
-
-            switch (level) {
-                case ERROR:
-                    agentLog.error(message);
-                    break;
-                case WARN:
-                    agentLog.warn(message);
-                    break;
-                case INFO:
-                    agentLog.info(message);
-                    break;
-                case VERBOSE:
-                    agentLog.verbose(message);
-                    break;
-                case DEBUG:
-                    agentLog.debug(message);
-                    break;
-            }
-        }
-    }
-
-    /**
-     * derived classes must implement a basic message logger
-     */
-    public abstract void log(LogLevel level, String message);
-
-    public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
-        logToAgent(logLevel, message + ": " + throwable.getLocalizedMessage());
-    }
-
-    public void logAttributes(Map<String, Object> attributes) {
-        Map<String, Object> msgAttributes = getCommonBlockAttributes();
-        String level = (String) attributes.getOrDefault(LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
-        attributes.remove(LOG_LEVEL_ATTRIBUTE);
-        msgAttributes.put(LOG_ATTRIBUTES_ATTRIBUTE, attributes);
-        logToAgent(LogLevel.valueOf(level.toUpperCase()), gson.toJson(msgAttributes, gtype));
-    }
-
-    public void logAll(Throwable throwable, Map<String, Object> attributes) {
-        String level = (String) attributes.getOrDefault(LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
-        Map<String, Object> msgAttributes = new HashMap<>();
-
-        attributes.remove(LOG_LEVEL_ATTRIBUTE);
-
-        msgAttributes.put(LOG_LEVEL_ATTRIBUTE, level.toUpperCase());
-        msgAttributes.putAll(getCommonBlockAttributes());
-        
-        if (throwable != null) {
-            msgAttributes.put(LOG_ERROR_MESSAGE_ATTRIBUTE, throwable.getLocalizedMessage());
-            msgAttributes.put(LOG_ERROR_STACK_ATTRIBUTE, throwable.getStackTrace()[0].toString());
-            msgAttributes.put(LOG_ERROR_CLASS_ATTRIBUTE, throwable.getClass().getSimpleName());
-        }
-        
-        msgAttributes.put(LOG_ATTRIBUTES_ATTRIBUTE, attributes);
-        
-        logToAgent(LogLevel.valueOf(level.toUpperCase()), gson.toJson(msgAttributes, gtype));
     }
 
     public static String getEntityGuid() {
@@ -181,24 +119,14 @@ public abstract class LogReporting {
         }
     }
 
-    /**
-     * Return the collection of NR common (root level) log attributes to add to the log data entry
-     *
-     * @return Map of common block attributes
-     */
-    Map<String, Object> getCommonBlockAttributes() {
-        Map<String, Object> attrs = new HashMap<>();
+    public static class AgentLogger implements Logger {
+        /**
+         * Writes a message to the current agent log using the provided log level.
+         * At runtime, this will be the Android logger (Log) instance.
+         */
 
-        attrs.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
-        attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, LogReporting.getEntityGuid());
-
-        return attrs;
-    }
-
-    static class LocalLogger extends LogReporting {
-        @Override
-        public void log(LogLevel level, String message) {
-            if (isLevelEnabled(level)) {
+        public void logToAgent(LogLevel level, String message) {
+            if (LogReporting.isLevelEnabled(level)) {
                 final AgentLog agentLog = AgentLogManager.getAgentLog();
                 switch (level) {
                     case ERROR:
@@ -218,6 +146,40 @@ public abstract class LogReporting {
                         break;
                 }
             }
+        }
+
+        @Override
+        public void log(LogLevel logLevel, String message) {
+            logToAgent(logLevel, message);
+        }
+
+        public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
+            StringWriter sw = new StringWriter();
+            throwable.printStackTrace(new PrintWriter(sw));
+
+            logToAgent(logLevel, String.format(Locale.getDefault(), "%s: %s", message, sw.toString()));
+        }
+
+        public void logAttributes(Map<String, Object> attributes) {
+            String logLevel = (String) attributes.getOrDefault("level", LogLevel.INFO.name());
+            String mapAsString = attributes.keySet().stream()
+                    .map(key -> key + "=" + attributes.get(key))
+                    .collect(Collectors.joining(",", "{", "}"));
+
+            logToAgent(LogLevel.valueOf(logLevel.toUpperCase()), String.format(Locale.getDefault(),
+                    "%s: %s", TAG, mapAsString));
+        }
+
+        public void logAll(Throwable throwable, Map<String, Object> attributes) {
+            String logLevel = (String) attributes.getOrDefault("level", LogLevel.INFO.name());
+            StringWriter sw = new StringWriter();
+            String mapAsString = attributes.keySet().stream()
+                    .map(key -> key + "=" + attributes.get(key))
+                    .collect(Collectors.joining(",", "{", "}"));
+
+            throwable.printStackTrace(new PrintWriter(sw));
+            logToAgent(LogLevel.valueOf(logLevel.toUpperCase()), String.format(Locale.getDefault(),
+                    "%s: %s %s", TAG, sw.toString(), mapAsString));
         }
     }
 
@@ -267,6 +229,10 @@ public abstract class LogReporting {
     protected Map<String, Object> decorateLogData(LogMessageValidator validator, Map<String, Object> logDataMap) {
         // TODO
         return logDataMap;
+    }
+
+    public static void initialize(File cacheDir, AgentConfiguration agentConfiguration) throws IOException {
+        LogReporter.initialize(cacheDir, agentConfiguration);
     }
 
 
