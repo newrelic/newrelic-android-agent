@@ -1,7 +1,6 @@
 package com.newrelic.agent.android.util;
 
 import android.content.Context;
-import android.os.Environment;
 
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -33,11 +32,11 @@ public class OfflineStorage {
         }
     }
 
-    public boolean persistDataToDisk(String data) {
+    public boolean persistHarvestDataToDisk(String data) {
         boolean isSaved = false;
         try {
-            //TODO: Stop collecting data - need to calculate incoming data as well
-            if (getTotalFileSize() > DEFAULT_MAX_OFFLINE_Storage_SIZE) {
+            double totalData = getTotalFileSize() + data.getBytes().length;
+            if (totalData > DEFAULT_MAX_OFFLINE_Storage_SIZE) {
                 return false;
             }
 

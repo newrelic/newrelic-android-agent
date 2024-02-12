@@ -54,11 +54,11 @@ public class OfflineStorageTest {
     }
 
     @Test
-    public void testPersistDataToDisk() {
+    public void testPersistHarvestDataToDisk() {
         instance = new OfflineStorage(spyContext);
         instance.cleanOfflineFiles();
 
-        instance.persistDataToDisk("{'testKey': 'testValue'}");
+        instance.persistHarvestDataToDisk("{'testKey': 'testValue'}");
 
         Map<String, String> testKeyValue = instance.getAllOfflineData();
         Assert.assertEquals(1, testKeyValue.size());
@@ -83,15 +83,15 @@ public class OfflineStorageTest {
             Map<String, String> dataSet1 = instance.getAllOfflineData();
             Assert.assertEquals(0, dataSet1.size());
 
-            instance.persistDataToDisk("{'testKey': 'testValue'}");
+            instance.persistHarvestDataToDisk("{'testKey': 'testValue'}");
             Thread.sleep(1000);
-            instance.persistDataToDisk("{'testKey': 'testValue'}");
+            instance.persistHarvestDataToDisk("{'testKey': 'testValue'}");
             Thread.sleep(1000);
-            instance.persistDataToDisk("{'testKey': 'testValue'}");
+            instance.persistHarvestDataToDisk("{'testKey': 'testValue'}");
             Thread.sleep(1000);
-            instance.persistDataToDisk("{'testKey': 'testValue'}");
+            instance.persistHarvestDataToDisk("{'testKey': 'testValue'}");
             Thread.sleep(1000);
-            instance.persistDataToDisk("{'testKey': 'testValue'}");
+            instance.persistHarvestDataToDisk("{'testKey': 'testValue'}");
             Thread.sleep(1000);
 
             Map<String, String> dataSet2 = instance.getAllOfflineData();
@@ -112,7 +112,7 @@ public class OfflineStorageTest {
         double totalSize = instance.getTotalFileSize();
         Assert.assertEquals(0, totalSize, 0);
 
-        instance.persistDataToDisk("{'testKey': 'testValue'}");
+        instance.persistHarvestDataToDisk("{'testKey': 'testValue'}");
 
         double totalSize2 = instance.getTotalFileSize();
         Assert.assertNotEquals(0, totalSize2);

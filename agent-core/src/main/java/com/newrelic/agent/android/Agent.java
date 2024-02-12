@@ -213,8 +213,8 @@ public class Agent {
         return getImpl().isInstantApp();
     }
 
-    public static void persistDataToDisk(String data){
-        getImpl().persistDataToDisk(data);
+    public static void persistHarvestDataToDisk(String data){
+        getImpl().persistHarvestDataToDisk(data);
     }
 
     public static Map<String, String> getAllOfflineData(){

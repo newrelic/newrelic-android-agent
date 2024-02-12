@@ -191,15 +191,7 @@ public class HarvestConnection implements HarvestErrorCodes {
      * @return The {@link HarvestResponse} from the collector {@code data} call.
      */
     public HarvestResponse sendData(Harvestable harvestable) {
-        if (harvestable == null)
-            throw new IllegalArgumentException();
-
-        HttpURLConnection dataPost = createDataPost();
-        if (dataPost == null) {
-            log.error("Failed to create data POST");
-            return null;
-        }
-        return send(dataPost, harvestable.toJsonString());
+        return sendData(harvestable.toJsonString());
     }
 
     /**
@@ -209,8 +201,9 @@ public class HarvestConnection implements HarvestErrorCodes {
      * @return The {@link HarvestResponse} from the collector {@code data} call.
      */
     public HarvestResponse sendData(String harvestable) {
-        if (harvestable == null)
+        if (harvestable == null) {
             throw new IllegalArgumentException();
+        }
 
         HttpURLConnection dataPost = createDataPost();
         if (dataPost == null) {

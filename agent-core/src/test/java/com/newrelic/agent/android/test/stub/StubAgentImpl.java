@@ -189,7 +189,7 @@ public class StubAgentImpl implements AgentImpl {
     }
 
     @Override
-    public void persistDataToDisk(String data) {
+    public void persistHarvestDataToDisk(String data) {
 
     }
 

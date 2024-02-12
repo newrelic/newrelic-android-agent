@@ -14,7 +14,6 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
-import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -25,7 +24,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * The {@code Harvester} is a state machine responsible for connecting to and posting data to the Collector.
@@ -732,13 +730,7 @@ public class Harvester {
             }
 
             //Offline Storage
-            Set<AnalyticsAttribute> sessionAttributes = harvestData.getSessionAttributes();
-            if (sessionAttributes.size() > 0) {
-                AnalyticsAttribute offlineAttributes = new AnalyticsAttribute("offline", true);
-                sessionAttributes.add(offlineAttributes);
-            }
-            harvestData.setSessionAttributes(sessionAttributes);
-            Agent.persistDataToDisk(harvestData.toJsonString());
+            Agent.persistHarvestDataToDisk(harvestData.toJsonString());
             harvestData.reset();
             log.info("Harvest data has stored to disk due to network errors, will resubmit in next cycle when network is available.");
         } catch (Exception ex) {

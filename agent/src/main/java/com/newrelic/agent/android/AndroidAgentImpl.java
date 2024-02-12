@@ -797,8 +797,8 @@ public class AndroidAgentImpl implements
     }
 
     @Override
-    public void persistDataToDisk(String data) {
-        offlineStorageInstance.persistDataToDisk(data);
+    public void persistHarvestDataToDisk(String data) {
+        offlineStorageInstance.persistHarvestDataToDisk(data);
     }
 
     @Override

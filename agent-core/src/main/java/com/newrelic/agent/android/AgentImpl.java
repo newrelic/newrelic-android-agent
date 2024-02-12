@@ -50,7 +50,7 @@ public interface AgentImpl {
 
     boolean isInstantApp();
 
-    void persistDataToDisk(String data);
+    void persistHarvestDataToDisk(String data);
 
     Map<String, String> getAllOfflineData();
 }

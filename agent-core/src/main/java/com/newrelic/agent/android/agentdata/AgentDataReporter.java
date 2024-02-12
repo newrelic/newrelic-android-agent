@@ -64,19 +64,8 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
         if (isInitialized()) {
             if (reportExceptions) {
                 Payload payload = new Payload(bytes);
-                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
-                    if (Agent.hasReachableNetworkConnection(null)) {
-                        instance.get().storeAndReportAgentData(payload);
-                        reported = true;
-                    } else {
-                        reported = false;
-                        //Offline storage: No network at all, don't send back data
-                        log.info("AgentDataReporter didn't send due to lack of network connection");
-                    }
-                } else {
-                    instance.get().storeAndReportAgentData(payload);
-                    reported = true;
-                }
+                instance.get().storeAndReportAgentData(payload);
+                reported = true;
             }
         } else {
             log.error("AgentDataReporter not initialized");
@@ -121,16 +110,7 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
             if (payloadStore != null) {
                 for (Payload payload : payloadStore.fetchAll()) {
                     if (!isPayloadStale(payload)) {
-                        if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
-                            if (Agent.hasReachableNetworkConnection(null)) {
-                                reportAgentData(payload);
-                            } else {
-                                //Offline storage: No network at all, don't send back data
-                                log.info("AgentDataReporter didn't send due to lack of network connection");
-                            }
-                        } else {
-                            reportAgentData(payload);
-                        }
+                        reportAgentData(payload);
                     }
                 }
             }

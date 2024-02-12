@@ -45,6 +45,7 @@ public class FeatureFlagTest {
     @Test
     public void featureEnabled() throws Exception {
         Assert.assertTrue("HandledExceptions is disabled by default", FeatureFlag.featureEnabled(HandledExceptions));
+        Assert.assertTrue("HandledExceptions is disabled by default", FeatureFlag.featureEnabled(HandledExceptions));
         FeatureFlag.enableFeature(HandledExceptions);
         Assert.assertTrue("CrashReporting is now disabled", FeatureFlag.featureEnabled(CrashReporting));
     }
@@ -65,6 +66,7 @@ public class FeatureFlagTest {
     @Test
     public void defaultDisabledFeatures() throws Exception {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
+        Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
     }
 
     @Test
@@ -89,10 +91,6 @@ public class FeatureFlagTest {
         FeatureFlag.disableFeature(AppStartMetrics);
         Assert.assertFalse("AppStartMetrics is now disabled", FeatureFlag.featureEnabled(AppStartMetrics));
 
-        Assert.assertTrue("OfflineStorage is enabled by default", FeatureFlag.featureEnabled(OfflineStorage));
-        FeatureFlag.disableFeature(OfflineStorage);
-        Assert.assertFalse("OfflineStorage is now disabled", FeatureFlag.featureEnabled(OfflineStorage));
-
         FeatureFlag.resetFeatures();
         Assert.assertTrue("CrashReporting is now enabled", FeatureFlag.featureEnabled(CrashReporting));
         Assert.assertTrue("NetworkRequests is now enabled", FeatureFlag.featureEnabled(NetworkRequests));
@@ -102,6 +100,7 @@ public class FeatureFlagTest {
         Assert.assertTrue("OfflineStorage is now enabled", FeatureFlag.featureEnabled(OfflineStorage));
 
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
+        Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
     }
 
 }
