@@ -142,4 +142,33 @@ public class OfflineStorageTest {
         int defaultSize5 = instance.getOfflineStorageSize();
         Assert.assertEquals(10, defaultSize5);
     }
+
+    @Test
+    public void testThreadSafeConcurrentPersistData() {
+        instance = new OfflineStorage(spyContext);
+        instance.cleanOfflineFiles();
+
+        new Thread() {
+            @Override
+            public void run() {
+                int numPersist = 5;
+                for (int i = 0; i < numPersist; i++) {
+                    instance.persistHarvestDataToDisk("{'testKey" + i + "':'testValue" + i + "'}");
+                    Assert.assertTrue(instance.getAllOfflineData().size() > 0);
+                }
+            }
+        }.start();
+
+        new Thread() {
+            @Override
+            public void run() {
+                instance.cleanOfflineFiles();
+                int numPersist = 5;
+                for (int i = 0; i < numPersist; i++) {
+                    instance.persistHarvestDataToDisk("{'testKey" + i + "':'testValue" + i + "'}");
+                    Assert.assertTrue(instance.getAllOfflineData().size() > 0);
+                }
+            }
+        }.start();
+    }
 }

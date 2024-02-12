@@ -288,15 +288,20 @@ public class Harvester {
             return;
         } else {
             //Offline Storage
-            if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
-                Map<String, String> harvestDataObjects = Agent.getAllOfflineData();
-                for (Map.Entry<String, String> entry : harvestDataObjects.entrySet()) {
-                    HarvestResponse eachResponse = harvestConnection.sendData(entry.getValue());
-                    if (eachResponse.isOK()) {
-                        File file = new File(entry.getKey());
-                        file.delete();
+            try {
+                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                    Map<String, String> harvestDataObjects = Agent.getAllOfflineData();
+                    for (Map.Entry<String, String> entry : harvestDataObjects.entrySet()) {
+                        HarvestResponse eachResponse = harvestConnection.sendData(entry.getValue());
+                        if (eachResponse.isOK()) {
+                            File file = new File(entry.getKey());
+                            file.delete();
+                        }
+                        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/OfflineStorage" + eachResponse.getResponseCode());
                     }
                 }
+            } catch (Exception ex) {
+                log.error("OfflineStorage: " + ex);
             }
         }
 
