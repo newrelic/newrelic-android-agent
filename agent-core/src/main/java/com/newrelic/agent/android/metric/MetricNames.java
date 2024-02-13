@@ -79,6 +79,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_LOG_UPLOAD_TIME = SUPPORTABILITY_LOG_REPORTING + "UploadTime";
     public static final String SUPPORTABILITY_LOG_UPLOAD_TIMEOUT = SUPPORTABILITY_LOG_REPORTING + "UploadTimeOut";
     public static final String SUPPORTABILITY_LOG_UPLOAD_THROTTLED = SUPPORTABILITY_LOG_REPORTING + "UploadThrottled";
+    public static final String SUPPORTABILITY_LOG_UPLOAD_REJECTED = SUPPORTABILITY_LOG_REPORTING + "UploadRejected";
     public static final String SUPPORTABILITY_LOG_FAILED_UPLOAD = SUPPORTABILITY_LOG_REPORTING + "FailedUpload";
     public static final String SUPPORTABILITY_LOG_REMOVED_REJECTED = SUPPORTABILITY_LOG_REPORTING + "Removed/Rejected";
     public static final String SUPPORTABILITY_LOG_UNCOMPRESSED = SUPPORTABILITY_LOG_REPORTING + "Size/Uncompressed";

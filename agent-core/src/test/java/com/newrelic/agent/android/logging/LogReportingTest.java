@@ -36,14 +36,14 @@ public class LogReportingTest {
     public void testSetLogLevelAsInt() {
         LogReporting.setLogLevel(4);
         Assert.assertEquals(4, LogReporting.getLogLevelAsInt());
-        Assert.assertEquals(LogReporting.getLogLevel(), LogLevel.DEBUG);
-        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.VERBOSE));
+        Assert.assertEquals(LogReporting.getLogLevel(), LogLevel.VERBOSE);
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.DEBUG));
     }
 
     @Test
     public void testSetLogLevelAsEnum() {
-        LogReporting.setLogLevel(LogLevel.DEBUG);
-        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.VERBOSE));
+        LogReporting.setLogLevel(LogLevel.VERBOSE);
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.DEBUG));
     }
 
     @Test
@@ -61,8 +61,8 @@ public class LogReportingTest {
         Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.ERROR));
         Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.WARN));
         Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.INFO));
-        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.DEBUG));
         Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.VERBOSE));
+        Assert.assertFalse(LogReporting.isLevelEnabled(LogLevel.DEBUG));
     }
 
     @Test

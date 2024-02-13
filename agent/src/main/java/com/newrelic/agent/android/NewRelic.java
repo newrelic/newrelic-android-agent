@@ -330,9 +330,11 @@ public final class NewRelic {
                      *
                       * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
                      *  */
-                    LogReporter.initialize(context.getCacheDir(), agentConfiguration);
+                    LogReporting.initialize(context.getCacheDir(), agentConfiguration);
+
                 } catch (IOException e) {
                     AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e.toString());
+
                 }
             }
 

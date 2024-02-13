@@ -47,6 +47,7 @@ public class LogReporterTest extends LoggingTests {
     @Before
     public void setUp() throws Exception {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        LogReporting.setLogLevel(LogLevel.WARN);
 
         agentConfiguration = new AgentConfiguration();
         agentConfiguration.setApplicationToken("APP-TOKEN>");
@@ -169,13 +170,14 @@ public class LogReporterTest extends LoggingTests {
         Assert.assertTrue((archivedLogFile.exists() && archivedLogFile.isFile() && archivedLogFile.length() > 0));
         Assert.assertFalse(archivedLogFile.canWrite());
         JsonArray jsonArray = new Gson().fromJson(Streams.newBufferedFileReader(archivedLogFile), JsonArray.class);
-        Assert.assertEquals(7 * 4, jsonArray.size());   // 7 logs, 4 entries per log
+        Assert.assertEquals(7 * LogReporting.getLogLevelAsInt(), jsonArray.size());   // 7 logs, 2 (WARN) entries per log
     }
 
     @Test
     public void mergeLogDataToArchiveWithOverflow() throws Exception {
         // Shush up logging (it takes more time to run)
         AgentLogManager.getAgentLog().setLevel(0);
+
         // add few more to overflow the rollup
         seedLogData(7, LogReporter.VORTEX_PAYLOAD_LIMIT / 5);
 
@@ -197,19 +199,17 @@ public class LogReporterTest extends LoggingTests {
 
     @Test
     public void mergeLogDataToMinThresholdArchive() throws Exception {
-        LogReporter.MIN_PAYLOAD_THRESHOLD = LogReporter.VORTEX_PAYLOAD_LIMIT / 4;
-
+        LogReporter.MIN_PAYLOAD_THRESHOLD = LogReporter.VORTEX_PAYLOAD_LIMIT / 10;
         seedLogData(1, LogReporter.MIN_PAYLOAD_THRESHOLD / 2);
 
         File archivedLogFile = logReporter.rollupLogDataFiles();
-        Assert.assertNull("Don't archive of total log data size is below threshold", archivedLogFile);
+        Assert.assertNull("Don't archive if total log data size is below threshold", archivedLogFile);
 
         seedLogData(2, LogReporter.MIN_PAYLOAD_THRESHOLD / 2);
         archivedLogFile = logReporter.rollupLogDataFiles();
         Assert.assertNotNull(archivedLogFile);
         Assert.assertTrue((archivedLogFile.exists() && archivedLogFile.isFile() && archivedLogFile.length() > LogReporter.MIN_PAYLOAD_THRESHOLD));
     }
-
 
     @Test
     public void postLogReport() throws Exception {
@@ -255,7 +255,7 @@ public class LogReporterTest extends LoggingTests {
 
         RemoteLogger remoteLogger = new RemoteLogger();
         remoteLogger.log(LogLevel.INFO, getRandomMsg(10));
-        logger.flushPendingRequests();
+        logger.flush();
 
         File finalizedLogFile = logReporter.rollWorkingLogFile();
         Assert.assertTrue(finalizedLogFile.exists());
@@ -368,7 +368,7 @@ public class LogReporterTest extends LoggingTests {
         logger.log(LogLevel.INFO, getRandomMsg(300));
         logger.log(LogLevel.INFO, getRandomMsg(300));
         logger.log(LogLevel.INFO, getRandomMsg(400));
-        logger.flushPendingRequests();
+        logger.flush();
 
         verify(logReporter, atMostOnce()).rollWorkingLogFile();
     }
@@ -380,23 +380,23 @@ public class LogReporterTest extends LoggingTests {
         Assert.assertNotNull(logReporter.workingLogFile);
         Assert.assertTrue(logReporter.workingLogFile.exists());
 
-        logger.log(LogLevel.INFO, "Before onHarvestStart()");
+        logger.log(LogReporting.getLogLevel(), "Before onHarvestStart()");
         logReporter.onHarvestStart();
         Assert.assertNotNull(logReporter.workingLogFileWriter.get());
 
         BufferedWriter writer = logReporter.workingLogFileWriter.get();
         logger.log(LogLevel.INFO, "After onHarvestStart()");
 
-        logger.log(LogLevel.INFO, "Before onHarvest()");
+        logger.log(LogReporting.getLogLevel(), "Before onHarvest()");
         logReporter.onHarvest();
         Assert.assertTrue(logReporter.workingLogFile.exists());
         Assert.assertEquals("Should create a new working file", 0, logReporter.workingLogFile.length());
         Assert.assertNotEquals("Should create a new buffered writer", writer, logReporter.workingLogFileWriter.get());
-        logger.log(LogLevel.INFO, "After onHarvest()");
-        logger.log(LogLevel.INFO, "Before onHarvestStop()");
+        logger.log(LogReporting.getLogLevel(), "After onHarvest()");
+        logger.log(LogReporting.getLogLevel(), "Before onHarvestStop()");
 
         logReporter.onHarvestStop();
-        logger.flushPendingRequests();
+        logger.flush();
         Assert.assertTrue(logReporter.workingLogFile.exists());
         Assert.assertEquals("Should create a new working file", 0, logReporter.workingLogFile.length());
         Assert.assertNotEquals("Should create a new buffered writer", writer, logReporter.workingLogFileWriter.get());
@@ -408,20 +408,22 @@ public class LogReporterTest extends LoggingTests {
     public void testWorkingfileIOFailure() throws IOException {
         final String msg = "";
 
-        logger.log(LogLevel.INFO, msg + getRandomMsg(8));
-        logger.log(LogLevel.INFO, msg + getRandomMsg(5));
+        logger.log(LogLevel.ERROR, msg + getRandomMsg(8));
+        logger.log(LogLevel.WARN, msg + getRandomMsg(5));
         logger.log(LogLevel.INFO, msg + getRandomMsg(11));
+        logger.log(LogLevel.DEBUG, msg + getRandomMsg(11));
+        logger.log(LogLevel.VERBOSE, msg + getRandomMsg(11));
 
-        logger.flushPendingRequests();
+        logger.flush();
 
         // close working file writer without finalizing
         logReporter.workingLogFileWriter.get().flush();
         logReporter.workingLogFileWriter.get().close();
 
-        verifyWorkingLogFile(3);
+        verifyWorkingLogFile(2);
         logger = new RemoteLogger();
 
-        JsonArray jsonArray = verifyWorkingLogFile(3);
+        JsonArray jsonArray = verifyWorkingLogFile(2);
         Assert.assertNotNull(jsonArray);
     }
 
@@ -430,9 +432,11 @@ public class LogReporterTest extends LoggingTests {
         final String msg = "Log msg";
 
         Assert.assertFalse(logger.executor.isShutdown());
+        logger.log(LogLevel.ERROR, msg);
+        logger.log(LogLevel.WARN, msg);
         logger.log(LogLevel.INFO, msg);
-        logger.log(LogLevel.INFO, msg);
-        logger.log(LogLevel.INFO, msg);
+        logger.log(LogLevel.VERBOSE, msg);
+        logger.log(LogLevel.DEBUG, msg);
         logReporter.finalizeWorkingLogFile();
 
         Assert.assertNull(logReporter.workingLogFileWriter.get());

@@ -45,6 +45,7 @@ public class LogForwarder extends PayloadSender {
     @Override
     public PayloadSender call() throws Exception {
         if (shouldUploadOpportunistically()) {
+            timer.tic();
             return super.call();
         }
         log.warn("LogForwarder: endpoint is not reachable. Will try later...");
@@ -108,16 +109,21 @@ public class LogForwarder extends PayloadSender {
 
     /**
      * Response codes should adhere to the Vortex request spec
-     * @param connection Passed from the result f the call() opertation
+     *
+     * @param connection Passed from the result of the call() operation
+     * @see <a href=""https://source.datanerd.us/agents/agent-specs/blob/main/Collector-Response-Handling.md">Vortex response codes</a>
      **/
     @Override
     protected void onRequestResponse(HttpURLConnection connection) throws IOException {
         switch (connection.getResponseCode()) {
             case HttpsURLConnection.HTTP_OK:
             case HttpsURLConnection.HTTP_ACCEPTED:
-                StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME, timer.peek());
-                log.info("LogForwarder: [" + getPayloadSize() + "] bytes successfully submitted.");
-                log.debug("LogForwarder: Log data collection took " + timer.toc() + "ms");
+                StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME, timer.toc());
+                log.debug("LogForwarder: Log data forwarding took " + timer.duration() + "ms");
+
+                int payloadSize = getPayloadSize();
+                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_LOG_UNCOMPRESSED, payloadSize);
+                log.info("LogForwarder: [" + payloadSize + "] bytes successfully submitted.");
                 break;
 
             case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
@@ -125,9 +131,14 @@ public class LogForwarder extends PayloadSender {
                 onFailedUpload("The request to submit the log data payload has timed out - (will try again later) - Response code [" + responseCode + "]");
                 break;
 
-            case 429: // Not defined by HttpURLConnection
+            case HttpURLConnection.HTTP_ENTITY_TOO_LARGE:
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_UPLOAD_REJECTED);
+                onFailedUpload("The request to rejected due to Vortex payload size limits - Response code [" + responseCode + "]");
+                break;
+
+            case 429: // Too Many Requests
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_UPLOAD_THROTTLED);
-                onFailedUpload("The request to submit the log data payload [" + payload.getUuid() + "] was has timed out - (will try again later) - Response code [" + responseCode + "]");
+                onFailedUpload("Log upload requests have been throttled- (will try again later) - Response code [" + responseCode + "]");
                 break;
 
             case HttpsURLConnection.HTTP_INTERNAL_ERROR:

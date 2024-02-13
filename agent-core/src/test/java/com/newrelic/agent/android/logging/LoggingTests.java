@@ -9,11 +9,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.util.Streams;
 
-import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 
@@ -81,7 +78,7 @@ public class LoggingTests {
             reader.lines().forEach(s -> {
                 if (!(null == s || s.isEmpty())) {
                     try {
-                        JsonObject messageAsJson = LogReporting.gson.fromJson(s, JsonObject.class);
+                        JsonObject messageAsJson = LogReporter.gson.fromJson(s, JsonObject.class);
                         jsonArray.add(messageAsJson);
                     } catch (JsonSyntaxException e) {
                         Assert.fail("Invalid Json entry!");
@@ -123,11 +120,13 @@ public class LoggingTests {
             RemoteLogger remoteLogger = new RemoteLogger();
             logReporter.resetWorkingLogFile();
 
+            remoteLogger.log(LogLevel.ERROR, getRandomMsg((int) (Math.random() * 30) + 12));
+            remoteLogger.log(LogLevel.WARN, getRandomMsg((int) (Math.random() * 30) + 12));
             remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-            remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-            remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-            remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-            remoteLogger.flushPendingRequests();
+            remoteLogger.log(LogLevel.DEBUG, getRandomMsg((int) (Math.random() * 30) + 12));
+            remoteLogger.log(LogLevel.VERBOSE, getRandomMsg((int) (Math.random() * 30) + 12));
+            remoteLogger.flush();
+
             logReporter.finalizeWorkingLogFile();
             reportSet.add(logReporter.rollWorkingLogFile());
         }
@@ -148,11 +147,12 @@ public class LoggingTests {
 
             while (logReporter.payloadBudget > 1024 &&
                     (LogReporter.VORTEX_PAYLOAD_LIMIT - logReporter.payloadBudget) < minFileSize) {
+                remoteLogger.log(LogLevel.ERROR, getRandomMsg((int) (Math.random() * 30) + 12));
+                remoteLogger.log(LogLevel.WARN, getRandomMsg((int) (Math.random() * 30) + 12));
                 remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-                remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-                remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-                remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
-                remoteLogger.flushPendingRequests();
+                remoteLogger.log(LogLevel.VERBOSE, getRandomMsg((int) (Math.random() * 30) + 12));
+                remoteLogger.log(LogLevel.DEBUG, getRandomMsg((int) (Math.random() * 30) + 12));
+                remoteLogger.flush();
             }
 
             logReporter.finalizeWorkingLogFile();

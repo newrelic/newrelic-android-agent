@@ -112,11 +112,11 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
     public PayloadSender call() throws Exception {
         try {
             byte[] payloadBytes = getPayload().getBytes();
-            timer.tic();
             final HttpURLConnection connection = getConnection();
             connection.setFixedLengthStreamingMode(payloadBytes.length);
             connection.setRequestProperty(CONTENT_LENGTH_HEADER, Integer.toString(payloadBytes.length));
             try {
+                timer.tic();
                 connection.connect();
                 try (final OutputStream out = new BufferedOutputStream(connection.getOutputStream())) {
                     out.write(payloadBytes);

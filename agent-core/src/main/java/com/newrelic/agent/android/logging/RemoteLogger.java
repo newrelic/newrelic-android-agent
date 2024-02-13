@@ -16,8 +16,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class RemoteLogger extends LogReporting implements HarvestLifecycleAware {
-    static int POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors() / 8); // Buffer up this this number of requests
+
+public class RemoteLogger implements HarvestLifecycleAware, Logger {
+    static int POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors() / 4); // Buffer up this this number of requests
     static long QUEUE_THREAD_TTL = 1000;
 
     // TODO enforce log message constraints
@@ -28,7 +29,7 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
     protected ThreadPoolExecutor executor = new ThreadPoolExecutor(2,
             POOL_SIZE,
             QUEUE_THREAD_TTL, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<Runnable>(),
+            new LinkedBlockingQueue<>(),
             new NamedThreadFactory("LogReporting"));
 
     public RemoteLogger() {
@@ -38,8 +39,6 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
 
     @Override
     public void log(LogLevel logLevel, String message) {
-        super.logToAgent(logLevel, message);
-
         if (isLevelEnabled(logLevel)) {
             appendToWorkingLogFile(logLevel, message, null, null);
         }
@@ -47,8 +46,6 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
 
     @Override
     public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
-        super.logThrowable(logLevel, message, throwable);
-
         if (isLevelEnabled(logLevel)) {
             appendToWorkingLogFile(logLevel, message, throwable, null);
         }
@@ -56,21 +53,21 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
 
     @Override
     public void logAttributes(Map<String, Object> attributes) {
-        super.logAttributes(attributes);
+        String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
+        LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
 
         if (isLevelEnabled(logLevel)) {
-            String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
             String message = (String) attributes.getOrDefault(LogReporting.LOG_MESSAGE_ATTRIBUTE, null);
-            appendToWorkingLogFile(LogLevel.valueOf(level.toUpperCase()), message, null, attributes);
+            appendToWorkingLogFile(logLevel, message, null, attributes);
         }
     }
 
     @Override
     public void logAll(Throwable throwable, Map<String, Object> attributes) {
-        super.logAll(throwable, attributes);
+        String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
+        LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
 
         if (isLevelEnabled(logLevel)) {
-            String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
             String message = (String) attributes.getOrDefault(LogReporting.LOG_MESSAGE_ATTRIBUTE, null);
             appendToWorkingLogFile(LogLevel.valueOf(level.toUpperCase()), message, throwable, attributes);
         }
@@ -88,7 +85,7 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
      * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#simple-json
      */
     public void appendToWorkingLogFile(final LogLevel logLevel, final String message, final Throwable throwable, final Map<String, Object> attributes) {
-        if (!(isRemoteLoggingEnabled() && isLevelEnabled(logLevel))) {
+        if (!(LogReporting.isRemoteLoggingEnabled() && isLevelEnabled(logLevel))) {
             return;
         }
 
@@ -155,7 +152,7 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
                 // try recovery:
                 if (!(executor.isTerminating() || executor.isShutdown())) {
                     if (null != logReporter.resetWorkingLogFile()) {
-                        super.logAttributes(logDataMap);
+                        // super.logAttributes(logDataMap);
                     }
                 }
 
@@ -172,7 +169,7 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
 
         if (executor.isTerminating() || executor.isShutdown()) {
             try {
-                callable.call();        // Non-blocking
+                callable.call();        // blocking
             } catch (Exception e) {
                 AgentLogManager.getAgentLog().error(e.toString());
             }
@@ -188,7 +185,7 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
 
     @Override
     public void onHarvest() {
-        flushPendingRequests();
+        flush();
     }
 
     @Override
@@ -212,14 +209,14 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
     }
 
     // Block until the in-progress tasks have completed
-    protected void flushPendingRequests() {
+    protected void flush() {
         synchronized (executor) {
             try {
                 while (getPendingTaskCount() > 0 && !executor.isTerminating() && !executor.isTerminated()) {
                     executor.wait(QUEUE_THREAD_TTL, 0);
                 }
             } catch (InterruptedException e) {
-                logToAgent(LogLevel.ERROR, e.toString());
+                // super.log(LogLevel.ERROR, e.toString());
             }
         }
     }
@@ -231,6 +228,20 @@ public class RemoteLogger extends LogReporting implements HarvestLifecycleAware 
         } catch (InterruptedException e) {
             executor.shutdownNow();
         }
+    }
+
+    /**
+     * Return the collection of NR common (root level) log attributes to add to the log data entry
+     *
+     * @return Map of common block attributes
+     */
+    static Map<String, Object> getCommonBlockAttributes() {
+        Map<String, Object> attrs = new HashMap<>();
+
+        attrs.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
+        attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, LogReporting.getEntityGuid());
+
+        return attrs;
     }
 
 }
