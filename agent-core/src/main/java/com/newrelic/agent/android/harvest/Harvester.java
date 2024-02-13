@@ -10,6 +10,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
@@ -19,8 +20,10 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.ActivityTrace;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * The {@code Harvester} is a state machine responsible for connecting to and posting data to the Collector.
@@ -221,6 +224,7 @@ public class Harvester {
         // Network level error, or something else really bad. Don't clear the harvest data, we'll attempt again
         if (response == null || response.isUnknown()) {
             log.debug("Harvest data response: " + response.getResponseCode());
+            checkOfflineAndPersist();
             fireOnHarvestSendFailed();
             return;
         }
@@ -276,7 +280,29 @@ public class Harvester {
                     break;
             }
 
+            //Offline Storage
+            if (response.isNetworkError()) {
+                checkOfflineAndPersist();
+            }
+
             return;
+        } else {
+            //Offline Storage
+            try {
+                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                    Map<String, String> harvestDataObjects = Agent.getAllOfflineData();
+                    for (Map.Entry<String, String> entry : harvestDataObjects.entrySet()) {
+                        HarvestResponse eachResponse = harvestConnection.sendData(entry.getValue());
+                        if (eachResponse.isOK()) {
+                            File file = new File(entry.getKey());
+                            file.delete();
+                        }
+                        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/OfflineStorage" + eachResponse.getResponseCode());
+                    }
+                }
+            } catch (Exception ex) {
+                log.error("OfflineStorage: " + ex);
+            }
         }
 
         // Notify all listeners that the harvester finished
@@ -699,6 +725,21 @@ public class Harvester {
         } catch (Exception e) {
             log.error("Error in fireOnHarvestConnected", e);
             AgentHealth.noticeException(e);
+        }
+    }
+
+    public void checkOfflineAndPersist() {
+        try {
+            if (!FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                return;
+            }
+
+            //Offline Storage
+            Agent.persistHarvestDataToDisk(harvestData.toJsonString());
+            harvestData.reset();
+            log.info("Harvest data has stored to disk due to network errors, will resubmit in next cycle when network is available.");
+        } catch (Exception ex) {
+            log.error("Error in persisting data: ", ex);
         }
     }
 

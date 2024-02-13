@@ -12,6 +12,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentImpl;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.harvest.ActivityHistory;
@@ -27,6 +28,7 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
+import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.SafeJsonPrimitive;
 
 import java.util.ArrayList;
@@ -161,6 +163,12 @@ public class Crash extends HarvestableObject {
         }
         Set<AnalyticsAttribute> attrs = new HashSet<>(sessionAttributes);
         attrs.add(new AnalyticsAttribute("obfuscated", this.getIsObfuscated()));
+        //Offline Storage
+        if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+            if (!Agent.hasReachableNetworkConnection(null)) {
+                attrs.add(new AnalyticsAttribute(Constants.OfflineStorage.OFFLINE_ATTRIBUTE_NAME, true));
+            }
+        }
         return Collections.unmodifiableSet(attrs);
     }
 

@@ -88,6 +88,17 @@ public class HarvestResponse {
         return statusCode >= 400;
     }
 
+    /**
+     * Returns true if this response is a network error.
+     *
+     * @return true if the response is a network error, false otherwise.
+     */
+    public boolean isNetworkError() {
+        return getResponseCode() == Code.UNKNOWN
+                || getResponseCode() == Code.REQUEST_TIMEOUT
+                || getResponseCode() == Code.TOO_MANY_REQUESTS;
+    }
+
     public boolean isUnknown() {
         return getResponseCode() == Code.UNKNOWN;
     }

@@ -12,14 +12,15 @@ import com.newrelic.agent.android.api.common.CarrierType;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.api.common.WanType;
 import com.newrelic.agent.android.api.v1.Defaults;
-import com.newrelic.agent.android.distributedtracing.TraceFacade;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.EnvironmentInformation;
 import com.newrelic.agent.android.util.Encoder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class StubAgentImpl implements AgentImpl {
@@ -179,11 +180,21 @@ public class StubAgentImpl implements AgentImpl {
 
     @Override
     public boolean hasReachableNetworkConnection(String reachableHost) {
-        return true;
+        return reachableHost == null;
     }
 
     @Override
     public boolean isInstantApp() {
         return false;
+    }
+
+    @Override
+    public void persistHarvestDataToDisk(String data) {
+
+    }
+
+    @Override
+    public Map<String, String> getAllOfflineData() {
+        return new HashMap<String, String>();
     }
 }

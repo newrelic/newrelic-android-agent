@@ -61,6 +61,7 @@ import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
 import com.newrelic.agent.android.util.Connectivity;
 import com.newrelic.agent.android.util.Encoder;
+import com.newrelic.agent.android.util.OfflineStorage;
 import com.newrelic.agent.android.util.PersistentUUID;
 import com.newrelic.agent.android.util.Reachability;
 import com.newrelic.agent.android.util.UiBackgroundListener;
@@ -71,6 +72,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -98,6 +100,7 @@ public class AndroidAgentImpl implements
 
     // Producers and consumers that are tightly coupled to Android implementations
     private MachineMeasurementConsumer machineMeasurementConsumer;
+    private OfflineStorage offlineStorageInstance;
 
     public AndroidAgentImpl(final Context context, final AgentConfiguration agentConfiguration) throws AgentInitializationException {
         // We want an Application context, not an Activity context.
@@ -118,6 +121,7 @@ public class AndroidAgentImpl implements
         agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
+        offlineStorageInstance = new OfflineStorage(context);
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
 
@@ -491,13 +495,13 @@ public class AndroidAgentImpl implements
         final EventManager eventManager = analyticsController.getEventManager();
 
         if (!NewRelic.isShutdown) {
-        // Emit a supportability metric that records the number of events recorded versus ejected
-        // during this session
-        int eventsRecorded = eventManager.getEventsRecorded();
-        int eventsEjected = eventManager.getEventsEjected();
+            // Emit a supportability metric that records the number of events recorded versus ejected
+            // during this session
+            int eventsRecorded = eventManager.getEventsRecorded();
+            int eventsEjected = eventManager.getEventsEjected();
 
-        Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
-                eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
+            Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
+                    eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
         }
 
         if (finalSendData) {
@@ -792,4 +796,13 @@ public class AndroidAgentImpl implements
         return InstantApps.isInstantApp(context);
     }
 
+    @Override
+    public void persistHarvestDataToDisk(String data) {
+        offlineStorageInstance.persistHarvestDataToDisk(data);
+    }
+
+    @Override
+    public Map<String, String> getAllOfflineData() {
+        return offlineStorageInstance.getAllOfflineData();
+    }
 }
