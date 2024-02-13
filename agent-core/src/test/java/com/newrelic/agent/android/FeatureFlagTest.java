@@ -97,7 +97,6 @@ public class FeatureFlagTest {
         Assert.assertTrue("NetworkErrorRequests is now enabled", FeatureFlag.featureEnabled(NetworkErrorRequests));
         Assert.assertTrue("Distributed tracing is now enabled", FeatureFlag.featureEnabled(DistributedTracing));
         Assert.assertTrue("AppStartMetrics is now enabled", FeatureFlag.featureEnabled(AppStartMetrics));
-        Assert.assertTrue("OfflineStorage is now enabled", FeatureFlag.featureEnabled(OfflineStorage));
 
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
