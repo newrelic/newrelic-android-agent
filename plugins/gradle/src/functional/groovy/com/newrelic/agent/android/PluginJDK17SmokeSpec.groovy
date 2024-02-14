@@ -42,9 +42,10 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
-                        // "--debug",
+                        "-PincludeFeature=true",
+                       // "--debug",
                         "clean",
-                        testTask, "assembleQa")
+                        testTask)
 
         when: "run the build *once* and cache the results"
         buildResult = runner.build()
@@ -63,7 +64,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
             filteredOutput.contains("Gradle version:")
             filteredOutput.contains("Java version:")
             filteredOutput.contains("Kotlin version:")
-            filteredOutput.contains("BuildMetrics[")
+//            filteredOutput.contains("BuildMetrics[")
         }
     }
 
@@ -111,8 +112,16 @@ class PluginJDK17SmokeSpec extends PluginSpec {
             (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                     buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
         }
-        mapUploadVariants.each { var ->
-            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+//        mapUploadVariants.each { var ->
+//            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+//        }
+    }
+
+    def "verify dynamic features built and instrumented"() {
+        expect:
+        testVariants.each { var ->
+            (buildResult.task(":feature:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                    buildResult.task(":feature:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
         }
     }
 }

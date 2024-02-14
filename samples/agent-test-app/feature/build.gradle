@@ -1,0 +1,37 @@
+/*
+ * Copyright (c) 2023. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+plugins {
+    id("com.android.dynamic-feature")
+    id ("newrelic")
+}
+
+project.compiler = "none"
+
+apply from: "${rootDir}/android.gradle"
+
+
+android {
+    namespace "com.newrelic.feature"
+    buildTypes {
+        debug {
+            minifyEnabled false
+            debuggable true
+        }
+        qa {
+            minifyEnabled false
+            debuggable false
+        }
+        release {
+            minifyEnabled false
+            debuggable false
+        }
+    }
+}
+
+dependencies {
+    implementation  project(':')
+}
+

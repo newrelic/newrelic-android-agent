@@ -34,7 +34,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         project.getLogging().captureStandardOutput(LogLevel.WARN)
 
         if (!isSupportedModule(project)) {
-            throw new BuildCancelledException("Instrumentation of Android Dynamic feature modules is not supported in this version.")
+            throw new BuildCancelledException("Instrumentation of this module type is not supported in this version.")
         }
 
         pluginExtension = NewRelicExtension.register(project)
@@ -164,6 +164,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
     static def isSupportedModule(Project project) {
         return project.pluginManager.hasPlugin("com.android.application") ||
                 project.pluginManager.hasPlugin("com.android.library") ||
+                project.pluginManager.hasPlugin("com.android.feature") ||
                 project.pluginManager.hasPlugin("com.android.dynamic-feature")
     }
 }

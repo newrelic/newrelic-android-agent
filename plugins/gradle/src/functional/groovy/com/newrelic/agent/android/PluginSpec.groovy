@@ -60,7 +60,7 @@ abstract class PluginSpec extends Specification {
         given: "verify M2 repo location"
         localEnv += System.getenv()
 
-        if (localEnv["M2_REPO"] == null) {
+//        if (localEnv["M2_REPO"] == null) {
             def m2 = new File(rootDir, "build/.m2/repository").absoluteFile
             try {
                 if (!(m2.exists() && m2.canRead())) {
@@ -75,7 +75,7 @@ abstract class PluginSpec extends Specification {
                 localEnv.put("M2_REPO", m2.getAbsolutePath())
             } catch (Exception ignored) {
             }
-        }
+//        }
 
         extensionsFile?.delete()
     }

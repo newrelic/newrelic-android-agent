@@ -34,11 +34,12 @@ class PluginJDK11SmokeSpec extends PluginSpec {
                 .withGradleVersion(gradleVersion)
                 .forwardStdOutput(printFilter)
                 .withArguments(
-                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agent.version=7.5.0",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
+                        "-PincludeFeature=true",
                         "--debug",
                         "clean",
                         testTask)
@@ -110,22 +111,22 @@ class PluginJDK11SmokeSpec extends PluginSpec {
         expect:
         testVariants.each { var ->
             (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+                    buildResult.task(":library:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
             buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
         }
     }
 
-    def "verify submodules built and instrumented"() {
+    def "verify dynamic features built and instrumented"() {
         expect:
         testVariants.each { var ->
-            (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
-            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            (buildResult.task(":feature:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                    buildResult.task(":feature:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
         }
     }
 
     def "verify package exclusion"() {
-        filteredOutput.contains("Package [org/bouncycastle/crypto] has been excluded from instrumentation");
+        expect:
+        filteredOutput.contains("Excluding package [org/bouncycastle/crypto/] from instrumentation")
     }
 
 }

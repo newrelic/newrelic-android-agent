@@ -115,4 +115,7 @@ if (settings.includeLibrary && Boolean.valueOf(settings.includeLibrary)) {
     include ":library"
 }
 
-include ':dynamicfeature'
+if (settings.includeFeature && Boolean.valueOf(settings.includeFeature)) {
+    include ":feature"
+}
+
