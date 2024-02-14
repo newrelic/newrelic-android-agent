@@ -124,7 +124,6 @@ public abstract class LogReporting {
          * Writes a message to the current agent log using the provided log level.
          * At runtime, this will be the Android logger (Log) instance.
          */
-
         public void logToAgent(LogLevel level, String message) {
             if (LogReporting.isLevelEnabled(level)) {
                 final AgentLog agentLog = AgentLogManager.getAgentLog();
@@ -232,8 +231,8 @@ public abstract class LogReporting {
     }
 
     public static void initialize(File cacheDir, AgentConfiguration agentConfiguration) throws IOException {
+        LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
         LogReporter.initialize(cacheDir, agentConfiguration);
     }
-
 
 }

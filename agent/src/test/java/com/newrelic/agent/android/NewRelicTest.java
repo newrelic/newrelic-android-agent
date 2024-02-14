@@ -1205,7 +1205,6 @@ public class NewRelicTest {
     @Test
     public void testLogWithLoggingDisabled() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        LogReporting.setLogLevel(LogLevel.NONE);
         nrInstance.start(spyContext.getContext());
 
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
@@ -1215,9 +1214,12 @@ public class NewRelicTest {
         AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
         AgentLogManager.setAgentLog(agentLogger);
 
+        // disable remote logging
+        LogReporting.setLogLevel(LogLevel.NONE);
+
         final String msg = "error log message";
         NewRelic.log(LogLevel.ERROR, msg);
-        verify(agentLogger, never()).error(msg);
+        verify(agentLogger,never()).error(msg);
         verify(remoteLogger, never()).log(LogLevel.ERROR, msg);
         verify(remoteLogger, never()).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
 
