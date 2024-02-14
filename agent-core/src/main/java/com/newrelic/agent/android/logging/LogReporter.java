@@ -68,7 +68,7 @@ public class LogReporter extends PayloadReporter {
     }
 
     static int VORTEX_PAYLOAD_LIMIT = (1024 * 1024);                // Vortex upload limit: 1 MB (10^6 B) compressed
-    static int MIN_PAYLOAD_THRESHOLD = VORTEX_PAYLOAD_LIMIT / 4;    // Don't upload until we have at least this much data
+    static int MIN_PAYLOAD_THRESHOLD = -1; // TODO VORTEX_PAYLOAD_LIMIT / 4;    // Don't upload until we have at least this much data
     protected int payloadBudget = VORTEX_PAYLOAD_LIMIT;
 
     static final long LOG_ENDPOINT_TIMEOUT = 10;    // FIXME This is a guess, check with Logging team
@@ -106,8 +106,6 @@ public class LogReporter extends PayloadReporter {
         log.debug("LogReporting: logger has been set to " + LogReporting.getLogger().getClass().getSimpleName());
 
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_LOG_REPORTING_INIT);
-
-        instance.get().start();
 
         return instance.get();
     }
@@ -154,18 +152,10 @@ public class LogReporter extends PayloadReporter {
     @Override
     public void onHarvestStart() {
         final Logger logger = LogReporting.getLogger();
+
         if (logger instanceof HarvestLifecycleAware) {
             ((HarvestLifecycleAware) logger).onHarvestStart();
         }
-
-        getCachedLogReports(LogReportState.ROLLUP).forEach(logReport -> {
-            if (postLogReport(logReport)) {
-                log.info("LogReporter: Uploaded remote log data [" + logReport.getAbsolutePath() + "]");
-                safeDelete(logReport);
-            } else {
-                log.error("LogReporter: Upload failed for remote log data [" + logReport.getAbsolutePath() + "]");
-            }
-        });
 
         // expire and delete leftover files
         expire(Math.toIntExact(reportTTL));
@@ -186,12 +176,6 @@ public class LogReporter extends PayloadReporter {
         } catch (Exception e) {
             log.error(e.toString());
         }
-
-    }
-
-    @Override
-    public void onHarvestComplete() {
-        expire(Math.toIntExact(reportTTL));
     }
 
     @Override
@@ -232,6 +216,26 @@ public class LogReporter extends PayloadReporter {
                 }
             }
         }
+    }
+
+    @Override
+    public void onHarvestComplete() {
+        final Logger logger = LogReporting.getLogger();
+
+        if (logger instanceof HarvestLifecycleAware) {
+            ((HarvestLifecycleAware) logger).onHarvestComplete();
+        }
+
+        getCachedLogReports(LogReportState.ROLLUP).forEach(logReport -> {
+            if (postLogReport(logReport)) {
+                log.info("LogReporter: Uploaded remote log data [" + logReport.getAbsolutePath() + "]");
+                safeDelete(logReport);
+            } else {
+                log.error("LogReporter: Upload failed for remote log data [" + logReport.getAbsolutePath() + "]");
+            }
+        });
+
+        expire(Math.toIntExact(reportTTL));
     }
 
     @Override

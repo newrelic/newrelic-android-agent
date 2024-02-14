@@ -5,9 +5,6 @@
 
 package com.newrelic.agent.android.logging;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
@@ -16,8 +13,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.Type;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -27,6 +22,7 @@ import java.util.stream.Collectors;
  * LogReporting public interface, exposed to NewRelic API
  */
 public abstract class LogReporting {
+    static final String NULL_MSG = "<empty message>";
 
     // Logging payload attributes
     protected static final String LOG_TIMESTAMP_ATTRIBUTE = AnalyticsAttribute.EVENT_TIMESTAMP_ATTRIBUTE;
@@ -112,7 +108,7 @@ public abstract class LogReporting {
     }
 
     public static void setEntityGuid(String entityGuid) {
-        if (entityGuid == null) {
+        if (entityGuid == null || entityGuid.isEmpty()) {
             AgentLogManager.getAgentLog().error("setEntityGuid: invalid entity guid value!");
         } else {
             LogReporting.entityGuid = entityGuid;
@@ -126,6 +122,10 @@ public abstract class LogReporting {
          */
         public void logToAgent(LogLevel level, String message) {
             if (LogReporting.isLevelEnabled(level)) {
+                if (null == message || message.isEmpty()) {
+                    message = LogReporting.NULL_MSG;
+                }
+
                 final AgentLog agentLog = AgentLogManager.getAgentLog();
                 switch (level) {
                     case ERROR:
