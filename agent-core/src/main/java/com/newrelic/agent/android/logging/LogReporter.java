@@ -121,18 +121,14 @@ public class LogReporter extends PayloadReporter {
         try {
             resetWorkingLogFile();
         } catch (IOException e) {
-            log.error("LogReporter error; " + e);
+            log.error("LogReporter error: " + e);
+            setEnabled(false);
         }
     }
 
     @Override
     protected void start() {
         Harvest.addHarvestListener(instance.get());
-
-        if (isEnabled()) {
-            onHarvestStart();   // sweep for any cached report from last session
-        }
-
         isStarted.set(true);
     }
 
@@ -171,7 +167,7 @@ public class LogReporter extends PayloadReporter {
             }
 
             // The logger can continue to run collecting log data until the agent exists.
-            // but will no longer be triggered by the harvest lifecycle
+            // but will no longer be triggered by the harvest lifecycle nor uploaded to ingest
 
         } catch (Exception e) {
             log.error(e.toString());

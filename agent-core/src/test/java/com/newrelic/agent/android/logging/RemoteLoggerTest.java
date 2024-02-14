@@ -274,7 +274,7 @@ public class RemoteLoggerTest extends LoggingTests {
                     String msg = getRandomMsg(msgSize);
 
                     Map<String, Object> attrs = new HashMap<>();
-                    attrs.put("level", LogLevel.INFO.name());
+                    attrs.put("level", LogLevel.values()[(int) (Math.random() * LogLevel.values().length)].name());
                     attrs.put("message", msg);
                     attrs.put("name", getRandomMsg(8));
                     attrs.put("age", (double) Math.random() * 117);
@@ -298,7 +298,7 @@ public class RemoteLoggerTest extends LoggingTests {
             TicToc fileIOTimer = new TicToc().tic();
             logger.flush();
             logReporter.finalizeWorkingLogFile();
-            logReporter.rollWorkingLogFile();
+            File rolledLog = logReporter.rollWorkingLogFile();
             logReporter.resetWorkingLogFile();
             agentLog.warn("Run[" + testRun + "] File finalization[" + fileIOTimer.peek() + "] ms");
 
@@ -310,6 +310,7 @@ public class RemoteLoggerTest extends LoggingTests {
             agentLog.info("Run[" + testRun + "] Iterations[" + iterations + "] Msgs[" + nMsgs + "]");
             agentLog.info("Run[" + testRun + "] Iteration service time[" + tPerIteration + "] ms");
             agentLog.info("Run[" + testRun + "] Service time per record[" + tPerMsg + "] ms");
+            agentLog.warn("Run[" + testRun + "] Logs reported [" + rolledLog.length() + "] bytes");
 
             iterations *= 2;
             msgPerIteration *= 2;

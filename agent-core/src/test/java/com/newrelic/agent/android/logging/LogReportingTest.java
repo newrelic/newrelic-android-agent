@@ -5,11 +5,14 @@
 
 package com.newrelic.agent.android.logging;
 
+import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-public class LogReportingTest {
+public class LogReportingTest extends LoggingTests {
 
     @Before
     public void setUp() throws Exception {
@@ -66,6 +69,25 @@ public class LogReportingTest {
     }
 
     @Test
-    public void notice() {
+    public void initializeLogReporting() throws Exception {
+        AgentConfiguration.getInstance().getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
+
+        FeatureFlag.disableFeature(FeatureFlag.LogReporting);
+        LogReporting.initialize(reportsDir, AgentConfiguration.getInstance());
+        Assert.assertNotNull("LogReporter not initialized", LogReporter.getInstance());
+        Assert.assertFalse("LogReport was enabled despite configuration settings", LogReporter.getInstance().isEnabled());
+
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        AgentConfiguration.getInstance().getLogReportingConfiguration().setLoggingEnabled(false);
+        LogReporting.initialize(reportsDir, AgentConfiguration.getInstance());
+        Assert.assertFalse("LogReport was started despite configuration settings", LogReporter.getInstance().isEnabled());
+
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        AgentConfiguration.getInstance().getLogReportingConfiguration().setLoggingEnabled(true);
+        LogReporting.initialize(reportsDir, AgentConfiguration.getInstance());
+        Assert.assertTrue("LogReport not enabled despite configuration settings", LogReporter.getInstance().isEnabled());
+        Assert.assertTrue("LogReport not started despite configuration settings", LogReporter.getInstance().isStarted());
+
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
     }
 }
