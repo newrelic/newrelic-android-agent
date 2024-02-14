@@ -39,6 +39,10 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
 
     @Override
     public void log(LogLevel logLevel, String message) {
+        if (null == message || message.isEmpty()) {
+            message = LogReporting.NULL_MSG;
+        }
+
         if (isLevelEnabled(logLevel)) {
             appendToWorkingLogFile(logLevel, message, null, null);
         }
@@ -53,6 +57,11 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
 
     @Override
     public void logAttributes(Map<String, Object> attributes) {
+        if (null == attributes) {
+            attributes = new HashMap<>();
+            attributes.put(LogReporting.LOG_MESSAGE_ATTRIBUTE, LogReporting.NULL_MSG);
+        }
+
         String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
         LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
 
@@ -64,6 +73,11 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
 
     @Override
     public void logAll(Throwable throwable, Map<String, Object> attributes) {
+        if (null == attributes) {
+            attributes = new HashMap<>();
+            attributes.putIfAbsent(LogReporting.LOG_MESSAGE_ATTRIBUTE, LogReporting.NULL_MSG);
+        }
+
         String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
         LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
 
@@ -86,6 +100,11 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
      */
     public void appendToWorkingLogFile(final LogLevel logLevel, final String message, final Throwable throwable, final Map<String, Object> attributes) {
         if (!(LogReporting.isRemoteLoggingEnabled() && isLevelEnabled(logLevel))) {
+            return;
+        }
+
+        if ((null == message || message.isEmpty()) && (null == throwable) && (null == attributes || attributes.isEmpty())) {
+            // what's the point?
             return;
         }
 

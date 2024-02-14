@@ -54,7 +54,7 @@ public class LogReporterTest extends LoggingTests {
         agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(true, LogLevel.DEBUG));
 
         logReporter = Mockito.spy(LogReporter.initialize(reportsDir, agentConfiguration));
-        LogReporter.MIN_PAYLOAD_THRESHOLD = 0;  // disable min archive size checking
+        LogReporter.MIN_PAYLOAD_THRESHOLD = -1;  // disable min archive size checking
         LogReporter.instance.set(logReporter);
 
         logger = Mockito.spy((RemoteLogger) LogReporting.getLogger());

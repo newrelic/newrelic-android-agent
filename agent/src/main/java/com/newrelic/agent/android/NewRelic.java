@@ -289,52 +289,50 @@ public final class NewRelic {
             return;
         }
 
-        // For testing: set the log reporting to the same values used for agent logging
-        if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-            LogLevel level = LogLevel.NONE;
-
-            // translate the agent log level to LogReporting equivalent
-            switch (logLevel) {
-                case AgentLog.ERROR:
-                    level = LogLevel.ERROR;
-                    break;
-                case AgentLog.WARN:
-                    level = LogLevel.WARN;
-                    break;
-                case AgentLog.INFO:
-                    level = LogLevel.INFO;
-                    break;
-                case AgentLog.VERBOSE:
-                    level = LogLevel.VERBOSE;
-                    break;
-                case AgentLog.DEBUG:
-                case AgentLog.AUDIT:
-                    level = LogLevel.DEBUG;
-                    break;
-                default:
-                    break;
-            }
-            agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(loggingEnabled, level));
-        }
-
         try {
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
             log.setLevel(logLevel);
 
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+                // For testing: set the log reporting to the same values used for agent logging
+                LogLevel level = LogLevel.NONE;
+
+                // translate the agent log level to LogReporting equivalent
+                switch (logLevel) {
+                    case AgentLog.ERROR:
+                        level = LogLevel.ERROR;
+                        break;
+                    case AgentLog.WARN:
+                        level = LogLevel.WARN;
+                        break;
+                    case AgentLog.INFO:
+                        level = LogLevel.INFO;
+                        break;
+                    case AgentLog.VERBOSE:
+                        level = LogLevel.VERBOSE;
+                        break;
+                    case AgentLog.DEBUG:
+                    case AgentLog.AUDIT:
+                        level = LogLevel.DEBUG;
+                        break;
+                    default:
+                        break;
+                }
+                agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(loggingEnabled, level));
+
                 try {
                     /**
                      *  LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
                      *  remove the oldest files when storage runs low, offloading some of the maintenance work from the reporter,
                      *  but potentially resulting in unreported log file deletions.
                      *
-                      * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
-                     *  */
+                     * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
+                     **/
+                    LogReporting.setLogLevel(level);
                     LogReporting.initialize(context.getCacheDir(), agentConfiguration);
 
                 } catch (IOException e) {
-                    AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e.toString());
-
+                    AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e);
                 }
             }
 
