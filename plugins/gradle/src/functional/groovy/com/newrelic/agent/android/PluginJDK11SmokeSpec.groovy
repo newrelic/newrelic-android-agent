@@ -6,6 +6,7 @@
 package com.newrelic.agent.android
 
 import com.newrelic.agent.android.obfuscation.Proguard
+import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Retry
 import spock.lang.Shared
@@ -33,17 +34,23 @@ class PluginJDK11SmokeSpec extends PluginSpec {
             it.deleteDir()
         }
 
+        // setup app targets
+        testFlavors = []
+        buildTypes = ['release']
+        modules = ['library']
+        testTask = "assemble"
+
         def runner = provideRunner()
                 .withGradleVersion(gradleVersion)
                 .forwardStdOutput(printFilter)
                 .withArguments(
-                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agent.version=7.2.2",
                         "-Pnewrelic.agp.version=${agpVersion}",
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
-                        "-PwithProductFlavors=true",
-                        "-PincludeLibrary=false",
-                        // "-PincludeFeature=true",
+                        "-PwithProductFlavors=${!testFlavors.empty as boolean}",
+                        "-PincludeLibrary=${modules.contains("library") as boolean}",
+                        "-PincludeFeature=${modules.contains("feature") as boolean}",
                         "--debug",
                         "clean",
                         testTask)
@@ -51,8 +58,6 @@ class PluginJDK11SmokeSpec extends PluginSpec {
         when: "run the build *once* and cache the results"
         buildResult = runner.build()
         filteredOutput = printFilter
-
-        modules = [':library']
     }
 
     @Requires({ jvm.isJavaVersionCompatible(jdkVersion) })
@@ -142,7 +147,7 @@ class PluginJDK11SmokeSpec extends PluginSpec {
                 modules.each { module ->
                     (buildResult.task(":${modules}:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                             buildResult.task("${module}::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
-                    buildResult.task(":${module}:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+                    buildResult.task(":${module}:${NewRelicMapUploadTask.NAME}${var.capitalize()}").outcome == SUCCESS
                 }
             }
         }
@@ -152,11 +157,13 @@ class PluginJDK11SmokeSpec extends PluginSpec {
         expect:
         testFlavors.each { flavor ->
             buildTypes.each { buildType ->
-                def var = "${flavor.capitalize()}${buildType.capitalize()}"
+                modules.each { module ->
+                    def var = "${flavor.capitalize()}${buildType.capitalize()}"
 
-                (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                        buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
-                buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+                    (buildResult.task(":${module}:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                            buildResult.task("${module}::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+                    buildResult.task(":${module}:${NewRelicMapUploadTask.NAME}${var.capitalize()}").outcome == SUCCESS
+                }
             }
         }
     }

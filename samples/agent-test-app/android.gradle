@@ -26,12 +26,15 @@ android {
             case 'dexguard':
                 debug {
                     minifyEnabled false
+                    debuggable true
                 }
                 qa {
                     minifyEnabled false
+                    debuggable true
                 }
                 release {
                     minifyEnabled false
+                    debuggable true
                 }
                 break
 
