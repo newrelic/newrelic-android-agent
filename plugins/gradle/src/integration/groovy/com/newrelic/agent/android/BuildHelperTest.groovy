@@ -276,7 +276,7 @@ class BuildHelperTest extends PluginTest {
         Assert.assertTrue(buildHelper.checkApplication())
 
         Mockito.when(project.plugins.hasPlugin("com.android.application")).thenReturn(false)
-        Assert.assertFalse(buildHelper.checkDexGuard())
+        Assert.assertFalse(buildHelper.checkApplication())
     }
 
     @Test

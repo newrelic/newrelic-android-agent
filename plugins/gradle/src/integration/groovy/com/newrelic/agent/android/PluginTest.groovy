@@ -6,12 +6,10 @@
 package com.newrelic.agent.android
 
 import com.google.common.io.Files
-import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.rules.TemporaryFolder
-import org.apache.commons.io.FileUtils
 
 /**
  * The Plugin tests assumes using the test harness at <rootProjectDir>/samples/agent-test-app.

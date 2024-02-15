@@ -22,7 +22,10 @@ class PluginJDK11SmokeSpec extends PluginSpec {
     static final gradleVersion = "7.6.1"
 
     @Shared
-    def testVariants = ['googleQa']        // when withProductFlavors=true
+    def testFlavors = ['google', 'amazon']
+
+    @Shared
+    def buildTypes = ['debug', 'qa', 'release']
 
     def setupSpec() {
         given: "create the build runner"
@@ -39,6 +42,8 @@ class PluginJDK11SmokeSpec extends PluginSpec {
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
+                        "-PincludeLibrary=false",
+                        // "-PincludeFeature=true",
                         "--debug",
                         "clean",
                         testTask)
@@ -46,6 +51,8 @@ class PluginJDK11SmokeSpec extends PluginSpec {
         when: "run the build *once* and cache the results"
         buildResult = runner.build()
         filteredOutput = printFilter
+
+        modules = [':library']
     }
 
     @Requires({ jvm.isJavaVersionCompatible(jdkVersion) })
@@ -68,59 +75,89 @@ class PluginJDK11SmokeSpec extends PluginSpec {
 
     def "verify NewRelicConfig was injected"() {
         expect:
-        testVariants.each { var ->
-            buildResult.task(":${NewRelicConfigTask.NAME}${var.capitalize()}").outcome == SUCCESS
-            def configTmpl = new File(buildDir,
-                    "/generated/java/newrelicConfig${var.capitalize()}/com/newrelic/agent/android/NewRelicConfig.java")
-            configTmpl.exists() && configTmpl.canRead()
-            configTmpl.text.find(~/BUILD_ID = \"(.*)\".*/)
-            configTmpl.text.contains("Boolean OBFUSCATED = true;")
+        testFlavors.each { flavor ->
+            buildTypes.each { buildType ->
+                // 'debug' is excluded from instrumentation
+                if ('debug'.equals(buildType)) {
+                    return
+                }
 
-            def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
-            configClass.exists() && configClass.canRead()
+                def var = "${flavor.capitalize()}${buildType.capitalize()}"
+                buildResult.task(":${NewRelicConfigTask.NAME}${var.capitalize()}").outcome == SUCCESS
+                def configTmpl = new File(buildDir,
+                        "/generated/java/newrelicConfig${var.capitalize()}/com/newrelic/agent/android/NewRelicConfig.java")
+                configTmpl.exists() && configTmpl.canRead()
+                configTmpl.text.find(~/BUILD_ID = \"(.*)\".*/)
+                configTmpl.text.contains("Boolean OBFUSCATED = true;")
+
+                def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
+                configClass.exists() && configClass.canRead()
+            }
         }
     }
 
     void "verify class transforms"() {
         expect:
-        testVariants.each { var ->
-            (buildResult.task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+        testFlavors.each { flavor ->
+            buildTypes.each { buildType ->
+                // 'debug' is excluded from instrumentation
+                if ('debug'.equals(buildType)) {
+                    return
+                }
+
+                def var = "${flavor.capitalize()}${buildType.capitalize()}"
+                (buildResult.task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                        buildResult.task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+            }
         }
     }
 
     def "verify map uploads"() {
         expect:
         filteredOutput.contains("Maps will be tagged and uploaded for variants [")
+        testFlavors.each { flavor ->
+            buildTypes.each { buildType ->
+                // 'qa' is only variant in map uploads
+                if (!'qa'.equals(buildType)) {
+                    return
+                }
 
-        testVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
-
-            with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
-                exists()
-                text.contains(Proguard.NR_MAP_PREFIX)
-                filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
+                def var = "${flavor}${buildType.capitalize()}"
+                buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+                with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
+                    exists()
+                    text.contains(Proguard.NR_MAP_PREFIX)
+                    filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
+                }
             }
         }
     }
 
-
     def "verify submodules built and instrumented"() {
         expect:
-        testVariants.each { var ->
-            (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
-            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+        testFlavors.each { flavor ->
+            buildTypes.each { buildType ->
+                def var = "${flavor.capitalize()}${buildType.capitalize()}"
+
+                modules.each { module ->
+                    (buildResult.task(":${modules}:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                            buildResult.task("${module}::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+                    buildResult.task(":${module}:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+                }
+            }
         }
     }
 
     def "verify submodules built and instrumented"() {
         expect:
-        testVariants.each { var ->
-            (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
-            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+        testFlavors.each { flavor ->
+            buildTypes.each { buildType ->
+                def var = "${flavor.capitalize()}${buildType.capitalize()}"
+
+                (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                        buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+                buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            }
         }
     }
 

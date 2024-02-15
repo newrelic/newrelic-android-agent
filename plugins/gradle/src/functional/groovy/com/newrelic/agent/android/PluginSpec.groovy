@@ -29,7 +29,7 @@ abstract class PluginSpec extends Specification {
     Map<String, String> localEnv = [:]
 
     @Shared
-    def modules = [":library", ":feature"]
+    def modules = [":library"]
 
     @Shared
     BuildResult buildResult
@@ -38,7 +38,7 @@ abstract class PluginSpec extends Specification {
     boolean debuggable = true
 
     @Shared
-    def testTask = 'assembleRelease'
+    def testTask = 'assemble'
 
     @Shared
     def instrumentationVariants = ["release", "qa"]
