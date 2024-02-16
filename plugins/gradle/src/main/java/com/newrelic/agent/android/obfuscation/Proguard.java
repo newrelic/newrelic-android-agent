@@ -65,7 +65,7 @@ public class Proguard {
     private static final String MAPPING_API_PATH = "/symbol";
     private static final String NR_COMPILER_PREFIX = "# compiler: ";
     private static final String NR_COMPILER_VERSION_PREFIX = "# compiler_version: ";
-    private static final String NEWLN = System.getProperty("line.separator", "\r\n");
+    private static final String NEWLN = "\r\n";
 
     static final class Network {
         public static final String APPLICATION_LICENSE_HEADER = "X-App-License-Key";
@@ -465,7 +465,7 @@ public class Proguard {
 
     static class MultipartFormWriter {
         final static String boundary = "===" + System.currentTimeMillis() + "===";
-        final static String newLn = System.getProperty("line.separator", "\r\n");
+        final static String newLn = "\r\n";
 
         final OutputStream os;
         final int bufferSz;
