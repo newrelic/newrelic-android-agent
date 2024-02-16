@@ -44,7 +44,8 @@ import javax.net.ssl.HttpsURLConnection;
 
 public class LogReporter extends PayloadReporter {
 
-    protected static final Type gtype = new TypeToken<Map<String, Object>>() {}.getType();
+    protected static final Type gtype = new TypeToken<Map<String, Object>>() {
+    }.getType();
     protected static final Gson gson = new GsonBuilder()
             .enableComplexMapKeySerialization()
             .create();
@@ -121,19 +122,19 @@ public class LogReporter extends PayloadReporter {
         try {
             resetWorkingLogFile();
         } catch (IOException e) {
-            log.error("LogReporter error; " + e);
+            log.error("LogReporter error: " + e);
+            setEnabled(false);
         }
     }
 
     @Override
     protected void start() {
-        Harvest.addHarvestListener(instance.get());
-
         if (isEnabled()) {
-            onHarvestStart();   // sweep for any cached report from last session
+            Harvest.addHarvestListener(instance.get());
+            isStarted.set(true);
+        } else {
+            log.error("Attempted to start the log reported when disabled.");
         }
-
-        isStarted.set(true);
     }
 
     @Override
@@ -141,7 +142,6 @@ public class LogReporter extends PayloadReporter {
         Harvest.removeHarvestListener(instance.get());
 
         isStarted.set(false);
-
         if (isEnabled()) {
             onHarvestStop();
         }
@@ -171,7 +171,7 @@ public class LogReporter extends PayloadReporter {
             }
 
             // The logger can continue to run collecting log data until the agent exists.
-            // but will no longer be triggered by the harvest lifecycle
+            // but will no longer be triggered by the harvest lifecycle nor uploaded to ingest
 
         } catch (Exception e) {
             log.error(e.toString());

@@ -6,7 +6,9 @@
 package com.newrelic.agent.android.logging;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -230,7 +232,21 @@ public class RemoteLoggerTest extends LoggingTests {
          * Length of attribute value: 4,094 characters are stored in NRDB as a Log event field
          */
 
-        // TODO
+        Mockito.reset(logger);
+        logger.log(LogLevel.INFO, null);
+        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(logger);
+        logger.logAttributes(null);
+        verify(logger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), isNull(), anyMap());
+
+        Mockito.reset(logger);
+        logger.logThrowable(LogLevel.ERROR, "", null);
+        verify(logger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(Throwable.class), isNull());
+
+        Mockito.reset(logger);
+        logger.logAll(null, null);
+        verify(logger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), isNull(), anyMap());
     }
 
     @Test
@@ -274,7 +290,7 @@ public class RemoteLoggerTest extends LoggingTests {
                     String msg = getRandomMsg(msgSize);
 
                     Map<String, Object> attrs = new HashMap<>();
-                    attrs.put("level", LogLevel.INFO.name());
+                    attrs.put("level", LogLevel.values()[(int) (Math.random() * LogLevel.values().length)].name());
                     attrs.put("message", msg);
                     attrs.put("name", getRandomMsg(8));
                     attrs.put("age", (double) Math.random() * 117);
@@ -298,7 +314,7 @@ public class RemoteLoggerTest extends LoggingTests {
             TicToc fileIOTimer = new TicToc().tic();
             logger.flush();
             logReporter.finalizeWorkingLogFile();
-            logReporter.rollWorkingLogFile();
+            File rolledLog = logReporter.rollWorkingLogFile();
             logReporter.resetWorkingLogFile();
             agentLog.warn("Run[" + testRun + "] File finalization[" + fileIOTimer.peek() + "] ms");
 
@@ -310,6 +326,7 @@ public class RemoteLoggerTest extends LoggingTests {
             agentLog.info("Run[" + testRun + "] Iterations[" + iterations + "] Msgs[" + nMsgs + "]");
             agentLog.info("Run[" + testRun + "] Iteration service time[" + tPerIteration + "] ms");
             agentLog.info("Run[" + testRun + "] Service time per record[" + tPerMsg + "] ms");
+            agentLog.warn("Run[" + testRun + "] Logs reported [" + rolledLog.length() + "] bytes");
 
             iterations *= 2;
             msgPerIteration *= 2;

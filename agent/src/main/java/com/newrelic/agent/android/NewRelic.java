@@ -1212,6 +1212,8 @@ public final class NewRelic {
      *                   }
      */
     public static void logAttributes(Map<String, Object> attributes) {
+        attributes = LogReporting.validator.validate(attributes);
+
         final String level = String.valueOf(attributes.getOrDefault("level", LogLevel.NONE.toString()));
         final LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
 
@@ -1235,6 +1237,8 @@ public final class NewRelic {
      *                   }
      */
     public static void logAll(Throwable throwable, Map<String, Object> attributes) {
+        attributes = LogReporting.validator.validate(attributes);
+
         final String level = String.valueOf(attributes.getOrDefault("level", LogLevel.NONE.toString()));
         final LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
 
@@ -1243,6 +1247,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (LogReporting.isLevelEnabled(logLevel)) {
+            throwable = LogReporting.validator.validate(throwable);
             LogReporting.getLogger().logAll(throwable, attributes);
         }
     }

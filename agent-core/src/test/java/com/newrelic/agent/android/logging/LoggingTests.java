@@ -25,7 +25,6 @@ import java.util.Set;
 
 public class LoggingTests {
     protected static File reportsDir;
-
     long tStart;
 
     @BeforeClass
@@ -38,7 +37,6 @@ public class LoggingTests {
         AgentConfiguration.getInstance().setApplicationToken("<APP-TOKEN>>");
         LogReporting.setEntityGuid("ENTITY-GUID");
     }
-
 
     public LoggingTests() {
         this.tStart = System.currentTimeMillis();

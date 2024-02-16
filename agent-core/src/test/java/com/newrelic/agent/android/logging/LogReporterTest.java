@@ -99,7 +99,7 @@ public class LogReporterTest extends LoggingTests {
     @Test
     public void start() {
         logReporter.start();
-        verify(logReporter, times(1)).onHarvestStart();
+        verify(logReporter, never()).onHarvestStart();
     }
 
     @Test

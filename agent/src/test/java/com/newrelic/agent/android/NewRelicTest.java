@@ -9,6 +9,7 @@ import static com.newrelic.agent.android.NewRelic.agentConfiguration;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -1071,7 +1072,6 @@ public class NewRelicTest {
         Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
     }
 
-
     @Test
     public void testLogWarning() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
@@ -1179,59 +1179,6 @@ public class NewRelicTest {
     }
 
     @Test
-    public void testLogWithRemoteLoggingDisabled() {
-        FeatureFlag.disableFeature(FeatureFlag.LogReporting);
-        nrInstance.start(spyContext.getContext());
-
-        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
-        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
-
-        AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
-        AgentLogManager.setAgentLog(agentLogger);
-
-        final String msg = "error log message";
-        NewRelic.log(LogLevel.ERROR, msg);
-        verify(remoteLogger, times(1)).log(LogLevel.ERROR, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
-
-        final String metricName = MetricNames.SUPPORTABILITY_API
-                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
-                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
-                .replace("<framework>/<frameworkVersion>/", "");
-
-        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
-    }
-
-    @Test
-    public void testLogWithLoggingDisabled() {
-        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        nrInstance.start(spyContext.getContext());
-
-        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
-        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
-        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
-
-        AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
-        AgentLogManager.setAgentLog(agentLogger);
-
-        // disable remote logging
-        LogReporting.setLogLevel(LogLevel.NONE);
-
-        final String msg = "error log message";
-        NewRelic.log(LogLevel.ERROR, msg);
-        verify(agentLogger,never()).error(msg);
-        verify(remoteLogger, never()).log(LogLevel.ERROR, msg);
-        verify(remoteLogger, never()).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
-
-        final String metricName = MetricNames.SUPPORTABILITY_API
-                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
-                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
-                .replace("<framework>/<frameworkVersion>/", "");
-
-        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
-    }
-
-    @Test
     public void testLogThrowable() {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         nrInstance.start(spyContext.getContext());
@@ -1309,6 +1256,59 @@ public class NewRelicTest {
     }
 
     @Test
+    public void testLogWithRemoteLoggingDisabled() {
+        FeatureFlag.disableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
+        AgentLogManager.setAgentLog(agentLogger);
+
+        final String msg = "error log message";
+        NewRelic.log(LogLevel.ERROR, msg);
+        verify(remoteLogger, times(1)).log(LogLevel.ERROR, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+    }
+
+    @Test
+    public void testLogWithLoggingDisabled() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
+        AgentLogManager.setAgentLog(agentLogger);
+
+        // disable remote logging
+        LogReporting.setLogLevel(LogLevel.NONE);
+
+        final String msg = "error log message";
+        NewRelic.log(LogLevel.ERROR, msg);
+        verify(agentLogger, never()).error(msg);
+        verify(remoteLogger, never()).log(LogLevel.ERROR, msg);
+        verify(remoteLogger, never()).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+    }
+
+    @Test
     public void testRemoteLoggingBeforeAgentStart() {
         // Gson will not serialize anonymous maps
         final Map<String, Object> attrs = new HashMap<String, Object>();
@@ -1346,6 +1346,56 @@ public class NewRelicTest {
 
         LogReporting.setLogLevel(LogLevel.NONE);
         Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
+    }
+
+    @Test
+    public void testLogWithInvalidParameters() {
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logError(null);
+        verify(remoteLogger, times(1)).log(LogLevel.ERROR, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logWarning(null);
+        verify(remoteLogger, times(1)).log(LogLevel.WARN, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.WARN, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logInfo(null);
+        verify(remoteLogger, times(1)).log(LogLevel.INFO, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.INFO, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logVerbose(null);
+        verify(remoteLogger, times(1)).log(LogLevel.VERBOSE, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.VERBOSE, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logDebug(null);
+        verify(remoteLogger, times(1)).log(LogLevel.DEBUG, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.log(LogLevel.DEBUG, null);
+        verify(remoteLogger, times(1)).log(LogLevel.DEBUG, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logThrowable(LogLevel.DEBUG, null, null);
+        verify(remoteLogger, times(1)).logThrowable(LogLevel.DEBUG, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), isNull(), any(IllegalArgumentException.class), isNull());
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logAttributes(null);
+        verify(remoteLogger, times(1)).logAttributes(anyMap());
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), isNull(), anyMap());
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logAll(null, null);
+        verify(remoteLogger, times(1)).logAll(any(IllegalArgumentException.class), anyMap());
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(IllegalArgumentException.class), anyMap());
     }
 
     private static class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {

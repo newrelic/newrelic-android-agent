@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * LogReporting public interface, exposed to NewRelic API
  */
 public abstract class LogReporting {
-    static final String NULL_MSG = "<empty message>";
+    public static final String INVALID_MSG = "<invalid message>";
 
     // Logging payload attributes
     protected static final String LOG_TIMESTAMP_ATTRIBUTE = AnalyticsAttribute.EVENT_TIMESTAMP_ATTRIBUTE;
@@ -37,8 +37,22 @@ public abstract class LogReporting {
     protected static LogLevel logLevel = LogLevel.WARN;
     protected static AgentLogger agentLogger = new AgentLogger();
     protected static AtomicReference<Logger> instance = new AtomicReference<>(agentLogger);
-
     protected static String entityGuid = "";
+
+    public static MessageValidator validator = new MessageValidator() {};
+
+    public static void initialize(File cacheDir, AgentConfiguration agentConfiguration) throws IOException {
+        LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
+        LogReporter.initialize(cacheDir, agentConfiguration);
+
+        if (LogReporter.getInstance().isEnabled()) {
+            LogReporter.getInstance().start();
+        }
+
+        if (!LogReporter.getInstance().isStarted()) {
+            agentLogger.log(LogLevel.ERROR, "LogReporting failed to initialize!");
+        }
+    }
 
     public static Logger getLogger() {
         return instance.get();
@@ -116,15 +130,16 @@ public abstract class LogReporting {
     }
 
     public static class AgentLogger implements Logger {
+        MessageValidator validator = new MessageValidator() {
+        };
+
         /**
          * Writes a message to the current agent log using the provided log level.
          * At runtime, this will be the Android logger (Log) instance.
          */
         public void logToAgent(LogLevel level, String message) {
             if (LogReporting.isLevelEnabled(level)) {
-                if (null == message || message.isEmpty()) {
-                    message = LogReporting.NULL_MSG;
-                }
+                message = validator.validate(message);
 
                 final AgentLog agentLog = AgentLogManager.getAgentLog();
                 switch (level) {
@@ -154,15 +169,21 @@ public abstract class LogReporting {
 
         public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
             StringWriter sw = new StringWriter();
+
+            message = validator.validate(message);
+            throwable = validator.validate(throwable);
             throwable.printStackTrace(new PrintWriter(sw));
 
             logToAgent(logLevel, String.format(Locale.getDefault(), "%s: %s", message, sw.toString()));
         }
 
         public void logAttributes(Map<String, Object> attributes) {
+            attributes = validator.validate(attributes);
+
             String logLevel = (String) attributes.getOrDefault("level", LogLevel.INFO.name());
+            Map<String, Object> finalAttributes = attributes;
             String mapAsString = attributes.keySet().stream()
-                    .map(key -> key + "=" + attributes.get(key))
+                    .map(key -> key + "=" + finalAttributes.get(key))
                     .collect(Collectors.joining(",", "{", "}"));
 
             logToAgent(LogLevel.valueOf(logLevel.toUpperCase()), String.format(Locale.getDefault(),
@@ -170,34 +191,20 @@ public abstract class LogReporting {
         }
 
         public void logAll(Throwable throwable, Map<String, Object> attributes) {
+            attributes = validator.validate(attributes);
+
             String logLevel = (String) attributes.getOrDefault("level", LogLevel.INFO.name());
             StringWriter sw = new StringWriter();
-            String mapAsString = attributes.keySet().stream()
-                    .map(key -> key + "=" + attributes.get(key))
+            Map<String, Object> finalAttributes = attributes;
+            String mapAsString = finalAttributes.keySet().stream()
+                    .map(key -> key + "=" + finalAttributes.get(key))
                     .collect(Collectors.joining(",", "{", "}"));
 
+            throwable = validator.validate(throwable);
             throwable.printStackTrace(new PrintWriter(sw));
+
             logToAgent(LogLevel.valueOf(logLevel.toUpperCase()), String.format(Locale.getDefault(),
                     "%s: %s %s", TAG, sw.toString(), mapAsString));
-        }
-    }
-
-    // TODO
-    public interface LogMessageValidator {
-        String INVALID_KEYSET = "{}\\[\\]]";
-        String[] ANONYMIZATION_TARGETS = {
-                "http?//{.*}/{.*}",
-                "{.*}\\@{.*}\\.{.*}"
-        };
-
-        boolean validateAttributes(Map<String, Object> attributes);
-
-        default boolean anonymize(Map<String, Object> attributes) {
-            return true;
-        }
-
-        default boolean validateThrowable(final Throwable throwable) {
-            return true;
         }
     }
 
@@ -206,16 +213,18 @@ public abstract class LogReporting {
      *
      * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#supported-types
      */
-    protected Map<String, Object> validateLogData(LogMessageValidator validator, Map<String, Object> logDataMap) {
-        logDataMap.forEach((key, value) -> {
-            if (value instanceof String) {
-                // TODO https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#message-attribute-parsin
-                // Enforce log message constraints:
-                //  static int MAX_ATTRIBUTES_PER_EVENT = 255;
-                //  static int MAX_ATTRIBUTES_NAME_SIZE = 255;
-                //  static int MAX_ATTRIBUTES_VALUE_SIZE = 4096;
-            }
-        });
+    protected static Map<String, Object> validateLogData(MessageValidator validator, Map<String, Object> logDataMap) {
+        if (null != logDataMap) {
+            logDataMap.forEach((key, value) -> {
+                if (value instanceof String) {
+                    // TODO https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#message-attribute-parsin
+                    // Enforce log message constraints:
+                    //  static int MAX_ATTRIBUTES_PER_EVENT = 255;
+                    //  static int MAX_ATTRIBUTES_NAME_SIZE = 255;
+                    //  static int MAX_ATTRIBUTES_VALUE_SIZE = 4096;
+                }
+            });
+        }
 
         return logDataMap;
     }
@@ -225,14 +234,9 @@ public abstract class LogReporting {
      *
      * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#supported-types
      */
-    protected Map<String, Object> decorateLogData(LogMessageValidator validator, Map<String, Object> logDataMap) {
+    protected Map<String, Object> decorateLogData(MessageValidator validator, Map<String, Object> logDataMap) {
         // TODO
         return logDataMap;
-    }
-
-    public static void initialize(File cacheDir, AgentConfiguration agentConfiguration) throws IOException {
-        LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
-        LogReporter.initialize(cacheDir, agentConfiguration);
     }
 
 }

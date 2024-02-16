@@ -16,6 +16,7 @@ public abstract class PayloadReporter implements HarvestLifecycleAware {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
 
     protected final AtomicBoolean isEnabled;
+
     protected final AtomicBoolean isStarted;
     protected final AgentConfiguration agentConfiguration;
 
@@ -30,6 +31,10 @@ public abstract class PayloadReporter implements HarvestLifecycleAware {
 
     public boolean isEnabled() {
         return isEnabled.get();
+    }
+
+    public boolean isStarted() {
+        return isStarted.get();
     }
 
     public void setEnabled(boolean enabled) {
