@@ -44,7 +44,8 @@ import javax.net.ssl.HttpsURLConnection;
 
 public class LogReporter extends PayloadReporter {
 
-    protected static final Type gtype = new TypeToken<Map<String, Object>>() {}.getType();
+    protected static final Type gtype = new TypeToken<Map<String, Object>>() {
+    }.getType();
     protected static final Gson gson = new GsonBuilder()
             .enableComplexMapKeySerialization()
             .create();
@@ -128,8 +129,12 @@ public class LogReporter extends PayloadReporter {
 
     @Override
     protected void start() {
-        Harvest.addHarvestListener(instance.get());
-        isStarted.set(true);
+        if (isEnabled()) {
+            Harvest.addHarvestListener(instance.get());
+            isStarted.set(true);
+        } else {
+            log.error("Attempted to start the log reported when disabled.");
+        }
     }
 
     @Override
@@ -137,7 +142,6 @@ public class LogReporter extends PayloadReporter {
         Harvest.removeHarvestListener(instance.get());
 
         isStarted.set(false);
-
         if (isEnabled()) {
             onHarvestStop();
         }

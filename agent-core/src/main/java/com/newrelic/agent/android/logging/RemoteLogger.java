@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 public class RemoteLogger implements HarvestLifecycleAware, Logger {
     static int POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors() / 4); // Buffer up this this number of requests
     static long QUEUE_THREAD_TTL = 1000;
+    static MessageValidator validator = LogReporting.validator;
 
     // TODO enforce log message constraints
     static int MAX_ATTRIBUTES_PER_EVENT = 255;
@@ -39,11 +40,8 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
 
     @Override
     public void log(LogLevel logLevel, String message) {
-        if (null == message || message.isEmpty()) {
-            message = LogReporting.NULL_MSG;
-        }
-
         if (isLevelEnabled(logLevel)) {
+            message = validator.validate(message);
             appendToWorkingLogFile(logLevel, message, null, null);
         }
     }
@@ -51,17 +49,14 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
     @Override
     public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
         if (isLevelEnabled(logLevel)) {
+            throwable = validator.validate(throwable);
             appendToWorkingLogFile(logLevel, message, throwable, null);
         }
     }
 
     @Override
     public void logAttributes(Map<String, Object> attributes) {
-        if (null == attributes) {
-            attributes = new HashMap<>();
-            attributes.put(LogReporting.LOG_MESSAGE_ATTRIBUTE, LogReporting.NULL_MSG);
-        }
-
+        attributes = validator.validate(attributes);
         String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
         LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
 
@@ -73,16 +68,13 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
 
     @Override
     public void logAll(Throwable throwable, Map<String, Object> attributes) {
-        if (null == attributes) {
-            attributes = new HashMap<>();
-            attributes.putIfAbsent(LogReporting.LOG_MESSAGE_ATTRIBUTE, LogReporting.NULL_MSG);
-        }
-
+        attributes = validator.validate(attributes);
         String level = (String) attributes.getOrDefault(LogReporting.LOG_LEVEL_ATTRIBUTE, LogLevel.INFO.name());
         LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
 
         if (isLevelEnabled(logLevel)) {
             String message = (String) attributes.getOrDefault(LogReporting.LOG_MESSAGE_ATTRIBUTE, null);
+            message = validator.validate(message);
             appendToWorkingLogFile(LogLevel.valueOf(level.toUpperCase()), message, throwable, attributes);
         }
     }
@@ -91,11 +83,10 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
      * Emit log data into file as Json-encoded string. We follow the NewRelic Simple Logging format.
      *
      * @param logLevel
-     * @param @Nullable message
-     * @param @Nullable throwable
-     * @param @Nullable attributes
-     *                  Gson does not support serialization of anonymous nested classes. They will be serialized as JSON null.
-     *                  Convert the classes to static nested classes to enable serialization and deserialization for them.
+     * @param message
+     * @param throwable
+     * @param attributes Gson does not support serialization of anonymous nested classes. They will be serialized as JSON null.
+     *                   Convert the classes to static nested classes to enable serialization and deserialization for them.
      * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#simple-json
      */
     public void appendToWorkingLogFile(final LogLevel logLevel, final String message, final Throwable throwable, final Map<String, Object> attributes) {
@@ -104,8 +95,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
         }
 
         if ((null == message || message.isEmpty()) && (null == throwable) && (null == attributes || attributes.isEmpty())) {
-            // what's the point?
-            return;
+            return; // what's the point?
         }
 
         final LogReporter logReporter = LogReporter.getInstance();

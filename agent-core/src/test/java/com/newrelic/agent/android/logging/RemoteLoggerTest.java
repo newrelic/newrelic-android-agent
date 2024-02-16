@@ -6,7 +6,9 @@
 package com.newrelic.agent.android.logging;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -230,7 +232,21 @@ public class RemoteLoggerTest extends LoggingTests {
          * Length of attribute value: 4,094 characters are stored in NRDB as a Log event field
          */
 
-        // TODO
+        Mockito.reset(logger);
+        logger.log(LogLevel.INFO, null);
+        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(logger);
+        logger.logAttributes(null);
+        verify(logger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), isNull(), anyMap());
+
+        Mockito.reset(logger);
+        logger.logThrowable(LogLevel.ERROR, "", null);
+        verify(logger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(Throwable.class), isNull());
+
+        Mockito.reset(logger);
+        logger.logAll(null, null);
+        verify(logger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), isNull(), anyMap());
     }
 
     @Test
