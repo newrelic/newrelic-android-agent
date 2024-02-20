@@ -338,7 +338,6 @@ public class AgentConfiguration {
         return deviceID;
     }
 
-
     public String getLaunchActivityClassName() {
         return launchActivityClassName;
     }

@@ -46,6 +46,7 @@ import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.spy.AgentDataReporterSpy;
+import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 import com.newrelic.agent.android.tracing.Trace;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.Constants;
@@ -1031,32 +1032,6 @@ public class NewRelicTest {
         Assert.assertEquals(10, defaultSize2, 0);
     }
 
-
-    private static class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {
-
-        @Override
-        public boolean store(AnalyticsAttribute attribute) {
-            return true;
-        }
-
-        @Override
-        public List<AnalyticsAttribute> fetchAll() {
-            return new ArrayList<AnalyticsAttribute>();
-        }
-
-        @Override
-        public int count() {
-            return 0;
-        }
-
-        @Override
-        public void clear() {
-        }
-
-        @Override
-        public void delete(AnalyticsAttribute attribute) {
-        }
-    }
 
     private static class TestHarvest extends Harvest {
         public TestHarvest() {

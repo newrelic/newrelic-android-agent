@@ -22,7 +22,8 @@ public enum FeatureFlag {
     AppStartMetrics,
     FedRampEnabled,
     Jetpack,
-    OfflineStorage;
+    OfflineStorage,
+    ApplicationExitReporting;
 
     public static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
 
