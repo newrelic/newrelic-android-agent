@@ -135,7 +135,7 @@ public class AnalyticsValidator {
         boolean valid = (value != null) && !value.isEmpty() && (value.getBytes().length < AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
 
         if (!valid) {
-            log.error("Attribute value for name " + name + " is null, empty, or exceeds the maximum length of " + AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH + " bytes.");
+            log.error("Attribute value for name [" + name + "] is null, empty, or exceeds the maximum length of " + AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH + " bytes.");
         }
 
         return valid;
@@ -156,7 +156,7 @@ public class AnalyticsValidator {
                 if (isValidAttribute(attr)) {
                     filteredAttributes.add(attr);
                 } else {
-                    log.warn(String.format("Attribute " + key + "] ignored: value is null, empty or exceeds the maximum name length"));
+                    log.warn(String.format("Attribute [" + key + "] ignored: value is null, empty or exceeds the maximum name length"));
                 }
             }
 
@@ -176,7 +176,7 @@ public class AnalyticsValidator {
                 if (isValidAttribute(attribute)) {
                     filteredAttributes.add(new AnalyticsAttribute(attribute));
                 } else {
-                    log.warn(String.format("Attribute " + attribute.getName() + "] ignored: value is null, empty or exceeds the maximum name length"));
+                    log.warn(String.format("Attribute [" + attribute.getName() + "] ignored: value is null, empty or exceeds the maximum name length"));
                 }
             }
 
@@ -195,9 +195,6 @@ public class AnalyticsValidator {
     //
     private static final String ALLOWABLE_EVENT_TYPE_CHARS = "^[\\p{L}\\p{Nd} _:.]+$";
 
-    static final Set<String> reservedEventNames = new HashSet<String>() {{
-    }};
-
     static final Set<String> reservedEventTypes = new HashSet<String>() {{
         add(AnalyticsEvent.EVENT_TYPE_MOBILE);
         add(AnalyticsEvent.EVENT_TYPE_MOBILE_REQUEST);
@@ -205,9 +202,7 @@ public class AnalyticsValidator {
         add(AnalyticsEvent.EVENT_TYPE_MOBILE_BREADCRUMB);
         add(AnalyticsEvent.EVENT_TYPE_MOBILE_CRASH);
         add(AnalyticsEvent.EVENT_TYPE_MOBILE_USER_ACTION);
-    }};
-
-    protected static Set<String> excludedEventNames = new HashSet<String>() {{
+        add(AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
     }};
 
     /**
