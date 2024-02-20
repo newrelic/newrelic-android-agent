@@ -107,6 +107,7 @@ public class AndroidAgentImpl implements
         this.context = appContext(context);
         this.agentConfiguration = agentConfiguration;
         this.savedState = new SavedState(this.context);
+        this.offlineStorageInstance = new OfflineStorage(context);
 
         if (isDisabled()) {
             throw new AgentInitializationException("This version of the agent has been disabled");
@@ -121,7 +122,6 @@ public class AndroidAgentImpl implements
         agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
-        offlineStorageInstance = new OfflineStorage(context);
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
 
@@ -193,6 +193,12 @@ public class AndroidAgentImpl implements
                 log.error("NativeReporting feature is enabled, but agent-ndk was not found (probably missing as a dependency).");
                 log.error("Native reporting will not be enabled");
             }
+        }
+
+        // Feature enabled and RT >= SDK 30?
+        if (FeatureFlag.featureEnabled(FeatureFlag.ApplicationExitReporting)) {
+            // must be called after application information was gathered and AnalyticsController has been initialized
+            new ApplicationExitMonitor(context).harvestApplicationExitInfo();
         }
     }
 

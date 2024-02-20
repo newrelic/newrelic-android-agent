@@ -164,7 +164,7 @@ public class Crash extends HarvestableObject {
         //Offline Storage
         if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
             if (!Agent.hasReachableNetworkConnection(null)) {
-                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true));
+                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_NAME_ATTRIBUTE, true));
             }
         }
         return Collections.unmodifiableSet(attrs);

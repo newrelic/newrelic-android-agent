@@ -39,12 +39,11 @@ import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.logging.Logger;
-import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
+import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -1401,6 +1400,7 @@ public class NewRelicTest {
         verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(IllegalArgumentException.class), anyMap());
     }
 
+    @Test
     public void testSetMaxOfflineStorageSize() {
         OfflineStorage offlineStorageInstance = new OfflineStorage(spyContext.getContext());
         double defaultSize0 = offlineStorageInstance.getOfflineStorageSize();
