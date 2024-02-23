@@ -20,6 +20,12 @@ public interface MessageValidator {
             "{.*}\\@{.*}\\.{.*}"
     };
 
+    /**
+     * TODO The message attribute on a log record MUST be truncated to 32768 bytes (32Kib) on the agent side.
+     *
+     * @param message
+     * @return
+     */
     default String validate(String message) {
         return (null == message || message.isEmpty()) ? INVALID_MSG : message;
     }

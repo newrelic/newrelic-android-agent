@@ -21,9 +21,8 @@ import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
-import com.newrelic.agent.android.logging.RemoteLogger;
+import com.newrelic.agent.android.logging.ForwardingAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
-import com.newrelic.agent.android.logging.LogReporter;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.NullAgentLog;
@@ -318,6 +317,11 @@ public final class NewRelic {
                     default:
                         break;
                 }
+
+                if (loggingEnabled) {
+                    AgentLogManager.setAgentLog(new ForwardingAgentLog(new AndroidAgentLog()));
+                }
+
                 agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(loggingEnabled, level));
 
                 try {

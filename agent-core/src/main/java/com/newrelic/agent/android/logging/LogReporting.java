@@ -30,6 +30,7 @@ public abstract class LogReporting {
     protected static final String LOG_MESSAGE_ATTRIBUTE = "message";
     protected static final String LOG_ATTRIBUTES_ATTRIBUTE = "attributes";
     protected static final String LOG_ENTITY_ATTRIBUTE = "entity.guid";
+    protected static final String LOG_LOGGER_ATTRIBUTE = "logger";
     protected static final String LOG_ERROR_MESSAGE_ATTRIBUTE = "error.message";
     protected static final String LOG_ERROR_STACK_ATTRIBUTE = "error.stack";
     protected static final String LOG_ERROR_CLASS_ATTRIBUTE = "error.class";
