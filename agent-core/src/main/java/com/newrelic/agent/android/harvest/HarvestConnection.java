@@ -107,14 +107,14 @@ public class HarvestConnection implements HarvestErrorCodes {
     public HarvestResponse send(HttpURLConnection connection, String message) {
         final HarvestResponse harvestResponse = new HarvestResponse();
         final String contentEncoding = (message.length() <= MAX_PLAINTEXT_MESSAGE_SIZE)
-                ? Constants.Network.ContentType.IDENTITY : Constants.Network.ContentType.DEFLATE;
+                ? Constants.Network.Encoding.IDENTITY : Constants.Network.Encoding.DEFLATE;
 
         try {
             TicToc timer = new TicToc();
             timer.tic();
 
             ByteBuffer byteBuffer;
-            if (Constants.Network.ContentType.DEFLATE.equals(contentEncoding.toLowerCase())) {
+            if (Constants.Network.Encoding.DEFLATE.equals(contentEncoding.toLowerCase())) {
                 byteBuffer = ByteBuffer.wrap(Deflator.deflate(message.getBytes()));
             } else {
                 byteBuffer = ByteBuffer.wrap(message.getBytes());
