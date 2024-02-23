@@ -74,7 +74,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_NDK_REPORTS_EXCEPTION = SUPPORTABILITY_NDK + "Reports/NativeException";
     public static final String SUPPORTABILITY_NDK_REPORTS_FLUSH = SUPPORTABILITY_NDK + "Reports/Flush";
 
-    public static final String SUPPORTABILITY_LOG_REPORTING = SUPPORTABILITY_AGENT + "LogReporting";
+    public static final String SUPPORTABILITY_LOG_REPORTING = SUPPORTABILITY_AGENT + "LogReporting/";
     public static final String SUPPORTABILITY_LOG_REPORTING_INIT = SUPPORTABILITY_LOG_REPORTING + "Init";
     public static final String SUPPORTABILITY_LOG_UPLOAD_TIME = SUPPORTABILITY_LOG_REPORTING + "UploadTime";
     public static final String SUPPORTABILITY_LOG_UPLOAD_TIMEOUT = SUPPORTABILITY_LOG_REPORTING + "UploadTimeOut";
