@@ -77,15 +77,23 @@ public class StreamsTest {
     }
 
     @Test
-    public void slurp() throws IOException {
+    public void slurpString() throws IOException {
         String encodedString = Streams.slurpString(new FileInputStream(testInputFile));
         Assert.assertTrue(encodedString.length() > 0);
     }
 
     @Test
-    public void slurpEncoded() throws IOException {
+    public void slurpEncodedString() throws IOException {
         String encoding = StandardCharsets.UTF_8.toString();
         String encodedString = Streams.slurpString(new FileInputStream(testInputFile), encoding);
+        Assert.assertTrue(encodedString.length() > 0);
+        Assert.assertNotNull(encodedString.getBytes(encoding));
+    }
+
+    @Test
+    public void slurpStringFromFile() throws IOException {
+        String encoding = StandardCharsets.UTF_8.toString();
+        String encodedString = Streams.slurpString(testInputFile, encoding);
         Assert.assertTrue(encodedString.length() > 0);
         Assert.assertNotNull(encodedString.getBytes(encoding));
     }

@@ -16,6 +16,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
@@ -68,14 +69,39 @@ public class Streams {
         }
     }
 
+    /**
+     * Return contents of an InputStream as an encoded String.
+     *
+     * @param in
+     * @return String constructed of byte stream
+     * @throws IOException
+     */
     public static String slurpString(final InputStream in) throws IOException {
-        final byte[] bytes = slurpBytes(in);
-        return new String(bytes);
+        return slurpString(in, StandardCharsets.UTF_8.name());
     }
 
+    /**
+     * Return contents of an input stream as a String.
+     *
+     * @param in InputStream
+     * @param encoding StandardCharsets.UTF_8 if null
+     * @return encoded String
+     * @throws IOException
+     */
     public static String slurpString(final InputStream in, final String encoding) throws IOException {
-        final byte[] bytes = slurpBytes(in);
-        return new String(bytes, encoding);
+        return new String(slurpBytes(in), (null == encoding || encoding.isEmpty()) ? StandardCharsets.UTF_8.name() : encoding);
+    }
+
+    /**
+     * Return contents of file as an encoded String.
+     *
+     * @param file File
+     * @param encoding StandardCharsets.UTF_8 if null
+     * @return encoded String
+     * @throws IOException
+     */
+    public static String slurpString(File file, final String encoding) throws IOException {
+        return slurpString(new FileInputStream(file), encoding);
     }
 
     /**
