@@ -54,7 +54,7 @@ public class LogReporter extends PayloadReporter {
         WORKING("tmp"),     // Contains data from the active logging session
         CLOSED("dat"),      // Contains a single log session, limited by Vortex payload size
         EXPIRED("bak"),     // Contains expired or backup data ready to be deleted
-        ROLLUP("rollup"),   // Contains a JsonArray of collected closed log data files
+        ROLLUP("rollup"),   // Contains a JsonArray of closed log data files
         ALL(".*");          // All log file types
 
         final String extension;
@@ -68,7 +68,7 @@ public class LogReporter extends PayloadReporter {
         }
     }
 
-    static int VORTEX_PAYLOAD_LIMIT = (1024 * 1024);                // Vortex upload limit: 1 MB (10^6 B) compressed
+    static int VORTEX_PAYLOAD_LIMIT = (1024 * 1023);                // Vortex upload limit: ~1 MB (10^6 B) compressed (less some padding)
     static int MIN_PAYLOAD_THRESHOLD = -1; // TODO VORTEX_PAYLOAD_LIMIT / 4;    // Don't upload until we have at least this much data
     protected int payloadBudget = VORTEX_PAYLOAD_LIMIT;
 
@@ -301,6 +301,12 @@ public class LogReporter extends PayloadReporter {
             for (File file : logDataFiles) {
                 if (null != file && file.exists() && file.length() > 0) {
                     try {
+                        // truncate at payload size limit. Test first so we don't overflow the budget
+                        payloadSizeBudget -= file.length();
+                        if (0 > payloadSizeBudget) {
+                            break;
+                        }
+
                         Streams.lines(file).forEach(line -> {
                             if (!line.isEmpty()) {
                                 try {
@@ -315,12 +321,6 @@ public class LogReporter extends PayloadReporter {
 
                         // remove the completed file(s)
                         mergedFiles.add(file);
-
-                        // truncate at payload size limit
-                        payloadSizeBudget -= file.length();
-                        if (0 > payloadSizeBudget) {
-                            break;
-                        }
 
                     } catch (Exception e) {
                         log.error("LogReporter: " + e.toString());
@@ -608,15 +608,15 @@ public class LogReporter extends PayloadReporter {
             workingFileLock.lock();
 
             if (null != workingLogFileWriter.get()) {
-                workingLogFileWriter.get().append(logJsonData);
-                workingLogFileWriter.get().newLine();
-
-                // Check Vortex limits
+                // Check Vortex limits prior to writing
                 payloadBudget -= (logJsonData.length() + System.lineSeparator().length());
                 if (0 > payloadBudget) {
                     finalizeWorkingLogFile();
                     rollWorkingLogFile();
                 }
+
+                workingLogFileWriter.get().append(logJsonData);
+                workingLogFileWriter.get().newLine();
 
             } else {
                 // the writer has closed, usually a result of the agent stopping
