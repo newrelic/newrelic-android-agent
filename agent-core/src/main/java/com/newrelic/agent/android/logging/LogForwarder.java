@@ -18,7 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
-import java.net.URL;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
@@ -30,11 +30,12 @@ import javax.net.ssl.HttpsURLConnection;
  */
 public class LogForwarder extends PayloadSender {
     // TODO Provide for EU and FedRamp collectors
-    private static final String LOG_API_URL = "https://log-api.newrelic.com/mobile/logs";
+    private final URI LOG_API_URL;
     private final File file;
 
     public LogForwarder(final File logDataFile, AgentConfiguration agentConfiguration) {
         super(logDataFile.getAbsolutePath().getBytes(StandardCharsets.UTF_8), agentConfiguration);
+        LOG_API_URL = getCollectorURI();
         this.file = logDataFile;
         this.payload.setPersisted(false);   // already in a file
     }
@@ -90,8 +91,7 @@ public class LogForwarder extends PayloadSender {
 
     @Override
     protected HttpURLConnection getConnection() throws IOException {
-        URL url = new URL(LOG_API_URL);
-        HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+        HttpsURLConnection connection = (HttpsURLConnection) LOG_API_URL.toURL().openConnection();
 
         connection.setRequestMethod("POST");
         connection.setRequestProperty(Constants.Network.CONTENT_TYPE_HEADER, Constants.Network.ContentType.JSON);
@@ -130,7 +130,7 @@ public class LogForwarder extends PayloadSender {
 
             case HttpURLConnection.HTTP_ENTITY_TOO_LARGE:
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_UPLOAD_REJECTED);
-                onFailedUpload("The request to rejected due to Vortex payload size limits - Response code [" + responseCode + "]");
+                onFailedUpload("The request to rejected due to payload size limits - Response code [" + responseCode + "]");
                 break;
 
             case 429: // Too Many Requests
@@ -168,7 +168,7 @@ public class LogForwarder extends PayloadSender {
     @Override
     protected boolean shouldUploadOpportunistically() {
         try {
-            final String dest = new URL(LOG_API_URL).getHost();
+            final String dest = LOG_API_URL.toURL().getHost();
             InetAddress inet = InetAddress.getByName(dest);
             return dest.equals(inet.getHostName());
 
@@ -183,4 +183,7 @@ public class LogForwarder extends PayloadSender {
         return true;
     }
 
+    URI getCollectorURI() {
+        return URI.create("https://" + agentConfiguration.getCollectorHost() + "/mobile/logs");
+    }
 }
