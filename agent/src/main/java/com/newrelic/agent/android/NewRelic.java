@@ -26,6 +26,7 @@ import com.newrelic.agent.android.logging.NullAgentLog;
 import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
+import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
@@ -181,6 +182,7 @@ public final class NewRelic {
      */
     public NewRelic withLaunchActivityName(String className) {
         agentConfiguration.setLaunchActivityClassName(className);
+        AppApplicationLifeCycle.getAgentConfiguration().setLaunchActivityClassName(className);
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, MetricNames.METRIC_APP_LAUNCH + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, className));
