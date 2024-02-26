@@ -43,7 +43,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
                         "-PincludeFeature=true",
-                       // "--debug",
+                        "--debug",
                         "clean",
                         testTask)
 
