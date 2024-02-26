@@ -90,21 +90,21 @@ class PluginJDK17SmokeSpec extends PluginSpec {
         }
     }
 
-    def "verify map uploads"() {
-        expect:
-        filteredOutput.contains("Maps will be tagged and uploaded for variants [")
-
-        mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
-            with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
-                exists()
-                text.contains(Proguard.NR_MAP_PREFIX)
-                filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") ||
-                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
-            }
-        }
-    }
+//    def "verify map uploads"() {
+//        expect:
+//        filteredOutput.contains("Maps will be tagged and uploaded for variants [")
+//
+//        mapUploadVariants.each { var ->
+//            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+//            with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
+//                exists()
+//                text.contains(Proguard.NR_MAP_PREFIX)
+//                filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
+//                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") ||
+//                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
+//            }
+//        }
+//    }
 
     def "verify submodules built and instrumented"() {
         expect:

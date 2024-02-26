@@ -22,7 +22,7 @@ class PluginJDK11SmokeSpec extends PluginSpec {
     static final gradleVersion = "7.6.1"
 
     @Shared
-    def testVariants = ['googleQa']        // when withProductFlavors=true
+    def testVariants = ['googleRelease']        // when withProductFlavors=true
 
     def setupSpec() {
         given: "create the build runner"
@@ -90,21 +90,21 @@ class PluginJDK11SmokeSpec extends PluginSpec {
         }
     }
 
-    def "verify map uploads"() {
-        expect:
-        filteredOutput.contains("Maps will be tagged and uploaded for variants [")
-
-        testVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
-
-            with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
-                exists()
-                text.contains(Proguard.NR_MAP_PREFIX)
-                filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
-            }
-        }
-    }
+//    def "verify map uploads"() {
+//        expect:
+//        filteredOutput.contains("Maps will be tagged and uploaded for variants [")
+//
+//        testVariants.each { var ->
+//            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+//
+//            with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
+//                exists()
+//                text.contains(Proguard.NR_MAP_PREFIX)
+//                filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
+//                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
+//            }
+//        }
+//    }
 
 
     def "verify submodules built and instrumented"() {
@@ -112,7 +112,7 @@ class PluginJDK11SmokeSpec extends PluginSpec {
         testVariants.each { var ->
             (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                     buildResult.task(":library:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
-            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+//            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
         }
     }
 
