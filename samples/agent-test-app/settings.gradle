@@ -114,5 +114,3 @@ logger.quiet "[agent-test-app] Gradle version [${GradleVersion.current().version
 if (settings.includeLibrary && Boolean.valueOf(settings.includeLibrary)) {
     include ":library"
 }
-
-include ':dynamicfeature'

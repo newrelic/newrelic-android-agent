@@ -74,7 +74,9 @@ android {
     namespace "com.newrelic.agent.android.testapp"
 
 
-    dynamicFeatures = [':dynamicfeature']
+    if (findProject(":feature")) {
+        dynamicFeatures = [':feature']
+    }
 }
 
 apply from: "android.gradle"
