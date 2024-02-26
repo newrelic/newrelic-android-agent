@@ -26,7 +26,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
     }
 
     @Shared
-    def testVariants = ['googleRelease']
+    def testVariants = ['googleQa']
 
     @Shared
     def mapUploadVariants = ["amazonQa"]
@@ -42,9 +42,10 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
-                        // "--debug",
+                        "-PincludeFeature=true",
+                        "--debug",
                         "clean",
-                        testTask, "assembleQa")
+                        testTask)
 
         when: "run the build *once* and cache the results"
         buildResult = runner.build()
@@ -99,8 +100,7 @@ class PluginJDK17SmokeSpec extends PluginSpec {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") ||
-                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
+                filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
             }
         }
     }
@@ -113,6 +113,14 @@ class PluginJDK17SmokeSpec extends PluginSpec {
         }
         mapUploadVariants.each { var ->
             buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+        }
+    }
+
+    def "verify dynamic features built and instrumented"() {
+        expect:
+        testVariants.each { var ->
+            (buildResult.task(":feature:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                    buildResult.task(":feature:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
         }
     }
 }

@@ -5,10 +5,11 @@
 
 package com.newrelic.agent.android
 
-import com.google.common.io.Files
+
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
-import spock.lang.*
+import spock.lang.Shared
+import spock.lang.Specification
 
 abstract class PluginSpec extends Specification {
 
@@ -38,7 +39,7 @@ abstract class PluginSpec extends Specification {
     boolean debuggable = true
 
     @Shared
-    def testTask = 'assembleRelease'
+    def testTask = 'assembleQa'
 
     @Shared
     def instrumentationVariants = ["release", "qa"]
@@ -62,19 +63,19 @@ abstract class PluginSpec extends Specification {
 
         if (localEnv["M2_REPO"] == null) {
             def m2 = new File(rootDir, "build/.m2/repository").absoluteFile
-            try {
+        try {
+            if (!(m2.exists() && m2.canRead())) {
+                provideRunner()
+                        .withProjectDir(rootDir)
+                        .withArguments("publish", "install")
+                        .build()
                 if (!(m2.exists() && m2.canRead())) {
-                    provideRunner()
-                            .withProjectDir(rootDir)
-                            .withArguments("publish", "install")
-                            .build()
-                    if (!(m2.exists() && m2.canRead())) {
-                        throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
-                    }
+                    throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
                 }
-                localEnv.put("M2_REPO", m2.getAbsolutePath())
-            } catch (Exception ignored) {
             }
+            localEnv.put("M2_REPO", m2.getAbsolutePath())
+        } catch (Exception ignored) {
+        }
         }
 
         extensionsFile?.delete()

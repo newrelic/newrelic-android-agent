@@ -1,5 +1,5 @@
-import org.slf4j.LoggerFactory
 import org.gradle.util.GradleVersion
+import org.slf4j.LoggerFactory
 
 /*
  * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
