@@ -6,6 +6,7 @@
 plugins {
     id("com.android.dynamic-feature")
     id("org.jetbrains.kotlin.android")
+    id ("newrelic")
 }
 
 if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
@@ -16,12 +17,26 @@ project.compiler = "none"
 
 apply from: "${rootDir}/android.gradle"
 
+
 android {
-    namespace "com.newrelic"
+    namespace "com.newrelic.feature"
+    buildTypes {
+        debug {
+            minifyEnabled false
+            debuggable true
+        }
+        qa {
+            minifyEnabled false
+            debuggable false
+        }
+        release {
+            minifyEnabled false
+            debuggable false
+        }
+    }
 }
 
 dependencies {
-    implementation project(":")
-    androidTestImplementation project(":")
+    implementation  project(':')
 }
 
