@@ -40,6 +40,10 @@ public final class Constants {
             public static final String MULTIPART_FORM_DATA = "multipart/form-data";
             public static final String JSON = "application/json";
             public static final String OCTET_STREAM = "application/octet-stream";
+            public static final String GZIP = "application/gzip";
+        }
+
+        public final class Encoding {
             public static final String DEFLATE = "deflate";
             public static final String IDENTITY = "identity";
             public static final String GZIP = "gzip";
