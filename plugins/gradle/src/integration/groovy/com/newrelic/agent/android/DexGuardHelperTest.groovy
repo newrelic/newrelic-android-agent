@@ -5,7 +5,7 @@
 
 package com.newrelic.agent.android
 
-
+import org.gradle.util.GradleVersion
 import org.junit.Assert
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

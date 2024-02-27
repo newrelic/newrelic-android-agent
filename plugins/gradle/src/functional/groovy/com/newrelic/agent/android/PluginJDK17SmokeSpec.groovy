@@ -107,6 +107,8 @@ class PluginJDK17SmokeSpec extends PluginSpec {
 
     def "verify submodules built and instrumented"() {
         expect:
+        filteredOutput.contains("[ActivityClassVisitor] Added Trace object to com/newrelic/agent/android/testapp/library/MainActivity")
+        filteredOutput.contains("[AnnotatingClassVisitor] Tagging [com.newrelic.agent.android.testapp.library.MainActivity] as instrumented")
         testVariants.each { var ->
             (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                     buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
@@ -118,6 +120,8 @@ class PluginJDK17SmokeSpec extends PluginSpec {
 
     def "verify dynamic features built and instrumented"() {
         expect:
+        filteredOutput.contains("[ActivityClassVisitor] Added Trace interface to class[com/newrelic/test/feature/JavaSampleActivity]")
+        filteredOutput.contains("[ActivityClassVisitor] Added Trace object to com/newrelic/test/feature/JavaSampleActivity")
         testVariants.each { var ->
             (buildResult.task(":feature:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                     buildResult.task(":feature:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
