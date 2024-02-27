@@ -13,7 +13,8 @@ public enum AnalyticsEventCategory {
     NetworkRequest,
     RequestError,
     Breadcrumb,
-    UserAction;
+    UserAction,
+    ApplicationExit;
 
     public static AnalyticsEventCategory fromString(String categoryString) {
         AnalyticsEventCategory category = Custom;
@@ -32,6 +33,8 @@ public enum AnalyticsEventCategory {
                 category = NetworkRequest;
             } else if (categoryString.equalsIgnoreCase("useraction")) {
                 category = UserAction;
+            } else if (categoryString.equalsIgnoreCase("applicationexit")) {
+                category = ApplicationExit;
             }
         }
         return category;

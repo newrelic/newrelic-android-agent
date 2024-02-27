@@ -35,6 +35,7 @@ public class AnalyticsEvent extends HarvestableObject {
     public static final String EVENT_TYPE_MOBILE_BREADCRUMB = "MobileBreadcrumb";
     public static final String EVENT_TYPE_MOBILE_CRASH = "MobileCrash";
     public static final String EVENT_TYPE_MOBILE_USER_ACTION = "MobileUserAction";
+    public static final String EVENT_TYPE_MOBILE_APPLICATION_EXIT = "MobileApplicationExit";
 
     // Same as AnalyticsAttribute.ATTRIBUTE_NAME_MAX_LENGTH
     public static final int EVENT_NAME_MAX_LENGTH = 255;
@@ -90,6 +91,7 @@ public class AnalyticsEvent extends HarvestableObject {
         if (validator.isValidEventName(name)) {
             this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_NAME_ATTRIBUTE, this.name));
         }
+
         this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_TIMESTAMP_ATTRIBUTE, String.valueOf(this.timestamp)));
         this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_CATEGORY_ATTRIBUTE, this.category.name()));
         this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, this.eventType));
@@ -240,7 +242,7 @@ public class AnalyticsEvent extends HarvestableObject {
         return events;
     }
 
-    boolean isValid() {
+    public boolean isValid() {
         return isValid(name, eventType);
     }
 
