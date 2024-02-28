@@ -41,7 +41,6 @@ class PluginJDK11SmokeSpec extends PluginSpec {
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=true",
-                        "-PincludeFeature=true",
                         "--debug",
                         "clean",
                         testTask)
@@ -103,7 +102,8 @@ class PluginJDK11SmokeSpec extends PluginSpec {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
+                (filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") &&
+                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged"))
             }
         }
     }

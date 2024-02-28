@@ -63,19 +63,20 @@ abstract class PluginSpec extends Specification {
 
         if (localEnv["M2_REPO"] == null) {
             def m2 = new File(rootDir, "build/.m2/repository").absoluteFile
-        try {
-            if (!(m2.exists() && m2.canRead())) {
-                provideRunner()
-                        .withProjectDir(rootDir)
-                        .withArguments("publish", "install")
-                        .build()
+            try {
                 if (!(m2.exists() && m2.canRead())) {
-                    throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
+                    provideRunner()
+                            .withGradleVersion("7.2") // must be same as the agent for these tasks
+                            .withProjectDir(rootDir)
+                            .withArguments("publish", "install")
+                            .build()
+                    if (!(m2.exists() && m2.canRead())) {
+                        throw new IOException("M2_REPO not found. Run `./gradlew publish` to stage the agent")
+                    }
                 }
+                localEnv.put("M2_REPO", m2.getAbsolutePath())
+            } catch (Exception ignored) {
             }
-            localEnv.put("M2_REPO", m2.getAbsolutePath())
-        } catch (Exception ignored) {
-        }
         }
 
         extensionsFile?.delete()
