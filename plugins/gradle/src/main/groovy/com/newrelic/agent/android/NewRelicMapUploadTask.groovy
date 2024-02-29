@@ -85,6 +85,7 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
                         if (!text.contains(Proguard.NR_MAP_PREFIX)) {
                             text = text + BuildHelper.NEWLN +
                                     Proguard.NR_MAP_PREFIX + buildId.get() + BuildHelper.NEWLN
+                            logger.info("Tagging map [" + it.getAbsolutePath() + "] with buildID [" + buildId.get() + "]");
                         }
                     }
 
