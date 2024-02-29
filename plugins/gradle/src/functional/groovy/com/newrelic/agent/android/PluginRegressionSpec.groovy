@@ -59,6 +59,8 @@ class PluginRegressionSpec extends PluginSpec {
                 (task(":transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
                         task(":${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
 
+                (task(":feature:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                        task(":feature:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
                 [NewRelicConfigTask.NAME].each { task ->
                     buildResult.task(":${task}${var.capitalize()}").outcome == SUCCESS
                     def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")

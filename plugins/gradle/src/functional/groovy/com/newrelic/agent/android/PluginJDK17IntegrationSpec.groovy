@@ -9,9 +9,7 @@ import spock.lang.Ignore
 import spock.lang.Requires
 import spock.lang.Stepwise
 
-import static org.gradle.testkit.runner.TaskOutcome.SKIPPED
-import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
-import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
+import static org.gradle.testkit.runner.TaskOutcome.*
 
 @Stepwise
 @Requires({ jvm.isJavaVersionCompatible(minJdkVersion) })
@@ -42,7 +40,7 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
                         testTask)
 
         when: "run the initial build"
-        instrumentationVariants = ["release"]
+        instrumentationVariants = ["qa"]
         buildResult = runner.build()
 
         and:
@@ -198,10 +196,10 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
 
         then:
         with(buildResult) {
-            task(":assembleRelease").outcome == SUCCESS
+            task(":assembleQa").outcome == SUCCESS
             ['Amazon', 'Google'].each {
-                task(":${ClassTransformWrapperTask.NAME}${it.capitalize()}Release")?.outcome == SUCCESS
-                task(":assemble${it}Release").outcome == SUCCESS
+                task(":${ClassTransformWrapperTask.NAME}${it.capitalize()}Qa")?.outcome == SUCCESS
+                task(":assemble${it}Qa").outcome == SUCCESS
             }
         }
     }
