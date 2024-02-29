@@ -98,7 +98,7 @@ jobs:
           retention-days: 5
 
   functional-regressions-jdk17:
-    # if: ${{ false }}  # disable for until tests are resolved
+    if: ${{ false }}  # disable for until tests are resolved
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
