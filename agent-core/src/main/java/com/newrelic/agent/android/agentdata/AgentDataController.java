@@ -17,7 +17,6 @@ import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.crash.ApplicationInfo;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.ExceptionHelper;
 import com.newrelic.mobile.fbs.HexAgentDataBundle;
 
@@ -141,7 +140,7 @@ public class AgentDataController {
                 //Offline Storage
                 if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                     if (!Agent.hasReachableNetworkConnection(null)) {
-                        attributes.put(Constants.OfflineStorage.OFFLINE_ATTRIBUTE_NAME, true);
+                        attributes.put(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true);
                     }
                 }
 

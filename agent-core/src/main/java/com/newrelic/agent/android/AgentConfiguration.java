@@ -59,7 +59,6 @@ public class AgentConfiguration {
     private CrashStore crashStore;
     private AnalyticsAttributeStore analyticsAttributeStore;
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
-
     private AnalyticsEventStore eventStore;
 
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;

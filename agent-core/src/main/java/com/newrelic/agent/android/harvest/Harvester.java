@@ -735,9 +735,13 @@ public class Harvester {
             }
 
             //Offline Storage
-            Agent.persistHarvestDataToDisk(harvestData.toJsonString());
-            harvestData.reset();
-            log.info("Harvest data has stored to disk due to network errors, will resubmit in next cycle when network is available.");
+            if (harvestData != null && harvestData.toString().length() > 0) {
+                Agent.persistHarvestDataToDisk(harvestData.toJsonString());
+                harvestData.reset();
+                log.info("Harvest data was stored to disk due to network errors, will resubmit in next cycle when network is available.");
+            } else {
+                log.info("No harvest data was stored during this cycle");
+            }
         } catch (Exception ex) {
             log.error("Error in persisting data: ", ex);
         }
