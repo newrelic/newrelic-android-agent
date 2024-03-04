@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android.agentdata;
 
-import com.google.flatbuffers.FlatBufferBuilder;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
@@ -20,10 +19,6 @@ import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.payload.PayloadStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 
-import java.io.ByteArrayOutputStream;
-import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -143,6 +138,11 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
                     StatsEngine.get().sampleMetricDataUsage(name, payloadSender.getPayload().getBytes().length, 0);
                 } else {
                     // sender will remain in store and retry every harvest cycle
+                    //Offline storage: No network at all, don't send back data
+                    if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                        log.warn("AgentDataReporter didn't send due to lack of network connection");
+                        StatsEngine.get().inc(MetricNames.OFFLINE_STORAGE_HANDLED_EXCEPTION);
+                    }
                 }
             }
 

@@ -42,6 +42,7 @@ import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
+import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.spy.AgentDataReporterSpy;
@@ -49,6 +50,7 @@ import com.newrelic.agent.android.tracing.Trace;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
+import com.newrelic.agent.android.util.OfflineStorage;
 
 import org.junit.Assert;
 
@@ -106,13 +108,13 @@ public class NewRelicTest {
     @Before
     public void removeFinalModifiers() throws Exception {
         /** FIXME Field is no longer accessible in JDK 11
-        Field field = Agent.class.getDeclaredField("MONO_INSTRUMENTATION_FLAG");
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        field.set(String.class, "YES");
-        /* FIXME */
+         Field field = Agent.class.getDeclaredField("MONO_INSTRUMENTATION_FLAG");
+         field.setAccessible(true);
+         Field modifiersField = Field.class.getDeclaredField("modifiers");
+         modifiersField.setAccessible(true);
+         modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+         field.set(String.class, "YES");
+         /* FIXME */
     }
 
     @Before
@@ -254,6 +256,7 @@ public class NewRelicTest {
     public void testWithLaunchActivityName() {
         nrInstance.withLaunchActivityName("TestActivity");
         Assert.assertEquals("TestActivity", agentConfiguration.getLaunchActivityClassName());
+        Assert.assertEquals("TestActivity", AppApplicationLifeCycle.getAgentConfiguration().getLaunchActivityClassName());
     }
 
     @Test
@@ -1010,6 +1013,22 @@ public class NewRelicTest {
 
         nrInstance.withDeviceID("             ");
         Assert.assertEquals("Should trim custom device ID to a single space", AgentConfiguration.DEFAULT_DEVICE_UUID, agentConfiguration.getDeviceID());
+    }
+
+    @Test
+    public void testSetMaxOfflineStorageSize() {
+        OfflineStorage offlineStorageInstance = new OfflineStorage(spyContext.getContext());
+        double defaultSize0 = offlineStorageInstance.getOfflineStorageSize();
+        Assert.assertEquals(100 * 1024 * 1024, defaultSize0, 0);
+
+        NewRelic.setMaxOfflineStorageSize(-1);
+
+        double defaultSize1 = offlineStorageInstance.getOfflineStorageSize();
+        Assert.assertEquals(100 * 1024 * 1024, defaultSize1, 0);
+
+        NewRelic.setMaxOfflineStorageSize(10);
+        double defaultSize2 = offlineStorageInstance.getOfflineStorageSize();
+        Assert.assertEquals(10, defaultSize2, 0);
     }
 
 

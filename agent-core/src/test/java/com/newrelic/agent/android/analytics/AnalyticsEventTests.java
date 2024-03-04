@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 import static com.newrelic.agent.android.analytics.AnalyticsAttributeTests.getAttributeByName;
 
@@ -150,5 +151,29 @@ public class AnalyticsEventTests {
         } catch (Exception e) {
             Assert.fail("Attributes should be mutable");
         }
+    }
+
+    @Test
+    public void testEventUUID() {
+        //validate UUID creation
+        AnalyticsEvent origEvent = new AnalyticsEvent("testEvent");
+        Assert.assertNotNull(origEvent.getEventUUID());
+
+        Assert.assertNotNull("Should create UUID", origEvent.getEventUUID());
+        Assert.assertFalse("Should create UUID", origEvent.getEventUUID().isEmpty());
+        try {
+            Assert.assertNotNull("Should create valid UUID", UUID.fromString(origEvent.getEventUUID()));
+        } catch (Exception e) {
+            Assert.fail();
+        }
+
+        //validate change UUID of events
+        origEvent.setEventUUID("TestSetUUID");
+        Assert.assertEquals("Should set to new UUID", "TestSetUUID", origEvent.getEventUUID());
+
+        //validate UUID consistence
+        String origUUID = origEvent.getEventUUID();
+        AnalyticsEvent newEvent = AnalyticsEvent.eventFromJsonString(origUUID, origEvent.toJsonString());
+        Assert.assertEquals("UUID should stay the same", origUUID, newEvent.getEventUUID());
     }
 }

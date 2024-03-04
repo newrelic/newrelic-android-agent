@@ -5,10 +5,11 @@
 
 package com.newrelic.agent.android
 
-import com.google.common.io.Files
+
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
-import spock.lang.*
+import spock.lang.Shared
+import spock.lang.Specification
 
 abstract class PluginSpec extends Specification {
 
@@ -38,7 +39,7 @@ abstract class PluginSpec extends Specification {
     boolean debuggable = true
 
     @Shared
-    def testTask = 'assembleRelease'
+    def testTask = 'assembleQa'
 
     @Shared
     def instrumentationVariants = ["release", "qa"]
@@ -65,6 +66,7 @@ abstract class PluginSpec extends Specification {
             try {
                 if (!(m2.exists() && m2.canRead())) {
                     provideRunner()
+                            .withGradleVersion("7.2") // must be same as the agent for these tasks
                             .withProjectDir(rootDir)
                             .withArguments("publish", "install")
                             .build()

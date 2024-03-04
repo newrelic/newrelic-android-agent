@@ -5,10 +5,13 @@
 
 package com.newrelic.agent.android.analytics;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.newrelic.agent.android.Agent;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.type.HarvestableObject;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -20,6 +23,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 public class AnalyticsEvent extends HarvestableObject {
     protected final static AgentLog log = AgentLogManager.getAgentLog();
@@ -40,6 +44,7 @@ public class AnalyticsEvent extends HarvestableObject {
     // Use event type as name
     public static final String EVENT_NAME_IS_TYPE = null;
 
+    protected String uuid;
     protected String name;
     protected long timestamp;
     protected AnalyticsEventCategory category;
@@ -48,7 +53,7 @@ public class AnalyticsEvent extends HarvestableObject {
 
     protected final static AnalyticsValidator validator = new AnalyticsValidator();
 
-    protected AnalyticsEvent(String name) {
+    public AnalyticsEvent(String name) {
         this(name, AnalyticsEventCategory.Custom, null, null);
     }
 
@@ -66,6 +71,7 @@ public class AnalyticsEvent extends HarvestableObject {
     }
 
     AnalyticsEvent(String name, AnalyticsEventCategory category, String eventType, long timeStamp, Set<AnalyticsAttribute> initialAttributeSet) {
+        this.uuid = UUID.randomUUID().toString();
         this.name = name;
         this.timestamp = timeStamp;
         this.category = validator.toValidCategory(category);
@@ -86,6 +92,13 @@ public class AnalyticsEvent extends HarvestableObject {
         this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_TIMESTAMP_ATTRIBUTE, String.valueOf(this.timestamp)));
         this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_CATEGORY_ATTRIBUTE, this.category.name()));
         this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, this.eventType));
+
+        //Offline Storage
+        if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+            if (!Agent.hasReachableNetworkConnection(null)) {
+                this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true));
+            }
+        }
     }
 
     /**
@@ -118,6 +131,14 @@ public class AnalyticsEvent extends HarvestableObject {
 
     public String getEventType() {
         return eventType;
+    }
+
+    public String getEventUUID() {
+        return uuid;
+    }
+
+    public void setEventUUID(String uuid) {
+        this.uuid = uuid;
     }
 
     @Override
@@ -191,6 +212,13 @@ public class AnalyticsEvent extends HarvestableObject {
         }
 
         return new AnalyticsEvent(name, category, eventType, timestamp, attributeSet);
+    }
+
+    public static AnalyticsEvent eventFromJsonString(String uuid, String eventString) {
+        JsonObject eventObj = new Gson().fromJson(eventString, JsonObject.class);
+        AnalyticsEvent event = newFromJson(eventObj);
+        event.setEventUUID(uuid);
+        return event;
     }
 
     /**

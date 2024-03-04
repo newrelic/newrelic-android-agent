@@ -29,6 +29,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_EVENT_EVICTED = SUPPORTABILITY_EVENTS + "Evicted";
     public static final String SUPPORTABILITY_EVENT_QUEUE_SIZE_EXCEEDED = SUPPORTABILITY_EVENTS + "Queue/Size/Exceeded";
     public static final String SUPPORTABILITY_EVENT_QUEUE_TIME_EXCEEDED = SUPPORTABILITY_EVENTS + "Queue/Time/Exceeded";
+    public static final String SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED = SUPPORTABILITY_EVENTS + "Size/Uncompressed";
 
     public static final String SUPPORTABILITY_COLLECTOR = "Supportability/AgentHealth/Collector/";
 
@@ -95,4 +96,6 @@ public class MetricNames {
     public static final String METRIC_APP_LAUNCH = "AppLaunch/";
     public static final String APP_LAUNCH_COLD = METRIC_APP_LAUNCH + "Cold";
     public static final String APP_LAUNCH_HOT = METRIC_APP_LAUNCH + "Hot";
+    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION = "OfflineStorage/HandledExceptions";
+    public static final String OFFLINE_STORAGE_CRASH = "OfflineStorage/Crashes";
 }

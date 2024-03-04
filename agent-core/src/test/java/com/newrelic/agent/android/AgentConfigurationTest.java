@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.android;
 
+import com.newrelic.agent.android.analytics.TestEventStore;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -151,5 +153,17 @@ public class AgentConfigurationTest {
     public void shouldParseUnityApplicationFramework() {
         agentConfiguration.setApplicationFramework(ApplicationFramework.Unity);
         Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Unity);
+    }
+
+    @Test
+    public void shouldParseUnrealApplicationFramework() {
+        agentConfiguration.setApplicationFramework(ApplicationFramework.Unreal);
+        Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Unreal);
+    }
+
+    @Test
+    public void testSetEventStore() {
+        agentConfiguration.setEventStore(new TestEventStore());
+        Assert.assertNotNull(agentConfiguration.getEventStore());
     }
 }

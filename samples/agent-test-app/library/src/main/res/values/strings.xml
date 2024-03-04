@@ -1,0 +1,3 @@
+<resources>
+    <string name="kotlin_content_text">This is a dynamic feature, written in \nKotlin\n which can be loaded on demand.</string>
+</resources>

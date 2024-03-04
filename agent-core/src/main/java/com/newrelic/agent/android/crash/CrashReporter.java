@@ -135,6 +135,12 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                                         .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
                                         .replace(MetricNames.TAG_SUBDESTINATION, "mobile_crash");
                                 StatsEngine.get().sampleMetricDataUsage(name, crash.asJsonObject().toString().getBytes().length, 0);
+                            } else {
+                                //Offline storage: No network at all, don't send back data
+                                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                                    log.warn("CrashReporter didn't send due to lack of network connection");
+                                    StatsEngine.get().inc(MetricNames.OFFLINE_STORAGE_CRASH);
+                                }
                             }
                         }
 

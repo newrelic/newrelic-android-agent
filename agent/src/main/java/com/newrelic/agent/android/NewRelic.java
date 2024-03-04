@@ -26,11 +26,13 @@ import com.newrelic.agent.android.logging.NullAgentLog;
 import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
+import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
+import com.newrelic.agent.android.util.OfflineStorage;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -180,6 +182,7 @@ public final class NewRelic {
      */
     public NewRelic withLaunchActivityName(String className) {
         agentConfiguration.setLaunchActivityClassName(className);
+        AppApplicationLifeCycle.getAgentConfiguration().setLaunchActivityClassName(className);
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, MetricNames.METRIC_APP_LAUNCH + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, className));
@@ -1064,5 +1067,17 @@ public final class NewRelic {
 
     public static boolean  addHTTPHeadersTrackingFor(List<String> headers) {
         return HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);
+    }
+
+    /**
+     * Set the maximum size of the offline storage.  When the limit is reached, the agent will stop collecting offline data
+     *
+     * @param maxSize
+     */
+    public static void setMaxOfflineStorageSize(int maxSize) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setMaxOfflineStorageSize"));
+
+        OfflineStorage.setMaxOfflineStorageSize(maxSize);
     }
 }

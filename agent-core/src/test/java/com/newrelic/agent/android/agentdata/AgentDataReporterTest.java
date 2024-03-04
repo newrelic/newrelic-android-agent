@@ -16,6 +16,7 @@ import com.newrelic.agent.android.crash.CrashReporterTests;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.stats.StatsEngine;
+import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 
 import org.junit.After;
@@ -106,7 +107,13 @@ public class AgentDataReporterTest {
 
     @Test
     public void reportAgentData() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+        ByteBuffer byteBuffer = flat.dataBuffer();
+        Assert.assertNotNull(byteBuffer.array());
 
+        Payload payload = new Payload(byteBuffer.array());
+        boolean reported = AgentDataReporter.reportAgentData(payload.getBytes());
+        Assert.assertTrue(reported);
     }
 
     @Test

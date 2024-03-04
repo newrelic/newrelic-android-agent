@@ -11,12 +11,10 @@ import android.content.Context;
 import android.os.Bundle;
 import android.os.SystemClock;
 
-import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.background.ApplicationStateListener;
-import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -25,8 +23,6 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 public class AppApplicationLifeCycle implements Application.ActivityLifecycleCallbacks, Closeable, ApplicationStateListener {
     private Context context;
@@ -39,9 +35,9 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
     private static boolean isBackgrounded = false;
     private static int activityReferences = 0;
 
+    private static AgentConfiguration agentConfiguration = new AgentConfiguration();
+
     private static final AgentLog log = AgentLogManager.getAgentLog();
-    private static final AgentConfiguration agentConfiguration = new AgentConfiguration();
-    private static final DeviceInformation deviceInformation = Agent.getDeviceInformation();
 
     public void onColdStartInitiated(Context context) {
         this.context = context.getApplicationContext();
@@ -149,5 +145,13 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
 
     private String emptyIfNull(String s) {
         return s == null ? "" : s;
+    }
+
+    public static AgentConfiguration getAgentConfiguration() {
+        return agentConfiguration;
+    }
+
+    public static void setAgentConfiguration(AgentConfiguration agentConfiguration) {
+        AppApplicationLifeCycle.agentConfiguration = agentConfiguration;
     }
 }
