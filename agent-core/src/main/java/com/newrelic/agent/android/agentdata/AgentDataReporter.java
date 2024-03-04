@@ -140,7 +140,8 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
                     // sender will remain in store and retry every harvest cycle
                     //Offline storage: No network at all, don't send back data
                     if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
-                        log.info("AgentDataReporter didn't send due to lack of network connection");
+                        log.warn("AgentDataReporter didn't send due to lack of network connection");
+                        StatsEngine.get().inc(MetricNames.OFFLINE_STORAGE_HANDLED_EXCEPTION);
                     }
                 }
             }

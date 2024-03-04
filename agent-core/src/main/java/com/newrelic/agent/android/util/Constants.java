@@ -45,8 +45,4 @@ public final class Constants {
             public static final String GZIP = "gzip";
         }
     }
-
-    public final class OfflineStorage {
-        public static final String OFFLINE_ATTRIBUTE_NAME = "offline";
-    }
 }

@@ -15,7 +15,6 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.type.HarvestableObject;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.util.Constants;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -97,7 +96,7 @@ public class AnalyticsEvent extends HarvestableObject {
         //Offline Storage
         if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
             if (!Agent.hasReachableNetworkConnection(null)) {
-                this.attributeSet.add(new AnalyticsAttribute(Constants.OfflineStorage.OFFLINE_ATTRIBUTE_NAME, true));
+                this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true));
             }
         }
     }

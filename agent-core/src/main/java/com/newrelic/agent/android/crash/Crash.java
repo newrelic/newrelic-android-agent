@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.crash;
 
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
@@ -28,7 +27,6 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
-import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.SafeJsonPrimitive;
 
 import java.util.ArrayList;
@@ -166,7 +164,7 @@ public class Crash extends HarvestableObject {
         //Offline Storage
         if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
             if (!Agent.hasReachableNetworkConnection(null)) {
-                attrs.add(new AnalyticsAttribute(Constants.OfflineStorage.OFFLINE_ATTRIBUTE_NAME, true));
+                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true));
             }
         }
         return Collections.unmodifiableSet(attrs);
