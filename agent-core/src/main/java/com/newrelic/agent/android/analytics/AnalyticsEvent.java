@@ -10,6 +10,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.newrelic.agent.android.Agent;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.type.HarvestableObject;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -90,6 +92,13 @@ public class AnalyticsEvent extends HarvestableObject {
         this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_TIMESTAMP_ATTRIBUTE, String.valueOf(this.timestamp)));
         this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_CATEGORY_ATTRIBUTE, this.category.name()));
         this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, this.eventType));
+
+        //Offline Storage
+        if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+            if (!Agent.hasReachableNetworkConnection(null)) {
+                this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true));
+            }
+        }
     }
 
     /**

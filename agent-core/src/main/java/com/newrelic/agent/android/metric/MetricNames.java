@@ -108,4 +108,6 @@ public class MetricNames {
     public static final String TAG_DESTINATION = "<destination>";
     public static final String TAG_SUBDESTINATION = "<subdestination>";
 
+    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION = "OfflineStorage/HandledExceptions";
+    public static final String OFFLINE_STORAGE_CRASH = "OfflineStorage/Crashes";
 }

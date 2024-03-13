@@ -5,13 +5,15 @@
 
 package com.newrelic.agent.android
 
-import com.newrelic.agent.android.obfuscation.Proguard
+
 import spock.lang.Requires
 import spock.lang.Retry
 import spock.lang.Shared
 
 import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import static org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
+import com.newrelic.agent.android.obfuscation.Proguard
+
 
 @Retry(delay = 15000, count = 2)
 class PluginJDK11SmokeSpec extends PluginSpec {
@@ -100,7 +102,8 @@ class PluginJDK11SmokeSpec extends PluginSpec {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [")
+                (filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") &&
+                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged"))
             }
         }
     }
@@ -108,24 +111,28 @@ class PluginJDK11SmokeSpec extends PluginSpec {
 
     def "verify submodules built and instrumented"() {
         expect:
+        filteredOutput.contains("[ActivityClassVisitor] Added Trace object to com/newrelic/agent/android/testapp/library/MainActivity")
+        filteredOutput.contains("[AnnotatingClassVisitor] Tagging [com.newrelic.agent.android.testapp.library.MainActivity] as instrumented")
         testVariants.each { var ->
             (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
+                    buildResult.task(":library:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
             buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
         }
     }
 
-    def "verify submodules built and instrumented"() {
+    def "verify dynamic features built and instrumented"() {
         expect:
+        filteredOutput.contains("[ActivityClassVisitor] Added Trace interface to class[com/newrelic/test/feature/JavaSampleActivity]")
+        filteredOutput.contains("[ActivityClassVisitor] Added Trace object to com/newrelic/test/feature/JavaSampleActivity")
         testVariants.each { var ->
-            (buildResult.task(":library:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task("library::${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
-            buildResult.task(":library:newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            (buildResult.task(":feature:transformClassesWith${NewRelicTransform.NAME.capitalize()}For${var.capitalize()}")?.outcome == SUCCESS ||
+                    buildResult.task(":feature:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
         }
     }
 
     def "verify package exclusion"() {
-        filteredOutput.contains("Package [org/bouncycastle/crypto] has been excluded from instrumentation");
+        expect:
+        filteredOutput.contains("Excluding package [org/bouncycastle/crypto/] from instrumentation")
     }
 
 }

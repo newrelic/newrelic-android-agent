@@ -6,13 +6,13 @@
 package com.newrelic.agent.android;
 
 import com.newrelic.agent.android.api.common.TransactionData;
-import com.newrelic.agent.android.distributedtracing.TraceFacade;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.EnvironmentInformation;
 import com.newrelic.agent.android.util.Encoder;
 
 import java.util.List;
+import java.util.Map;
 
 public interface AgentImpl {
     void addTransactionData(TransactionData transactionData);
@@ -49,4 +49,8 @@ public interface AgentImpl {
     boolean hasReachableNetworkConnection(String reachableHost);
 
     boolean isInstantApp();
+
+    void persistHarvestDataToDisk(String data);
+
+    Map<String, String> getAllOfflineData();
 }

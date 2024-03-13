@@ -52,6 +52,7 @@ import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
+import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.spy.AgentDataReporterSpy;
@@ -59,6 +60,7 @@ import com.newrelic.agent.android.tracing.Trace;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
+import com.newrelic.agent.android.util.OfflineStorage;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -274,6 +276,7 @@ public class NewRelicTest {
     public void testWithLaunchActivityName() {
         nrInstance.withLaunchActivityName("TestActivity");
         Assert.assertEquals("TestActivity", agentConfiguration.getLaunchActivityClassName());
+        Assert.assertEquals("TestActivity", AppApplicationLifeCycle.getAgentConfiguration().getLaunchActivityClassName());
     }
 
     @Test
@@ -1396,6 +1399,21 @@ public class NewRelicTest {
         NewRelic.logAll(null, null);
         verify(remoteLogger, times(1)).logAll(any(IllegalArgumentException.class), anyMap());
         verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(IllegalArgumentException.class), anyMap());
+    }
+
+    public void testSetMaxOfflineStorageSize() {
+        OfflineStorage offlineStorageInstance = new OfflineStorage(spyContext.getContext());
+        double defaultSize0 = offlineStorageInstance.getOfflineStorageSize();
+        Assert.assertEquals(100 * 1024 * 1024, defaultSize0, 0);
+
+        NewRelic.setMaxOfflineStorageSize(-1);
+
+        double defaultSize1 = offlineStorageInstance.getOfflineStorageSize();
+        Assert.assertEquals(100 * 1024 * 1024, defaultSize1, 0);
+
+        NewRelic.setMaxOfflineStorageSize(10);
+        double defaultSize2 = offlineStorageInstance.getOfflineStorageSize();
+        Assert.assertEquals(10, defaultSize2, 0);
     }
 
     private static class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {

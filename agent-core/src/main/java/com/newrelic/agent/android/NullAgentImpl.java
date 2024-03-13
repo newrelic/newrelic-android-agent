@@ -16,7 +16,9 @@ import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.Encoder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class NullAgentImpl implements AgentImpl {
     public static final NullAgentImpl instance = new NullAgentImpl();
@@ -155,5 +157,14 @@ public class NullAgentImpl implements AgentImpl {
     @Override
     public boolean isInstantApp() {
         return false;
+    }
+
+    @Override
+    public void persistHarvestDataToDisk(String data) {
+    }
+
+    @Override
+    public Map<String, String> getAllOfflineData() {
+        return new HashMap<String, String>();
     }
 }

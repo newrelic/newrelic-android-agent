@@ -138,6 +138,11 @@ public class AgentDataReporter extends PayloadReporter {
                     StatsEngine.get().sampleMetricDataUsage(name, payloadSender.getPayload().getBytes().length, 0);
                 } else {
                     // sender will remain in store and retry every harvest cycle
+                    //Offline storage: No network at all, don't send back data
+                    if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                        log.warn("AgentDataReporter didn't send due to lack of network connection");
+                        StatsEngine.get().inc(MetricNames.OFFLINE_STORAGE_HANDLED_EXCEPTION);
+                    }
                 }
             }
 

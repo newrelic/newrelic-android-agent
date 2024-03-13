@@ -137,6 +137,13 @@ public class AgentDataController {
         if (FeatureFlag.featureEnabled(FeatureFlag.HandledExceptions) ||
                 FeatureFlag.featureEnabled(FeatureFlag.NativeReporting)) {
             try {
+                //Offline Storage
+                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                    if (!Agent.hasReachableNetworkConnection(null)) {
+                        attributes.put(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true);
+                    }
+                }
+
                 FlatBufferBuilder flat = buildAgentDataFromHandledException(e, attributes);
 
                 final ByteBuffer byteBuffer = flat.dataBuffer().slice();

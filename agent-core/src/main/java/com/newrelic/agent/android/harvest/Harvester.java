@@ -10,6 +10,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
@@ -20,9 +21,11 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.ActivityTrace;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The {@code Harvester} is a state machine responsible for connecting to and posting data to the Collector.
@@ -64,7 +67,7 @@ public class Harvester {
     private HarvestData harvestData;
 
     private final Collection<HarvestLifecycleAware> harvestListeners = new ArrayList<>() {{
-       add(new HarvestAdapter() {
+        add(new HarvestAdapter() {
             @Override
             public void onHarvestConfigurationChanged() {
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_HARVEST_CONFIGURATION_CHANGED);
@@ -85,7 +88,7 @@ public class Harvester {
 
     /**
      * This method is executed when Harvester is in the {@link State#UNINITIALIZED} state.
-     *
+     * <p>
      * Initialization should be performed in this state.
      */
     protected void uninitialized() {
@@ -112,7 +115,7 @@ public class Harvester {
 
     /**
      * This method is executed when Harvester is in the {@link State#DISCONNECTED} state.
-     *
+     * <p>
      * This state attempts to connect to the collector and handles {@code connect} error conditions.
      */
     protected void disconnected() {
@@ -214,7 +217,7 @@ public class Harvester {
 
     /**
      * This method is executed when Harvester is in the {@link State#CONNECTED} state.
-     *
+     * <p>
      * This state performs {@code data} posts to the collector.
      */
     protected void connected() {
@@ -238,6 +241,7 @@ public class Harvester {
         // Network level error, or something else really bad. Don't clear the harvest data, we'll attempt again
         if (response == null || response.isUnknown()) {
             log.debug("Harvest data response: " + response.getResponseCode());
+            checkOfflineAndPersist();
             fireOnHarvestSendFailed();
             return;
         }
@@ -299,7 +303,29 @@ public class Harvester {
                     break;
             }
 
+            //Offline Storage
+            if (response.isNetworkError()) {
+                checkOfflineAndPersist();
+            }
+
             return;
+        } else {
+            //Offline Storage
+            try {
+                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                    Map<String, String> harvestDataObjects = Agent.getAllOfflineData();
+                    for (Map.Entry<String, String> entry : harvestDataObjects.entrySet()) {
+                        HarvestResponse eachResponse = harvestConnection.sendData(entry.getValue());
+                        if (eachResponse.isOK()) {
+                            File file = new File(entry.getKey());
+                            file.delete();
+                        }
+                        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/OfflineStorage" + eachResponse.getResponseCode());
+                    }
+                }
+            } catch (Exception ex) {
+                log.error("OfflineStorage: " + ex);
+            }
         }
 
         // Notify all listeners that the harvester finished
@@ -744,6 +770,29 @@ public class Harvester {
             log.error("Error in fireOnHarvestConfigurationChanged", e);
             AgentHealth.noticeException(e);
         }
+    }
+
+    public void checkOfflineAndPersist() {
+        try {
+            if (!FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                return;
+            }
+
+            //Offline Storage
+            if (harvestData != null && harvestData.toString().length() > 0) {
+                Agent.persistHarvestDataToDisk(harvestData.toJsonString());
+                harvestData.reset();
+                log.info("Harvest data was stored to disk due to network errors, will resubmit in next cycle when network is available.");
+            } else {
+                log.info("No harvest data was stored during this cycle");
+            }
+        } catch (Exception ex) {
+            log.error("Error in persisting data: ", ex);
+        }
+    }
+
+    public void setConfiguration(HarvestConfiguration configuration) {
+        this.harvestConfiguration = configuration;
     }
 
     public void setHarvestConfiguration(HarvestConfiguration harvestConfiguration) {

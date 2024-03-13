@@ -13,6 +13,7 @@ import com.newrelic.agent.android.util.Encoder;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 
 public class Agent {
     public static final String VERSION = "#VERSION#";
@@ -212,5 +213,11 @@ public class Agent {
         return getImpl().isInstantApp();
     }
 
+    public static void persistHarvestDataToDisk(String data){
+        getImpl().persistHarvestDataToDisk(data);
+    }
 
+    public static Map<String, String> getAllOfflineData(){
+        return getImpl().getAllOfflineData();
+    }
 }
