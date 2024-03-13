@@ -233,14 +233,14 @@ public class HarvestData extends HarvestableArray {
     @Override
     public String toString() {
         return "HarvestData{" +
-                "\n\tdataToken=" + dataToken +
-                ", \n\tdeviceInformation=" + deviceInformation +
-                ", \n\tharvestTimeDelta=" + harvestTimeDelta +
-                ", \n\thttpTransactions=" + httpTransactions +
-                ", \n\tmachineMeasurements=" + machineMeasurements +
-                ", \n\tactivityTraces=" + activityTraces +
-                ", \n\tsessionAttributes=" + sessionAttributes +
-                ", \n\tanalyticsAttributes=" + analyticsEvents +
+                "dataToken=" + dataToken +
+                ", deviceInformation=" + deviceInformation +
+                ", harvestTimeDelta=" + harvestTimeDelta +
+                ", httpTransactions=" + httpTransactions +
+                ", machineMeasurements=" + machineMeasurements +
+                ", activityTraces=" + activityTraces +
+                ", sessionAttributes=" + sessionAttributes +
+                ", analyticsAttributes=" + analyticsEvents +
                 '}';
     }
 }

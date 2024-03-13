@@ -15,9 +15,10 @@ public class TicToc {
     private long endTime;
     private State state;
 
-    public void tic() {
+    public TicToc tic() {
         state = State.STARTED;
         startTime = System.currentTimeMillis();
+        return this;
     }
 
     public long toc() {
@@ -35,4 +36,8 @@ public class TicToc {
         return (state == State.STARTED) ? System.currentTimeMillis() - startTime : 0;
     }
 
+    public long duration() {
+        return (state == State.STARTED) ? peek() : System.currentTimeMillis() - startTime;
+
+    }
 }

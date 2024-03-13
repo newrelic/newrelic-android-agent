@@ -20,6 +20,7 @@ public class HarvestResponse {
         UNAUTHORIZED(401),
         FORBIDDEN(403),
         REQUEST_TIMEOUT(408),
+        CONFIGURATION_UPDATE(409),
         ENTITY_TOO_LARGE(413),
         UNSUPPORTED_MEDIA_TYPE(415),
         TOO_MANY_REQUESTS(429),

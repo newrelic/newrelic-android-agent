@@ -8,6 +8,8 @@ package com.newrelic.agent.android.test.mock;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
@@ -29,12 +31,16 @@ import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.MachineMeasurements;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 import com.newrelic.agent.android.tracing.Trace;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TraceType;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
+import com.newrelic.agent.android.util.TestUtil;
 
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -49,6 +55,7 @@ import org.apache.http.message.BasicStatusLine;
 import org.junit.Assert;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
@@ -359,7 +366,31 @@ public class Providers {
 
     public static AgentConfiguration provideAgentConfiguration() {
         final AgentConfiguration conf = new AgentConfiguration();
+        conf.setApplicationToken("dead-beef-baad-f00d");
+        conf.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
+        conf.setLogReportingConfiguration(provideLogReportingConfiguration());
+
         return conf;
     }
+
+    public static LogReportingConfiguration provideLogReportingConfiguration() {
+        final LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.NONE);
+        return logReportingConfiguration;
+    }
+
+    public static JsonObject provideJsonObject(Object obj, Class clazz) {
+        String json = new Gson().toJson(obj, clazz);
+        return new Gson().fromJson(json, JsonObject.class);
+    }
+
+    public static JsonObject provideJsonObject(String path) {
+        try (InputStream is = Providers.class.getResourceAsStream(path)) {
+            final String json = TestUtil.slurp(is);
+            return new Gson().fromJson(json, JsonObject.class);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }
 

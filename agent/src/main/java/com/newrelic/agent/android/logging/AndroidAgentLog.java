@@ -8,10 +8,10 @@ package com.newrelic.agent.android.logging;
 import android.util.Log;
 
 public class AndroidAgentLog implements AgentLog {
-	private static final String TAG = "newrelic";
+	protected static final String TAG = "newrelic";
 
     // Default to INFO
-    private int level = INFO;
+    protected int level = INFO;
 
     @Override
     public void audit(String message) {

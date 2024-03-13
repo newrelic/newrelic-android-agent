@@ -266,8 +266,6 @@ public class StatsEngine extends HarvestAdapter {
                 name = name.replaceAll("//", "/");
             }
 
-            AgentLogManager.getAgentLog().debug("Metric normalized to [" + name + "]");
-
             return super.lazyGet(name);
         }
     }
