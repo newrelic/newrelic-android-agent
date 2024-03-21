@@ -92,6 +92,9 @@ public class AnalyticsAttribute {
     // For attributes attached to custom events sent using the Event API:
     public static final int ATTRIBUTE_VALUE_MAX_LENGTH = 4096;
 
+    //Offline Storage
+    public static final String OFFLINE_ATTRIBUTE_NAME = "offline";
+
     private static final AgentLog log = AgentLogManager.getAgentLog();    
     private final static AnalyticsValidator validator = new AnalyticsValidator();
 

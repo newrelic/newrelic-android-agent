@@ -70,11 +70,9 @@ wrapper {
  */
 
 android {
+
     namespace "com.newrelic.agent.android.testapp"
 
-    defaultConfig {
-        applicationId "com.newrelic"
-    }
 
     if (findProject(":feature")) {
         dynamicFeatures = [':feature']

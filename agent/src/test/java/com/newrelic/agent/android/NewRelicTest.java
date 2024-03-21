@@ -42,6 +42,7 @@ import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
+import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.spy.AgentDataReporterSpy;
@@ -255,6 +256,7 @@ public class NewRelicTest {
     public void testWithLaunchActivityName() {
         nrInstance.withLaunchActivityName("TestActivity");
         Assert.assertEquals("TestActivity", agentConfiguration.getLaunchActivityClassName());
+        Assert.assertEquals("TestActivity", AppApplicationLifeCycle.getAgentConfiguration().getLaunchActivityClassName());
     }
 
     @Test

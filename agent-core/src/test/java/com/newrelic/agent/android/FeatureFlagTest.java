@@ -45,7 +45,6 @@ public class FeatureFlagTest {
     @Test
     public void featureEnabled() throws Exception {
         Assert.assertTrue("HandledExceptions is disabled by default", FeatureFlag.featureEnabled(HandledExceptions));
-        Assert.assertTrue("HandledExceptions is disabled by default", FeatureFlag.featureEnabled(HandledExceptions));
         FeatureFlag.enableFeature(HandledExceptions);
         Assert.assertTrue("CrashReporting is now disabled", FeatureFlag.featureEnabled(CrashReporting));
     }
