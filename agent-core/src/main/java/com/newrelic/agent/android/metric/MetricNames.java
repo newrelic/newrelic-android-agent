@@ -96,6 +96,10 @@ public class MetricNames {
     public static final String METRIC_APP_LAUNCH = "AppLaunch/";
     public static final String APP_LAUNCH_COLD = METRIC_APP_LAUNCH + "Cold";
     public static final String APP_LAUNCH_HOT = METRIC_APP_LAUNCH + "Hot";
-    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION = "OfflineStorage/HandledExceptions";
-    public static final String OFFLINE_STORAGE_CRASH = "OfflineStorage/Crashes";
+    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION_COUNT = "OfflineStorage/HandledException/Count";
+    public static final String OFFLINE_STORAGE_CRASH_COUNT = "OfflineStorage/Crash/Count";
+    public static final String OFFLINE_STORAGE_EVENT_COUNT = "OfflineStorage/Event/Count";
+    public static final String BACKGROUND_EVENT_COUNT = "Background/Event/Count";
+    public static final String BACKGROUND_HANDLED_EXCEPTION_COUNT = "Background/HandledException/Count";
+    public static final String BACKGROUND_CRASH_COUNT = "Background/Crash/Count";
 }

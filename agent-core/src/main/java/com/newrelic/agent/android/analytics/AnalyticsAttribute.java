@@ -95,6 +95,9 @@ public class AnalyticsAttribute {
     //Offline Storage
     public static final String OFFLINE_ATTRIBUTE_NAME = "offline";
 
+    //Background Reporting
+    public static final String BACKGROUND_ATTRIBUTE_NAME = "background";
+
     private static final AgentLog log = AgentLogManager.getAgentLog();    
     private final static AnalyticsValidator validator = new AnalyticsValidator();
 
