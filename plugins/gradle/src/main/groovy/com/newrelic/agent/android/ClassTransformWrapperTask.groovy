@@ -20,6 +20,7 @@ import org.gradle.api.tasks.*
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
+import java.util.zip.ZipFile
 
 abstract class ClassTransformWrapperTask extends DefaultTask {
     final static String NAME = "newrelicTransformClassesFor"
@@ -82,11 +83,12 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                         transformer.transformClassByteStream(classFile.path, fileInputStream).withCloseable {
                                             jarOutputStream << it
                                         }
-                                    } catch (RuntimeException re) {
-                                        logger.warn("[ClassTransform] Instrumentation is disabled for [${classFile.name}] with exception: " + re.getLocalizedMessage())
-                                        jarOutputStream << fileInputStream
-                                    } catch (IOException ioE) {
-                                        logger.warn("[ClassTransform] Instrumentation is disabled for [${classFile.name}] with exception: " + ioE.getLocalizedMessage())
+                                    } catch (RuntimeException | IOException re) {
+                                        logger.error("[ClassTransform] Instrumentation is disabled for [${classFile.name}] with exception: " + re.gcalizedMessage())
+                                        try (StringWriter sw = new StringWriter(); PrintWriter pw = new PrintWriter(sw)) {
+                                            re.printStackTrace(pw)
+                                            logger.debug("[ClassTransform] Instrumentation is disabled for [${classFile.name}]: " + sw.toString())
+                                        }
                                         jarOutputStream << fileInputStream
                                     }
                                     jarOutputStream.closeEntry()
@@ -104,11 +106,10 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                 }
 
                 classJars.get().forEach { classJar ->
-                    try (JarFile jar = new JarFile(classJar.asFile)) {
+                    try (JarFile jar = new JarFile(classJar.asFile, false, ZipFile.OPEN_READ)) {
                         boolean instrumentable = shouldInstrumentArtifact(transformer, jar)
 
                         try {
-                            // transformer.asMutableTransform(instrumentable);
                             for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
                                 try {
                                     JarEntry jarEntry = e.nextElement()
@@ -117,7 +118,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
 
                                         if (jarEntry.directory) {
                                             if (ext.shouldExcludePackageInstrumentation(jarEntry.name)) {
-                                                logger.debug("[ClassTransform] Excluding package [${jarEntry.name}] from instrumentation")
+                                                logger.info("[ClassTransform] Excluding package [${jarEntry.name}] from instrumentation")
                                             }
                                         }
 
@@ -127,11 +128,12 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                                 transformer.transformClassByteStream(jarEntry.name, jarEntryInputStream).withCloseable {
                                                     jarOutputStream << it
                                                 }
-                                            } catch (RuntimeException re) {
+                                            } catch (RuntimeException | IOException re) {
                                                 logger.warn("[ClassTransform] Instrumentation is disabled for [${jarEntry.name}] with exception: " + re.getLocalizedMessage())
-                                                jarOutputStream << jarEntryInputStream
-                                            } catch (IOException ioE) {
-                                                logger.warn("[ClassTransform] Instrumentation is disabled for [${jarEntry.name}] with exception: " + ioE.getLocalizedMessage())
+                                                try (StringWriter sw = new StringWriter(); PrintWriter pw = new PrintWriter(sw)) {
+                                                    re.printStackTrace(pw)
+                                                    logger.debug("[ClassTransform] Instrumentation is disabled for [${classFile.name}]: " + sw.toString())
+                                                }
                                                 jarOutputStream << jarEntryInputStream
                                             }
                                         }
@@ -176,11 +178,11 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
         try {
             if (!transformer.verifyManifest(jar)) {
                 // signed or other unsupported JAR file, rewrite it unmodified
-                logger.warn("[ClassTransform] Excluding signed or incompatible artifact[${jar.name}]from instrumentation")
-                return false
+                logger.warn("[ClassTransform] Signed or possibly incompatible artifact detected: [${jar.name}]")
+                return true
             }
         } catch (IOException e) {
-            logger.error("[ClassTransform] Manifest error: ${e}");
+            logger.error("[ClassTransform] Manifest error: ${e}")
             return false
         }
 

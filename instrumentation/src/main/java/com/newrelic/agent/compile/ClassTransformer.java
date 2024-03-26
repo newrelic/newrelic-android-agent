@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.compile;
 
+import com.google.common.collect.ImmutableSet;
 import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.util.FileUtils;
 import com.newrelic.agent.util.Streams;
@@ -21,8 +22,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -33,6 +37,7 @@ import java.util.jar.Manifest;
 public final class ClassTransformer {
     public static final String MANIFEST_TRANSFORMED_BY_KEY = "Transformed-By";
     public static final String MANIFEST_SHA_DIGEST_REGEX = "^SHA-.*-Digest$";
+    public static final Set<String> EXCLUDE_MANIFEST_EXTENSIONS = ImmutableSet.of("DSA", "RSA", "SF", "EC");
 
     private final Logger log;
     private File inputFile;
@@ -324,8 +329,11 @@ public final class ClassTransformer {
             }
 
         } catch (Exception e) {
-            log.warn("[ClassTransformer] transformArchive: Original library file is outputted as we encountered an exception");
-            log.warn("[ClassTransformer] transformArchive: " + e);
+            log.warn("[ClassTransformer] transformArchive: Original library file is unmodified due to exception: " + e.getLocalizedMessage());
+            try (StringWriter sw = new StringWriter(); PrintWriter pw = new PrintWriter(sw)) {
+                e.printStackTrace(pw);
+                log.debug("[ClassTransformer] transformArchive: " + sw);
+            }
             return Streams.copy(new FileInputStream(archiveFile), new FileOutputStream(outputFile)) > 0;
         } finally {
             // close all the streams that may or may npt have already been closed
