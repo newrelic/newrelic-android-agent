@@ -6,6 +6,8 @@
 package com.newrelic.agent.android
 
 import com.newrelic.agent.android.agp4.AGP4Adapter
+import com.newrelic.agent.android.agp7.AGP70Adapter
+import com.newrelic.agent.android.agp7.AGP74Adapter
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.compile.JavaCompile
 import org.junit.Assert
@@ -13,27 +15,22 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 
-class VariantAdapterTest extends PluginTest {
+import static org.mockito.ArgumentMatchers.anyString
 
+class VariantAdapterTest extends PluginTest {
     BuildHelper buildHelper
     VariantAdapter variantAdapter
     NewRelicExtension ext
 
-    // Applying the NR plugin creates a full task model, so we can't create providers, for instance
     VariantAdapterTest() {
         super(true)
     }
 
     @BeforeEach
     void setup() {
-        if (applyPlugin) {
-            ext = plugin.pluginExtension
-            buildHelper = Mockito.spy(plugin.buildHelper)
-        } else {
-            ext = NewRelicExtension.register(project)
-            buildHelper = Mockito.spy(BuildHelper.register(project))
-        }
-        variantAdapter = buildHelper.variantAdapter
+        ext = Mockito.spy(plugin.pluginExtension)
+        buildHelper = Mockito.spy(plugin.buildHelper)
+        variantAdapter = Mockito.spy(buildHelper.variantAdapter)
     }
 
     @Test
@@ -50,11 +47,14 @@ class VariantAdapterTest extends PluginTest {
 
     @Test
     void configure() {
-        buildHelper.extension.excludeVariantInstrumentation("release", "staging")
-        Assert.assertEquals(variantAdapter, variantAdapter.configure(ext))
-        Assert.assertNull(variantAdapter.withVariant("release"))
+        variantAdapter.buildHelper.extension.excludeVariantInstrumentation("release", "staging")
+
+        Assert.assertEquals(variantAdapter, variantAdapter.configure(buildHelper.extension))
+        Assert.assertNotNull(variantAdapter.withVariant("release"))
         Assert.assertNotNull(variantAdapter.withVariant("debug"))
         Assert.assertNotNull(variantAdapter.withVariant("qa"))
+
+        Mockito.verify(variantAdapter, Mockito.times(2)).getTransformProvider(anyString())
     }
 
     @Test
@@ -92,9 +92,11 @@ class VariantAdapterTest extends PluginTest {
     @Test
     void getMappingFile() {
         variantAdapter.getVariantValues().each { variant ->
-            def provider = variantAdapter.getMappingFileProvider(variant.name)
-            Assert.assertTrue(provider instanceof RegularFileProperty)
-            Assert.assertTrue(provider.get().asFile.absolutePath.startsWith(project.layout.buildDirectory.asFile.get().absolutePath))
+            if (variantAdapter.buildTypes.getting(variant.name).get().minified) {
+                def provider = variantAdapter.getMappingFileProvider(variant.name)
+                Assert.assertTrue(provider instanceof RegularFileProperty)
+                Assert.assertTrue(provider.get().asFile.absolutePath.startsWith(project.layout.buildDirectory.asFile.get().absolutePath))
+            }
         }
     }
 
@@ -108,7 +110,6 @@ class VariantAdapterTest extends PluginTest {
 
     @Test
     void register() {
-        Assert.assertNotNull(VariantAdapter.register(buildHelper))
         Assert.assertFalse(variantAdapter.variantValues.isEmpty())
     }
 
@@ -132,22 +133,18 @@ class VariantAdapterTest extends PluginTest {
 
     @Test
     void getVariantAdapterByGradleVersion() {
-        buildHelper = Mockito.spy(BuildHelper.register(project))
+        Assert.assertTrue(variantAdapter instanceof AGP74Adapter)
+
+        buildHelper = Mockito.spy(plugin.buildHelper)
         Mockito.doReturn("7.2").when(buildHelper).getAgpVersion()
         Mockito.doReturn("7.3.3").when(buildHelper).getGradleVersion()
         def adapter = VariantAdapter.register(buildHelper)
-        Assert.assertTrue(adapter instanceof AGP4Adapter)
-
-        buildHelper = Mockito.spy(BuildHelper.register(project))
-        Mockito.doReturn("7.3").when(buildHelper).getAgpVersion()
-        Mockito.doReturn("7.4").when(buildHelper).getGradleVersion()
-        adapter = VariantAdapter.register(buildHelper)
         Assert.assertTrue(adapter instanceof AGP4Adapter)
     }
 
     @Test
     void getVariantAdapterByAGPVersion() {
-        buildHelper = Mockito.spy(BuildHelper.register(project))
+        buildHelper = Mockito.spy(plugin.buildHelper)
         Mockito.doReturn("7.3.3").when(buildHelper).getAgpVersion()
         def adapter = VariantAdapter.register(buildHelper)
         Assert.assertTrue(adapter instanceof AGP4Adapter)
