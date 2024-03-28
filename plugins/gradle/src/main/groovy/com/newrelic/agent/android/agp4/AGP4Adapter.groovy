@@ -71,7 +71,7 @@ class AGP4Adapter extends VariantAdapter {
     Provider<Object> getBuildTypeProvider(String variantName) {
         def variant = withVariant(variantName)
         def buildType = new BuildTypeAdapter(variant.name, variant.buildType.minifyEnabled, variant.buildType.name)
-        return objectFactory.property(Object).value(buildType)
+        return objectFactory.property(BuildTypeAdapter).value(buildType)
     }
 
     @Override

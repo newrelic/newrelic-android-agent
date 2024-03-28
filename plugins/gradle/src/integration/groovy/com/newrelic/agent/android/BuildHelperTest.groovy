@@ -25,8 +25,8 @@ class BuildHelperTest extends PluginTest {
 
     @BeforeEach
     void setUp() {
-        buildHelper = Mockito.spy(BuildHelper.register(project))
-        buildHelper.logger = Mockito.spy(buildHelper.logger)
+        buildHelper = Mockito.spy(plugin.buildHelper)
+        buildHelper.logger = Mockito.spy(buildHelper.getLogger())
     }
 
     @Test
@@ -144,7 +144,7 @@ class BuildHelperTest extends PluginTest {
 
     @Test
     void getDefaultMapUploadProvider() {
-        buildHelper.variantAdapter.getVariantValues().each { variant ->
+        buildHelper.variantAdapter.withVariant("release").tap { variant ->
             def provider = project.tasks.named("${NewRelicMapUploadTask.NAME}${variant.name.capitalize()}")
             Assert.assertEquals(NewRelicMapUploadTask, provider.type)
         }
@@ -161,7 +161,7 @@ class BuildHelperTest extends PluginTest {
 
     @Test
     void getMappingFile() {
-        buildHelper.variantAdapter.getVariantValues().each { variant ->
+        buildHelper.variantAdapter.withVariant("release").tap  { variant ->
             def provider = buildHelper.variantAdapter.getMappingFileProvider(variant.name)
             Assert.assertTrue(provider instanceof RegularFileProperty)
             // TODO
@@ -199,15 +199,15 @@ class BuildHelperTest extends PluginTest {
 
     @Test
     void isUsingLegacyTransform() {
-        buildHelper = Mockito.spy(new BuildHelper(project))
-        Mockito.when(buildHelper.getGradleVersion()).thenReturn("6.7.1")
+        buildHelper = Mockito.spy(plugin.buildHelper)
+        Mockito.when(buildHelper.getAgpVersion()).thenReturn("7.3.3")
         buildHelper.variantAdapter = VariantAdapter.register(buildHelper)
         Assert.assertTrue(buildHelper.isUsingLegacyTransform())
     }
 
     @Test
     void isUsing7xTransform() {
-        buildHelper = Mockito.spy(new BuildHelper(project))
+        buildHelper = Mockito.spy(plugin.buildHelper)
         Mockito.when(buildHelper.getGradleVersion()).thenReturn("7.999")
 
         def ext = Mockito.spy(buildHelper.androidComponentsExtension)

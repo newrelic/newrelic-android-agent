@@ -1,0 +1,10 @@
+newrelic {
+    // Tag and report Proguard maps for these build types (default: release):
+    // uploadMapsForVariant 'release'
+
+    // do not instrument these variant builds
+    // excludeVariantInstrumentation 'debug'
+
+    // do not instrument these specific packages
+    excludePackageInstrumentation 'com.newrelic'
+}

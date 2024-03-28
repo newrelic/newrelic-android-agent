@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android.agp7
 
-
 import com.android.build.api.artifact.MultipleArtifact
 import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.variant.AndroidComponentsExtension
@@ -17,6 +16,7 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.util.GradleVersion
 
 class AGP70Adapter extends VariantAdapter {
@@ -31,7 +31,7 @@ class AGP70Adapter extends VariantAdapter {
 
         androidComponents.beforeVariants(variantSelector, { variantBuilder ->
             metrics.put(variantBuilder.buildType, [:] as HashMap)
-            metrics[variantBuilder.buildType].get().with {
+            metrics.getting(variantBuilder.buildType).get().with {
                 put("minSdk", variantBuilder.minSdk)
                 put("targetSdk", variantBuilder.targetSdk)
             }
@@ -40,7 +40,7 @@ class AGP70Adapter extends VariantAdapter {
         androidComponents.onVariants(variantSelector, { variant ->
             if (shouldInstrumentVariant(variant.name, variant.buildType)) {
                 variants.put(variant.name.toLowerCase(), variant as Variant)
-                buildTypes.put(variant.name, getBuildTypeProvider(variant.name).get())
+                buildTypes.put(variant.name, getBuildTypeProvider(variant.name))
                 assembleDataModel(variant.name)
             }
         })
@@ -78,13 +78,12 @@ class AGP70Adapter extends VariantAdapter {
     Provider<BuildTypeAdapter> getBuildTypeProvider(String variantName) {
         def variant = withVariant(variantName)
         def buildType = new BuildTypeAdapter(variant.name, variant.minifiedEnabled, variant.flavorName, variant.buildType)
-        return objectFactory.property(Object).value(buildType)
+        return objectFactory.property(BuildTypeAdapter).value(buildType)
     }
 
     @Override
     TaskProvider getJavaCompileProvider(String variantName) {
-        def variant = withVariant(variantName)
-        return objectFactory.property(Object) // FIXME
+        return registerOrNamed("newRelicJavaCompile${variantName.capitalize()}", JavaCompile.class)
     }
 
     @Override

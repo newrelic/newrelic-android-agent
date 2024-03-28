@@ -9,15 +9,10 @@ buildscript {
         google()
         mavenCentral()
     }
-    dependencies {
-        classpath "com.android.tools.build:gradle:7.+"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.+
-    }
 }
 
 plugins {
-    id 'com.android.application' version "7.+"
-    id 'org.jetbrains.kotlin.android'
+    id 'com.android.application' version "7.4.2"
 }
 */
 
@@ -26,7 +21,7 @@ android {
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.newrelic.agent.android"
+        applicationId "com.newrelic.agent.android.PluginTest"
         minSdk 24
         targetSdk 33
         versionCode 1
