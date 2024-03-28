@@ -464,7 +464,7 @@ public class Proguard {
     }
 
     static class MultipartFormWriter {
-        final static String boundary = "===" + System.currentTimeMillis() + "===";
+        final static String boundary = "----------------------" + System.currentTimeMillis();
         final static String newLn = "\r\n";
 
         final OutputStream os;
