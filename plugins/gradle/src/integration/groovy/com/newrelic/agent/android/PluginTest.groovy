@@ -11,14 +11,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.rules.TemporaryFolder
 
-/**
- * The Plugin tests assumes using the test harness at <rootProjectDir>/samples/agent-test-app.
- * All assertions and assumptions are based on that project's configuration
- */
 abstract class PluginTest {
-    final def rootDir = new File("../..").absoluteFile
-    final def projectDir = new File(rootDir, "samples/agent-test-app/")
-
     def tmpProjectDir
     def project
     def agp
@@ -37,9 +30,6 @@ abstract class PluginTest {
     void beforeEach() {
         tmpProjectDir = TemporaryFolder.builder().assureDeletion().build()
         tmpProjectDir.create()
-
-        def settings = tmpProjectDir.newFile("settings.gradle")
-        Files.write(getClass().getResource("/gradle/settings.gradle").bytes, settings)
 
         def build = tmpProjectDir.newFile("build.gradle")
         Files.write(getClass().getResource("/gradle/build.gradle").bytes, build)
