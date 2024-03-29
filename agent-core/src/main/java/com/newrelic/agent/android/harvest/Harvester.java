@@ -237,8 +237,6 @@ public class Harvester {
             StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/", response.getResponseTime());
         }
 
-        //Background reporting metrics here
-
         log.debug("Harvest data response: " + response.getResponseCode());
         log.debug("Harvest data response status code: " + response.getStatusCode());
         log.audit("Harvest data response BODY: " + response.getResponseBody());
@@ -252,8 +250,6 @@ public class Harvester {
             } else {
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/" + response.getResponseCode());
             }
-
-            //Background reporting metrics here
 
             switch (response.getResponseCode()) {
                 case UNAUTHORIZED:
