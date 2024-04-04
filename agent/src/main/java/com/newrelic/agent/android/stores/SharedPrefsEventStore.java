@@ -60,7 +60,7 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
         for (Map.Entry<String, ?> entry : objectStrings.entrySet()) {
             if (entry.getValue() instanceof String) {
                 try {
-                    events.add(AnalyticsEvent.eventFromJsonString(entry.getKey().toString(), (String) entry.getValue()));
+                    events.add(AnalyticsEvent.eventFromJsonString(entry.getKey(), (String) entry.getValue()));
                 } catch (Exception e) {
                     log.error("Exception encountered while deserializing event", e);
                 }
@@ -74,7 +74,7 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
         try {
             synchronized (this) {
                 final SharedPreferences.Editor editor = sharedPrefs.edit();
-                editor.remove(event.getEventUUID()).commit();
+                editor.remove(event.getEventUUID()).apply();
             }
         } catch (Exception e) {
             log.error("SharedPrefsEventStore.delete(): ", e);
