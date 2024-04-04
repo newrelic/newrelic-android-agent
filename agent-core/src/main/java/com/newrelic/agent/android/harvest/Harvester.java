@@ -14,6 +14,7 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -229,7 +230,12 @@ public class Harvester {
             return;
         }
 
-        StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest", response.getResponseTime());
+        //Background reporting
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
+            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Background/", response.getResponseTime());
+        } else {
+            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/", response.getResponseTime());
+        }
 
         log.debug("Harvest data response: " + response.getResponseCode());
         log.debug("Harvest data response status code: " + response.getStatusCode());
@@ -238,7 +244,12 @@ public class Harvester {
         if (response.isError()) {
             fireOnHarvestError();
 
-            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/" + response.getResponseCode());
+            //Background reporting
+            if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/Background/" + response.getResponseCode());
+            } else {
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/" + response.getResponseCode());
+            }
 
             switch (response.getResponseCode()) {
                 case UNAUTHORIZED:
