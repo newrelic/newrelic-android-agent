@@ -15,9 +15,10 @@ public class TicToc {
     private long endTime;
     private State state;
 
-    public void tic() {
+    public TicToc tic() {
         state = State.STARTED;
         startTime = System.nanoTime();
+        return this;
     }
 
     public long toc() {
