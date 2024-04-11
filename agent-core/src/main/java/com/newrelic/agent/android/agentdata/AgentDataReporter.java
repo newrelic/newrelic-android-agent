@@ -129,7 +129,7 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
                     .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
                     .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
                     .replace(MetricNames.TAG_SUBDESTINATION, "f");
-            StatsEngine.get().inc(name);
+            StatsEngine.notice().inc(name);
             payloadStore.delete(payload);
             log.error("Unable to upload handled exceptions because payload is larger than 1 MB, handled exceptions are discarded.");
             return null;

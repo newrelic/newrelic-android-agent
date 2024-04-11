@@ -153,7 +153,7 @@ public class HarvestConnection implements HarvestErrorCodes {
                 } else if (connection.getURL().getFile().contains(COLLECTOR_DATA_URI)) {
                     maxPayloadName = maxPayloadName.replace(MetricNames.TAG_SUBDESTINATION, "data");
                 }
-                StatsEngine.get().inc(maxPayloadName);
+                StatsEngine.notice().inc(maxPayloadName);
                 log.error("Unable to send harvest data because payload is larger than 1 MB, harvest data will be discarded.");
             }
         } catch (IOException e) {

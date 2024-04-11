@@ -128,7 +128,7 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                                 .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
                                 .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
                                 .replace(MetricNames.TAG_SUBDESTINATION, "mobile_crash");
-                        StatsEngine.get().inc(name);
+                        StatsEngine.notice().inc(name);
                         crashStore.delete(crash);
                         log.error("Unable to upload crashes because payload is larger than 1 MB, crash report is discarded.");
                         return null;
