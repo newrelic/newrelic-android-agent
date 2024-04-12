@@ -133,18 +133,18 @@ public class HarvestConnection implements HarvestErrorCodes {
 
             //add supportability metrics
             DeviceInformation deviceInformation = Agent.getDeviceInformation();
-            String outputByptesName = MetricNames.SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES
+            String outputBytesName = MetricNames.SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES
                     .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
                     .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR);
             if (connection.getURL().getFile().contains(COLLECTOR_CONNECT_URI)) {
-                outputByptesName = outputByptesName.replace(MetricNames.TAG_SUBDESTINATION, "connect");
+                outputBytesName = outputBytesName.replace(MetricNames.TAG_SUBDESTINATION, "connect");
             } else if (connection.getURL().getFile().contains(COLLECTOR_DATA_URI)) {
-                outputByptesName = outputByptesName.replace(MetricNames.TAG_SUBDESTINATION, "data");
+                outputBytesName = outputBytesName.replace(MetricNames.TAG_SUBDESTINATION, "data");
             }
             float byteReceived = harvestResponse.getResponseBody() == null ? 0 : harvestResponse.getResponseBody().length();
-            StatsEngine.get().sampleMetricDataUsage(outputByptesName, byteBuffer.array().length, byteReceived);
+            StatsEngine.get().sampleMetricDataUsage(outputBytesName, byteBuffer.array().length, byteReceived);
 
-            if (byteBuffer.array().length > Constants.Network.MAXPAYLOADSIZELIMIT) {
+            if (byteBuffer.array().length > Constants.Network.MAX_PAYLOAD_SIZE) {
                 String maxPayloadName = MetricNames.SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT
                         .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
                         .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR);

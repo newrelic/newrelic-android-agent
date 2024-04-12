@@ -122,7 +122,7 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                     final CrashSender sender = new CrashSender(crash, agentConfiguration);
 
                     long crashSize = crash.asJsonObject().toString().getBytes().length;
-                    if (crashSize > Constants.Network.MAXPAYLOADSIZELIMIT) {
+                    if (crashSize > Constants.Network.MAX_PAYLOAD_SIZE) {
                         DeviceInformation deviceInformation = Agent.getDeviceInformation();
                         String name = MetricNames.SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT
                                 .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())

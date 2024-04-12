@@ -123,7 +123,7 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
     public Future reportAgentData(Payload payload) {
         PayloadSender payloadSender = new AgentDataSender(payload, getAgentConfiguration());
 
-        if (payload.getBytes().length > Constants.Network.MAXPAYLOADSIZELIMIT) {
+        if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
             DeviceInformation deviceInformation = Agent.getDeviceInformation();
             String name = MetricNames.SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT
                     .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
