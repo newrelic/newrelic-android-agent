@@ -34,6 +34,7 @@ public final class Constants {
         public static final String CONTENT_LENGTH_HEADER = "Content-Length";
         public static final String USER_AGENT_HEADER = "User-Agent";
         public static final String HOST_HEADER = "Host";
+        public static final long MAX_PAYLOAD_SIZE = 1000000; //bytes
 
         public final class ContentType {
             public static final String URL_ENCODED = "application/x-www-form-urlencoded";
