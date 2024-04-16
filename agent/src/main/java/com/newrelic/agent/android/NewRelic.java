@@ -472,9 +472,12 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "recordMetric"));
 
-        log.debug("NewRelic.recordMetric invoked for name " + name + ", category: " + category +
-                ", count: " + count + ", totalValue " + totalValue + ", exclusiveValue: " + exclusiveValue +
-                ", countUnit: " + countUnit + ", valueUnit: " + valueUnit);
+        if(log.getLevel() >= AgentLog.AUDIT) {
+            StringBuilder logString = new StringBuilder();
+            log.audit(logString.append("NewRelic.recordMetric invoked for name ").append(name).append(", category: ").append(category)
+                    .append(", count: ").append(count).append(", totalValue ").append(totalValue).append(", exclusiveValue: ").append(exclusiveValue)
+                    .append(", countUnit: ").append(countUnit).append(", valueUnit: ").append(valueUnit).toString());
+        }
         checkNull(category, "recordMetric: category must not be null. If no MetricCategory is applicable, use MetricCategory.NONE.");
 
         checkEmpty(name, "recordMetric: name must not be empty.");
