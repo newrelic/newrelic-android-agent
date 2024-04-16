@@ -16,6 +16,7 @@ import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.stats.StatsEngine;
+import com.newrelic.agent.android.util.Constants;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -119,6 +120,19 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
             if (hasValidDataToken) {
                 if (crash != null) {
                     final CrashSender sender = new CrashSender(crash, agentConfiguration);
+
+                    long crashSize = crash.asJsonObject().toString().getBytes().length;
+                    if (crashSize > Constants.Network.MAX_PAYLOAD_SIZE) {
+                        DeviceInformation deviceInformation = Agent.getDeviceInformation();
+                        String name = MetricNames.SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT
+                                .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
+                                .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
+                                .replace(MetricNames.TAG_SUBDESTINATION, "mobile_crash");
+                        StatsEngine.notice().inc(name);
+                        crashStore.delete(crash);
+                        log.error("Unable to upload crashes because payload is larger than 1 MB, crash report is discarded.");
+                        return null;
+                    }
 
                     final PayloadSender.CompletionHandler completionHandler = new PayloadSender.CompletionHandler() {
                         @Override
