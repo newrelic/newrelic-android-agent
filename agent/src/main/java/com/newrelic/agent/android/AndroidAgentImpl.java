@@ -297,6 +297,7 @@ public class AndroidAgentImpl implements
         return envInfo;
     }
 
+    @SuppressWarnings("deprecation")
     public void initApplicationInformation() throws AgentInitializationException {
         if (applicationInformation != null) {
             log.debug("attempted to reinitialize ApplicationInformation.");
@@ -341,11 +342,18 @@ public class AndroidAgentImpl implements
         }
         log.debug("Using application name " + appName);
 
+
+        int versionCode;
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            versionCode = (int) packageInfo.getLongVersionCode();
+        } else {
+            versionCode = packageInfo.versionCode;
+        }
         String build = agentConfiguration.getCustomBuildIdentifier();
         if (TextUtils.isEmpty(build)) {
             if (packageInfo != null) {
                 // set the versionCode as the build by default
-                build = String.valueOf(packageInfo.versionCode);
+                build = String.valueOf(versionCode);
             } else {
                 build = "";
                 log.warn("Your app doesn't appear to have a version code defined. Ensure you have defined 'versionCode' in your manifest.");
@@ -354,7 +362,7 @@ public class AndroidAgentImpl implements
         log.debug("Using build " + build);
 
         applicationInformation = new ApplicationInformation(appName, appVersion, packageName, build);
-        applicationInformation.setVersionCode(packageInfo.versionCode);
+        applicationInformation.setVersionCode(versionCode);
     }
 
     @Override

@@ -8,7 +8,9 @@ package com.newrelic.agent.android.util;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.os.Build;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -17,16 +19,26 @@ public class Reachability {
     private static final int REACHABILITY_TIMEOUT = 500;        // 0.5 seconds
 
     @SuppressLint("NewApi")
+    @SuppressWarnings("deprecation")
     public static boolean hasReachableNetworkConnection(final Context context, final String reachableHost) {
         boolean isReachable = false;
         try {
             ConnectivityManager cm =
                     (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
             if (cm != null) {
-                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-
-                if (activeNetwork != null) {
-                    isReachable = activeNetwork.isConnectedOrConnecting();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    Network nw = cm.getActiveNetwork();
+                    if (nw != null) {
+                        NetworkCapabilities networkCapabilities = cm.getNetworkCapabilities(nw);
+                        if (networkCapabilities != null) {
+                            isReachable = (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) || networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) || networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH));
+                        }
+                    }
+                } else {
+                    android.net.NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                    if (activeNetwork != null) {
+                        isReachable = activeNetwork.isConnectedOrConnecting();
+                    }
                 }
 
                 // if connection is active and a host was specified, verify it is reachable
