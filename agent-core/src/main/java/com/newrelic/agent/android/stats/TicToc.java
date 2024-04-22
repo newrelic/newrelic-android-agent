@@ -6,7 +6,7 @@
 package com.newrelic.agent.android.stats;
 
 public class TicToc {
-    private static enum State {
+    protected static enum State {
         STOPPED,
         STARTED,
     }
@@ -15,13 +15,14 @@ public class TicToc {
     private long endTime;
     private State state;
 
-    public void tic() {
+    public TicToc tic() {
         state = State.STARTED;
-        startTime = System.currentTimeMillis();
+        startTime = System.nanoTime();
+        return this;
     }
 
     public long toc() {
-        endTime = System.currentTimeMillis();
+        endTime = System.nanoTime();
 
         if (state == State.STARTED) {
             state = State.STOPPED;
@@ -32,7 +33,31 @@ public class TicToc {
     }
 
     public long peek() {
-        return (state == State.STARTED) ? System.currentTimeMillis() - startTime : 0;
+        return (state == State.STARTED) ? System.nanoTime() - startTime : 0;
+    }
+
+    protected long getStartTime() {
+        return startTime;
+    }
+
+    protected void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    protected long getEndTime() {
+        return endTime;
+    }
+
+    protected void setEndTime(long endTime) {
+        this.endTime = endTime;
+    }
+
+    protected State getState() {
+        return state;
+    }
+
+    protected void setState(State state) {
+        this.state = state;
     }
 
 }
