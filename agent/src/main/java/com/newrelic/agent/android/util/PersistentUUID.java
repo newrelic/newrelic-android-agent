@@ -84,11 +84,8 @@ public class PersistentUUID {
                     final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
                     if (tm != null) {
                         //noinspection
-                        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            hardwareDeviceId = tm.getMeid();
-                        } else {
-                            hardwareDeviceId = tm.getDeviceId();
-                        }
+                        //TODO: Deprecated methods but getMeid() require additional permission
+                        hardwareDeviceId = tm.getDeviceId();
                     }
                 } catch (Exception e) {
                     hardwareDeviceId = "badf00d";

@@ -25,6 +25,7 @@ public final class Connectivity {
 
     private static AgentLog log = AgentLogManager.getAgentLog();
 
+    @SuppressWarnings("deprecation")
     public static String carrierNameFromContext(final Context context) {
         final android.net.NetworkInfo networkInfo;
         final NetworkCapabilities networkCapabilities;
@@ -76,6 +77,7 @@ public final class Connectivity {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public static String wanType(final Context context) {
         final android.net.NetworkInfo networkInfo;
         try {
@@ -97,6 +99,7 @@ public final class Connectivity {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static boolean isConnected(final android.net.NetworkInfo networkInfo) {
         return networkInfo != null && networkInfo.isConnected();
     }
@@ -104,9 +107,11 @@ public final class Connectivity {
     private static boolean isConnected(final NetworkCapabilities networkCapabilities) {
         return networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
                 || networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-                || networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET);
+                || networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                || networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH);
     }
 
+    @SuppressWarnings("deprecation")
     private static boolean isWan(final android.net.NetworkInfo networkInfo) {
         switch (networkInfo.getType()) {
             case ConnectivityManager.TYPE_MOBILE:
@@ -121,6 +126,7 @@ public final class Connectivity {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static boolean isWifi(final android.net.NetworkInfo networkInfo) {
         switch (networkInfo.getType()) {
             case ConnectivityManager.TYPE_WIFI:
@@ -131,6 +137,7 @@ public final class Connectivity {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static boolean isHardwired(android.net.NetworkInfo networkInfo) {
         switch (networkInfo.getType()) {
             case ConnectivityManager.TYPE_ETHERNET:
@@ -141,6 +148,7 @@ public final class Connectivity {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static boolean isBluetooth(android.net.NetworkInfo networkInfo) {
         switch (networkInfo.getType()) {
             case ConnectivityManager.TYPE_BLUETOOTH:
@@ -150,6 +158,7 @@ public final class Connectivity {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static android.net.NetworkInfo getNetworkInfo(final Context context) throws SecurityException {
         final ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         try {
