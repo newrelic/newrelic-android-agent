@@ -1,4 +1,4 @@
-[![Community Plus header](https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Community_Plus.png)](https://opensource.newrelic.com/oss-category/#community-plus)
+<a href="https://opensource.newrelic.com/oss-category/#community-plus"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/dark/Community_Plus.png"><source media="(prefers-color-scheme: light)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Community_Plus.png"><img alt="New Relic Open Source community plus project banner." src="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Community_Plus.png"></picture></a>
 # New Relic Android Agent 
 > The New Relic Android agent provides performance monitoring instrumentation for Android applications. 
 > With [New Relic's Android agent](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android), you can track everything from performance issues to tiny errors within your code. Our agent monitors your Android app and provides visibility into its behavior during runtime. 
@@ -218,9 +218,9 @@ The [Agent SDK](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobil
 
 # Support
 
-New Relic hosts and moderates an online forum where customers can interact with New Relic employees as well as other customers 
-to get help and share best practices. Like all official New Relic open source projects, there's a related Community topic in 
-the New Relic Explorers Hub. You can find this project's topic/threads [on the New Relic Explorer's Hub](https://discuss.newrelic.com/tags/android).
+New Relic hosts and moderates an online forum where customers, users, maintainers, contributors, and New Relic employees can discuss and collaborate:
+
+[forum.newrelic.com](https://forum.newrelic.com/)
 
 ### Support Channels 
 
@@ -255,9 +255,13 @@ If you have any questions, or to execute our corporate CLA (which is required if
 
 **A note about vulnerabilities**
 
-As noted in our [security policy](https://docs.newrelic.com/docs/licenses/license-information/referenced-policies/security-policy/), New Relic is committed to the privacy and security of our customers and their data. We believe that providing coordinated disclosure by security researchers and engaging with the security community are important means to achieve our security goals.
+As noted in our [security policy](../../security/policy), New Relic is committed to the privacy and security of our customers and their data. We believe that providing coordinated disclosure by security researchers and engaging with the security community are important means to achieve our security goals.
 
-If you believe you have found a security vulnerability in this project or any of New Relic's products or websites, we welcome and greatly appreciate you reporting it to New Relic through [HackerOne](https://hackerone.com/newrelic).
+If you believe you have found a security vulnerability in this project or any of New Relic's products or websites, we welcome and greatly appreciate you reporting it to New Relic through [our bug bounty program](https://docs.newrelic.com/docs/security/security-privacy/information-security/report-security-vulnerabilities/).
+
+If you would like to contribute to this project, review [these guidelines](./CONTRIBUTING.md).
+
+To all contributors, we thank you!  Without your contribution, this project would not be what it is today.  We also host a community project page dedicated to [New Relic Android Agent](https://opensource.newrelic.com/projects/newrelic/newrelic-android-agent).
 
 
 ## License
