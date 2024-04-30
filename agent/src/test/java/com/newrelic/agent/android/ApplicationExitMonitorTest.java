@@ -8,11 +8,11 @@ package com.newrelic.agent.android;
 import static android.os.Build.VERSION_CODES.Q;
 import static com.newrelic.agent.android.analytics.AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
+import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
+import android.os.Build;
 
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
@@ -30,7 +30,6 @@ import com.newrelic.agent.android.util.Streams;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -73,6 +72,10 @@ public class ApplicationExitMonitorTest {
         applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE));
         applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE));
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfos);
+        }
+
         ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
 
         AgentConfiguration agentConfig = new AgentConfiguration();
@@ -92,8 +95,6 @@ public class ApplicationExitMonitorTest {
 
     @Test
     public void harvestApplicationExitInfo() throws InterruptedException {
-        Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfos);
-
         List<File> artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
         Assert.assertEquals(0, artifacts.size());
 
@@ -107,8 +108,6 @@ public class ApplicationExitMonitorTest {
 
     @Test
     public void shouldNotHarvestRecordedApplicationExitInfo() throws InterruptedException {
-        Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfos);
-
         List<File> artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
         Assert.assertEquals(0, artifacts.size());
 
@@ -164,6 +163,7 @@ public class ApplicationExitMonitorTest {
     @Config(sdk = {Q})
     @Test
     public void shouldNotCreateEventsForUnsupportSDK() throws InterruptedException {
+        applicationExitInfos.clear();
         applicationExitMonitor.harvestApplicationExitInfo();
 
         ApplicationStateMonitor.getInstance().getExecutor().shutdown();
@@ -176,9 +176,8 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void userShouldNotCreateAppExitEvents() throws IOException {
-        ApplicationExitInfo exitInfo = provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR);
-
+    public void userShouldNotCreateCustomAppExitEvents() throws IOException {
+        final ApplicationExitInfo exitInfo = provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR);
         final HashMap<String, Object> eventAttributes = new HashMap<>();
         final String traceReport = Streams.slurpString(exitInfo.getTraceInputStream());
 
@@ -228,8 +227,61 @@ public class ApplicationExitMonitorTest {
         Assert.assertNotEquals(AnalyticsEventCategory.Custom, analyticsValidator.toValidCategory(appExitEvent.getCategory()));
     }
 
+    @Test
+    public void testApplicationExitImportance() throws InterruptedException, IOException {
+        Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfos);
+
+        applicationExitInfos.clear();
+        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND));
+        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH_NATIVE, ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE));
+        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_LOW_MEMORY, ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26));
+        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_DEPENDENCY_DIED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE));
+        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE, ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING));
+        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28));
+        applicationExitMonitor.harvestApplicationExitInfo();
+        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
+        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
+
+        Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
+        for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
+            Assert.assertEquals(event.getEventType(), AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
+            Assert.assertEquals(event.getCategory(), AnalyticsEventCategory.ApplicationExit);
+            Assert.assertEquals(event.getName(), applicationExitMonitor.packageName);
+
+            AnalyticsAttribute appStateAttr = NewRelicTest.getAttributeByName(event.getAttributeSet(), AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE);
+            Assert.assertNotNull(appStateAttr);
+            Assert.assertTrue(appStateAttr.valueAsString().equals("foreground"));
+        }
+
+        // reset app state, event states
+        ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
+        AnalyticsControllerImpl.getInstance().getEventManager().empty();
+
+        applicationExitInfos.clear();
+        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH, ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE));
+        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND));
+        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED));
+        applicationExitMonitor.harvestApplicationExitInfo();
+        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
+        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
+
+        for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
+            Assert.assertEquals(event.getEventType(), AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
+            Assert.assertEquals(event.getCategory(), AnalyticsEventCategory.ApplicationExit);
+            Assert.assertEquals(event.getName(), applicationExitMonitor.packageName);
+
+            AnalyticsAttribute appStateAttr = NewRelicTest.getAttributeByName(event.getAttributeSet(), AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE);
+            Assert.assertNotNull(appStateAttr);
+            Assert.assertTrue(appStateAttr.valueAsString().equals("background"));
+        }
+    }
+
 
     private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {
+        return provideApplicationExitInfo(reasonCode, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+    }
+
+    private ApplicationExitInfo provideApplicationExitInfo(int reasonCode, int importance) throws IOException {
         ApplicationExitInfo applicationExitInfo = Mockito.mock(ApplicationExitInfo.class);
 
         Mockito.when(applicationExitInfo.getReason()).thenReturn(reasonCode);
@@ -240,6 +292,7 @@ public class ApplicationExitMonitorTest {
         Mockito.when(applicationExitInfo.getPackageUid()).thenReturn(69);
         Mockito.when(applicationExitInfo.getDefiningUid()).thenReturn(42);
         Mockito.when(applicationExitInfo.getTimestamp()).thenReturn(System.currentTimeMillis());
+        Mockito.when(applicationExitInfo.getImportance()).thenReturn(importance);
 
         return applicationExitInfo;
     }
