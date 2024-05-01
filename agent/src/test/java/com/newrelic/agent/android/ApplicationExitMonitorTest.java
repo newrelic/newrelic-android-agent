@@ -103,7 +103,7 @@ public class ApplicationExitMonitorTest {
         ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
-        Assert.assertEquals(2, artifacts.size());   // 2 ANR records
+        Assert.assertEquals(6, artifacts.size());
     }
 
     @Test
@@ -116,9 +116,9 @@ public class ApplicationExitMonitorTest {
         ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
-        Assert.assertEquals(2, artifacts.size());   // 2 ANR records
-        Assert.assertEquals(2, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());    // 2 ANR events
-        Assert.assertEquals(2, AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents().size());
+        Assert.assertEquals(6, artifacts.size());
+        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());
+        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents().size());
 
         // call again with same data
         ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
@@ -127,9 +127,9 @@ public class ApplicationExitMonitorTest {
         ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
-        Assert.assertEquals(2, artifacts.size());   // still 2 ANR records
-        Assert.assertEquals(2, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());    // 2 ANR events
-        Assert.assertEquals(2, AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents().size());
+        Assert.assertEquals(6, artifacts.size());
+        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());
+        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents().size());
     }
 
     @Test
@@ -140,9 +140,9 @@ public class ApplicationExitMonitorTest {
         ApplicationStateMonitor.getInstance().getExecutor().shutdown();
         ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
-        Assert.assertEquals(2, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());    // 2 ANR events
+        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());
         Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
-        Assert.assertEquals(2, pendingEvents.size());
+        Assert.assertEquals(6, pendingEvents.size());
         for (AnalyticsEvent event : pendingEvents) {
             Assert.assertEquals(event.getEventType(), AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
             Assert.assertEquals(event.getCategory(), AnalyticsEventCategory.ApplicationExit);
