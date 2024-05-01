@@ -57,8 +57,14 @@ public class PersistentUUID {
     }
 
     @SuppressLint("MissingPermission")
+    @SuppressWarnings("deprecation")
     private String generateUniqueID(Context context) {
         String hardwareDeviceId = Build.SERIAL;
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            hardwareDeviceId = Build.getSerial();
+        } else {
+            hardwareDeviceId = Build.SERIAL;
+        }
         String androidDeviceId = Build.ID;
         String uuid;
 
@@ -78,6 +84,7 @@ public class PersistentUUID {
                     final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
                     if (tm != null) {
                         //noinspection
+                        //TODO: Deprecated methods but getMeid() require additional permission
                         hardwareDeviceId = tm.getDeviceId();
                     }
                 } catch (Exception e) {
