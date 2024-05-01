@@ -31,9 +31,11 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -107,17 +109,38 @@ public class AgentDataControllerTest {
 
     @Test
     public void buildAgentDataFromHandledException() throws Exception {
+        String errorMessage = "new exception";
         Throwable throwable = new Throwable("root");
-        Exception e = new Exception("new exception", throwable);
+        Exception e = new Exception(errorMessage, throwable);
         //builder under test
         FlatBufferBuilder flat = AgentDataController.buildAgentDataFromHandledException(e);
 
         //flatbuffer API that gives us a fully formed AgentData object
         HexAgentData agentData = HexAgentDataBundle.getRootAsHexAgentDataBundle(flat.dataBuffer()).hexAgentData(0); //we know our test only has one agentData in the bundle
 
-        assertTrue(agentData.handledExceptions(0).message().equals("new exception"));
+        assertTrue(agentData.handledExceptions(0).message().equals(errorMessage));
         assertTrue(agentData.handledExceptions(0).cause().equals("java.lang.Throwable: root"));
+        assertEquals(agentData.handledExceptions(0).message(), errorMessage);
     }
+
+    @Test
+    public void handledExceptionMessageAndCauseLengthShouldNotMoreThan4096() throws Exception {
+
+        String longErrorMessage = "a".repeat(4100);
+        String longCause = "b".repeat(4100);
+        Throwable throwable = new Throwable(longCause);
+        Exception e = new Exception(longErrorMessage, throwable);
+        //builder under test
+        FlatBufferBuilder flat = AgentDataController.buildAgentDataFromHandledException(e);
+
+        //flat-buffer API that gives us a fully formed AgentData object
+        HexAgentData agentData = HexAgentDataBundle.getRootAsHexAgentDataBundle(flat.dataBuffer()).hexAgentData(0); //we know our test only has one agentData in the bundle
+
+        assertTrue(Objects.requireNonNull(agentData.handledExceptions(0).message()).length() <= 4096);
+        assertTrue(Objects.requireNonNull(agentData.handledExceptions(0).cause()).length() <= 4096);
+        assertNotEquals(agentData.handledExceptions(0).message(), longErrorMessage);
+    }
+
 
     @Test
     public void buildAgentDataFromHandledExceptionWithAttributes() throws Exception {
