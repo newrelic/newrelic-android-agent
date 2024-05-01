@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android;
 
+import static android.app.ActivityManager.RunningAppProcessInfo.*;
 import static com.newrelic.agent.android.analytics.AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT;
 
 import android.app.ActivityManager;
@@ -131,6 +132,22 @@ public class ApplicationExitMonitor {
                         // eventAttributes.put(AnalyticsAttribute.APP_EXIT_UUID_ATTRIBUTE, exitInfo.getDefiningUid());
                         // eventAttributes.put(AnalyticsAttribute.APP_EXIT_PSS_ATTRIBUTE, exitInfo.getPss());
                         // eventAttributes.put(AnalyticsAttribute.APP_EXIT_RSS_ATTRIBUTE, exitInfo.getRss());
+
+                        // Add fg/bg flag based on inferred importance:
+                        switch (exitInfo.getImportance()) {
+                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
+                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
+                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
+                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26:
+                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
+                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
+                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28:
+                                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
+                                break;
+                            default:
+                                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
+                                break;
+                        }
 
                         AnalyticsControllerImpl.getInstance().internalRecordEvent(packageName,
                                 AnalyticsEventCategory.ApplicationExit,

@@ -103,6 +103,7 @@ public class AnalyticsAttribute {
     public static final String APP_EXIT_STACKTRACE_ATTRIBUTE = "stacktrace";
     public static final String APP_EXIT_PSS_ATTRIBUTE = "pss";
     public static final String APP_EXIT_RSS_ATTRIBUTE = "rss";
+    public static final String APP_EXIT_APP_STATE_ATTRIBUTE = "appState";
 
     public static final int ATTRIBUTE_NAME_MAX_LENGTH = 255;
 
