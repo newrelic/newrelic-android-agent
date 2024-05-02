@@ -64,26 +64,12 @@ public class ApplicationExitMonitor {
                     return;
                 }
 
+                // we are reporting all reasons
                 final List<android.app.ApplicationExitInfo> applicationExitInfos =
                         am.getHistoricalProcessExitReasons(packageName, 0, 0);
 
-                // Prefilter the available ApplicationExitInfo provided by ART for reports of interest
-                final List<ApplicationExitInfo> filteredAppExitInfoReports = new ArrayList<>();
-
-                for (ApplicationExitInfo exitInfo : applicationExitInfos) {
-                    switch (exitInfo.getReason()) {
-                        case ApplicationExitInfo.REASON_ANR:
-                            // TODO Customer may still be interested on how the app completed
-                            // case ApplicationExitInfo.REASON_INITIALIZATION_FAILURE:
-                            // case ApplicationExitInfo.REASON_CRASH:
-                            // case ApplicationExitInfo.REASON_CRASH_NATIVE:
-                            filteredAppExitInfoReports.add(exitInfo);
-                            break;
-                    }
-                }
-
                 // the set may contain more than one report for this package name
-                for (ApplicationExitInfo exitInfo : filteredAppExitInfoReports) {
+                for (ApplicationExitInfo exitInfo : applicationExitInfos) {
                     File artifact = new File(reportsDir, "app-exit-" + exitInfo.getPid() + ".log");
 
                     // If an artifact for this pid exists, it's been recorded already
