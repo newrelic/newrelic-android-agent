@@ -5,8 +5,10 @@
 
 package com.newrelic.agent.android.stats;
 
+import java.util.concurrent.TimeUnit;
+
 public class TicToc {
-    private static enum State {
+    protected static enum State {
         STOPPED,
         STARTED,
     }
@@ -17,12 +19,14 @@ public class TicToc {
 
     public TicToc tic() {
         state = State.STARTED;
-        startTime = System.currentTimeMillis();
+        long nanoTime = System.nanoTime();
+        startTime = TimeUnit.MILLISECONDS.convert(nanoTime, TimeUnit.NANOSECONDS);
         return this;
     }
 
     public long toc() {
-        endTime = System.currentTimeMillis();
+        long nanoTime = System.nanoTime();
+        endTime = TimeUnit.MILLISECONDS.convert(nanoTime, TimeUnit.NANOSECONDS);
 
         if (state == State.STARTED) {
             state = State.STOPPED;
@@ -33,7 +37,33 @@ public class TicToc {
     }
 
     public long peek() {
-        return (state == State.STARTED) ? System.currentTimeMillis() - startTime : 0;
+        long nanoTime = System.nanoTime();
+        long endTime = TimeUnit.MILLISECONDS.convert(nanoTime, TimeUnit.NANOSECONDS);
+        return (state == State.STARTED) ? endTime - startTime : 0;
+    }
+
+    protected long getStartTime() {
+        return startTime;
+    }
+
+    protected void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    protected long getEndTime() {
+        return endTime;
+    }
+
+    protected void setEndTime(long endTime) {
+        this.endTime = endTime;
+    }
+
+    protected State getState() {
+        return state;
+    }
+
+    protected void setState(State state) {
+        this.state = state;
     }
 
     public long duration() {

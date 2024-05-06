@@ -18,6 +18,7 @@ import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.payload.PayloadStore;
 import com.newrelic.agent.android.stats.StatsEngine;
+import com.newrelic.agent.android.util.Constants;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -121,6 +122,19 @@ public class AgentDataReporter extends PayloadReporter {
 
     public Future reportAgentData(Payload payload) {
         PayloadSender payloadSender = new AgentDataSender(payload, getAgentConfiguration());
+
+        if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
+            DeviceInformation deviceInformation = Agent.getDeviceInformation();
+            String name = MetricNames.SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT
+                    .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
+                    .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
+                    .replace(MetricNames.TAG_SUBDESTINATION, "f");
+            StatsEngine.notice().inc(name);
+            payloadStore.delete(payload);
+            log.error("Unable to upload handled exceptions because payload is larger than 1 MB, handled exceptions are discarded.");
+            return null;
+        }
+
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {

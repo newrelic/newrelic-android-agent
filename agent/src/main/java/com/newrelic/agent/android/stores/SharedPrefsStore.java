@@ -165,11 +165,7 @@ public abstract class SharedPrefsStore {
     protected boolean applyOrCommitEditor(SharedPreferences.Editor editor) {
         boolean result = true;
         try {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.GINGERBREAD) {
-                result = editor.commit();
-            } else {
-                editor.apply(); // call non-blocking commit
-            }
+            editor.apply(); // call non-blocking commit
         } catch (Exception e) {
             log.error("SharedPrefsStore.applyOrCommitEditor(SharedPreferences.Editor): ", e);
 

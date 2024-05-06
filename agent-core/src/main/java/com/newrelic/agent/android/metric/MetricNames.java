@@ -96,6 +96,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_OUTPUT_BYTES = "Output/Bytes";
     public static final String SUPPORTABILITY_DESTINATION_OUTPUT_BYTES = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/" + SUPPORTABILITY_OUTPUT_BYTES;
     public static final String SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/<subdestination>/" + SUPPORTABILITY_OUTPUT_BYTES;
+    public static final String SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/MaxPayloadSizeLimit/<subdestination>";
 
     public static final String METRIC_APP_LAUNCH = "AppLaunch/";
     public static final String APP_LAUNCH_COLD = METRIC_APP_LAUNCH + "Cold";

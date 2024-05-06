@@ -7,6 +7,7 @@ package com.newrelic.agent.android.obfuscation;
 
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
+import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.util.BuildId;
 import com.newrelic.agent.util.Streams;
 
@@ -48,29 +49,44 @@ import java.util.zip.ZipOutputStream;
 public class Proguard {
     public static final String NR_PROPERTIES = "newrelic.properties";
     public static final String MAPPING_FILENAME = "mapping.txt";
+    public static final String NR_MAP_PREFIX = "# NR_BUILD_ID -> ";
+
     public static final String MAPPING_FILE_KEY = "com.newrelic.mapping.txt";
     public static final String MAPPING_PROVIDER_KEY = "com.newrelic.mapping.provider";
     public static final String VARIANT_KEY = "com.newrelic.mapping.variant";
     public static final String LOGLEVEL_KEY = "com.newrelic.loglevel";
     public static final String PROJECT_ROOT_KEY = "com.newrelic.projectroot";
-    public static final String NR_MAP_PREFIX = "# NR_BUILD_ID -> ";
 
-    private static final String PROP_NR_APP_TOKEN = "com.newrelic.application_token";
-    private static final String PROP_UPLOADING_ENABLED = "com.newrelic.enable_proguard_upload";
-    private static final String PROP_MAPPING_API_HOST = "com.newrelic.mapping_upload_host";
-    private static final String PROP_COMPRESSED_UPLOADS = "com.newrelic.compressed_uploads";
-    private static final String PROP_SSL_CONNECTION = "com.newrelic.ssl_connection";
-    private static final String DEFAULT_MAPPING_API_HOST = "mobile-symbol-upload.newrelic.com";
-    private static final String DEFAULT_REGION_MAPPING_API_HOST = "mobile-symbol-upload.%s.nr-data.net";
-    private static final String MAPPING_API_PATH = "/symbol";
+    static final String PROP_NR_APP_TOKEN = "com.newrelic.application_token";
+    static final String PROP_UPLOADING_ENABLED = "com.newrelic.enable_proguard_upload";
+    static final String PROP_MAPPING_API_HOST = "com.newrelic.mapping_upload_host";
+    static final String PROP_MAPPING_API_PATH = "com.newrelic.mapping_upload_path";
+    static final String PROP_COMPRESSED_UPLOADS = "com.newrelic.compressed_uploads";
+    static final String PROP_SSL_CONNECTION = "com.newrelic.ssl_connection";
+    static final String PROP_UPLOAD_POST_KEY = "com.newrelic.mapping_upload_post_key";
+
+    static final String DEFAULT_MAPPING_API_HOST = "mobile-symbol-upload.newrelic.com";
+    static final String DEFAULT_REGION_MAPPING_API_HOST = "mobile-symbol-upload.%s.nr-data.net";
+    static final String DEFAULT_MAPPING_API_PATH = "/symbol";
     private static final String NR_COMPILER_PREFIX = "# compiler: ";
     private static final String NR_COMPILER_VERSION_PREFIX = "# compiler_version: ";
-    private static final String NEWLN = System.getProperty("line.separator", "\r\n");
+    private static final String NEWLN = "\r\n";
+
+    static final int USEFUL_BUFFER_SIZE = 0x10000;  // 64k
 
     static final class Network {
         public static final String APPLICATION_LICENSE_HEADER = "X-App-License-Key";
         public static final String REQUEST_DEBUG_HEADER = "X-APP-REQUEST-DEBUG";
         public static final String CONTENT_LENGTH_HEADER = "Content-Length";
+        public static final String AGENT_VERSION_HEADER = "X-NewRelic-Agent-Version";
+        public static final String AGENT_OSNAME_HEADER = "X-NewRelic-OS-Name";
+        public static final String AGENT_PLATFORM_HEADER = "X-NewRelic-Platform";
+
+        // unsupported at the moment
+        public static final String APP_ACCOUNT_ID_HEADER = "X-NewRelic-Account-Id";
+        public static final String APP_ID_HEADER = "X-NewRelic-App-Id";
+        public static final String APP_VERSION_HEADER = "X-NewRelic-App-Version";
+        public static final String APP_VERSION_ID_HEADER = "X-NewRelic-App-Version-Id";
 
         static final class ContentType {
             public static final String HEADER = "Content-Type";
@@ -102,12 +118,13 @@ public class Proguard {
 
     private final Logger log;
 
-    private String projectRoot;
-    private String licenseKey = null;
-    private boolean uploadingEnabled = true;
-    private String mappingApiHost = DEFAULT_MAPPING_API_HOST;
-    private boolean compressedUploads = true;
-    private boolean sslConnection = true;
+    String projectRoot;
+    String licenseKey = null;
+    boolean uploadingEnabled = true;
+    String mappingApiHost = DEFAULT_MAPPING_API_HOST;
+    String mappingApiPath = DEFAULT_MAPPING_API_PATH;
+    boolean compressedUploads = true;
+    boolean sslConnection = true;
 
     private static Map<String, String> agentOptions = Collections.emptyMap();
 
@@ -212,7 +229,7 @@ public class Proguard {
         return projectRoot;
     }
 
-    private boolean fetchConfiguration() {
+    boolean fetchConfiguration() {
         try (final Reader propsReader = new BufferedReader(new FileReader(getProjectRoot() + File.separator + NR_PROPERTIES))) {
             newRelicProps = new Properties();
 
@@ -237,6 +254,11 @@ public class Proguard {
                 }
             }
 
+            mappingApiPath = newRelicProps.getProperty(PROP_MAPPING_API_PATH, DEFAULT_MAPPING_API_PATH);
+            if (mappingApiPath != null) {
+                mappingApiPath = "/" + mappingApiPath.replace("/", "");
+            }
+
         } catch (FileNotFoundException e) {
             log.error("Unable to find 'newrelic.properties' in the project root (" + getProjectRoot() + "): " + e.getLocalizedMessage());
             logRecourse();
@@ -252,42 +274,15 @@ public class Proguard {
         return true;
     }
 
-    private void sendMapping(File mapFile) throws IOException {
-        final int USEFUL_BUFFER_SIZE = 0x10000;     // 64k
-
+    protected void sendMapping(File mapFile) throws IOException {
         if (mapFile.length() <= 0) {
             log.error("Tried to send a zero-length map file!");
             return;
         }
 
-        HttpURLConnection connection = null;
+        HttpURLConnection connection = getHttpURLConnection();
 
         try {
-            String host = DEFAULT_MAPPING_API_HOST;
-
-            if (mappingApiHost != null) {
-                host = mappingApiHost;
-            }
-
-            if (!host.startsWith("http")) {
-                host = (sslConnection ? "https://" : "http://") + host;
-            }
-
-            final URL url = new URL(host + MAPPING_API_PATH);
-
-            connection = (HttpURLConnection) url.openConnection();
-
-            connection.setUseCaches(false);
-            connection.setDoOutput(true);
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty(Network.APPLICATION_LICENSE_HEADER, licenseKey);
-
-            // use the blocking API call if debug enabled
-            if (agentOptions.containsKey(LOGLEVEL_KEY) && agentOptions.get(LOGLEVEL_KEY).equalsIgnoreCase("debug")) {
-                log.debug("Map upload request is synchronous");
-                connection.setRequestProperty(Network.REQUEST_DEBUG_HEADER, "NRMA");
-            }
-
             if (compressedUploads) {
                 // used if compressedUploads is true
                 final File zipFile = new File(mapFile.getAbsolutePath() + ".zip");
@@ -335,8 +330,12 @@ public class Proguard {
                     formWriter.finish();
 
                 } else {
+                    String postKey = newRelicProps.getProperty(PROP_UPLOAD_POST_KEY, "proguard")
+                            .replace("/", "")
+                            .replace("=", "");
+
                     // url-encoded byte string
-                    dos.writeBytes("proguard=");
+                    dos.writeBytes(postKey + "=");
 
                     if (!Strings.isNullOrEmpty(providerHeader)) {
                         dos.writeBytes(providerHeader);
@@ -418,7 +417,43 @@ public class Proguard {
         }
     }
 
-    private void logRecourse() {
+    HttpURLConnection getHttpURLConnection() throws IOException {
+        String host = DEFAULT_MAPPING_API_HOST;
+
+        if (mappingApiHost != null) {
+            host = mappingApiHost;
+        }
+
+        if (!host.startsWith("http")) {
+            host = (sslConnection ? "https://" : "http://") + host;
+        }
+
+        final URL url = new URL(host + mappingApiPath);
+
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        connection.setUseCaches(false);
+        connection.setDoOutput(true);
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty(Network.APPLICATION_LICENSE_HEADER, licenseKey);
+
+
+        // set additional SUAPI headers
+        connection.setRequestProperty(Network.AGENT_VERSION_HEADER, InstrumentationAgent.getVersion());
+        connection.setRequestProperty(Network.AGENT_OSNAME_HEADER, "Android");
+        connection.setRequestProperty(Network.AGENT_PLATFORM_HEADER, "Native");
+
+        // use the blocking API call if debug enabled
+        if (agentOptions.containsKey(LOGLEVEL_KEY) && agentOptions.get(LOGLEVEL_KEY).equalsIgnoreCase("debug")) {
+            log.debug("Map upload request is synchronous");
+            connection.setRequestProperty(Network.REQUEST_DEBUG_HEADER, "NRMA");
+        }
+
+
+        return connection;
+    }
+
+    protected void logRecourse() {
         log.error("To de-obfuscate crashes, upload the build's ProGuard/DexGuard 'mapping.txt' manually,");
         log.error("or run the 'newRelicMapUpload<Variant>' Gradle task.");
         log.error("For more help, see 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/android-agent-crash-reporting'");
@@ -464,18 +499,18 @@ public class Proguard {
     }
 
     static class MultipartFormWriter {
-        final static String boundary = "===" + System.currentTimeMillis() + "===";
-        final static String newLn = System.getProperty("line.separator", "\r\n");
+        final static String boundary = "----------------------" + System.currentTimeMillis();
+        final static String newLn = "\r\n";
 
         final OutputStream os;
         final int bufferSz;
 
-        private void writeString(final String string) throws IOException {
+        void writeString(final String string) throws IOException {
             os.write(string.getBytes());
         }
 
-        public MultipartFormWriter(DataOutputStream dos, int bufferSz) {
-            this.os = dos;
+        public MultipartFormWriter(OutputStream os, int bufferSz) {
+            this.os = os;
             this.bufferSz = bufferSz;
         }
 
