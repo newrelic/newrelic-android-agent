@@ -155,7 +155,6 @@ public class ApplicationExitMonitorTest {
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_PID_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE));
-            Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_TRACE_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE));
         }
     }
@@ -187,7 +186,6 @@ public class ApplicationExitMonitorTest {
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getDescription()));
-        eventAttributes.put(AnalyticsAttribute.APP_EXIT_TRACE_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(traceReport));
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getProcessName()));
 
         NewRelic.recordCustomEvent(EVENT_TYPE_MOBILE_APPLICATION_EXIT, applicationExitMonitor.packageName, eventAttributes);
@@ -207,13 +205,11 @@ public class ApplicationExitMonitorTest {
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, null);
-        eventAttributes.put(AnalyticsAttribute.APP_EXIT_TRACE_ATTRIBUTE, traceReport);
         eventAttributes.put(null, exitInfo.getProcessName());
 
         Set<AnalyticsAttribute> analyticsAttributes = analyticsValidator.toValidatedAnalyticsAttributes(eventAttributes);
         Assert.assertTrue(eventAttributes.size() > analyticsAttributes.size());
-        Mockito.verify(logger, times(4)).warn(anyString());     // null attr names or values
-        Mockito.verify(logger, times(1)).error(anyString());    // trace is too long
+        Mockito.verify(logger, times(3)).warn(anyString());     // null attr names or values
 
         Assert.assertTrue(analyticsValidator.isValidEventName(applicationExitMonitor.packageName));
         Assert.assertTrue(analyticsValidator.isValidEventType(AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT));

@@ -111,7 +111,6 @@ public class ApplicationExitMonitor {
                         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
                         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
                         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_TRACE_ATTRIBUTE, toValidAttributeValue(traceReport));
                         eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
 
                         // Maybe?

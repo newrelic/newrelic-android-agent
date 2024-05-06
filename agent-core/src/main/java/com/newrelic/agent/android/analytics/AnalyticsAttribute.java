@@ -96,7 +96,6 @@ public class AnalyticsAttribute {
     public static final String APP_EXIT_REASON_ATTRIBUTE = "reason";
     public static final String APP_EXIT_PID_ATTRIBUTE = "pid";
     public static final String APP_EXIT_IMPORTANCE_ATTRIBUTE = "importance";
-    public static final String APP_EXIT_TRACE_ATTRIBUTE = "trace";
     public static final String APP_EXIT_PROCESS_NAME_ATTRIBUTE = "process";
     public static final String APP_EXIT_UNSUPPORTED_ATTRIBUTE = "unsupportedOS";
     public static final String APP_EXIT_UUID_ATTRIBUTE = "uuid";
