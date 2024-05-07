@@ -135,7 +135,7 @@ public class AndroidAgentImpl implements
                         if (context.getApplicationContext() instanceof Application) {
                             Application application = (Application) context.getApplicationContext();
                             application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
-                            if (agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin || agentConfiguration.getApplicationFramework() == ApplicationFramework.MAUI) {
+                            if (agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin) {
                                 ApplicationStateMonitor.getInstance().activityStarted();
                             }
                         }
