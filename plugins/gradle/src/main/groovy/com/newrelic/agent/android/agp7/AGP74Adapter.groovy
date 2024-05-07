@@ -39,7 +39,7 @@ class AGP74Adapter extends AGP70Adapter {
         }
         def buildTypeAdapter = new BuildTypeAdapter(variant.name, isMinifyEnabled, variant.flavorName, variant.buildType)
 
-        return buildHelper.project.objects.property(Object).value(buildTypeAdapter)
+        return objectFactory.property(BuildTypeAdapter).value(buildTypeAdapter)
     }
 
     @Override

@@ -6,15 +6,14 @@
 package com.newrelic.agent.android
 
 
+import com.newrelic.agent.compile.ClassTransformer
 import org.junit.Assert
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito
+
+import java.util.jar.JarFile
 
 class ClassTransformerWrapperTaskTest extends PluginTest {
-    NewRelicExtension ext
-    BuildHelper buildHelper
-    VariantAdapter variantAdapter
     def provider
 
     ClassTransformerWrapperTaskTest() {
@@ -23,80 +22,53 @@ class ClassTransformerWrapperTaskTest extends PluginTest {
 
     @BeforeEach
     void setup() {
-        // Create the instances needed to test this class
-        ext = NewRelicExtension.register(project)
-        buildHelper = BuildHelper.register(project)
-        variantAdapter = buildHelper.variantAdapter
-        variantAdapter.configure(ext)
-
-        provider = Mockito.spy(buildHelper.variantAdapter.getTransformProvider("release"))
-
-        provider.configure {
-
-        }
-    }
-
-    @Test
-    void getVariantName() {
-        provider.get().tap {
-            Assert.assertEquals("release", getVariantName())
-        }
+        provider = plugin.buildHelper.variantAdapter.getTransformProvider("release").get()
     }
 
     @Test
     void shouldInstrumentArtifact() {
-        def task = provider.get().tap {
-            // Assert.assertFalse(shouldInstrumentArtifact())
-        }
+        File input = new File(getClass().getResource("/bcprov-jdk18on-176.jar").toURI());
+        Assert.assertTrue(provider.shouldInstrumentArtifact(new ClassTransformer(), new JarFile(input)))
     }
 
     @Test
     void shouldInstrumentClassFile() {
-        def task = provider.get().tap {
-            // Assert.assertTrue(shouldInstrumentClassFile(""))
-        }
+        Assert.assertTrue(provider.shouldInstrumentClassFile("test.class"))
+        Assert.assertFalse(provider.shouldInstrumentClassFile("test.clazz"))
     }
 
     @Test
     void newrelicTransformClassesTest() {
-        provider.configure {
-            // @TaskAction
-            // transformClasses()
-        }
+        Assert.assertTrue(provider.inputs.getHasInputs())
+        Assert.assertTrue(provider.outputs.getHasOutput())
     }
 
     @Test
     void getLogger() {
-        // Assert.assertEquals(provider.get().logger, NewRelicGradlePlugin.LOGGER)
+        Assert.assertEquals(provider.getLogger(), NewRelicGradlePlugin.LOGGER)
     }
-
 
     @Test
     void getClassDirectories() {
-        provider.get().tap {
-
+        if (!plugin.buildHelper.isUsingLegacyTransform()) {
+            Assert.assertTrue(provider.inputs.getHasInputs())
         }
     }
 
     @Test
     void getClassJars() {
-        provider.get().tap {
-
-        }
+        Assert.assertTrue(provider.inputs.getHasInputs())
     }
 
     @Test
     void getOutputDirectory() {
-        provider.get().tap {
-
-        }
+        Assert.assertNull(provider.getOutputDirectory().getAsFile().getOrElse(null))
     }
 
     @Test
-    void getOutputJar() {
-        provider.get().tap {
-
-        }
+    void getOutput() {
+        Assert.assertTrue(provider.getOutputJar().get().asFile.absolutePath.endsWith("classes.jar"))
+        Assert.assertEquals(provider.getOutputJar().get().asFile.absolutePath, provider.outputs.files.asPath)
     }
 
 }

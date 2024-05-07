@@ -31,7 +31,7 @@ class PluginRegressionSpec extends PluginSpec {
     def "Regress agent[#agent] against AGP[#agp] Gradle[#gradle]"() {
         given: "Run plugin using the AGP/Gradle combination"
         def agentVer = agent as String
-        def includeLibrary = GradleVersion.version(agentVer.replace('+', '0')) >= GradleVersion.version("7.0")
+        def agent7orHigher = GradleVersion.version(agentVer.replace('+', '0')) >= GradleVersion.version("7.0")
         def runner = provideRunner()
                 .withGradleVersion(gradle)
                 .withArguments(
@@ -40,7 +40,8 @@ class PluginRegressionSpec extends PluginSpec {
                         "-Pcompiler=r8",
                         "-PagentRepo=${localEnv["M2_REPO"]}",
                         "-PwithProductFlavors=false",
-                        "-PincludeLibrary=${includeLibrary}",
+                        "-PincludeLibrary=${agent7orHigher}",
+                        "-PincludeFeature=${agent7orHigher}",
                         "clean",
                         testTask)
 
