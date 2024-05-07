@@ -54,7 +54,7 @@ public class AgentDataController {
         handledException.put(HexAttribute.HEX_ATTR_APP_BUILD_ID, applicationInfo.getApplicationBuild());
         handledException.put(HexAttribute.HEX_ATTR_SESSION_ID, agentConfiguration.getSessionID());
         handledException.put(HexAttribute.HEX_ATTR_TIMESTAMP_MS, System.currentTimeMillis());
-        handledException.put(HexAttribute.HEX_ATTR_MESSAGE, e.getMessage().length() > 4096 ? e.getMessage().substring(0, 4096) : e.getMessage());
+        handledException.put(HexAttribute.HEX_ATTR_MESSAGE, (e.getMessage() != null && e.getMessage().length() > 4096 ) ? e.getMessage().substring(0, 4096) : e.getMessage());
         String cause = getRootCause(e).toString();
         handledException.put(HexAttribute.HEX_ATTR_CAUSE, cause.length() > 4096 ? cause.substring(0, 4096) : cause);
         handledException.put(HexAttribute.HEX_ATTR_NAME, e.getClass().toString());
