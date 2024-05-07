@@ -44,8 +44,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @RunWith(RobolectricTestRunner.class)
@@ -197,7 +195,6 @@ public class ApplicationExitMonitorTest {
     public void validateApplicationExitEvent() throws IOException {
         final ApplicationExitInfo exitInfo = provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR);
         final HashMap<String, Object> eventAttributes = new HashMap<>();
-        final String traceReport = Streams.slurpString(exitInfo.getTraceInputStream());
         final AnalyticsValidator analyticsValidator = new AnalyticsValidator();
 
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
@@ -293,103 +290,4 @@ public class ApplicationExitMonitorTest {
         return applicationExitInfo;
     }
 
-    // TODO @Test
-    public void parseFullApplicationExitInfoTrace() throws IOException {
-        final Pattern pattern = Pattern.compile(ApplicationExitMonitor.REGEX.FULL_REPORT);
-        String report = Streams.slurpString(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR).getTraceInputStream());
-        final Matcher matcher = parse(ApplicationExitMonitor.REGEX.FULL_REPORT, report);
-
-        // TODO
-    }
-
-    // TODO @Test
-    public void parseThreadCount() {
-        Matcher matcher = parse(ApplicationExitMonitor.REGEX.THREAD_CNT, "DALVIK THREADS (33):");
-
-        Assert.assertEquals(1, matcher.groupCount());
-        Assert.assertNotNull(matcher.group("threadCnt"));
-        Assert.assertEquals(33, Integer.valueOf(matcher.group("threadCnt")).intValue());
-        logger.info("threadCnt: " + matcher.group("threadCnt"));
-    }
-
-    // TODO @Test
-    public void parseThreadInfo() {
-        final Matcher matcher = parse(ApplicationExitMonitor.REGEX.THREAD_STATE, "\"Profile Saver\" daemon prio=5 tid=18 Native");
-
-        Assert.assertEquals(4, matcher.groupCount());
-        Assert.assertNotNull(matcher.group("name"));
-        Assert.assertNotNull(matcher.group("priority"));
-        Assert.assertNotNull(matcher.group("tid"));
-        Assert.assertNotNull(matcher.group("state"));
-
-        logger.info("name: " + matcher.group("name"));
-        logger.info("priority: " + matcher.group("priority"));
-        logger.info("tid: " + matcher.group("tid"));
-        logger.info("state: " + matcher.group("state"));
-    }
-
-    // TODO @Test
-    public void parseNativeStackFrame() {
-        final Matcher matcher = parse(ApplicationExitMonitor.REGEX.NATIVE_STACKFRAME,
-                "   native: #00 pc 000000000053a6e0  /apex/com.android.art/lib64/libart.so " +
-                        "(art::DumpNativeStack(std::__1::basic_ostream<char, std::__1::char_traits<char> >&, int, BacktraceMap*, char const*, art::ArtMethod*, void*, bool)+128) " +
-                        "(BuildId: e24a1818231cfb1649cb83a5d2869598)");
-
-        Assert.assertEquals(6, matcher.groupCount());
-        Assert.assertNotNull(matcher.group("frameType"));
-        Assert.assertNotNull(matcher.group("frameId"));
-        Assert.assertNotNull(matcher.group("pc"));
-        Assert.assertNotNull(matcher.group("module"));
-        Assert.assertNotNull(matcher.group("method"));
-        Assert.assertNotNull(matcher.group("buildId"));
-
-        logger.info("frameType: " + matcher.group("frameType"));
-        logger.info("frameId: " + matcher.group("frameId"));
-        logger.info("pc: " + matcher.group("pc"));
-        logger.info("module: " + matcher.group("module"));
-        logger.info("method: " + matcher.group("method"));
-        logger.info("buildId: " + matcher.group("buildId"));
-    }
-
-    // TODO @Test
-    public void parseManagedStackFrame() {
-        final Matcher matcher = parse(ApplicationExitMonitor.REGEX.MANAGED_STACKFRAME,
-                "\"main\" prio=5 tid=1 Sleeping" +
-                        "| group=\"main\" sCount=1 ucsCount=0 flags=1 obj=0x720253c0 self=0xb4000078250e6380" +
-                        "| sysTid=4473 nice=-10 cgrp=top-app sched=0/0 handle=0x7963c134f8" +
-                        "| state=S schedstat=( 45981599165 5534318422 2710835 ) utm=1467 stm=3130 core=0 HZ=100" +
-                        "| stack=0x7fc3403000-0x7fc3405000 stackSize=8188KB" +
-                        "| held mutexes=" +
-                        "  at jdk.internal.misc.Unsafe.park(Native method) " +
-                        "  - waiting on an unknown object " +
-                        "  at java.util.concurrent.locks.LockSupport.park(LockSupport.java:194) " +
-                        "  at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2081)" +
-                        "  at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1183)" +
-                        "  at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:905)" +
-                        "  at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1063)" +
-                        "  at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1123)" +
-                        "  at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:637)" +
-                        "  at java.lang.Thread.run(Thread.java:1012)");
-
-        Assert.assertTrue(matcher.find());
-        Assert.assertNotEquals(0, matcher.start());
-        Assert.assertEquals("2019", matcher.group());
-        Assert.assertEquals(12, matcher.end());
-
-        Assert.assertEquals(2, matcher.groupCount());
-        Assert.assertNotNull(matcher.group("threadInfo"));
-        Assert.assertNotNull(matcher.group("stackTrace"));
-
-        logger.info("frameType: " + matcher.group("threadInfo"));
-        logger.info("stackTrace: " + matcher.group("stackTrace"));
-    }
-
-    Matcher parse(final String regex, final String target) {
-        final Pattern pattern = Pattern.compile(regex, Pattern.DOTALL | Pattern.MULTILINE);
-        final Matcher m = pattern.matcher(target);
-
-        Assert.assertTrue(m.lookingAt());
-
-        return m;
-    }
 }
