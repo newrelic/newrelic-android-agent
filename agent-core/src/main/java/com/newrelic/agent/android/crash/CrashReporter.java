@@ -22,7 +22,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class CrashReporter extends PayloadReporter implements HarvestLifecycleAware {
+public class CrashReporter extends PayloadReporter {
     protected static AtomicReference<CrashReporter> instance = new AtomicReference<>(null);
 
     // Default to false (crash is reported on next app launch)
@@ -213,45 +213,6 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
     }
 
     @Override
-    public void onHarvestStart() {
-    }
-
-    @Override
-    public void onHarvestStop() {
-
-    }
-
-    @Override
-    public void onHarvestBefore() {
-
-    }
-
-    @Override
-    public void onHarvest() {
-
-    }
-
-    @Override
-    public void onHarvestFinalize() {
-
-    }
-
-    @Override
-    public void onHarvestError() {
-
-    }
-
-    @Override
-    public void onHarvestSendFailed() {
-
-    }
-
-    @Override
-    public void onHarvestComplete() {
-
-    }
-
-    @Override
     public void onHarvestConnected() {
         PayloadController.submitCallable(new Callable() {
             @Override
@@ -262,13 +223,4 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
         });
     }
 
-    @Override
-    public void onHarvestDisconnected() {
-
-    }
-
-    @Override
-    public void onHarvestDisabled() {
-
-    }
 }

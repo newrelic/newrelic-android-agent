@@ -6,15 +6,17 @@
 package com.newrelic.agent.android.payload;
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class PayloadReporter {
+public abstract class PayloadReporter implements HarvestLifecycleAware {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
 
     protected final AtomicBoolean isEnabled;
+
     protected final AtomicBoolean isStarted;
     protected final AgentConfiguration agentConfiguration;
 
@@ -31,6 +33,10 @@ public abstract class PayloadReporter {
         return isEnabled.get();
     }
 
+    public boolean isStarted() {
+        return isStarted.get();
+    }
+
     public void setEnabled(boolean enabled) {
         isEnabled.set(enabled);
     }
@@ -39,4 +45,8 @@ public abstract class PayloadReporter {
         return agentConfiguration;
     }
 
+    @Override
+    public void onHarvestConfigurationChanged() {
+        // TODO
+    }
 }

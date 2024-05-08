@@ -6,14 +6,20 @@
 package com.newrelic.agent.android.harvest;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.UUID;
+
 @RunWith(JUnit4.class)
 public class HarvesterConfigurationTests {
+    String entityGuid = UUID.randomUUID().toString();
 
     @Test
     public void testHarvesterConfigurationSerialize() {
@@ -50,6 +56,8 @@ public class HarvesterConfigurationTests {
         config.setAccount_id("1");
         config.setApplication_id("100");
         config.setTrusted_account_key("33");
+        config.setEntity_guid(entityGuid);
+        config.setLog_reporting(new LogReportingConfiguration(true, LogLevel.WARN));
 
         Gson gson = new Gson();
         String configJson = gson.toJson(config);
@@ -59,7 +67,9 @@ public class HarvesterConfigurationTests {
                 "\"report_max_transaction_age\":600,\"report_max_transaction_count\":1000,\"response_body_limit\":2048," +
                 "\"server_timestamp\":1365724800,\"stack_trace_limit\":100,\"activity_trace_max_size\":65534," +
                 "\"activity_trace_max_report_attempts\":1,\"activity_trace_min_utilization\":0.3,\"at_capture\":{\"maxTotalTraceCount\":1}," +
-                "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\",\"application_id\":\"100\",\"trusted_account_key\":\"33\"" +
+                "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\",\"application_id\":\"100\",\"trusted_account_key\":\"33\"," +
+                "\"entity_guid\":\"" + entityGuid + "\"," +
+                "\"log_reporting\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":true,\"level\":\"WARN\"}" +
                 "}";
 
         Assert.assertEquals(expectedJson, configJson);
@@ -97,17 +107,20 @@ public class HarvesterConfigurationTests {
         expectedConfig.setAccount_id(account_id);
         expectedConfig.setApplication_id(application_id);
         expectedConfig.setTrusted_account_key(trusted_account_key);
+        expectedConfig.setEntity_guid(entityGuid);
 
-
-        String serializedJson = "{\"collect_network_errors\":true,\"cross_process_id\":\"VgMPV1ZTGwIGUFdWAQk\\u003d\"," +
+        String expectedJson = "{\"collect_network_errors\":true,\"cross_process_id\":\"VgMPV1ZTGwIGUFdWAQk\\u003d\"," +
                 "\"data_report_period\":60,\"data_token\":[1646468,1997527],\"error_limit\":50," +
                 "\"report_max_transaction_age\":600,\"report_max_transaction_count\":1000,\"response_body_limit\":2048," +
                 "\"server_timestamp\":1365724800,\"stack_trace_limit\":100," +
                 "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\"," +
-                "\"application_id\":\"100\",\"trusted_account_key\":\"33\"}";
+                "\"application_id\":\"100\",\"trusted_account_key\":\"33\"," +
+                "\"entity_guid\":\""+entityGuid+"\"," +
+                "\"log_reporting\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":false,\"level\":\"INFO\"}" +
+                "}";
 
         Gson gson = new Gson();
-        HarvestConfiguration config = gson.fromJson(serializedJson, HarvestConfiguration.class);
+        HarvestConfiguration config = gson.fromJson(expectedJson, HarvestConfiguration.class);
 
         Assert.assertEquals(expectedConfig, config);
     }
@@ -144,17 +157,36 @@ public class HarvesterConfigurationTests {
         expectedConfig.setAccount_id(account_id);
         expectedConfig.setApplication_id(application_id);
         expectedConfig.setTrusted_account_key(trusted_account_key);
+        expectedConfig.setEntity_guid(entityGuid);
 
         String serializedJson = "{\"collect_network_errors\":true,\"cross_process_id\":\"VgMPV1ZTGwIGUFdWAQk\\u003d\"," +
                 "\"data_report_period\":60,\"data_token\":[1646468,1997527],\"error_limit\":50," +
                 "\"report_max_transaction_age\":600,\"report_max_transaction_count\":1000,\"response_body_limit\":2048," +
                 "\"server_timestamp\":1365724800,\"stack_trace_limit\":100," +
                 "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\"," +
-                "\"application_id\":\"100\",\"trusted_account_key\":\"33\"}";
+                "\"application_id\":\"100\",\"trusted_account_key\":\"33\"," +
+                "\"entity_guid\":\""+entityGuid+"\"" +
+                "}";
 
         Gson gson = new Gson();
         HarvestConfiguration config = gson.fromJson(serializedJson, HarvestConfiguration.class);
 
         Assert.assertEquals(expectedConfig, config);
     }
+
+    @Test
+    public void testHarvesterConfigurationLogReporting() {
+        HarvestConfiguration config = new HarvestConfiguration();
+        LogReportingConfiguration loggingConfig = new LogReportingConfiguration(true, LogLevel.VERBOSE);
+        config.setLog_reporting(loggingConfig);
+
+        Gson gson = new GsonBuilder().create();
+
+        String configJson = gson.toJson(config.getLog_reporting());
+        Assert.assertTrue(configJson.matches("^\\{.*\\}$"));
+
+        String expectedJson = "{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":true,\"level\":\"VERBOSE\"}";
+        Assert.assertTrue(expectedJson.equals(configJson));
+    }
+
 }

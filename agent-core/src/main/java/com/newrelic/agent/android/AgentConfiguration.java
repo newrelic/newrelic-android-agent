@@ -8,8 +8,10 @@ package com.newrelic.agent.android;
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore;
 import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
@@ -18,6 +20,7 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,11 +45,12 @@ public class AgentConfiguration {
     static final String DEFAULT_DEVICE_UUID = "0";
     static final int DEVICE_UUID_MAX_LEN = 40;
 
+    protected static AtomicReference<AgentConfiguration> instance = new AtomicReference<>(new AgentConfiguration());
+
     private String collectorHost = DEFAULT_COLLECTOR_HOST;
     private String crashCollectorHost = DEFAULT_CRASH_COLLECTOR_HOST;
     private String applicationToken;
     private boolean useSsl = true;
-    private boolean useLocationService = false;
     private boolean reportCrashes = false;
     private boolean reportHandledExceptions = true;
     private boolean enableAnalyticsEvents = true;
@@ -55,19 +59,19 @@ public class AgentConfiguration {
     private String customBuildId = null;
     private String region = null;
     private String launchActivityClassName = null;
-
     private CrashStore crashStore;
     private AnalyticsAttributeStore analyticsAttributeStore;
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
     private AnalyticsEventStore eventStore;
-
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
+    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration();
 
     public String getApplicationToken() {
         return applicationToken;
     }
+
 
     public void setApplicationToken(String applicationToken) {
         this.applicationToken = applicationToken;
@@ -345,5 +349,30 @@ public class AgentConfiguration {
 
     public void setLaunchActivityClassName(String launchActivityClassName) {
         this.launchActivityClassName = launchActivityClassName;
+    }
+
+    public LogReportingConfiguration getLogReportingConfiguration() {
+        return logReportingConfiguration;
+    }
+
+    public void setLogReportingConfiguration(LogReportingConfiguration logReportingConfiguration) {
+        this.logReportingConfiguration = logReportingConfiguration;
+    }
+
+    /**
+     * Update agent config with any changes returned in the harvest response.
+     * Currently, it is only log reporting config
+     *
+     * @param harvestConfiguration
+     */
+    public void reconfigure(HarvestConfiguration harvestConfiguration) {
+        // update the global agent config w/changes
+        this.setLogReportingConfiguration(harvestConfiguration.getLog_reporting());
+    }
+
+    // return the default instance
+    public static AgentConfiguration getInstance() {
+        instance.compareAndSet(null, new AgentConfiguration());
+        return instance.get();
     }
 }

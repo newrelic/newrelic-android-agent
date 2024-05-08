@@ -35,12 +35,12 @@ public class MetricNames {
 
     public static final String SUPPORTABILITY_AGENT = "Supportability/AgentHealth/";
     public static final String SUPPORTABILITY_TRANS_DROPPED = SUPPORTABILITY_AGENT + "TransactionsDropped";
-    public static final String SUPPORTABILITY_ERRORS_DROPPED = SUPPORTABILITY_AGENT + "ErrorsDropped";
     public static final String SUPPORTABILITY_TRACES_IGNORED = SUPPORTABILITY_AGENT + "IgnoredTraces";
     public static final String SUPPORTABILITY_TRACES_DROPPED = SUPPORTABILITY_AGENT + "BigActivityTracesDropped";
     public static final String SUPPORTABILITY_TRACES_HEALTHY = SUPPORTABILITY_AGENT + "HealthyActivityTraces";
     public static final String SUPPORTABILITY_TRACES_UNHEALTHY = SUPPORTABILITY_AGENT + "UnhealthyActivityTraces";
     public static final String SUPPORTABILITY_HARVEST_ON_MAIN_THREAD = SUPPORTABILITY_AGENT + "HarvestOnMainThread";
+    public static final String SUPPORTABILITY_HARVEST_CONFIGURATION_CHANGED = SUPPORTABILITY_AGENT + "Configuration/Updated";
     public static final String SUPPORTABILITY_PAYLOAD_REMOVED_STALE = SUPPORTABILITY_AGENT + "Payload/Removed/Stale";
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
@@ -74,19 +74,23 @@ public class MetricNames {
     public static final String SUPPORTABILITY_NDK_REPORTS_EXCEPTION = SUPPORTABILITY_NDK + "Reports/NativeException";
     public static final String SUPPORTABILITY_NDK_REPORTS_FLUSH = SUPPORTABILITY_NDK + "Reports/Flush";
 
+    public static final String SUPPORTABILITY_LOG_REPORTING = SUPPORTABILITY_AGENT + "LogReporting/";
+    public static final String SUPPORTABILITY_LOG_REPORTING_INIT = SUPPORTABILITY_LOG_REPORTING + "Init";
+    public static final String SUPPORTABILITY_LOG_UPLOAD_TIME = SUPPORTABILITY_LOG_REPORTING + "UploadTime";
+    public static final String SUPPORTABILITY_LOG_UPLOAD_TIMEOUT = SUPPORTABILITY_LOG_REPORTING + "UploadTimeOut";
+    public static final String SUPPORTABILITY_LOG_UPLOAD_THROTTLED = SUPPORTABILITY_LOG_REPORTING + "UploadThrottled";
+    public static final String SUPPORTABILITY_LOG_UPLOAD_REJECTED = SUPPORTABILITY_LOG_REPORTING + "UploadRejected";
+    public static final String SUPPORTABILITY_LOG_FAILED_UPLOAD = SUPPORTABILITY_LOG_REPORTING + "FailedUpload";
+    public static final String SUPPORTABILITY_LOG_REMOVED_REJECTED = SUPPORTABILITY_LOG_REPORTING + "Removed/Rejected";
+    public static final String SUPPORTABILITY_LOG_UNCOMPRESSED = SUPPORTABILITY_LOG_REPORTING + "Size/Uncompressed";
+    public static final String SUPPORTABILITY_LOG_EXPIRED = SUPPORTABILITY_LOG_REPORTING + "Expired";
+
+
     public static final String SUPPORTABILITY_DATA_TOKEN = SUPPORTABILITY_AGENT + "DataToken/";
     public static final String SUPPORTABILITY_INVALID_DATA_TOKEN = SUPPORTABILITY_DATA_TOKEN + "Invalid";
 
-    public static final String TAG_NAME = "<name>";
-    public static final String TAG_STATE = "<state>";
-    public static final String TAG_FRAMEWORK = "<framework>";
-    public static final String TAG_FRAMEWORK_VERSION = "<frameworkVersion>";
-
     public static final String SUPPORTABILITY_API = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<frameworkVersion>/API/<name>";
     public static final String SUPPORTABILITY_DEPRECATED = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<frameworkVersion>/API/Deprecated/<name>";
-
-    public static final String TAG_DESTINATION = "<destination>";
-    public static final String TAG_SUBDESTINATION = "<subdestination>";
 
     public static final String METRIC_DATA_USAGE_COLLECTOR = "Collector";
     public static final String SUPPORTABILITY_OUTPUT_BYTES = "Output/Bytes";
@@ -97,6 +101,14 @@ public class MetricNames {
     public static final String METRIC_APP_LAUNCH = "AppLaunch/";
     public static final String APP_LAUNCH_COLD = METRIC_APP_LAUNCH + "Cold";
     public static final String APP_LAUNCH_HOT = METRIC_APP_LAUNCH + "Hot";
+
+    public static final String TAG_NAME = "<name>";
+    public static final String TAG_STATE = "<state>";
+    public static final String TAG_FRAMEWORK = "<framework>";
+    public static final String TAG_FRAMEWORK_VERSION = "<frameworkVersion>";
+    public static final String TAG_DESTINATION = "<destination>";
+    public static final String TAG_SUBDESTINATION = "<subdestination>";
+
     public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION = "OfflineStorage/HandledExceptions";
     public static final String OFFLINE_STORAGE_CRASH = "OfflineStorage/Crashes";
 }

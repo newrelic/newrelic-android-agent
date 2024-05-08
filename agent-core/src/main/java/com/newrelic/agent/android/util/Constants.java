@@ -27,7 +27,7 @@ public final class Constants {
         public static final String CONNECT_TIME_HEADER = "X-NewRelic-Connect-Time";
         public static final String CROSS_PROCESS_ID_HEADER = "X-NewRelic-ID";
         public static final String DEVICE_OS_NAME_HEADER = "X-NewRelic-OS-Name";
-        public static final String REQUEST_DEBUG_HEADER = "X-APP-REQUEST-DEBUG";
+        public static final String API_KEY = "Api-Key";
 
         public static final String CONTENT_TYPE_HEADER = "Content-Type";
         public static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
@@ -41,6 +41,10 @@ public final class Constants {
             public static final String MULTIPART_FORM_DATA = "multipart/form-data";
             public static final String JSON = "application/json";
             public static final String OCTET_STREAM = "application/octet-stream";
+            public static final String GZIP = "application/gzip";
+        }
+
+        public final class Encoding {
             public static final String DEFLATE = "deflate";
             public static final String IDENTITY = "identity";
             public static final String GZIP = "gzip";
