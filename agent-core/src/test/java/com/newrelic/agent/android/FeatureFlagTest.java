@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import static com.newrelic.agent.android.FeatureFlag.AnalyticsEvents;
 import static com.newrelic.agent.android.FeatureFlag.AppStartMetrics;
+import static com.newrelic.agent.android.FeatureFlag.ApplicationExitReporting;
 import static com.newrelic.agent.android.FeatureFlag.CrashReporting;
 import static com.newrelic.agent.android.FeatureFlag.DefaultInteractions;
 import static com.newrelic.agent.android.FeatureFlag.DistributedTracing;
@@ -67,6 +68,7 @@ public class FeatureFlagTest {
     public void defaultDisabledFeatures() throws Exception {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
+        Assert.assertFalse("ApplicationExitReporting is disabled by default", FeatureFlag.featureEnabled(ApplicationExitReporting));
     }
 
     @Test
@@ -112,6 +114,7 @@ public class FeatureFlagTest {
 
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
+        Assert.assertFalse("ApplicationExitReporting is disabled by default", FeatureFlag.featureEnabled(ApplicationExitReporting));
     }
 
 }

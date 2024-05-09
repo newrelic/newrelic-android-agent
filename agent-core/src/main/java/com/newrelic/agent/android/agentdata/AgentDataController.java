@@ -141,7 +141,7 @@ public class AgentDataController {
                 //Offline Storage
                 if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                     if (!Agent.hasReachableNetworkConnection(null)) {
-                        attributes.put(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true);
+                        attributes.put(AnalyticsAttribute.OFFLINE_NAME_ATTRIBUTE, true);
                     }
                 }
 
