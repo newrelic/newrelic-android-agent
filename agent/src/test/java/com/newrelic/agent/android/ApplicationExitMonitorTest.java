@@ -269,6 +269,16 @@ public class ApplicationExitMonitorTest {
         }
     }
 
+    @Test
+    public void testEnabledStateFromAgentConfiguration() {
+        FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
+
+        AgentConfiguration agentConfiguration = AgentConfiguration.instance.get();
+        Assert.assertFalse(agentConfiguration.getApplicationExitConfiguration().isEnabled());
+
+        agentConfiguration.getApplicationExitConfiguration().enabled = true;
+        Assert.assertTrue(agentConfiguration.getApplicationExitConfiguration().isEnabled());
+    }
 
     private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {
         return provideApplicationExitInfo(reasonCode, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);

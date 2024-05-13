@@ -195,11 +195,6 @@ public class AndroidAgentImpl implements
             }
         }
 
-        // Feature enabled and RT >= SDK 30?
-        if (FeatureFlag.featureEnabled(FeatureFlag.ApplicationExitReporting)) {
-            // must be called after application information was gathered and AnalyticsController has been initialized
-            new ApplicationExitMonitor(context).harvestApplicationExitInfo();
-        }
     }
 
     protected void setupSession() {
@@ -475,6 +470,15 @@ public class AndroidAgentImpl implements
                 // assume a user action caused the agent to start or return to foreground
                 UserActionFacade.getInstance().recordUserAction(UserActionType.AppLaunch);
             }
+
+            // Feature enabled and RT >= SDK 30?
+            if (FeatureFlag.featureEnabled(FeatureFlag.ApplicationExitReporting)) {
+                // must be called after application information was gathered and AnalyticsController has been initialized
+                if (agentConfiguration.getApplicationExitConfiguration().isEnabled()) {
+                    new ApplicationExitMonitor(context).harvestApplicationExitInfo();
+                }
+            }
+
         } else {
             stop(false);
         }

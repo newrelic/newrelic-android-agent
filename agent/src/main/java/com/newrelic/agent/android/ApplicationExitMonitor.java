@@ -38,7 +38,7 @@ public class ApplicationExitMonitor {
     protected ActivityManager am;
 
     public ApplicationExitMonitor(final Context context) {
-        this.reportsDir = new File(context.getCacheDir(), "newrelic/appexitinfo");
+        this.reportsDir = new File(context.getCacheDir(), "newrelic/applicationExitInfo");
         this.am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         this.packageName = context.getPackageName();
 

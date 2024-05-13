@@ -7,14 +7,12 @@ package com.newrelic.agent.android;
 
 import com.google.gson.annotations.SerializedName;
 
-import java.beans.FeatureDescriptor;
-
 public class ApplicationExitConfiguration {
     @SerializedName("enabled")
     boolean enabled;
 
     public ApplicationExitConfiguration() {
-        this.enabled = false;
+        this.enabled = true;
     }
 
     public ApplicationExitConfiguration(boolean enabled) {
@@ -28,4 +26,22 @@ public class ApplicationExitConfiguration {
     public void setConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {
         this.enabled = applicationExitConfiguration.enabled;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ApplicationExitConfiguration) {
+            ApplicationExitConfiguration rhs = (ApplicationExitConfiguration) obj;
+            return this.enabled == rhs.enabled;
+        }
+
+        return false;
+    }
+
+    @Override
+    public String toString() {
+        return "{"
+                + "\"enabled\"=" + enabled
+                + "}";
+    }
+
 }

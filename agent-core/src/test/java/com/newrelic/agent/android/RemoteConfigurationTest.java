@@ -27,13 +27,9 @@ public class RemoteConfigurationTest {
     @Before
     public void setUp() throws Exception {
         remoteConfig = new RemoteConfiguration();
-        remoteConfig.setApplicationExitConfiguration(new ApplicationExitConfiguration());
-    }
+        remoteConfig.setApplicationExitConfiguration(new ApplicationExitConfiguration(false));
 
-    @Test
-    public void getLogReportingConfiguration() {
-        Assert.assertNotNull(remoteConfig.getApplicationExitConfiguration());
-        Assert.assertFalse(remoteConfig.getApplicationExitConfiguration().isEnabled());
+        FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
     }
 
     @Test

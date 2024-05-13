@@ -19,37 +19,25 @@ import com.newrelic.agent.android.logging.LoggingConfiguration;
  **/
 public class RemoteConfiguration implements HarvestLifecycleAware {
 
-    @SerializedName("logging")
-    protected LogReportingConfiguration logReportingConfiguration;
-
     @SerializedName("application_exit_info")
     protected ApplicationExitConfiguration applicationExitConfiguration;
 
     public RemoteConfiguration() {
-        this.logReportingConfiguration = new LogReportingConfiguration();
-        this.applicationExitConfiguration = new ApplicationExitConfiguration();
+        this.applicationExitConfiguration = new ApplicationExitConfiguration(true);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof RemoteConfiguration) {
             RemoteConfiguration rhs = (RemoteConfiguration) obj;
-            return this == rhs;
+            return this.applicationExitConfiguration.equals(rhs.applicationExitConfiguration);
         }
 
         return false;
     }
 
-    public LogReportingConfiguration getLogReportingConfiguration() {
-        return logReportingConfiguration;
-    }
-
     public ApplicationExitConfiguration getApplicationExitConfiguration() {
         return applicationExitConfiguration;
-    }
-
-    public void setLogReportingConfiguration(LogReportingConfiguration logReportingConfiguration) {
-        this.logReportingConfiguration = logReportingConfiguration;
     }
 
     public void setApplicationExitConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {

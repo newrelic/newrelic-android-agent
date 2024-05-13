@@ -70,7 +70,7 @@ public class Harvester {
         add(new HarvestAdapter() {
             @Override
             public void onHarvestConfigurationChanged() {
-                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_HARVEST_CONFIGURATION_CHANGED);
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_CONFIGURATION_CHANGED);
                 AnalyticsControllerImpl.getInstance().recordBreadcrumb("FIXME harvestConfiguration", new HashMap<>() {{
                     put("changed", true);
                 }});
