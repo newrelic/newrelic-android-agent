@@ -5,12 +5,10 @@
 
 package com.newrelic.agent.android.harvest;
 
-import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
+import com.newrelic.agent.android.RemoteConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
-import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
-import com.newrelic.agent.android.logging.LogReportingConfiguration;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
@@ -73,8 +71,8 @@ public class HarvestConfiguration {
     private String trusted_account_key;
     @SerializedName("entity_guid")
     private String entity_guid = NO_VALUE;
-    @SerializedName("log_reporting")
-    private LogReportingConfiguration log_reporting;
+    @SerializedName("configuration")
+    private RemoteConfiguration remote_configuration;
 
     private static HarvestConfiguration defaultHarvestConfiguration;
 
@@ -101,7 +99,7 @@ public class HarvestConfiguration {
         setApplication_id(DEFAULT_APP_ID);
         setTrusted_account_key(DEFAULT_TRUSTED_ACCOUNT_KEY);
         setEntity_guid(LogReporting.getEntityGuid());
-        setLog_reporting(new LogReportingConfiguration(false, LogLevel.INFO));
+        setRemote_configuration(new RemoteConfiguration());
     }
 
     public static HarvestConfiguration getDefaultHarvestConfiguration() {
@@ -144,7 +142,7 @@ public class HarvestConfiguration {
         setApplication_id(configuration.getApplication_id());
         setTrusted_account_key(configuration.getTrusted_account_key());
         setEntity_guid(configuration.getEntity_guid());
-        setLog_reporting(configuration.getLog_reporting());
+        setRemote_configuration(configuration.getRemote_configuration());
     }
 
     public void setCollect_network_errors(boolean collect_network_errors) {
@@ -296,6 +294,11 @@ public class HarvestConfiguration {
         return account_id;
     }
 
+    public RemoteConfiguration getRemote_configuration() {
+        return this.remote_configuration;
+    }
+
+
     public void setAccount_id(String account_id) {
         this.account_id = account_id;
     }
@@ -315,24 +318,17 @@ public class HarvestConfiguration {
         this.entity_guid = value;
     }
 
-    public void setLog_reporting(final LogReportingConfiguration loggingConfiguration) {
-        this.log_reporting = loggingConfiguration;
+    public void setRemote_configuration(final RemoteConfiguration remoteConfiguration) {
+        this.remote_configuration = remoteConfiguration;
     }
 
     /**
      * Returns the Mobile entity guid synthesized by the Mobile Connect service.
+     *
      * @return Entity GUID
      */
     public String getEntity_guid() {
         return entity_guid;
-    }
-
-    /**
-     * Returns the current Log reporting config, if enabled;
-     * @return LogReporting configuraition returns by NerdGraph
-     */
-    public LogReportingConfiguration getLog_reporting() {
-        return log_reporting;
     }
 
 
@@ -411,7 +407,8 @@ public class HarvestConfiguration {
         if (entity_guid != null && !entity_guid.equals(that.entity_guid)) {
             return false;
         }
-        if (log_reporting != null && !log_reporting.toString().equals(that.log_reporting.toString())) {
+        if (remote_configuration != null &&
+            !remote_configuration.getApplicationExitConfiguration().equals(that.remote_configuration.getApplicationExitConfiguration())) {
             return false;
         }
 
@@ -451,7 +448,7 @@ public class HarvestConfiguration {
         result = 31 * result + (priority_encoding_key != null ? priority_encoding_key.hashCode() : 0);
         result = 31 * result + (trusted_account_key != null ? trusted_account_key.hashCode() : 0);
         result = 31 * result + (entity_guid != null ? entity_guid.hashCode() : 0);
-        result = 31 * result + (log_reporting != null ? log_reporting.hashCode() : 0);
+        result = 31 * result + (remote_configuration != null ? remote_configuration.hashCode() : 0);
         return result;
     }
 
@@ -477,7 +474,7 @@ public class HarvestConfiguration {
                 ", application_id=" + application_id +
                 ", trusted_account_key=" + trusted_account_key +
                 ", entity_guid=" + entity_guid +
-                ", log_reporting=" + log_reporting +
+                ", remote_configuration=" + remote_configuration.toString() +
                 '}';
     }
 }

@@ -11,6 +11,7 @@ import com.newrelic.agent.android.crash.CrashStore;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
@@ -66,13 +67,15 @@ public class AgentConfiguration {
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
-    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration();
+
+    // Support remote configuration
+    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.NONE);
+    private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(false);
 
     public String getApplicationToken() {
         return applicationToken;
     }
-
-
+    
     public void setApplicationToken(String applicationToken) {
         this.applicationToken = applicationToken;
         this.region = parseRegionFromApplicationToken(applicationToken);
@@ -358,6 +361,14 @@ public class AgentConfiguration {
         this.logReportingConfiguration = logReportingConfiguration;
     }
 
+    public ApplicationExitConfiguration getApplicationExitConfiguration() {
+        return applicationExitConfiguration;
+    }
+
+    public void getApplicationExitConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {
+        this.applicationExitConfiguration = applicationExitConfiguration;
+    }
+
     /**
      * Update agent config with any changes returned in the harvest response.
      * Currently, it is only log reporting config
@@ -366,7 +377,7 @@ public class AgentConfiguration {
      */
     public void reconfigure(HarvestConfiguration harvestConfiguration) {
         // update the global agent config w/changes
-        this.setLogReportingConfiguration(harvestConfiguration.getLog_reporting());
+        this.applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
     }
 
     // return the default instance
