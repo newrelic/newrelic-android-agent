@@ -18,10 +18,20 @@
   "application_id": "601359369",
   "trusted_account_key":"1",
   "entity_guid": "a4d39d21-588b-4342-ad87-967243533949",
-  "log_reporting": {
-    "enabled": true,
-    "level": "VERBOSE",
-    "data_report_period": 30,
-    "expiration_period": 3600
+  "request_headers_map": {
+    "NR-Session": "AFBE4546FEADDEAD1243",
+    "NR-AgentConfiguration": "12BAED78FC89BAFE1243"
+  },
+  "configuration": {
+    "logs": {
+      "enabled": true,
+      "level": "verbose",
+      "sample_rate": 0.11,
+      "data_report_period": 15,
+      "expiration_period": 7200
+    },
+    "application_exit_info": {
+      "enabled": true
+    }
   }
 }
