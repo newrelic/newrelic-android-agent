@@ -107,16 +107,10 @@ public class ApplicationExitMonitor {
                         final HashMap<String, Object> eventAttributes = new HashMap<>();
 
                         eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_PID_ATTRIBUTE, exitInfo.getPid());
                         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
                         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
                         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
                         eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
-
-                        // Maybe?
-                        // eventAttributes.put(AnalyticsAttribute.APP_EXIT_UUID_ATTRIBUTE, exitInfo.getDefiningUid());
-                        // eventAttributes.put(AnalyticsAttribute.APP_EXIT_PSS_ATTRIBUTE, exitInfo.getPss());
-                        // eventAttributes.put(AnalyticsAttribute.APP_EXIT_RSS_ATTRIBUTE, exitInfo.getRss());
 
                         // Add fg/bg flag based on inferred importance:
                         switch (exitInfo.getImportance()) {
