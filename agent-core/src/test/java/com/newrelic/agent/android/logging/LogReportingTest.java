@@ -87,7 +87,7 @@ public class LogReportingTest extends LoggingTests {
         FeatureFlag.disableFeature(FeatureFlag.LogReporting);
         LogReporting.initialize(reportsDir, AgentConfiguration.getInstance());
         Assert.assertNotNull("LogReporter not initialized", LogReporter.getInstance());
-        Assert.assertFalse("LogReport was enabled despite configuration settings", LogReporter.getInstance().isEnabled());
+        Assert.assertTrue("LogReport was enabled despite configuration settings", LogReporter.getInstance().isEnabled());
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
         AgentConfiguration.getInstance().getLogReportingConfiguration().setLoggingEnabled(false);

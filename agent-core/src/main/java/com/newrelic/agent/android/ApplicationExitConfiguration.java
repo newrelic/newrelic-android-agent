@@ -11,10 +11,6 @@ public class ApplicationExitConfiguration {
     @SerializedName("enabled")
     boolean enabled;
 
-    public ApplicationExitConfiguration() {
-        this.enabled = true;
-    }
-
     public ApplicationExitConfiguration(boolean enabled) {
         this.enabled = enabled;
     }

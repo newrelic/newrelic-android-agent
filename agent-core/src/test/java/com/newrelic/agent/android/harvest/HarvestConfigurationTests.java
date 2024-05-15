@@ -7,7 +7,10 @@ package com.newrelic.agent.android.harvest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.newrelic.agent.android.ApplicationExitConfiguration;
 import com.newrelic.agent.android.RemoteConfiguration;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -69,7 +72,9 @@ public class HarvestConfigurationTests {
                 "\"activity_trace_max_report_attempts\":1,\"activity_trace_min_utilization\":0.3,\"at_capture\":{\"maxTotalTraceCount\":1}," +
                 "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\",\"application_id\":\"100\",\"trusted_account_key\":\"33\"," +
                 "\"entity_guid\":\"" + entityGuid + "\"," +
-                "\"configuration\":{\"application_exit_info\":{\"enabled\":true}}" +
+                "\"configuration\":{" +
+                "\"application_exit_info\":{\"enabled\":true}," +
+                "\"logs\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":true,\"level\":\"INFO\"}}" +
                 "}";
 
         Assert.assertEquals(expectedJson, configJson);
@@ -186,4 +191,13 @@ public class HarvestConfigurationTests {
         Assert.assertFalse(expectedJson.equals(configJson));
     }
 
+    @Test
+    public void testRemoteConfigResponse() {
+        HarvestConfiguration config = new HarvestConfiguration();
+        Assert.assertNotNull(config.getRemote_configuration());
+        Assert.assertNotNull(config.getRemote_configuration().getApplicationExitConfiguration());
+        Assert.assertEquals(config.getRemote_configuration().getApplicationExitConfiguration(), new ApplicationExitConfiguration(true));
+        Assert.assertNotNull(config.getRemote_configuration().getLogReportingConfiguration());
+        Assert.assertEquals(config.getRemote_configuration().getLogReportingConfiguration(), new LogReportingConfiguration(true, LogLevel.INFO));
+    }
 }

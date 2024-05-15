@@ -67,15 +67,16 @@ public class AgentConfiguration {
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
+    private String entityGuid;
 
     // Support remote configuration
-    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.NONE);
-    private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(false);
+    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(true, LogLevel.INFO);
+    private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
 
     public String getApplicationToken() {
         return applicationToken;
     }
-    
+
     public void setApplicationToken(String applicationToken) {
         this.applicationToken = applicationToken;
         this.region = parseRegionFromApplicationToken(applicationToken);
@@ -345,6 +346,16 @@ public class AgentConfiguration {
         return deviceID;
     }
 
+    public String getEntityGuid() {
+        return entityGuid;
+    }
+
+    public void setEntityGuid(String entityGuid) {
+        if (entityGuid != null && !entityGuid.isEmpty()) {
+            this.entityGuid = entityGuid.trim().strip();
+        }
+    }
+
     public String getLaunchActivityClassName() {
         return launchActivityClassName;
     }
@@ -378,6 +389,7 @@ public class AgentConfiguration {
     public void reconfigure(HarvestConfiguration harvestConfiguration) {
         // update the global agent config w/changes
         this.applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
+        this.logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);
     }
 
     // return the default instance
@@ -385,4 +397,5 @@ public class AgentConfiguration {
         instance.compareAndSet(null, new AgentConfiguration());
         return instance.get();
     }
+
 }

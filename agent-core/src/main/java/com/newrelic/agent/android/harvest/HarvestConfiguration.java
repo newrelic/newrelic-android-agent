@@ -407,8 +407,7 @@ public class HarvestConfiguration {
         if (entity_guid != null && !entity_guid.equals(that.entity_guid)) {
             return false;
         }
-        if (remote_configuration != null &&
-            !remote_configuration.getApplicationExitConfiguration().equals(that.remote_configuration.getApplicationExitConfiguration())) {
+        if (remote_configuration != null && !remote_configuration.equals(that.remote_configuration)) {
             return false;
         }
 

@@ -271,7 +271,7 @@ public class ApplicationExitMonitorTest {
         FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
 
         AgentConfiguration agentConfiguration = AgentConfiguration.instance.get();
-        Assert.assertFalse(agentConfiguration.getApplicationExitConfiguration().isEnabled());
+        Assert.assertTrue(agentConfiguration.getApplicationExitConfiguration().isEnabled());
 
         agentConfiguration.getApplicationExitConfiguration().enabled = true;
         Assert.assertTrue(agentConfiguration.getApplicationExitConfiguration().isEnabled());

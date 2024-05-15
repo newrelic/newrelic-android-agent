@@ -199,7 +199,6 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_TRUSTED_ACCOUNT_KEY)) {
             configuration.setTrusted_account_key(getTrustedAccountKey());
         }
-
         if (has(PREF_REMOTE_CONFIGURATION)) {
             String remoteConfigAsJson = getString(PREF_REMOTE_CONFIGURATION);
             try {
