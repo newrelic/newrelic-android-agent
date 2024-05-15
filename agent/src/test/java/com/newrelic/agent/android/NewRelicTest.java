@@ -176,10 +176,12 @@ public class NewRelicTest {
     @Before
     public void setupRemoteLogging() {
         NewRelic.disableFeature(FeatureFlag.LogReporting);
-        LogReporting.setLogger(Mockito.spy(new RemoteLogger()));
 
+        LogReporting.setLogger(Mockito.spy(new RemoteLogger()));
         LogReporting.setLogLevel(LogLevel.DEBUG);
-        agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(false, LogLevel.NONE));
+
+        agentConfiguration.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
+        agentConfiguration.getLogReportingConfiguration().setLoggingEnabled(LogReporting.isRemoteLoggingEnabled());
     }
 
     @After
@@ -1042,8 +1044,8 @@ public class NewRelicTest {
         Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
 
         // for testing:
-        Assert.assertFalse("Remote logging is disabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
-        Assert.assertEquals("Remote logging level is NONE", LogLevel.NONE, agentConfiguration.getLogReportingConfiguration().getLogLevel());
+        Assert.assertFalse("Remote logging is enabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals("Remote logging level is DEBUG", LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
 
         nrInstance.withLoggingEnabled(true)
                 .withLogLevel(AgentLog.DEBUG)
