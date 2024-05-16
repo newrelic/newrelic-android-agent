@@ -19,6 +19,8 @@ import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Streams;
 
 import java.io.File;
@@ -47,7 +49,7 @@ public class ApplicationExitMonitor {
 
     /**
      * Gather application exist status reports for this process
-     * <p>
+     *
      * Application process could die for many reasons, for example REASON_LOW_MEMORY when it
      * was killed by the system because it was running low on memory. Reason of the death can be
      * retrieved via getReason(). Besides the reason, there are a few other auxiliary APIs like
@@ -132,13 +134,17 @@ public class ApplicationExitMonitor {
                                 AnalyticsEventCategory.ApplicationExit,
                                 EVENT_TYPE_MOBILE_APPLICATION_EXIT,
                                 eventAttributes);
+
+                        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
+                        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + exitInfo.getReason());
+                        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + exitInfo.getImportance());
                     }
                 }
             });
         } else {
-            log.warn("ApplicationExitMonitor: exit info will not be reported (unsupported OS level)");
+            log.warn("ApplicationExitMonitor: exit info reproting was enabled, but not supported by the current OS");
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_UNSUPPORTED_OS + Build.VERSION.SDK_INT);
         }
-
     }
 
     protected String toValidAttributeValue(String attributeValue) {
