@@ -270,14 +270,14 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void testEnabledStateFromAgentConfiguration() {
+    public void testEnabledStateFromAgentConfiguration() throws InterruptedException {
         FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
 
         AgentConfiguration agentConfiguration = AgentConfiguration.instance.get();
-        Assert.assertFalse(agentConfiguration.getApplicationExitConfiguration().isEnabled());
-
-        agentConfiguration.getApplicationExitConfiguration().enabled = true;
         Assert.assertTrue(agentConfiguration.getApplicationExitConfiguration().isEnabled());
+
+        agentConfiguration.getApplicationExitConfiguration().enabled = false;
+        Assert.assertFalse(agentConfiguration.getApplicationExitConfiguration().isEnabled());
     }
 
     @Test
@@ -294,6 +294,8 @@ public class ApplicationExitMonitorTest {
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + aei.getReason()));
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + aei.getImportance()));
         }
+
+        applicationExitInfos.stream().collect(Collectors.toSet());
     }
 
 
