@@ -49,11 +49,6 @@ public class ApplicationExitMonitor {
 
     /**
      * Gather application exist status reports for this process
-     *
-     * Application process could die for many reasons, for example REASON_LOW_MEMORY when it
-     * was killed by the system because it was running low on memory. Reason of the death can be
-     * retrieved via getReason(). Besides the reason, there are a few other auxiliary APIs like
-     * getStatus() and getImportance() to help the caller with additional diagnostic information.
      **/
     @SuppressLint("SwitchIntDef")
     protected void harvestApplicationExitInfo() {
@@ -61,6 +56,8 @@ public class ApplicationExitMonitor {
         // Only supported in Android 11
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             ApplicationStateMonitor.getInstance().getExecutor().submit(() -> {
+                boolean eventsAdded = false;
+
                 if (null == am) {
                     log.error("harvestApplicationExitInfo: ActivityManager is null!");
                     return;
@@ -138,11 +135,20 @@ public class ApplicationExitMonitor {
                         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
                         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + exitInfo.getReason());
                         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + exitInfo.getImportance());
+
+                        eventsAdded = true;
                     }
+
+                }
+
+                if (eventsAdded) {
+                    // flush eventManager buffer on next harvest
+                    AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
                 }
             });
+
         } else {
-            log.warn("ApplicationExitMonitor: exit info reproting was enabled, but not supported by the current OS");
+            log.warn("ApplicationExitMonitor: exit info reporting was enabled, but not supported by the current OS");
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_UNSUPPORTED_OS + Build.VERSION.SDK_INT);
         }
     }
