@@ -23,18 +23,13 @@ public class ApplicationExitConfiguration {
 
     public void setConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {
         if (!applicationExitConfiguration.equals(this)) {
-            if (!enabled) {
-                if (applicationExitConfiguration.enabled) {
-                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_REMOTE_CONFIG + "enabled");
-                }
-            } else {
-                if (!applicationExitConfiguration.enabled) {
-                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_REMOTE_CONFIG + "disabled");
-                }
+            if (!enabled && applicationExitConfiguration.enabled) {
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_REMOTE_CONFIG + "enabled");
+            } else if (enabled && !applicationExitConfiguration.enabled) {
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_REMOTE_CONFIG + "disabled");
             }
+            enabled = applicationExitConfiguration.enabled;
         }
-
-        enabled = applicationExitConfiguration.enabled;
     }
 
     @Override
@@ -49,9 +44,7 @@ public class ApplicationExitConfiguration {
 
     @Override
     public String toString() {
-        return "{"
-                + "\"enabled\"=" + enabled
-                + "}";
+        return "{\"enabled\"=" + enabled + "}";
     }
 
 }

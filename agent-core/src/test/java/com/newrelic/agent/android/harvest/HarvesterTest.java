@@ -200,12 +200,12 @@ public class HarvesterTest {
     public void shouldUpdateApplicationExitConfigOnHarvestConfigUpdate() {
         ApplicationExitConfiguration preValue = new ApplicationExitConfiguration(false);
         preValue.setConfiguration(harvester.getAgentConfiguration().getApplicationExitConfiguration());
-        Assert.assertFalse(preValue.isEnabled());
+        Assert.assertTrue(preValue.isEnabled());
 
         reconnectAndUploadOnHarvestConfigurationUpdated();
 
         ApplicationExitConfiguration postValue = harvester.getAgentConfiguration().getApplicationExitConfiguration();
-        Assert.assertFalse(postValue.equals(preValue));
+        Assert.assertTrue(postValue.equals(preValue));
         Assert.assertTrue(postValue.isEnabled());
     }
 

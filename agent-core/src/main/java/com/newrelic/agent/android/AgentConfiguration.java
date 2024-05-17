@@ -69,8 +69,8 @@ public class AgentConfiguration {
     private String deviceID;
 
     // Support remote configuration
-    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.NONE);
-    private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(false);
+    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(true, LogLevel.INFO);
+    private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
 
     public String getApplicationToken() {
         return applicationToken;
