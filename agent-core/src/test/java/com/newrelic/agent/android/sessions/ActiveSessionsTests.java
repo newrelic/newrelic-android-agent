@@ -96,7 +96,7 @@ public class ActiveSessionsTests {
         }
 
         // Called when going into background/final data send.
-        Harvest.harvestNow(true);
+        Harvest.harvestNow(true, true);
         Harvest.stop();
 
         MachineMeasurements metrics = testHarvest.getHarvestData().getMetrics();

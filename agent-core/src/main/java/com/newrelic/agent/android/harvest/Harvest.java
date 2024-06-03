@@ -73,21 +73,20 @@ public class Harvest {
         }
     }
 
-    public static void harvestNow(boolean finalizeSession) {
-        if (!isInitialized())
-            return;
+    public static void harvestNow(boolean finalizeSession, boolean bWait) {
+        if (isInitialized()) {
+            if (finalizeSession) {
+                // add session meta to next harvest
+                instance.finalizeSession();
 
-        if (finalizeSession) {
-            // add session meta to next harvest
-            instance.finalizeSession();
+                // flush eventManager buffer on next harvest
+                AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
+            }
 
-            // flush eventManager buffer on next harvest
-            AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
-        }
-
-        HarvestTimer harvestTimer = instance.getHarvestTimer();
-        if (harvestTimer != null) {
-            harvestTimer.tickNow();
+            final HarvestTimer harvestTimer = instance.getHarvestTimer();
+            if (harvestTimer != null) {
+                harvestTimer.tickNow(bWait);
+            }
         }
     }
 
