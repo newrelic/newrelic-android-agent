@@ -16,6 +16,7 @@ import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
+import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.hybrid.StackTrace;
 import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -44,6 +45,7 @@ import java.net.URLConnection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 
 /**
@@ -829,7 +831,7 @@ public final class NewRelic {
 
 
     /**
-     * Custom Events related methods
+     * Custom Event and Attribute methods
      */
 
     /**
@@ -842,7 +844,6 @@ public final class NewRelic {
     public static boolean setAttribute(String name, String value) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setAttribute(String,String)"));
-
         return AnalyticsControllerImpl.getInstance().setAttribute(name, value);
     }
 
@@ -927,13 +928,34 @@ public final class NewRelic {
      * Sets a user ID attribute.
      *
      * @param userId The user ID as string value
-     * @return true if successful, false if the operation did not complete as anticipated.
+     * @return true if userId attribute as created or updated.
      */
     public static boolean setUserId(String userId) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setUserId"));
 
-        return AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
+        final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+        final AnalyticsAttribute userIdAttr = controller.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+
+        if (userIdAttr != null) {
+            if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
+                Runnable harvest = () -> {
+                    Harvest.harvestNow(true, true);// call non-blocking harvest
+                    controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
+                            .setStringValue(agentConfiguration.provideSessionId())  // start a new session
+                            .setPersistent(false);
+                     // remove session duration and user id attributes
+                    controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
+                    if (userId == null || userId.isEmpty()) {
+                        controller.removeAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+                    }
+                };
+                harvest.run();
+
+            }
+        }
+
+        return controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId, false);
     }
 
     /**

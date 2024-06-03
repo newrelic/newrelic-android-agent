@@ -174,13 +174,13 @@ public class HarvestTimerTests {
         timer.start();
 
         Assert.assertTrue(timer.isRunning());
-        timer.tickNow();
+        timer.tickNow(true);
         timer.cancelPendingTasks();
         Assert.assertFalse(timer.isRunning());
 
         timer.start();
         Assert.assertTrue(timer.isRunning());
-        timer.tickNow();
+        timer.tickNow(true);
         timer.cancelPendingTasks();
         Assert.assertFalse(timer.isRunning());
 
