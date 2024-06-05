@@ -11,6 +11,8 @@ import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.logging.LogReporting;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -73,6 +75,9 @@ public class HarvestConfiguration {
     private String entity_guid = NO_VALUE;
     @SerializedName("configuration")
     private RemoteConfiguration remote_configuration;
+    @SerializedName("request_headers_map")
+    private Map<String, String> request_headers_map;
+
 
     private static HarvestConfiguration defaultHarvestConfiguration;
 
@@ -98,8 +103,9 @@ public class HarvestConfiguration {
         setAccount_id(DEFAULT_ACCOUNT_ID);
         setApplication_id(DEFAULT_APP_ID);
         setTrusted_account_key(DEFAULT_TRUSTED_ACCOUNT_KEY);
-        setEntity_guid(LogReporting.getEntityGuid());
+        setEntity_guid(NO_VALUE);
         setRemote_configuration(new RemoteConfiguration());
+        setRequest_headers_map(new HashMap<>());
     }
 
     public static HarvestConfiguration getDefaultHarvestConfiguration() {
@@ -134,6 +140,7 @@ public class HarvestConfiguration {
         setStack_trace_limit(configuration.getStack_trace_limit());
         setActivity_trace_min_utilization(configuration.getActivity_trace_min_utilization());
         setActivity_trace_max_report_attempts(configuration.getActivity_trace_max_report_attempts());
+        setActivity_trace_max_size(configuration.getActivity_trace_max_size());
         if (configuration.getAt_capture() != null) {
             setAt_capture(configuration.getAt_capture());
         }
@@ -143,6 +150,7 @@ public class HarvestConfiguration {
         setTrusted_account_key(configuration.getTrusted_account_key());
         setEntity_guid(configuration.getEntity_guid());
         setRemote_configuration(configuration.getRemote_configuration());
+        setRequest_headers_map(configuration.getRequest_headers_map());
     }
 
     public void setCollect_network_errors(boolean collect_network_errors) {
@@ -294,11 +302,6 @@ public class HarvestConfiguration {
         return account_id;
     }
 
-    public RemoteConfiguration getRemote_configuration() {
-        return this.remote_configuration;
-    }
-
-
     public void setAccount_id(String account_id) {
         this.account_id = account_id;
     }
@@ -321,6 +324,21 @@ public class HarvestConfiguration {
     public void setRemote_configuration(final RemoteConfiguration remoteConfiguration) {
         this.remote_configuration = remoteConfiguration;
     }
+
+    public RemoteConfiguration getRemote_configuration() {
+        return this.remote_configuration;
+    }
+
+    public Map<String, String> getRequest_headers_map() {
+        return request_headers_map;
+    }
+
+    public void setRequest_headers_map(Map<String, String> requestHeadersMap) {
+        if (requestHeadersMap != null) {
+            this.request_headers_map = requestHeadersMap;
+        }
+    }
+
 
     /**
      * Returns the Mobile entity guid synthesized by the Mobile Connect service.
@@ -408,7 +426,10 @@ public class HarvestConfiguration {
             return false;
         }
         if (remote_configuration != null &&
-            !remote_configuration.getApplicationExitConfiguration().equals(that.remote_configuration.getApplicationExitConfiguration())) {
+                !remote_configuration.getApplicationExitConfiguration().equals(that.remote_configuration.getApplicationExitConfiguration())) {
+            return false;
+        }
+        if (request_headers_map != null && !request_headers_map.equals(that.request_headers_map)) {
             return false;
         }
 
@@ -449,6 +470,7 @@ public class HarvestConfiguration {
         result = 31 * result + (trusted_account_key != null ? trusted_account_key.hashCode() : 0);
         result = 31 * result + (entity_guid != null ? entity_guid.hashCode() : 0);
         result = 31 * result + (remote_configuration != null ? remote_configuration.hashCode() : 0);
+        result = 31 * result + (request_headers_map != null ? request_headers_map.hashCode() : 0);
         return result;
     }
 
@@ -475,6 +497,8 @@ public class HarvestConfiguration {
                 ", trusted_account_key=" + trusted_account_key +
                 ", entity_guid=" + entity_guid +
                 ", remote_configuration=" + remote_configuration.toString() +
-                '}';
+                ", request_headers_map=" + request_headers_map +
+                "}";
     }
+
 }

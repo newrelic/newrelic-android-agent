@@ -71,4 +71,5 @@ public class DataToken extends HarvestableArray {
     public int[] asIntArray() {
         return new int[]{accountId, agentId};
     }
+
 }

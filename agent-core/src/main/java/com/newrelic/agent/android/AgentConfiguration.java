@@ -365,10 +365,6 @@ public class AgentConfiguration {
         return applicationExitConfiguration;
     }
 
-    public void getApplicationExitConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {
-        this.applicationExitConfiguration = applicationExitConfiguration;
-    }
-
     /**
      * Update agent config with any changes returned in the harvest response.
      * Currently, it is only log reporting config

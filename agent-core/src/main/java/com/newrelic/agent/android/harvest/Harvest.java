@@ -362,6 +362,7 @@ public class Harvest {
 
         harvestTimer.setPeriod(TimeUnit.MILLISECONDS.convert(harvestConfiguration.getData_report_period(), TimeUnit.SECONDS));
         harvestConnection.setServerTimestamp(harvestConfiguration.getServer_timestamp());
+        harvestConnection.setRequestHeaderMap(harvestConfiguration.getRequest_headers_map());
         harvestData.setDataToken(harvestConfiguration.getDataToken());
         harvester.setHarvestConfiguration(harvestConfiguration);
     }

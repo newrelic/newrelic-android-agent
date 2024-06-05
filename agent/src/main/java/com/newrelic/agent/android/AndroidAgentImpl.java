@@ -41,6 +41,7 @@ import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.EnvironmentInformation;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestData;
+import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.instrumentation.MetricCategory;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -81,7 +82,8 @@ public class AndroidAgentImpl implements
         AgentImpl,
         ConnectionListener,
         ApplicationStateListener,
-        TraceMachineInterface {
+        TraceMachineInterface,
+        HarvestLifecycleAware {
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
@@ -165,6 +167,7 @@ public class AndroidAgentImpl implements
         Harvest.initialize(agentConfiguration);
         Harvest.setHarvestConfiguration(savedState.getHarvestConfiguration());
         Harvest.setHarvestConnectInformation(savedState.getConnectInformation());
+        Harvest.addHarvestListener(this);
 
         Measurements.initialize();
         log.info(MessageFormat.format("New Relic Agent v{0}", Agent.getVersion()));
@@ -471,13 +474,6 @@ public class AndroidAgentImpl implements
                 UserActionFacade.getInstance().recordUserAction(UserActionType.AppLaunch);
             }
 
-            // Feature enabled and RT >= SDK 30?
-            if (FeatureFlag.featureEnabled(FeatureFlag.ApplicationExitReporting)) {
-                // must be called after application information was gathered and AnalyticsController has been initialized
-                if (agentConfiguration.getApplicationExitConfiguration().isEnabled()) {
-                    new ApplicationExitMonitor(context).harvestApplicationExitInfo();
-                }
-            }
 
         } else {
             stop(false);
@@ -814,5 +810,19 @@ public class AndroidAgentImpl implements
     @Override
     public Map<String, String> getAllOfflineData() {
         return offlineStorageInstance.getAllOfflineData();
+    }
+
+    /**
+     * Called after connection has been made or configuration has been pulled from cache.
+     */
+    @Override
+    public void onHarvestConnected() {
+        // Feature enabled and RT >= SDK 30?
+        if (FeatureFlag.featureEnabled(FeatureFlag.ApplicationExitReporting)) {
+            // must be called after application information was gathered and AnalyticsController has been initialized
+            if (agentConfiguration.getApplicationExitConfiguration().isEnabled()) {
+                new ApplicationExitMonitor(context).harvestApplicationExitInfo();
+            }
+        }
     }
 }

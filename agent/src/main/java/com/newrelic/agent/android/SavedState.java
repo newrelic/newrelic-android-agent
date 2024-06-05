@@ -28,6 +28,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONTokener;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -58,6 +60,7 @@ public class SavedState extends HarvestAdapter {
     private final String NEW_RELIC_AGENT_DISABLED_VERSION_KEY = "NewRelicAgentDisabledVersion";
     private final String PREF_ACTIVITY_TRACE_MIN_UTILIZATION = "activityTraceMinUtilization";
     private final String PREF_REMOTE_CONFIGURATION = "remoteConfiguration";
+    private final String PREF_REQUEST_HEADERS_MAP = "requestHeadersMap";
 
     // Connect information
     private final String PREF_APP_NAME = "appName";
@@ -140,6 +143,7 @@ public class SavedState extends HarvestAdapter {
         save(PREF_APPLICATION_ID, newConfiguration.getApplication_id());
         save(PREF_TRUSTED_ACCOUNT_KEY, newConfiguration.getTrusted_account_key());
         save(PREF_REMOTE_CONFIGURATION, gson.toJson(newConfiguration.getRemote_configuration()));
+        save(PREF_REQUEST_HEADERS_MAP, gson.toJson(newConfiguration.getRequest_headers_map()));
 
         saveActivityTraceMinUtilization((float) newConfiguration.getActivity_trace_min_utilization());
 
@@ -199,7 +203,6 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_TRUSTED_ACCOUNT_KEY)) {
             configuration.setTrusted_account_key(getTrustedAccountKey());
         }
-
         if (has(PREF_REMOTE_CONFIGURATION)) {
             String remoteConfigAsJson = getString(PREF_REMOTE_CONFIGURATION);
             try {
@@ -210,6 +213,17 @@ public class SavedState extends HarvestAdapter {
                 configuration.setRemote_configuration(new RemoteConfiguration());
             }
         }
+        if (has(PREF_REQUEST_HEADERS_MAP)) {
+            String requestHeadersAsJson = getString(PREF_REQUEST_HEADERS_MAP);
+            try {
+                Map<String, String> requestHeadersMap = gson.fromJson(requestHeadersAsJson, Map.class);
+                configuration.setRequest_headers_map(requestHeadersMap);
+            } catch (JsonSyntaxException e) {
+                log.error("Failed to deserialize request header configuration: " + e);
+                configuration.setRequest_headers_map(new HashMap<>());
+            }
+        }
+
 
         log.info("Loaded configuration: " + configuration);
     }

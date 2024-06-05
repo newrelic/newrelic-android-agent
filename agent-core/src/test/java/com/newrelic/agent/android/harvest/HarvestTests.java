@@ -553,7 +553,6 @@ public class HarvestTests {
     @Test
     public void testStartStop() {
         try {
-            HarvestTimer timer = null;
             Harvest.start();
         } catch (Exception e) {
             e.printStackTrace();
@@ -561,7 +560,6 @@ public class HarvestTests {
         }
 
         try {
-            HarvestTimer timer = null;
             Harvest.stop();
         } catch (Exception e) {
             e.printStackTrace();

@@ -107,6 +107,7 @@ public class Harvester {
 
         harvestConnection.setApplicationToken(agentConfiguration.getApplicationToken());
         harvestConnection.setCollectorHost(agentConfiguration.getCollectorHost());
+        harvestConnection.setRequestHeaderMap(harvestConfiguration.getRequest_headers_map());
         harvestConnection.useSsl(agentConfiguration.useSsl());
 
         transition(State.DISCONNECTED);

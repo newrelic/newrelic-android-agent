@@ -25,6 +25,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -33,13 +35,13 @@ import java.util.concurrent.TimeUnit;
 public class HarvestConnection implements HarvestErrorCodes {
     private final AgentLog log = AgentLogManager.getAgentLog();
 
-    private static final String COLLECTOR_CONNECT_URI = "/mobile/v4/connect";
-    private static final String COLLECTOR_DATA_URI = "/mobile/v3/data";
+    protected static final String COLLECTOR_CONNECT_URI = "/mobile/v5/connect";
+    protected static final String COLLECTOR_DATA_URI = "/mobile/v3/data";
 
     private static final int TIMEOUT_IN_SECONDS = 20;
     private static final int READ_TIMEOUT_IN_SECONDS = 4;
-    private static final int CONNECTION_TIMEOUT = (int) TimeUnit.MILLISECONDS.convert(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
-    private static final int READ_TIMEOUT = (int) TimeUnit.MILLISECONDS.convert(READ_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+    protected static final int CONNECTION_TIMEOUT = (int) TimeUnit.MILLISECONDS.convert(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+    protected static final int READ_TIMEOUT = (int) TimeUnit.MILLISECONDS.convert(READ_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
     private static final int RESPONSE_BUFFER_SIZE = 8192;
     private static final int MAX_PLAINTEXT_MESSAGE_SIZE = 512;
 
@@ -51,6 +53,7 @@ public class HarvestConnection implements HarvestErrorCodes {
     private ConnectInformation connectInformation;
 
     private boolean useSsl = true;
+    protected Map<String, String> requestHeaders = new HashMap<>();
 
     public HarvestConnection() {
     }
@@ -87,6 +90,11 @@ public class HarvestConnection implements HarvestErrorCodes {
 
             if (serverTimestamp != 0) {
                 connection.setRequestProperty(Constants.Network.CONNECT_TIME_HEADER, ((Long) serverTimestamp).toString());
+            }
+
+            // apply the headers passed in harvest configuration
+            for (Map.Entry<String, String> stringStringEntry : requestHeaders.entrySet()) {
+                connection.setRequestProperty(stringStringEntry.getKey(), stringStringEntry.getValue());
             }
 
         } catch (Exception e) {
@@ -282,11 +290,11 @@ public class HarvestConnection implements HarvestErrorCodes {
         return protocol + collectorHost + resource;
     }
 
-    private String getCollectorConnectUri() {
+    protected String getCollectorConnectUri() {
         return getCollectorUri(COLLECTOR_CONNECT_URI);
     }
 
-    private String getCollectorDataUri() {
+    protected String getCollectorDataUri() {
         return getCollectorUri(COLLECTOR_DATA_URI);
     }
 
@@ -308,6 +316,10 @@ public class HarvestConnection implements HarvestErrorCodes {
 
     public void setCollectorHost(String collectorHost) {
         this.collectorHost = collectorHost;
+    }
+
+    public void setRequestHeaderMap(final Map<String, String> requestHeaders) {
+        this.requestHeaders = requestHeaders;
     }
 
     public void setConnectInformation(ConnectInformation connectInformation) {

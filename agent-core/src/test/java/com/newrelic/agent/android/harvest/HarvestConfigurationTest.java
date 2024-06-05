@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-present New Relic Corporation. All rights reserved.
+ * Copyright (c) 2022-2024. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,8 +8,10 @@ package com.newrelic.agent.android.harvest;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.newrelic.agent.android.RemoteConfiguration;
+import com.newrelic.agent.android.test.mock.Providers;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -17,10 +19,15 @@ import org.junit.runners.JUnit4;
 import java.util.UUID;
 
 @RunWith(JUnit4.class)
-public class HarvestConfigurationTests {
+public class HarvestConfigurationTest {
     String entityGuid = UUID.randomUUID().toString();
 
     Gson gson = new GsonBuilder().create();
+
+    @Before
+    public void setUp() throws Exception {
+
+    }
 
     @Test
     public void testHarvestConfigurationSerialize() {
@@ -59,6 +66,7 @@ public class HarvestConfigurationTests {
         config.setTrusted_account_key("33");
         config.setEntity_guid(entityGuid);
         config.setRemote_configuration(new RemoteConfiguration());
+        config.setRequest_headers_map(null);
 
         String configJson = gson.toJson(config);
 
@@ -69,7 +77,8 @@ public class HarvestConfigurationTests {
                 "\"activity_trace_max_report_attempts\":1,\"activity_trace_min_utilization\":0.3,\"at_capture\":{\"maxTotalTraceCount\":1}," +
                 "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\",\"application_id\":\"100\",\"trusted_account_key\":\"33\"," +
                 "\"entity_guid\":\"" + entityGuid + "\"," +
-                "\"configuration\":{\"application_exit_info\":{\"enabled\":true}}" +
+                "\"configuration\":{\"application_exit_info\":{\"enabled\":true}}," +
+                "\"request_headers_map\":{}" +
                 "}";
 
         Assert.assertEquals(expectedJson, configJson);
@@ -186,4 +195,57 @@ public class HarvestConfigurationTests {
         Assert.assertFalse(expectedJson.equals(configJson));
     }
 
+    @Test
+    public void testReconfigure() {
+        HarvestConfiguration config = new HarvestConfiguration();
+        Assert.assertTrue(config.getRequest_headers_map().isEmpty());
+
+        config.getRequest_headers_map().put("Header a", "VALUE a");
+        config.getRequest_headers_map().put("Header 2", "vAlue 2");
+        Assert.assertEquals(2, config.getRequest_headers_map().size());
+
+        HarvestConfiguration providedConfig = Providers.provideHarvestConfiguration();
+        Assert.assertFalse(config.equals(providedConfig));
+
+        config.reconfigure(providedConfig);
+        Assert.assertTrue(config.equals(providedConfig));
+        Assert.assertEquals(2, config.getRequest_headers_map().size());
+    }
+
+    @Test
+    public void setDefaultValues() {
+        HarvestConfiguration config = Providers.provideHarvestConfiguration();
+        Assert.assertNotEquals(config.getDataToken().toString(), new DataToken(0, 0).toString());
+        Assert.assertNotEquals(0, config.getData_token()[0]);
+        Assert.assertNotEquals(0, config.getData_token()[1]);
+        Assert.assertFalse(config.getRequest_headers_map().isEmpty());
+
+        config.setDefaultValues();
+        Assert.assertEquals(config.getDataToken().toString(), new DataToken(0, 0).toString());
+        Assert.assertEquals(0, config.getData_token()[0]);
+        Assert.assertEquals(0, config.getData_token()[1]);
+        Assert.assertEquals(config.getRemote_configuration(), new RemoteConfiguration());
+        Assert.assertTrue(config.getRequest_headers_map().isEmpty());
+    }
+
+    @Test
+    public void getDefaultHarvestConfiguration() {
+        Assert.assertEquals(new HarvestConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration());
+    }
+
+    @Test
+    public void testEquals() {
+        HarvestConfiguration thisConfig = Providers.provideHarvestConfiguration();
+        HarvestConfiguration thatConfig = Providers.provideHarvestConfiguration();
+        Assert.assertTrue(thisConfig.equals(thatConfig));
+        Assert.assertFalse(thisConfig.equals(HarvestConfiguration.getDefaultHarvestConfiguration()));
+    }
+
+    @Test
+    public void testHashCode() {
+        HarvestConfiguration thisConfig = Providers.provideHarvestConfiguration();
+        HarvestConfiguration thatConfig = Providers.provideHarvestConfiguration();
+        Assert.assertTrue(thisConfig.equals(thatConfig));
+        Assert.assertNotEquals(thisConfig.hashCode(), thatConfig.hashCode());
+    }
 }
