@@ -69,7 +69,7 @@ public class HarvestConfigurationTest {
         String configJson = gson.toJson(config);
         String expectedJson = "{" +
                 "\"account_id\":\"1\"," +
-                "\"configuration\":{\"application_exit_info\":{\"enabled\":true}}," +
+                "\"configuration\":{\"application_exit_info\":{\"enabled\":true},\"logs\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":true,\"level\":\"INFO\"}}," +
                 "\"data_token\":[1646468,1997527]," +
                 "\"entity_guid\":\"" + entityGuid + "\"," +
                 "\"request_headers_map\":{}," +

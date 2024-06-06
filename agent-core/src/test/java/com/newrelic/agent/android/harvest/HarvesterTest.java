@@ -77,10 +77,10 @@ public class HarvesterTest {
         Assert.assertEquals(2, harvestConfig.getRequest_headers_map().size());
 
         Assert.assertNotNull(harvestConfig.getRemote_configuration().getLogReportingConfiguration());
-        Assert.assertTrue(harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLoggingEnabled());
-        Assert.assertEquals(LogLevel.VERBOSE, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLogLevel());
-        Assert.assertEquals(15, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getHarvestPeriod());
-        Assert.assertEquals(7200, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getExpirationPeriod());
+        Assert.assertFalse(harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals(LogLevel.WARN, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLogLevel());
+        Assert.assertEquals(30, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getHarvestPeriod());
+        Assert.assertEquals(172800, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getExpirationPeriod());
     }
 
     @Test
@@ -207,7 +207,7 @@ public class HarvesterTest {
         LogReportingConfiguration postValue = harvester.getAgentConfiguration().getLogReportingConfiguration();
         Assert.assertFalse(postValue.toString().equals(preValue.toString()));
         Assert.assertTrue(postValue.getLoggingEnabled());
-        Assert.assertEquals(LogLevel.VERBOSE, postValue.getLogLevel());
+        Assert.assertEquals(LogLevel.WARN, postValue.getLogLevel());
     }
 
     @Test
@@ -224,8 +224,8 @@ public class HarvesterTest {
     }
 
     @Test
-    public void parseV1ConnectResponse() {
-        String connectResponse = Providers.provideJsonObject("/Connect-Spec-v1.json").toString();
+    public void parseV4ConnectResponse() {
+        String connectResponse = Providers.provideJsonObject("/Connect-Spec-v4.json").toString();
 
         HarvestResponse mockedResponse = Mockito.spy(new HarvestResponse());
         Mockito.doReturn(connectResponse).when(mockedResponse).getResponseBody();
@@ -234,16 +234,16 @@ public class HarvesterTest {
         Assert.assertNotNull(harvestConfig);
 
         Assert.assertTrue(harvestConfig.getDataToken().isValid());
-        Assert.assertEquals("1", harvestConfig.getAccount_id());
-        Assert.assertTrue(harvestConfig.getApplication_id().isEmpty());
-        Assert.assertEquals("1", harvestConfig.getTrusted_account_key());
+        Assert.assertEquals("6060842", harvestConfig.getAccount_id());
+        Assert.assertFalse(harvestConfig.getApplication_id().isEmpty());
+        Assert.assertEquals("33", harvestConfig.getTrusted_account_key());
 
         Assert.assertNotNull(harvestConfig.getEntity_guid());
-        Assert.assertFalse(harvestConfig.getEntity_guid().isEmpty());
+        Assert.assertTrue(harvestConfig.getEntity_guid().isEmpty());
 
         Assert.assertNotNull(harvestConfig.getRemote_configuration().getLogReportingConfiguration());
         Assert.assertTrue(harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLoggingEnabled());
-        Assert.assertEquals(LogLevel.VERBOSE, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLogLevel());
+        Assert.assertEquals(LogLevel.INFO, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLogLevel());
         Assert.assertEquals(30, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getHarvestPeriod());
         Assert.assertEquals(172800, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getExpirationPeriod());
     }
