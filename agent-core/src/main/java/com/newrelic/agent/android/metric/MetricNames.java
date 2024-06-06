@@ -85,6 +85,12 @@ public class MetricNames {
     public static final String SUPPORTABILITY_LOG_UNCOMPRESSED = SUPPORTABILITY_LOG_REPORTING + "Size/Uncompressed";
     public static final String SUPPORTABILITY_LOG_EXPIRED = SUPPORTABILITY_LOG_REPORTING + "Expired";
 
+    public static final String SUPPORTABILITY_AEI = SUPPORTABILITY_AGENT + "ApplicationExitInfo/";
+    public static final String SUPPORTABILITY_AEI_UNSUPPORTED_OS = SUPPORTABILITY_AEI + "unsupportedOS/";
+    public static final String SUPPORTABILITY_AEI_EXIT_STATUS = SUPPORTABILITY_AEI + "status/";
+    public static final String SUPPORTABILITY_AEI_EXIT_BY_REASON = SUPPORTABILITY_AEI + "reason/";
+    public static final String SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE = SUPPORTABILITY_AEI + "importance/";
+    public static final String SUPPORTABILITY_AEI_REMOTE_CONFIG = SUPPORTABILITY_AEI + "remoteConfiguration/";
 
     public static final String SUPPORTABILITY_DATA_TOKEN = SUPPORTABILITY_AGENT + "DataToken/";
     public static final String SUPPORTABILITY_INVALID_DATA_TOKEN = SUPPORTABILITY_DATA_TOKEN + "Invalid";

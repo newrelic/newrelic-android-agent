@@ -58,10 +58,6 @@ public class RemoteConfigurationTest {
     }
 
     @Test
-    public void getEntityGuid() {
-    }
-
-    @Test
     public void testEquals() {
         RemoteConfiguration lhs = new RemoteConfiguration();
         RemoteConfiguration rhs = new RemoteConfiguration();

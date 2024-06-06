@@ -6,6 +6,8 @@
 package com.newrelic.agent.android;
 
 import com.google.gson.annotations.SerializedName;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 
 public class ApplicationExitConfiguration {
     @SerializedName("enabled")
@@ -20,7 +22,14 @@ public class ApplicationExitConfiguration {
     }
 
     public void setConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {
-        this.enabled = applicationExitConfiguration.enabled;
+        if (!applicationExitConfiguration.equals(this)) {
+            if (!enabled && applicationExitConfiguration.enabled) {
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_REMOTE_CONFIG + "enabled");
+            } else if (enabled && !applicationExitConfiguration.enabled) {
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_REMOTE_CONFIG + "disabled");
+            }
+            enabled = applicationExitConfiguration.enabled;
+        }
     }
 
     @Override
@@ -35,9 +44,7 @@ public class ApplicationExitConfiguration {
 
     @Override
     public String toString() {
-        return "{"
-                + "\"enabled\"=" + enabled
-                + "}";
+        return "{\"enabled\"=" + enabled + "}";
     }
 
 }

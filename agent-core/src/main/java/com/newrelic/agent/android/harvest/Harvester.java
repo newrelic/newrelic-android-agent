@@ -70,10 +70,9 @@ public class Harvester {
         add(new HarvestLifecycleAware() {
             @Override
             public void onHarvestConfigurationChanged() {
-                harvestConfiguration.getRemote_configuration().onHarvestConfigurationChanged();
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_CONFIGURATION_CHANGED);
-                AnalyticsControllerImpl.getInstance().recordBreadcrumb(" Remote configuration changed", new HashMap<>());
-            }
+                AnalyticsControllerImpl.getInstance().recordBreadcrumb("Remote configuration changed", null);
+        }
         });
     }};
 
