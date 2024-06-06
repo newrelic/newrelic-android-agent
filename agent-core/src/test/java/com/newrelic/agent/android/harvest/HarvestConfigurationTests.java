@@ -7,6 +7,8 @@ package com.newrelic.agent.android.harvest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.newrelic.agent.android.ApplicationExitConfiguration;
+import com.newrelic.agent.android.RemoteConfiguration;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 
@@ -18,11 +20,13 @@ import org.junit.runners.JUnit4;
 import java.util.UUID;
 
 @RunWith(JUnit4.class)
-public class HarvesterConfigurationTests {
+public class HarvestConfigurationTests {
     String entityGuid = UUID.randomUUID().toString();
 
+    Gson gson = new GsonBuilder().create();
+
     @Test
-    public void testHarvesterConfigurationSerialize() {
+    public void testHarvestConfigurationSerialize() {
         String cross_process_id = "VgMPV1ZTGwIGUFdWAQk=";
         int data_report_period = 60;
         int[] data_token = {1646468, 1997527};
@@ -57,9 +61,8 @@ public class HarvesterConfigurationTests {
         config.setApplication_id("100");
         config.setTrusted_account_key("33");
         config.setEntity_guid(entityGuid);
-        config.setLog_reporting(new LogReportingConfiguration(true, LogLevel.WARN));
+        config.setRemote_configuration(new RemoteConfiguration());
 
-        Gson gson = new Gson();
         String configJson = gson.toJson(config);
 
         String expectedJson = "{\"collect_network_errors\":true,\"cross_process_id\":\"VgMPV1ZTGwIGUFdWAQk\\u003d\"," +
@@ -69,14 +72,16 @@ public class HarvesterConfigurationTests {
                 "\"activity_trace_max_report_attempts\":1,\"activity_trace_min_utilization\":0.3,\"at_capture\":{\"maxTotalTraceCount\":1}," +
                 "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\",\"application_id\":\"100\",\"trusted_account_key\":\"33\"," +
                 "\"entity_guid\":\"" + entityGuid + "\"," +
-                "\"log_reporting\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":true,\"level\":\"WARN\"}" +
+                "\"configuration\":{" +
+                "\"application_exit_info\":{\"enabled\":true}," +
+                "\"logs\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":true,\"level\":\"INFO\"}}" +
                 "}";
 
         Assert.assertEquals(expectedJson, configJson);
     }
 
     @Test
-    public void testHarvesterConfigurationDeserialize() {
+    public void testHarvestConfigurationDeserialize() {
         String cross_process_id = "VgMPV1ZTGwIGUFdWAQk=";
         int data_report_period = 60;
         int[] data_token = {1646468, 1997527};
@@ -108,6 +113,7 @@ public class HarvesterConfigurationTests {
         expectedConfig.setApplication_id(application_id);
         expectedConfig.setTrusted_account_key(trusted_account_key);
         expectedConfig.setEntity_guid(entityGuid);
+        expectedConfig.setRemote_configuration(new RemoteConfiguration());
 
         String expectedJson = "{\"collect_network_errors\":true,\"cross_process_id\":\"VgMPV1ZTGwIGUFdWAQk\\u003d\"," +
                 "\"data_report_period\":60,\"data_token\":[1646468,1997527],\"error_limit\":50," +
@@ -115,18 +121,17 @@ public class HarvesterConfigurationTests {
                 "\"server_timestamp\":1365724800,\"stack_trace_limit\":100," +
                 "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\"," +
                 "\"application_id\":\"100\",\"trusted_account_key\":\"33\"," +
-                "\"entity_guid\":\""+entityGuid+"\"," +
-                "\"log_reporting\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":false,\"level\":\"INFO\"}" +
+                "\"entity_guid\":\"" + entityGuid + "\"," +
+                "\"configuration\":{\"application_exit_info\":{\"enabled\":true}}" +
                 "}";
 
-        Gson gson = new Gson();
         HarvestConfiguration config = gson.fromJson(expectedJson, HarvestConfiguration.class);
 
         Assert.assertEquals(expectedConfig, config);
     }
 
     @Test
-    public void testHarvesterConfigurationDeserializeWithExtraFields() {
+    public void testHarvestConfigurationDeserializeWithExtraFields() {
         String cross_process_id = "VgMPV1ZTGwIGUFdWAQk=";
         int data_report_period = 60;
         int[] data_token = {1646468, 1997527};
@@ -165,28 +170,34 @@ public class HarvesterConfigurationTests {
                 "\"server_timestamp\":1365724800,\"stack_trace_limit\":100," +
                 "\"priority_encoding_key\":\"d67afc830dab717fd163bfcb0b8b88423e9a1a3b\",\"account_id\":\"1\"," +
                 "\"application_id\":\"100\",\"trusted_account_key\":\"33\"," +
-                "\"entity_guid\":\""+entityGuid+"\"" +
+                "\"entity_guid\":\"" + entityGuid + "\"" +
                 "}";
 
-        Gson gson = new Gson();
         HarvestConfiguration config = gson.fromJson(serializedJson, HarvestConfiguration.class);
 
         Assert.assertEquals(expectedConfig, config);
     }
 
     @Test
-    public void testHarvesterConfigurationLogReporting() {
+    public void testHarvestConfigurationRemoteConfig() {
         HarvestConfiguration config = new HarvestConfiguration();
-        LogReportingConfiguration loggingConfig = new LogReportingConfiguration(true, LogLevel.VERBOSE);
-        config.setLog_reporting(loggingConfig);
+        RemoteConfiguration remoteConfiguration = new RemoteConfiguration();
+        config.setRemote_configuration(remoteConfiguration);
 
-        Gson gson = new GsonBuilder().create();
-
-        String configJson = gson.toJson(config.getLog_reporting());
+        String configJson = gson.toJson(config.getRemote_configuration());
         Assert.assertTrue(configJson.matches("^\\{.*\\}$"));
 
-        String expectedJson = "{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":true,\"level\":\"VERBOSE\"}";
-        Assert.assertTrue(expectedJson.equals(configJson));
+        String expectedJson = "{\"application_exit_info\":{\"enabled\":false}}";
+        Assert.assertFalse(expectedJson.equals(configJson));
     }
 
+    @Test
+    public void testRemoteConfigResponse() {
+        HarvestConfiguration config = new HarvestConfiguration();
+        Assert.assertNotNull(config.getRemote_configuration());
+        Assert.assertNotNull(config.getRemote_configuration().getApplicationExitConfiguration());
+        Assert.assertEquals(config.getRemote_configuration().getApplicationExitConfiguration(), new ApplicationExitConfiguration(true));
+        Assert.assertNotNull(config.getRemote_configuration().getLogReportingConfiguration());
+        Assert.assertEquals(config.getRemote_configuration().getLogReportingConfiguration(), new LogReportingConfiguration(true, LogLevel.INFO));
+    }
 }

@@ -6,6 +6,8 @@
 package com.newrelic.agent.android.harvest;
 
 import com.newrelic.agent.android.Agent;
+import com.newrelic.agent.android.ApplicationExitConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.logging.LogLevel;
@@ -29,6 +31,7 @@ public class HarvesterTest {
 
     @Before
     public void setUp() throws Exception {
+        Harvest.instance = new Harvest();
         Harvest.initialize(Providers.provideAgentConfiguration());
 
         HarvestConnection connection = Harvest.getInstance().getHarvestConnection();
@@ -42,6 +45,8 @@ public class HarvesterTest {
         harvester.addHarvestListener(testAdapter);
 
         StatsEngine.reset();
+
+        FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
     }
 
     @Test
@@ -63,11 +68,15 @@ public class HarvesterTest {
         Assert.assertNotNull(harvestConfig.getEntity_guid());
         Assert.assertFalse(harvestConfig.getEntity_guid().isEmpty());
 
-        Assert.assertNotNull(harvestConfig.getLog_reporting());
-        Assert.assertTrue(harvestConfig.getLog_reporting().getLoggingEnabled());
-        Assert.assertEquals(LogLevel.VERBOSE, harvestConfig.getLog_reporting().getLogLevel());
-        Assert.assertEquals(30, harvestConfig.getLog_reporting().getHarvestPeriod());
-        Assert.assertEquals(3600, harvestConfig.getLog_reporting().getExpirationPeriod());
+        Assert.assertNotNull(harvestConfig.getRemote_configuration());
+        Assert.assertNotNull(harvestConfig.getRemote_configuration().getApplicationExitConfiguration());
+        Assert.assertTrue(harvestConfig.getRemote_configuration().getApplicationExitConfiguration().isEnabled());
+
+        Assert.assertNotNull(harvestConfig.getRemote_configuration().getLogReportingConfiguration());
+        Assert.assertTrue(harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals(LogLevel.VERBOSE, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLogLevel());
+        Assert.assertEquals(15, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getHarvestPeriod());
+        Assert.assertEquals(7200, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getExpirationPeriod());
     }
 
     @Test
@@ -84,11 +93,11 @@ public class HarvesterTest {
         harvester.execute();
 
         Assert.assertTrue(testAdapter.didDisconnect());
-        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.DISCONNECTED);
+        Assert.assertSame(harvester.getCurrentState(), Harvester.State.DISCONNECTED);
     }
 
     @Test
-    public void testReconnectAndUploadOnHarvestConfigurationUpdated() {
+    public void reconnectAndUploadOnHarvestConfigurationUpdated() {
         HarvestResponse mockedDataResponse = Mockito.spy(new HarvestResponse());
 
         Mockito.doReturn(true).when(mockedDataResponse).isError();
@@ -101,7 +110,7 @@ public class HarvesterTest {
 
         Assert.assertTrue(testAdapter.didError());
         Assert.assertTrue(testAdapter.didDisconnect());
-        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.DISCONNECTED);
+        Assert.assertSame(harvester.getCurrentState(), Harvester.State.DISCONNECTED);
 
         HarvestResponse mockedConnectResponse = Mockito.spy(new HarvestResponse());
         Mockito.doReturn(true).when(mockedConnectResponse).isOK();
@@ -123,7 +132,7 @@ public class HarvesterTest {
     }
 
     @Test
-    public void testShouldNotRespondToIdenticalConfigurations() {
+    public void shouldNotRespondToIdenticalConfigurations() {
         HarvestResponse mockedDataResponse = Mockito.spy(new HarvestResponse());
 
         Mockito.doReturn(true).when(mockedDataResponse).isError();
@@ -161,16 +170,16 @@ public class HarvesterTest {
     }
 
     @Test
-    public void testShouldRecordConfigurationMetrics() {
+    public void shouldRecordConfigurationMetrics() {
         AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
         AnalyticsControllerImpl.initialize(harvester.getAgentConfiguration(), new StubAgentImpl());
         controller.getEventManager().empty();
 
         harvester.removeHarvestListener(StatsEngine.get());
-        testReconnectAndUploadOnHarvestConfigurationUpdated();
+        reconnectAndUploadOnHarvestConfigurationUpdated();
 
         Assert.assertTrue("Should contain supportability metric to indicate configuration has changed",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_HARVEST_CONFIGURATION_CHANGED));
+                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CONFIGURATION_CHANGED));
 
         Collection<AnalyticsEvent> events = controller.getEventManager().getQueuedEvents();
         Iterator<AnalyticsEvent> iter = events.iterator();
@@ -179,16 +188,56 @@ public class HarvesterTest {
     }
 
     @Test
-    public void testUpdateAgentConfigOnHarvestConfigUpdate() {
-        LogReportingConfiguration preValue = harvester.getAgentConfiguration().getLogReportingConfiguration();
+    public void shouldUpdateLogReportingConfigOnHarvestConfigUpdate() {
+        LogReportingConfiguration preValue = new LogReportingConfiguration();
+        preValue.setConfiguration(harvester.getAgentConfiguration().getLogReportingConfiguration());
         Assert.assertFalse(preValue.getLoggingEnabled());
         Assert.assertEquals(LogLevel.NONE, preValue.getLogLevel());
 
-        testReconnectAndUploadOnHarvestConfigurationUpdated();
+        reconnectAndUploadOnHarvestConfigurationUpdated();
 
         LogReportingConfiguration postValue = harvester.getAgentConfiguration().getLogReportingConfiguration();
         Assert.assertFalse(postValue.toString().equals(preValue.toString()));
         Assert.assertTrue(postValue.getLoggingEnabled());
         Assert.assertEquals(LogLevel.VERBOSE, postValue.getLogLevel());
     }
+
+    @Test
+    public void shouldUpdateApplicationExitConfigOnHarvestConfigUpdate() {
+        ApplicationExitConfiguration preValue = new ApplicationExitConfiguration(false);
+        preValue.setConfiguration(harvester.getAgentConfiguration().getApplicationExitConfiguration());
+        Assert.assertTrue(preValue.isEnabled());
+
+        reconnectAndUploadOnHarvestConfigurationUpdated();
+
+        ApplicationExitConfiguration postValue = harvester.getAgentConfiguration().getApplicationExitConfiguration();
+        Assert.assertTrue(postValue.equals(preValue));
+        Assert.assertTrue(postValue.isEnabled());
+    }
+
+    @Test
+    public void parseV1ConnectResponse() {
+        String connectResponse = Providers.provideJsonObject("/Connect-Spec-v1.json").toString();
+
+        HarvestResponse mockedResponse = Mockito.spy(new HarvestResponse());
+        Mockito.doReturn(connectResponse).when(mockedResponse).getResponseBody();
+
+        HarvestConfiguration harvestConfig = harvester.parseHarvesterConfiguration(mockedResponse);
+        Assert.assertNotNull(harvestConfig);
+
+        Assert.assertTrue(harvestConfig.getDataToken().isValid());
+        Assert.assertEquals("1", harvestConfig.getAccount_id());
+        Assert.assertTrue(harvestConfig.getApplication_id().isEmpty());
+        Assert.assertEquals("1", harvestConfig.getTrusted_account_key());
+
+        Assert.assertNotNull(harvestConfig.getEntity_guid());
+        Assert.assertFalse(harvestConfig.getEntity_guid().isEmpty());
+
+        Assert.assertNotNull(harvestConfig.getRemote_configuration().getLogReportingConfiguration());
+        Assert.assertTrue(harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals(LogLevel.VERBOSE, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLogLevel());
+        Assert.assertEquals(30, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getHarvestPeriod());
+        Assert.assertEquals(172800, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getExpirationPeriod());
+    }
+
 }

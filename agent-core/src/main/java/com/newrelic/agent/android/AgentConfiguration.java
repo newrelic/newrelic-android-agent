@@ -11,6 +11,7 @@ import com.newrelic.agent.android.crash.CrashStore;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
@@ -66,12 +67,15 @@ public class AgentConfiguration {
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
-    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration();
+    private String entityGuid;
+
+    // Support remote configuration
+    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(true, LogLevel.INFO);
+    private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
 
     public String getApplicationToken() {
         return applicationToken;
     }
-
 
     public void setApplicationToken(String applicationToken) {
         this.applicationToken = applicationToken;
@@ -342,6 +346,16 @@ public class AgentConfiguration {
         return deviceID;
     }
 
+    public String getEntityGuid() {
+        return entityGuid;
+    }
+
+    public void setEntityGuid(String entityGuid) {
+        if (entityGuid != null && !entityGuid.isEmpty()) {
+            this.entityGuid = entityGuid.trim().strip();
+        }
+    }
+
     public String getLaunchActivityClassName() {
         return launchActivityClassName;
     }
@@ -358,6 +372,14 @@ public class AgentConfiguration {
         this.logReportingConfiguration = logReportingConfiguration;
     }
 
+    public ApplicationExitConfiguration getApplicationExitConfiguration() {
+        return applicationExitConfiguration;
+    }
+
+    public void getApplicationExitConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {
+        this.applicationExitConfiguration = applicationExitConfiguration;
+    }
+
     /**
      * Update agent config with any changes returned in the harvest response.
      * Currently, it is only log reporting config
@@ -366,7 +388,8 @@ public class AgentConfiguration {
      */
     public void reconfigure(HarvestConfiguration harvestConfiguration) {
         // update the global agent config w/changes
-        this.setLogReportingConfiguration(harvestConfiguration.getLog_reporting());
+        this.applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
+        this.logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);
     }
 
     // return the default instance
@@ -374,4 +397,5 @@ public class AgentConfiguration {
         instance.compareAndSet(null, new AgentConfiguration());
         return instance.get();
     }
+
 }

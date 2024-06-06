@@ -325,7 +325,7 @@ public final class NewRelic {
                     AgentLogManager.setAgentLog(new ForwardingAgentLog(new AndroidAgentLog()));
                 }
 
-                agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(loggingEnabled, level));
+                agentConfiguration.getLogReportingConfiguration().setConfiguration(new LogReportingConfiguration(loggingEnabled, level));
 
                 try {
                     /**
@@ -335,7 +335,6 @@ public final class NewRelic {
                      *
                      * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
                      **/
-                    LogReporting.setLogLevel(level);
                     LogReporting.initialize(context.getCacheDir(), agentConfiguration);
 
                 } catch (IOException e) {

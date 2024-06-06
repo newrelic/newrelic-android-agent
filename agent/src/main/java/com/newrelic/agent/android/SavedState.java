@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
@@ -20,7 +21,6 @@ import com.newrelic.agent.android.harvest.HarvestAdapter;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 
@@ -36,6 +36,7 @@ public class SavedState extends HarvestAdapter {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
     private final String PREFERENCE_FILE_PREFIX = "com.newrelic.android.agent.v1_";
+    private final Gson gson = new GsonBuilder().create();
 
     // Harvest configuration
     private final String PREF_MAX_TRANSACTION_COUNT = "maxTransactionCount";
@@ -56,7 +57,7 @@ public class SavedState extends HarvestAdapter {
     private final String PREF_ERROR_LIMIT = "errorLimit";
     private final String NEW_RELIC_AGENT_DISABLED_VERSION_KEY = "NewRelicAgentDisabledVersion";
     private final String PREF_ACTIVITY_TRACE_MIN_UTILIZATION = "activityTraceMinUtilization";
-    private final String PREF_LOG_REPORTING = "logReporting";
+    private final String PREF_REMOTE_CONFIGURATION = "remoteConfiguration";
 
     // Connect information
     private final String PREF_APP_NAME = "appName";
@@ -138,11 +139,11 @@ public class SavedState extends HarvestAdapter {
         save(PREF_ACCOUNT_ID, newConfiguration.getAccount_id());
         save(PREF_APPLICATION_ID, newConfiguration.getApplication_id());
         save(PREF_TRUSTED_ACCOUNT_KEY, newConfiguration.getTrusted_account_key());
-        save(PREF_LOG_REPORTING, newConfiguration.getLog_reporting().toString());
+        save(PREF_REMOTE_CONFIGURATION, gson.toJson(newConfiguration.getRemote_configuration()));
 
         saveActivityTraceMinUtilization((float) newConfiguration.getActivity_trace_min_utilization());
 
-        // Reload the configuration
+        // Reload the configuration(s)
         loadHarvestConfiguration();
     }
 
@@ -198,14 +199,14 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_TRUSTED_ACCOUNT_KEY)) {
             configuration.setTrusted_account_key(getTrustedAccountKey());
         }
-        if (has(PREF_LOG_REPORTING)) {
-            String logReportingConfig = getString(PREF_LOG_REPORTING);
+        if (has(PREF_REMOTE_CONFIGURATION)) {
+            String remoteConfigAsJson = getString(PREF_REMOTE_CONFIGURATION);
             try {
-                LogReportingConfiguration logReportingConfiguration = new Gson().fromJson(logReportingConfig, LogReportingConfiguration.class);
-                configuration.setLog_reporting(logReportingConfiguration);
+                RemoteConfiguration remoteConfiguration = gson.fromJson(remoteConfigAsJson, RemoteConfiguration.class);
+                configuration.setRemote_configuration(remoteConfiguration);
             } catch (JsonSyntaxException e) {
                 log.error("Failed to deserialize log reporting configuration: " + e);
-                configuration.setLog_reporting(new LogReportingConfiguration());
+                configuration.setRemote_configuration(new RemoteConfiguration());
             }
         }
 

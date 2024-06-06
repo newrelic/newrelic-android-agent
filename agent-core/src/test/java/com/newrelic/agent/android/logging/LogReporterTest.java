@@ -51,7 +51,7 @@ public class LogReporterTest extends LoggingTests {
 
         agentConfiguration = new AgentConfiguration();
         agentConfiguration.setApplicationToken("APP-TOKEN>");
-        agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(true, LogLevel.DEBUG));
+        agentConfiguration.getLogReportingConfiguration().setConfiguration(new LogReportingConfiguration(true, LogLevel.DEBUG));
 
         logReporter = Mockito.spy(LogReporter.initialize(reportsDir, agentConfiguration));
         LogReporter.MIN_PAYLOAD_THRESHOLD = -1;  // disable min archive size checking
