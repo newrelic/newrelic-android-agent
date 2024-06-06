@@ -242,13 +242,12 @@ public class HarvestTests {
         lock.lock();
         try {
             TestHarvest testHarvest = new TestHarvest();
-            TestHarvest.setInstance(testHarvest);
 
+            TestHarvest.setInstance(testHarvest);
             TestHarvest.initialize(new AgentConfiguration());
 
             HttpTransaction txn = new HttpTransaction();
             txn.setTimestamp(System.currentTimeMillis());
-
 
             HarvestConfiguration configuration = TestHarvest.getHarvestConfiguration();
             configuration.setReport_max_transaction_count(5);

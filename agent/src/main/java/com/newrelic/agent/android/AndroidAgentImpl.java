@@ -822,7 +822,10 @@ public class AndroidAgentImpl implements
             // must be called after application information was gathered and AnalyticsController has been initialized
             if (agentConfiguration.getApplicationExitConfiguration().isEnabled()) {
                 new ApplicationExitMonitor(context).harvestApplicationExitInfo();
+            } else {
+                log.debug("ApplicationExitReporting feature is enabled locally, but disabled in remote configuration.");
             }
         }
     }
+
 }

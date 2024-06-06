@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.harvest;
 
 import com.newrelic.agent.android.Agent;
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.harvest.type.HarvestErrorCodes;
 import com.newrelic.agent.android.harvest.type.Harvestable;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -32,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * This class establishes network connectivity from a {@link Harvester} to the collector.
  */
-public class HarvestConnection implements HarvestErrorCodes {
+public class HarvestConnection implements HarvestErrorCodes, HarvestConfigurable {
     private final AgentLog log = AgentLogManager.getAgentLog();
 
     protected static final String COLLECTOR_CONNECT_URI = "/mobile/v5/connect";
@@ -47,13 +48,11 @@ public class HarvestConnection implements HarvestErrorCodes {
 
     private String collectorHost;
     private String applicationToken;
-
     private long serverTimestamp;
-
     private ConnectInformation connectInformation;
-
     private boolean useSsl = true;
     protected Map<String, String> requestHeaders = new HashMap<>();
+
 
     public HarvestConnection() {
     }
@@ -285,7 +284,7 @@ public class HarvestConnection implements HarvestErrorCodes {
     }
 
     private String getCollectorUri(String resource) {
-        // unencryped http no longer supported as of 09/24/2021
+        // unencrypted http no longer supported as of 09/24/2021
         String protocol = "https://";
         return protocol + collectorHost + resource;
     }
@@ -324,5 +323,16 @@ public class HarvestConnection implements HarvestErrorCodes {
 
     public void setConnectInformation(ConnectInformation connectInformation) {
         this.connectInformation = connectInformation;
+    }
+
+    public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
+        setServerTimestamp(harvestConfiguration.getServer_timestamp());
+        setRequestHeaderMap(harvestConfiguration.getRequest_headers_map());
+    }
+
+    public void updateConfiguration(AgentConfiguration agentConfiguration) {
+        setApplicationToken(agentConfiguration.getApplicationToken());
+        setCollectorHost(agentConfiguration.getCollectorHost());
+        useSsl(agentConfiguration.useSsl());
     }
 }

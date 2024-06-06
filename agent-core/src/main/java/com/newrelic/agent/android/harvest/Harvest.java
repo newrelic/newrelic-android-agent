@@ -20,9 +20,8 @@ import com.newrelic.agent.android.tracing.ActivityTrace;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.TimeUnit;
 
-public class Harvest {
+public class Harvest implements HarvestConfigurable {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final boolean DISABLE_ACTIVITY_TRACE_LIMITS_FOR_DEBUGGING = false;
     public static final long INVALID_SESSION_DURATION = 0;
@@ -353,18 +352,18 @@ public class Harvest {
         harvestConnection = connection;
     }
 
-    public boolean shouldCollectNetworkErrors() {
-        return harvestConfiguration.isCollect_network_errors();
+    @Override
+    public void setConfiguration(HarvestConfiguration harvestConfiguration) {
+        updateConfiguration(harvestConfiguration);
     }
 
-    public void setConfiguration(HarvestConfiguration newConfiguration) {
-        harvestConfiguration.reconfigure(newConfiguration);
-
-        harvestTimer.setPeriod(TimeUnit.MILLISECONDS.convert(harvestConfiguration.getData_report_period(), TimeUnit.SECONDS));
-        harvestConnection.setServerTimestamp(harvestConfiguration.getServer_timestamp());
-        harvestConnection.setRequestHeaderMap(harvestConfiguration.getRequest_headers_map());
-        harvestData.setDataToken(harvestConfiguration.getDataToken());
-        harvester.setHarvestConfiguration(harvestConfiguration);
+    @Override
+    public void updateConfiguration(HarvestConfiguration newConfiguration) {
+        harvestConfiguration.updateConfiguration(newConfiguration);
+        harvestTimer.updateConfiguration(newConfiguration);
+        harvestConnection.updateConfiguration(newConfiguration);
+        harvestData.updateConfiguration(newConfiguration);
+        harvester.updateConfiguration(newConfiguration);
     }
 
     public void setConnectInformation(ConnectInformation connectInformation) {
@@ -375,7 +374,6 @@ public class Harvest {
     public static void setHarvestConfiguration(HarvestConfiguration configuration) {
         if (!isInitialized()) {
             log.error("Cannot configure Harvester before initialization.");
-            new Exception().printStackTrace();
             return;
         }
         log.debug("Harvest Configuration: " + configuration);
@@ -383,8 +381,9 @@ public class Harvest {
     }
 
     public static HarvestConfiguration getHarvestConfiguration() {
-        if (!isInitialized())
+        if (!isInitialized()) {
             return HarvestConfiguration.getDefaultHarvestConfiguration();
+        }
 
         return instance.getConfiguration();
     }
@@ -392,7 +391,6 @@ public class Harvest {
     public static void setHarvestConnectInformation(ConnectInformation connectInformation) {
         if (!isInitialized()) {
             log.error("Cannot configure Harvester before initialization.");
-            new Exception().printStackTrace();
             return;
         }
         log.debug(("Setting Harvest connect information: " + connectInformation));
