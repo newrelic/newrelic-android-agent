@@ -373,9 +373,10 @@ public class Providers {
 
     public static AgentConfiguration provideAgentConfiguration() {
         final AgentConfiguration conf = new AgentConfiguration();
+        
         conf.setApplicationToken("dead-beef-baad-f00d");
         conf.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
-        conf.setLogReportingConfiguration(provideLogReportingConfiguration());
+        conf.getLogReportingConfiguration().setConfiguration(provideLogReportingConfiguration());
 
         return conf;
     }

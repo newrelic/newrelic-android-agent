@@ -67,14 +67,12 @@ public class Harvester implements HarvestConfigurable {
     private HarvestData harvestData;
 
     private final Collection<HarvestLifecycleAware> harvestListeners = new ArrayList<>() {{
-        add(new HarvestAdapter() {
+        add(new HarvestLifecycleAware() {
             @Override
             public void onHarvestConfigurationChanged() {
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_CONFIGURATION_CHANGED);
-                AnalyticsControllerImpl.getInstance().recordBreadcrumb("FIXME harvestConfiguration", new HashMap<>() {{
-                    put("changed", true);
-                }});
-            }
+                AnalyticsControllerImpl.getInstance().recordBreadcrumb("Remote configuration changed", null);
+        }
         });
     }};
 

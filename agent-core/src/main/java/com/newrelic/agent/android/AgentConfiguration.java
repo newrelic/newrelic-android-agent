@@ -68,6 +68,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
+    private String entityGuid;
 
     // Support remote configuration
     private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(true, LogLevel.INFO);
@@ -346,6 +347,16 @@ public class AgentConfiguration implements HarvestConfigurable {
         return deviceID;
     }
 
+    public String getEntityGuid() {
+        return entityGuid;
+    }
+
+    public void setEntityGuid(String entityGuid) {
+        if (entityGuid != null && !entityGuid.isEmpty()) {
+            this.entityGuid = entityGuid.trim().strip();
+        }
+    }
+
     public String getLaunchActivityClassName() {
         return launchActivityClassName;
     }
@@ -376,6 +387,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
         // update the global agent config w/changes
         this.applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
+        this.logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);
     }
 
     // return the default instance
@@ -383,4 +395,5 @@ public class AgentConfiguration implements HarvestConfigurable {
         instance.compareAndSet(null, new AgentConfiguration());
         return instance.get();
     }
+
 }

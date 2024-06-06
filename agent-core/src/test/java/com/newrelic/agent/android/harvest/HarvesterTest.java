@@ -75,6 +75,12 @@ public class HarvesterTest {
 
         Assert.assertFalse(harvestConfig.getRequest_headers_map().isEmpty());
         Assert.assertEquals(2, harvestConfig.getRequest_headers_map().size());
+
+        Assert.assertNotNull(harvestConfig.getRemote_configuration().getLogReportingConfiguration());
+        Assert.assertTrue(harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals(LogLevel.VERBOSE, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLogLevel());
+        Assert.assertEquals(15, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getHarvestPeriod());
+        Assert.assertEquals(7200, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getExpirationPeriod());
     }
 
     @Test
@@ -91,7 +97,7 @@ public class HarvesterTest {
         harvester.execute();
 
         Assert.assertTrue(testAdapter.didDisconnect());
-        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.DISCONNECTED);
+        Assert.assertSame(harvester.getCurrentState(), Harvester.State.DISCONNECTED);
     }
 
     @Test
@@ -112,7 +118,7 @@ public class HarvesterTest {
 
         Assert.assertTrue(testAdapter.didError());
         Assert.assertTrue(testAdapter.didDisconnect());
-        Assert.assertTrue(harvester.getCurrentState() == Harvester.State.DISCONNECTED);
+        Assert.assertSame(harvester.getCurrentState(), Harvester.State.DISCONNECTED);
 
         HarvestResponse mockedConnectResponse = Mockito.spy(new HarvestResponse());
         Mockito.doReturn(true).when(mockedConnectResponse).isOK();
@@ -199,9 +205,9 @@ public class HarvesterTest {
         reconnectAndUploadOnHarvestConfigurationUpdated();
 
         LogReportingConfiguration postValue = harvester.getAgentConfiguration().getLogReportingConfiguration();
-        Assert.assertTrue(postValue.toString().equals(preValue.toString()));
-        Assert.assertFalse(postValue.getLoggingEnabled());
-        Assert.assertEquals(LogLevel.NONE, postValue.getLogLevel());
+        Assert.assertFalse(postValue.toString().equals(preValue.toString()));
+        Assert.assertTrue(postValue.getLoggingEnabled());
+        Assert.assertEquals(LogLevel.VERBOSE, postValue.getLogLevel());
     }
 
     @Test
@@ -215,6 +221,31 @@ public class HarvesterTest {
         ApplicationExitConfiguration postValue = harvester.getAgentConfiguration().getApplicationExitConfiguration();
         Assert.assertFalse(postValue.equals(preValue));
         Assert.assertFalse(postValue.isEnabled());
+    }
+
+    @Test
+    public void parseV1ConnectResponse() {
+        String connectResponse = Providers.provideJsonObject("/Connect-Spec-v1.json").toString();
+
+        HarvestResponse mockedResponse = Mockito.spy(new HarvestResponse());
+        Mockito.doReturn(connectResponse).when(mockedResponse).getResponseBody();
+
+        HarvestConfiguration harvestConfig = harvester.parseHarvesterConfiguration(mockedResponse);
+        Assert.assertNotNull(harvestConfig);
+
+        Assert.assertTrue(harvestConfig.getDataToken().isValid());
+        Assert.assertEquals("1", harvestConfig.getAccount_id());
+        Assert.assertTrue(harvestConfig.getApplication_id().isEmpty());
+        Assert.assertEquals("1", harvestConfig.getTrusted_account_key());
+
+        Assert.assertNotNull(harvestConfig.getEntity_guid());
+        Assert.assertFalse(harvestConfig.getEntity_guid().isEmpty());
+
+        Assert.assertNotNull(harvestConfig.getRemote_configuration().getLogReportingConfiguration());
+        Assert.assertTrue(harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals(LogLevel.VERBOSE, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLogLevel());
+        Assert.assertEquals(30, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getHarvestPeriod());
+        Assert.assertEquals(172800, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getExpirationPeriod());
     }
 
 }

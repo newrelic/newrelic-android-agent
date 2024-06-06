@@ -282,7 +282,7 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void testSupportabilityMetrics() throws InterruptedException {
+    public void testSupportabilityMetrics() throws InterruptedException, IOException {
         FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
 
         applicationExitMonitor.harvestApplicationExitInfo();
@@ -295,8 +295,6 @@ public class ApplicationExitMonitorTest {
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + aei.getReason()));
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + aei.getImportance()));
         }
-
-        applicationExitInfos.stream().collect(Collectors.toSet());
     }
 
     @Test
