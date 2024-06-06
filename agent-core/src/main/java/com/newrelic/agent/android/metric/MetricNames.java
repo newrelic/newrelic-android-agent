@@ -91,6 +91,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_AEI_EXIT_BY_REASON = SUPPORTABILITY_AEI + "reason/";
     public static final String SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE = SUPPORTABILITY_AEI + "importance/";
     public static final String SUPPORTABILITY_AEI_REMOTE_CONFIG = SUPPORTABILITY_AEI + "remoteConfiguration/";
+    public static final String SUPPORTABILITY_AEI_VISITED = SUPPORTABILITY_AEI + "visited/";
+    public static final String SUPPORTABILITY_AEI_SKIPPED = SUPPORTABILITY_AEI + "skipped/";
 
     public static final String SUPPORTABILITY_DATA_TOKEN = SUPPORTABILITY_AGENT + "DataToken/";
     public static final String SUPPORTABILITY_INVALID_DATA_TOKEN = SUPPORTABILITY_DATA_TOKEN + "Invalid";

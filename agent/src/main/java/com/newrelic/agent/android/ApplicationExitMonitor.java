@@ -48,18 +48,17 @@ public class ApplicationExitMonitor {
 
     /**
      * Gather application exist status reports for this process
-     * <p>
-     * Application process could die for many reasons, for example REASON_LOW_MEMORY when it
-     * was killed by the system because it was running low on memory. Reason of the death can be
-     * retrieved via getReason(). Besides the reason, there are a few other auxiliary APIs like
-     * getStatus() and getImportance() to help the caller with additional diagnostic information.
      **/
     @SuppressLint("SwitchIntDef")
     @SuppressWarnings("deprecation")
     protected void harvestApplicationExitInfo() {
 
-        // Only supported in Android 11
+        // Only supported in Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            boolean eventsAdded = false;
+            int recordsVisited = 0;
+            int recordsSkipped = 0;
+
             if (null == am) {
                 log.error("harvestApplicationExitInfo: ActivityManager is null!");
                 return;
@@ -76,6 +75,7 @@ public class ApplicationExitMonitor {
                 // If an artifact for this pid exists, it's been recorded already
                 if (artifact.exists() && (artifact.length() > 0)) {
                     log.debug("ApplicationExitMonitor: skipping exit info for pid[" + exitInfo.getPid() + "]: already recorded.");
+                    recordsSkipped++;
 
                 } else {
                     String traceReport = exitInfo.toString();
@@ -99,6 +99,8 @@ public class ApplicationExitMonitor {
                         artifactOs.flush();
                         artifactOs.close();
                         artifact.setReadOnly();
+
+                        recordsVisited++;
 
                     } catch (IOException e) {
                         log.debug("harvestApplicationExitInfo: AppExitInfo artifact error. " + e);
@@ -129,7 +131,7 @@ public class ApplicationExitMonitor {
                             break;
                     }
 
-                    AnalyticsControllerImpl.getInstance().internalRecordEvent(packageName,
+                    eventsAdded |= AnalyticsControllerImpl.getInstance().internalRecordEvent(packageName,
                             AnalyticsEventCategory.ApplicationExit,
                             EVENT_TYPE_MOBILE_APPLICATION_EXIT,
                             eventAttributes);
@@ -137,10 +139,20 @@ public class ApplicationExitMonitor {
                     StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
                     StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + exitInfo.getReason());
                     StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + exitInfo.getImportance());
+                    StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited);
+                    StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped);
                 }
+
+                log.debug("AEI: inspected " + applicationExitInfos.size() + " records: new[ " + recordsVisited + "] existing [" + recordsSkipped + "]");
             }
+
+            if (eventsAdded) {
+                // flush eventManager buffer on next harvest
+                AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
+            }
+
         } else {
-            log.warn("ApplicationExitMonitor: exit info reproting was enabled, but not supported by the current OS");
+            log.warn("ApplicationExitMonitor: exit info reporting was enabled, but not supported by the current OS");
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_UNSUPPORTED_OS + Build.VERSION.SDK_INT);
         }
     }
