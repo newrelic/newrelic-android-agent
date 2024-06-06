@@ -43,6 +43,21 @@ public class RemoteConfigurationTest {
     }
 
     @Test
+    public void getLogReportingConfiguration() {
+        Assert.assertNotNull(remoteConfig.getLogReportingConfiguration());
+        Assert.assertTrue(remoteConfig.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals(LogLevel.INFO, remoteConfig.getLogReportingConfiguration().getLogLevel());
+    }
+
+    @Test
+    public void setLogReportingConfiguration() {
+        remoteConfig.setLogReportingConfiguration(new LogReportingConfiguration(true, LogLevel.VERBOSE));
+        Assert.assertNotNull(remoteConfig.getLogReportingConfiguration());
+        Assert.assertTrue(remoteConfig.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals(LogLevel.VERBOSE, remoteConfig.getLogReportingConfiguration().getLogLevel());
+    }
+
+    @Test
     public void testEquals() {
         RemoteConfiguration lhs = new RemoteConfiguration();
         RemoteConfiguration rhs = new RemoteConfiguration();

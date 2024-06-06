@@ -7,8 +7,6 @@ package com.newrelic.agent.android.stores;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventStore;
@@ -45,7 +43,7 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
                 editor.putString(event.getEventUUID(), eventJson);
 
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED, eventJson.length());
-                return editor.commit();
+                return applyOrCommitEditor(editor);
             } catch (Exception e) {
                 log.error("SharedPrefsStore.store(String, String): ", e);
             }
