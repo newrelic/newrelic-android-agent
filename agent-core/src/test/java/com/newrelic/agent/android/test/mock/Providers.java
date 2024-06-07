@@ -62,6 +62,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 public class Providers {
 
@@ -270,6 +271,7 @@ public class Providers {
      */
     public static HarvestConfiguration provideHarvestConfiguration() {
         HarvestConfiguration harvestConfiguration = new HarvestConfiguration();
+
         harvestConfiguration.setCross_process_id("x-process-id");
         harvestConfiguration.setError_limit(111);
         harvestConfiguration.setCollect_network_errors(true);
@@ -286,6 +288,11 @@ public class Providers {
         harvestConfiguration.setServer_timestamp(9876543210L);
         harvestConfiguration.setResponse_body_limit(1111);
         harvestConfiguration.setTrusted_account_key("33");
+        harvestConfiguration.getRequest_headers_map().put("NR-AgentConfiguration", "+cNeWo");
+        harvestConfiguration.getRequest_headers_map().put("NR-Session", "AyAAAAC1NxdWFyZVRvb2xz");
+        harvestConfiguration.setEntity_guid("MTA4MTY5OTR8TU9CSUxFfEFQUExJQ0FUSU9OfDE1MjIzNDU3Mg");
+        harvestConfiguration.setAccount_id("33");
+
         return harvestConfiguration;
     }
 

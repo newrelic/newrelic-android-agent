@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class HarvestTimer implements Runnable {
+public class HarvestTimer implements Runnable, HarvestConfigurable {
     public final static long DEFAULT_HARVEST_PERIOD = 60 * 1000; // ms
     private final static long HARVEST_PERIOD_LEEWAY = 1000; // ms
     private final static long NEVER_TICKED = -1;
@@ -197,5 +197,9 @@ public class HarvestTimer implements Runnable {
         } finally {
             lock.unlock();
         }
+    }
+
+    public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
+        // setPeriod(TimeUnit.MILLISECONDS.convert(harvestConfiguration.getData_report_period(), TimeUnit.SECONDS));
     }
 }

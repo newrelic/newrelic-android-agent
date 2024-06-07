@@ -16,7 +16,6 @@ import android.os.Build;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
-import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -49,100 +48,111 @@ public class ApplicationExitMonitor {
 
     /**
      * Gather application exist status reports for this process
-     *
-     * Application process could die for many reasons, for example REASON_LOW_MEMORY when it
-     * was killed by the system because it was running low on memory. Reason of the death can be
-     * retrieved via getReason(). Besides the reason, there are a few other auxiliary APIs like
-     * getStatus() and getImportance() to help the caller with additional diagnostic information.
      **/
     @SuppressLint("SwitchIntDef")
+    @SuppressWarnings("deprecation")
     protected void harvestApplicationExitInfo() {
 
-        // Only supported in Android 11
+        // Only supported in Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            ApplicationStateMonitor.getInstance().getExecutor().submit(() -> {
-                if (null == am) {
-                    log.error("harvestApplicationExitInfo: ActivityManager is null!");
-                    return;
-                }
+            boolean eventsAdded = false;
+            int recordsVisited = 0;
+            int recordsSkipped = 0;
 
-                // we are reporting all reasons
-                final List<android.app.ApplicationExitInfo> applicationExitInfos =
-                        am.getHistoricalProcessExitReasons(packageName, 0, 0);
+            if (null == am) {
+                log.error("harvestApplicationExitInfo: ActivityManager is null!");
+                return;
+            }
 
-                // the set may contain more than one report for this package name
-                for (ApplicationExitInfo exitInfo : applicationExitInfos) {
-                    File artifact = new File(reportsDir, "app-exit-" + exitInfo.getPid() + ".log");
+            // we are reporting all reasons
+            final List<android.app.ApplicationExitInfo> applicationExitInfos =
+                    am.getHistoricalProcessExitReasons(packageName, 0, 0);
 
-                    // If an artifact for this pid exists, it's been recorded already
-                    if (artifact.exists() && (artifact.length() > 0)) {
-                        log.debug("ApplicationExitMonitor: skipping exit info for pid[" + exitInfo.getPid() + "]: already recorded.");
+            // the set may contain more than one report for this package name
+            for (ApplicationExitInfo exitInfo : applicationExitInfos) {
+                File artifact = new File(reportsDir, "app-exit-" + exitInfo.getPid() + ".log");
 
-                    } else {
-                        String traceReport = exitInfo.toString();
+                // If an artifact for this pid exists, it's been recorded already
+                if (artifact.exists() && (artifact.length() > 0)) {
+                    log.debug("ApplicationExitMonitor: skipping exit info for pid[" + exitInfo.getPid() + "]: already recorded.");
+                    recordsSkipped++;
 
-                        // remove any empty files
-                        if (artifact.exists() && artifact.length() == 0) {
-                            artifact.delete();
-                        }
+                } else {
+                    String traceReport = exitInfo.toString();
 
-                        try (OutputStream artifactOs = new FileOutputStream(artifact, false)) {
-
-                            if (null != exitInfo.getTraceInputStream()) {
-                                try (InputStream traceIs = exitInfo.getTraceInputStream()) {
-                                    traceReport = Streams.slurpString(traceIs);
-                                } catch (IOException e) {
-                                    log.info("ApplicationExitMonitor: " + e);
-                                }
-                            }
-
-                            artifactOs.write(traceReport.getBytes(StandardCharsets.UTF_8));
-                            artifactOs.flush();
-                            artifactOs.close();
-                            artifact.setReadOnly();
-
-                        } catch (IOException e) {
-                            log.debug("harvestApplicationExitInfo: AppExitInfo artifact error. " + e);
-                        }
-
-                        // finally, emit an event for the record
-                        final HashMap<String, Object> eventAttributes = new HashMap<>();
-
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
-
-                        // Add fg/bg flag based on inferred importance:
-                        switch (exitInfo.getImportance()) {
-                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
-                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
-                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
-                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26:
-                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
-                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
-                            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28:
-                                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
-                                break;
-                            default:
-                                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
-                                break;
-                        }
-
-                        AnalyticsControllerImpl.getInstance().internalRecordEvent(packageName,
-                                AnalyticsEventCategory.ApplicationExit,
-                                EVENT_TYPE_MOBILE_APPLICATION_EXIT,
-                                eventAttributes);
-
-                        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
-                        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + exitInfo.getReason());
-                        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + exitInfo.getImportance());
+                    // remove any empty files
+                    if (artifact.exists() && artifact.length() == 0) {
+                        artifact.delete();
                     }
+
+                    try (OutputStream artifactOs = new FileOutputStream(artifact, false)) {
+
+                        if (null != exitInfo.getTraceInputStream()) {
+                            try (InputStream traceIs = exitInfo.getTraceInputStream()) {
+                                traceReport = Streams.slurpString(traceIs);
+                            } catch (IOException e) {
+                                log.info("ApplicationExitMonitor: " + e);
+                            }
+                        }
+
+                        artifactOs.write(traceReport.getBytes(StandardCharsets.UTF_8));
+                        artifactOs.flush();
+                        artifactOs.close();
+                        artifact.setReadOnly();
+
+                        recordsVisited++;
+
+                    } catch (IOException e) {
+                        log.debug("harvestApplicationExitInfo: AppExitInfo artifact error. " + e);
+                    }
+
+                    // finally, emit an event for the record
+                    final HashMap<String, Object> eventAttributes = new HashMap<>();
+
+                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
+                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
+                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
+                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
+                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
+
+                    // Add fg/bg flag based on inferred importance:
+                    switch (exitInfo.getImportance()) {
+                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
+                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
+                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
+                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26:
+                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
+                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
+                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28:
+                            eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
+                            break;
+                        default:
+                            eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
+                            break;
+                    }
+
+                    eventsAdded |= AnalyticsControllerImpl.getInstance().internalRecordEvent(packageName,
+                            AnalyticsEventCategory.ApplicationExit,
+                            EVENT_TYPE_MOBILE_APPLICATION_EXIT,
+                            eventAttributes);
+
+                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
+                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + exitInfo.getReason());
+                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + exitInfo.getImportance());
+                    StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited);
+                    StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped);
                 }
-            });
+
+                log.debug("AEI: inspected " + applicationExitInfos.size() + " records: new[ " + recordsVisited + "] existing [" + recordsSkipped + "]");
+            }
+
+            if (eventsAdded) {
+                // flush eventManager buffer on next harvest
+                AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
+            }
+
         } else {
-            log.warn("ApplicationExitMonitor: exit info reproting was enabled, but not supported by the current OS");
+            log.warn("ApplicationExitMonitor: exit info reporting was enabled, but not supported by the current OS");
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_UNSUPPORTED_OS + Build.VERSION.SDK_INT);
         }
     }

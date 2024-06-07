@@ -29,19 +29,15 @@ public class TraceConfigurationTest {
     @Test
     public void testOnHarvestConnected() {
         HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("2");
-        HarvestConfiguration.getDefaultHarvestConfiguration().setApplication_id(("22"));
         traceConfiguration.onHarvestConnected();
         Assert.assertEquals("2", traceConfiguration.accountId);
-        Assert.assertEquals("22", traceConfiguration.applicationId);
     }
 
     @Test
     public void testSetConfiguration() {
         HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("2");
-        HarvestConfiguration.getDefaultHarvestConfiguration().setApplication_id(("22"));
         traceConfiguration.setConfiguration(HarvestConfiguration.getDefaultHarvestConfiguration());
         Assert.assertEquals("2", traceConfiguration.accountId);
-        Assert.assertEquals("22", traceConfiguration.applicationId);
     }
 
     @Test

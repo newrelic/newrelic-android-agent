@@ -33,7 +33,7 @@ import java.util.Map;
  * Agent configuration is specified with an {@link AgentConfiguration} object.
  * Communication with the Harvester is done via {@link HarvestConnection}.
  */
-public class Harvester {
+public class Harvester implements HarvestConfigurable {
     private final AgentLog log = AgentLogManager.getAgentLog();
 
     /**
@@ -103,9 +103,8 @@ public class Harvester {
         // Perform initialization tasks.
         Harvest.setHarvestConnectInformation(new ConnectInformation(Agent.getApplicationInformation(), Agent.getDeviceInformation()));
 
-        harvestConnection.setApplicationToken(agentConfiguration.getApplicationToken());
-        harvestConnection.setCollectorHost(agentConfiguration.getCollectorHost());
-        harvestConnection.useSsl(agentConfiguration.useSsl());
+        harvestConnection.updateConfiguration(agentConfiguration);
+        harvestConnection.updateConfiguration(harvestConfiguration);
 
         transition(State.DISCONNECTED);
         execute();
@@ -152,6 +151,8 @@ public class Harvester {
                 return;
             }
 
+            boolean configurationChanged = !this.harvestConfiguration.equals(configuration);
+
             configureHarvester(configuration);
             StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest", response.getResponseTime());
             fireOnHarvestConnected();
@@ -160,10 +161,9 @@ public class Harvester {
             transition(State.CONNECTED);
             execute();
 
-            if (!this.harvestConfiguration.equals(configuration)) {
+            if (configurationChanged) {
                 fireOnHarvestConfigurationChanged();    // notify listeners their configs may have changed
             }
-
             return;
         }
 
@@ -455,11 +455,12 @@ public class Harvester {
         return config;
     }
 
-    private void configureHarvester(final HarvestConfiguration harvestConfiguration) {
-        this.harvestConfiguration.reconfigure(harvestConfiguration);
-        agentConfiguration.reconfigure(harvestConfiguration);
-        harvestData.setDataToken(this.harvestConfiguration.getDataToken());
-        Harvest.setHarvestConfiguration(this.harvestConfiguration);
+    private void configureHarvester(final HarvestConfiguration newConfiguration) {
+        harvestConfiguration.updateConfiguration(newConfiguration);
+        agentConfiguration.updateConfiguration(harvestConfiguration);
+        harvestData.updateConfiguration(harvestConfiguration);
+
+        Harvest.setHarvestConfiguration(harvestConfiguration);
     }
 
     // Change states and mark that the state has been changed.
@@ -758,9 +759,6 @@ public class Harvester {
     private void fireOnHarvestConfigurationChanged() {
         // Notify all listeners that the harvester connected.
         try {
-            // Invalidate the data token, which then forces a reconnect on next harvest
-            harvestData.getDataToken().clear();
-
             for (HarvestLifecycleAware harvestAware : getHarvestListeners()) {
                 harvestAware.onHarvestConfigurationChanged();
             }
@@ -791,6 +789,11 @@ public class Harvester {
 
     public void setConfiguration(HarvestConfiguration configuration) {
         this.harvestConfiguration = configuration;
+    }
+
+    @Override
+    public void updateConfiguration(HarvestConfiguration newConfiguration) {
+        setHarvestConfiguration(newConfiguration);
     }
 
     public void setHarvestConfiguration(HarvestConfiguration harvestConfiguration) {

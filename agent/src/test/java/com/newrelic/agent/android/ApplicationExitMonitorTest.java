@@ -20,6 +20,7 @@ import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
 import com.newrelic.agent.android.analytics.AnalyticsValidator;
 import com.newrelic.agent.android.analytics.ApplicationExitEvent;
+import com.newrelic.agent.android.analytics.EventManager;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -294,6 +295,26 @@ public class ApplicationExitMonitorTest {
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + aei.getReason()));
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + aei.getImportance()));
         }
+    }
+
+    @Test
+    public void aeiHarvestShouldTriggerEventHarvest() throws InterruptedException {
+        FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
+        EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
+
+        applicationExitMonitor.harvestApplicationExitInfo();
+        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
+        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(1, TimeUnit.SECONDS);
+        Assert.assertFalse(eventManager.getQueuedEvents().isEmpty());
+        Assert.assertTrue(eventManager.isTransmitRequired());
+
+        Assert.assertNotNull(eventManager.getQueuedEvents()); // flush data reset flag
+        ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
+        applicationExitInfos.clear();
+        applicationExitMonitor.harvestApplicationExitInfo();
+        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
+        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(1, TimeUnit.SECONDS);
+        Assert.assertFalse(AnalyticsControllerImpl.getInstance().getEventManager().isTransmitRequired());
     }
 
     private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {

@@ -8,6 +8,7 @@ package com.newrelic.agent.android;
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore;
 import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;
+import com.newrelic.agent.android.harvest.HarvestConfigurable;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -25,7 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class AgentConfiguration {
+public class AgentConfiguration implements HarvestConfigurable {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
     private static final String DEFAULT_COLLECTOR_HOST = "mobile-collector.newrelic.com";
@@ -376,17 +377,14 @@ public class AgentConfiguration {
         return applicationExitConfiguration;
     }
 
-    public void getApplicationExitConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {
-        this.applicationExitConfiguration = applicationExitConfiguration;
-    }
-
     /**
      * Update agent config with any changes returned in the harvest response.
-     * Currently, it is only log reporting config
+     * Currently, it is only the AEI config
      *
      * @param harvestConfiguration
      */
-    public void reconfigure(HarvestConfiguration harvestConfiguration) {
+    @Override
+    public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
         // update the global agent config w/changes
         this.applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
         this.logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);

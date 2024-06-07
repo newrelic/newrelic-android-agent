@@ -28,6 +28,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONTokener;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -44,9 +46,7 @@ public class SavedState extends HarvestAdapter {
     private final String PREF_HARVEST_INTERVAL = "harvestIntervalInSeconds";
     private final String PREF_SERVER_TIMESTAMP = "serverTimestamp";
     private final String PREF_CROSS_PROCESS_ID = "crossProcessId";
-    private final String PREF_PRIORITY_ENCODING_KEY = "encoding_key";
     private final String PREF_ACCOUNT_ID = "account_id";
-    private final String PREF_APPLICATION_ID = "application_id";
     private final String PREF_TRUSTED_ACCOUNT_KEY = "trusted_account_key";
     private final String PREF_DATA_TOKEN = "dataToken";
     private final String PREF_DATA_TOKEN_EXPIRATION = "dataTokenExpiration";
@@ -58,6 +58,7 @@ public class SavedState extends HarvestAdapter {
     private final String NEW_RELIC_AGENT_DISABLED_VERSION_KEY = "NewRelicAgentDisabledVersion";
     private final String PREF_ACTIVITY_TRACE_MIN_UTILIZATION = "activityTraceMinUtilization";
     private final String PREF_REMOTE_CONFIGURATION = "remoteConfiguration";
+    private final String PREF_REQUEST_HEADERS_MAP = "requestHeadersMap";
 
     // Connect information
     private final String PREF_APP_NAME = "appName";
@@ -135,11 +136,10 @@ public class SavedState extends HarvestAdapter {
         save(PREF_RESPONSE_BODY_LIMIT, newConfiguration.getResponse_body_limit());
         save(PREF_COLLECT_NETWORK_ERRORS, newConfiguration.isCollect_network_errors());
         save(PREF_ERROR_LIMIT, newConfiguration.getError_limit());
-        save(PREF_PRIORITY_ENCODING_KEY, newConfiguration.getPriority_encoding_key());
         save(PREF_ACCOUNT_ID, newConfiguration.getAccount_id());
-        save(PREF_APPLICATION_ID, newConfiguration.getApplication_id());
         save(PREF_TRUSTED_ACCOUNT_KEY, newConfiguration.getTrusted_account_key());
         save(PREF_REMOTE_CONFIGURATION, gson.toJson(newConfiguration.getRemote_configuration()));
+        save(PREF_REQUEST_HEADERS_MAP, gson.toJson(newConfiguration.getRequest_headers_map()));
 
         saveActivityTraceMinUtilization((float) newConfiguration.getActivity_trace_min_utilization());
 
@@ -157,14 +157,8 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_CROSS_PROCESS_ID)) {
             configuration.setCross_process_id(getCrossProcessId());
         }
-        if (has(PREF_PRIORITY_ENCODING_KEY)) {
-            configuration.setPriority_encoding_key(getPriorityEncodingKey());
-        }
         if (has(PREF_ACCOUNT_ID)) {
             configuration.setAccount_id(getAccountId());
-        }
-        if (has(PREF_APPLICATION_ID)) {
-            configuration.setApplication_id(getApplicationId());
         }
         if (has(PREF_SERVER_TIMESTAMP)) {
             configuration.setServer_timestamp(getServerTimestamp());
@@ -193,9 +187,6 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_ACTIVITY_TRACE_MIN_UTILIZATION)) {
             configuration.setActivity_trace_min_utilization(getActivityTraceMinUtilization());
         }
-        if (has(PREF_PRIORITY_ENCODING_KEY)) {
-            configuration.setPriority_encoding_key(getPriorityEncodingKey());
-        }
         if (has(PREF_TRUSTED_ACCOUNT_KEY)) {
             configuration.setTrusted_account_key(getTrustedAccountKey());
         }
@@ -209,6 +200,17 @@ public class SavedState extends HarvestAdapter {
                 configuration.setRemote_configuration(new RemoteConfiguration());
             }
         }
+        if (has(PREF_REQUEST_HEADERS_MAP)) {
+            String requestHeadersAsJson = getString(PREF_REQUEST_HEADERS_MAP);
+            try {
+                Map<String, String> requestHeadersMap = gson.fromJson(requestHeadersAsJson, Map.class);
+                configuration.setRequest_headers_map(requestHeadersMap);
+            } catch (JsonSyntaxException e) {
+                log.error("Failed to deserialize request header configuration: " + e);
+                configuration.setRequest_headers_map(new HashMap<>());
+            }
+        }
+
 
         log.info("Loaded configuration: " + configuration);
     }
@@ -487,16 +489,8 @@ public class SavedState extends HarvestAdapter {
         return getString(PREF_CROSS_PROCESS_ID);
     }
 
-    public String getPriorityEncodingKey() {
-        return getString(PREF_PRIORITY_ENCODING_KEY);
-    }
-
     public String getAccountId() {
         return getString(PREF_ACCOUNT_ID);
-    }
-
-    public String getApplicationId() {
-        return getString(PREF_APPLICATION_ID);
     }
 
     public String getTrustedAccountKey() {
