@@ -53,6 +53,8 @@ public abstract class LogReporting {
         if (!LogReporter.getInstance().isStarted()) {
             agentLogger.log(LogLevel.ERROR, "LogReporting failed to initialize!");
         }
+
+        entityGuid = agentConfiguration.getEntityGuid();
     }
 
     public static Logger getLogger() {

@@ -25,7 +25,7 @@ import java.util.Set;
 
 /**
  * Information used in the {@code data} phase of harvesting.
- *
+ * <p>
  * The following entities are included in HarvestData:
  * <ul>
  *     <li>A {@link DataToken} which holds application identifying information.</li>
@@ -40,7 +40,7 @@ import java.util.Set;
  *     </li>
  * </ul>
  */
-public class HarvestData extends HarvestableArray {
+public class HarvestData extends HarvestableArray implements HarvestConfigurable {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
     private DataToken dataToken;
@@ -242,5 +242,9 @@ public class HarvestData extends HarvestableArray {
                 ", sessionAttributes=" + sessionAttributes +
                 ", analyticsAttributes=" + analyticsEvents +
                 '}';
+    }
+
+    public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
+        setDataToken(harvestConfiguration.getDataToken());
     }
 }

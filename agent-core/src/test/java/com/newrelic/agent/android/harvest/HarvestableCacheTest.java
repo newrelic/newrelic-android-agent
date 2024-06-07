@@ -54,8 +54,8 @@ public class HarvestableCacheTest {
             Assert.assertEquals(0, Harvest.getActivityTraceCacheSize());
             Harvest.addActivityTrace(new TestActivityTrace());
             Assert.assertEquals(1, Harvest.getActivityTraceCacheSize());
-            Harvest.initialize(new AgentConfiguration());
             Harvest.setHarvestConfiguration(new HarvestConfiguration());
+            Harvest.initialize(new AgentConfiguration());
             Harvest.start();
             Assert.assertEquals(0, Harvest.getActivityTraceCacheSize());
         } finally {

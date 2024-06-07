@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.harvest;
 
 import com.newrelic.agent.android.Agent;
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.harvest.type.HarvestErrorCodes;
 import com.newrelic.agent.android.harvest.type.Harvestable;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -25,32 +26,33 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  * This class establishes network connectivity from a {@link Harvester} to the collector.
  */
-public class HarvestConnection implements HarvestErrorCodes {
+public class HarvestConnection implements HarvestErrorCodes, HarvestConfigurable {
     private final AgentLog log = AgentLogManager.getAgentLog();
 
-    private static final String COLLECTOR_CONNECT_URI = "/mobile/v4/connect";
-    private static final String COLLECTOR_DATA_URI = "/mobile/v3/data";
+    protected static final String COLLECTOR_CONNECT_URI = "/mobile/v5/connect";
+    protected static final String COLLECTOR_DATA_URI = "/mobile/v3/data";
 
     private static final int TIMEOUT_IN_SECONDS = 20;
     private static final int READ_TIMEOUT_IN_SECONDS = 4;
-    private static final int CONNECTION_TIMEOUT = (int) TimeUnit.MILLISECONDS.convert(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
-    private static final int READ_TIMEOUT = (int) TimeUnit.MILLISECONDS.convert(READ_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+    protected static final int CONNECTION_TIMEOUT = (int) TimeUnit.MILLISECONDS.convert(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+    protected static final int READ_TIMEOUT = (int) TimeUnit.MILLISECONDS.convert(READ_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
     private static final int RESPONSE_BUFFER_SIZE = 8192;
     private static final int MAX_PLAINTEXT_MESSAGE_SIZE = 512;
 
     private String collectorHost;
     private String applicationToken;
-
     private long serverTimestamp;
-
     private ConnectInformation connectInformation;
-
     private boolean useSsl = true;
+    protected Map<String, String> requestHeaders = new HashMap<>();
+
 
     public HarvestConnection() {
     }
@@ -87,6 +89,11 @@ public class HarvestConnection implements HarvestErrorCodes {
 
             if (serverTimestamp != 0) {
                 connection.setRequestProperty(Constants.Network.CONNECT_TIME_HEADER, ((Long) serverTimestamp).toString());
+            }
+
+            // apply the headers passed in harvest configuration
+            for (Map.Entry<String, String> stringStringEntry : requestHeaders.entrySet()) {
+                connection.setRequestProperty(stringStringEntry.getKey(), stringStringEntry.getValue());
             }
 
         } catch (Exception e) {
@@ -277,16 +284,16 @@ public class HarvestConnection implements HarvestErrorCodes {
     }
 
     private String getCollectorUri(String resource) {
-        // unencryped http no longer supported as of 09/24/2021
+        // unencrypted http no longer supported as of 09/24/2021
         String protocol = "https://";
         return protocol + collectorHost + resource;
     }
 
-    private String getCollectorConnectUri() {
+    protected String getCollectorConnectUri() {
         return getCollectorUri(COLLECTOR_CONNECT_URI);
     }
 
-    private String getCollectorDataUri() {
+    protected String getCollectorDataUri() {
         return getCollectorUri(COLLECTOR_DATA_URI);
     }
 
@@ -310,7 +317,22 @@ public class HarvestConnection implements HarvestErrorCodes {
         this.collectorHost = collectorHost;
     }
 
+    public void setRequestHeaderMap(final Map<String, String> requestHeaders) {
+        this.requestHeaders = requestHeaders;
+    }
+
     public void setConnectInformation(ConnectInformation connectInformation) {
         this.connectInformation = connectInformation;
+    }
+
+    public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
+        setServerTimestamp(harvestConfiguration.getServer_timestamp());
+        setRequestHeaderMap(harvestConfiguration.getRequest_headers_map());
+    }
+
+    public void updateConfiguration(AgentConfiguration agentConfiguration) {
+        setApplicationToken(agentConfiguration.getApplicationToken());
+        setCollectorHost(agentConfiguration.getCollectorHost());
+        useSsl(agentConfiguration.useSsl());
     }
 }

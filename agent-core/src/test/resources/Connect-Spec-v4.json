@@ -14,14 +14,7 @@
   "activity_trace_min_utilization": 1.0,
   "at_capture": [],
   "encoding_key": "d67afc830dab717fd163bfcb0b8b88423e9a1a3b",
-  "account_id": "1",
+  "account_id": "6060842",
   "application_id": "601359369",
-  "trusted_account_key":"1",
-  "entity_guid": "a4d39d21-588b-4342-ad87-967243533949",
-  "log_reporting": {
-    "enabled": true,
-    "level": "VERBOSE",
-    "data_report_period": 30,
-    "expiration_period": 3600
-  }
+  "trusted_account_key":"33"
 }

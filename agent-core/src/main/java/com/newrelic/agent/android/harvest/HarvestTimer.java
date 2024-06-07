@@ -32,7 +32,7 @@ public class HarvestTimer implements Runnable {
     protected final Harvester harvester;
     protected long lastTickTime;
     private long startTimeMs;
-    private Lock lock = new ReentrantLock();
+    private final Lock lock = new ReentrantLock();
 
     public HarvestTimer(Harvester harvester) {
         this.harvester = harvester;
@@ -141,26 +141,6 @@ public class HarvestTimer implements Runnable {
         scheduler.shutdownNow();
     }
 
-    public void restart() {
-        try {
-            lock.lock();
-            cancelPendingTasks();
-
-            startTimeMs = now();
-            lastTickTime = startTimeMs + tickFuture.getDelay(TimeUnit.MILLISECONDS);
-            tickFuture = scheduler.scheduleWithFixedDelay(this, 0, period, TimeUnit.MILLISECONDS);
-            log.debug("Set last tick time to: " + lastTickTime);
-
-            AnalyticsControllerImpl.getInstance()
-                    .getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
-                    .setStringValue(harvester.getAgentConfiguration().getSessionID());
-
-        } finally {
-            lock.unlock();
-            log.debug("HarvestTimer: Restarted");
-        }
-    }
-
     /**
      * Executes a run of the Harvester immediately, disregarding any 'time since last tick' limits.
      * Does not affect the next scheduled harvest time, so if abused could result in over-harvesting.
@@ -173,12 +153,13 @@ public class HarvestTimer implements Runnable {
 //            if (timeSinceLastTick() <= TimeUnit.SECONDS.toMillis(15)) {
 //                log.warn("HarvestTimer.tickNow() called too frequently");
 //            } else {
-                final HarvestTimer timer = this;
+            final HarvestTimer timer = this;
+            ScheduledFuture<?> future = scheduler.schedule(() -> timer.tick(), 0, TimeUnit.MILLISECONDS);
+            if (bWait && !future.isCancelled()) {
+                future.get();
                 startTimeMs = System.currentTimeMillis();
-                ScheduledFuture<?> future = scheduler.schedule(() -> timer.tick(), 0, TimeUnit.MILLISECONDS);
-                if (bWait && !future.isCancelled()) {
-                    future.get();
-                }
+            }
+
 //            }
         } catch (Exception e) {
             log.error("Exception waiting for tickNow to finish: " + e.getMessage());
@@ -222,5 +203,9 @@ public class HarvestTimer implements Runnable {
         } finally {
             lock.unlock();
         }
+    }
+
+    public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
+        // setPeriod(TimeUnit.MILLISECONDS.convert(harvestConfiguration.getData_report_period(), TimeUnit.SECONDS));
     }
 }

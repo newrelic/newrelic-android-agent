@@ -480,4 +480,10 @@ public class SavedStateTest {
         Assert.assertTrue(savedState.has("dataToken"));
         Assert.assertTrue(savedState.has("dataTokenExpiration"));
     }
+
+    @Test
+    public void testRequestHeadersMap() {
+        savedState.saveHarvestConfiguration(Providers.provideHarvestConfiguration());
+        Assert.assertEquals("Should return request header map", "{\"NR-AgentConfiguration\":\"+cNeWo\",\"NR-Session\":\"AyAAAAC1NxdWFyZVRvb2xz\"}", savedState.getString("requestHeadersMap"));
+    }
 }

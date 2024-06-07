@@ -94,14 +94,8 @@ public class AnalyticsAttribute {
     public static final String APP_EXIT_TIMESTAMP_ATTRIBUTE = "exitTimestamp";
     public static final String APP_EXIT_DESCRIPTION_ATTRIBUTE = "description";
     public static final String APP_EXIT_REASON_ATTRIBUTE = "reason";
-    public static final String APP_EXIT_PID_ATTRIBUTE = "pid";
     public static final String APP_EXIT_IMPORTANCE_ATTRIBUTE = "importance";
-    public static final String APP_EXIT_PROCESS_NAME_ATTRIBUTE = "process";
-    public static final String APP_EXIT_UNSUPPORTED_ATTRIBUTE = "unsupportedOS";
-    public static final String APP_EXIT_UUID_ATTRIBUTE = "uuid";
-    public static final String APP_EXIT_STACKTRACE_ATTRIBUTE = "stacktrace";
-    public static final String APP_EXIT_PSS_ATTRIBUTE = "pss";
-    public static final String APP_EXIT_RSS_ATTRIBUTE = "rss";
+    public static final String APP_EXIT_PROCESS_NAME_ATTRIBUTE = "processName";
     public static final String APP_EXIT_APP_STATE_ATTRIBUTE = "appState";
 
     public static final int ATTRIBUTE_NAME_MAX_LENGTH = 255;

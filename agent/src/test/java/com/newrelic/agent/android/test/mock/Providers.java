@@ -7,6 +7,7 @@ package com.newrelic.agent.android.test.mock;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.ApplicationFramework;
+import com.newrelic.agent.android.RemoteConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.CustomEvent;
@@ -29,6 +30,7 @@ import com.newrelic.agent.android.tracing.TracingInactiveException;
 
 import org.junit.Assert;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -211,6 +213,7 @@ public class Providers {
      */
     public static HarvestConfiguration provideHarvestConfiguration() {
         HarvestConfiguration harvestConfiguration = new HarvestConfiguration();
+
         harvestConfiguration.setCross_process_id("x-process-id");
         harvestConfiguration.setError_limit(111);
         harvestConfiguration.setCollect_network_errors(true);
@@ -226,9 +229,12 @@ public class Providers {
         harvestConfiguration.setActivity_trace_min_utilization(0.3333);
         harvestConfiguration.setServer_timestamp(9876543210L);
         harvestConfiguration.setResponse_body_limit(1111);
-        harvestConfiguration.setAccount_id("12345");
-        harvestConfiguration.setApplication_id("app-token");
         harvestConfiguration.setTrusted_account_key("33");
+        harvestConfiguration.getRequest_headers_map().put("NR-AgentConfiguration", "+cNeWo");
+        harvestConfiguration.getRequest_headers_map().put("NR-Session", "AyAAAAC1NxdWFyZVRvb2xz");
+        harvestConfiguration.setEntity_guid("MTA4MTY5OTR8TU9CSUxFfEFQUExJQ0FUSU9OfDE1MjIzNDU3Mg");
+        harvestConfiguration.setAccount_id("1");
+
         return harvestConfiguration;
     }
 

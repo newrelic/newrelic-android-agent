@@ -173,10 +173,12 @@ public class NewRelicTest {
     @Before
     public void setupRemoteLogging() {
         NewRelic.disableFeature(FeatureFlag.LogReporting);
-        LogReporting.setLogger(Mockito.spy(new RemoteLogger()));
 
+        LogReporting.setLogger(Mockito.spy(new RemoteLogger()));
         LogReporting.setLogLevel(LogLevel.DEBUG);
-        agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(false, LogLevel.NONE));
+
+        agentConfiguration.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
+        agentConfiguration.getLogReportingConfiguration().setLoggingEnabled(LogReporting.isRemoteLoggingEnabled());
     }
 
     @After
@@ -716,6 +718,7 @@ public class NewRelicTest {
             for (AnalyticsAttribute a : event.getAttributeSet()) {
                 if (a.getName() == attrName) {
                     bFound = true;
+                    break;
                 }
             }
             Assert.assertTrue("Should find attribute", bFound);
@@ -743,13 +746,13 @@ public class NewRelicTest {
 
     @Test
     public void testSetUserId() {
-        Assert.assertFalse("Should not set null user ID", NewRelic.setUserId(null));
-        Assert.assertFalse("Should not set empty user ID", NewRelic.setUserId(""));
+        Assert.assertTrue("Should not set null user ID", NewRelic.setUserId(null));
+        Assert.assertTrue("Should not set empty user ID", NewRelic.setUserId(""));
         Assert.assertTrue("Should set valid user ID", NewRelic.setUserId("validUserId"));
 
         AnalyticsAttribute attr = AnalyticsControllerImpl.getInstance().getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
-        Assert.assertTrue("Should contain 'userId' attr", attr.getName().equals(AnalyticsAttribute.USER_ID_ATTRIBUTE));
-        Assert.assertTrue("Should contain 'userId' value", attr.getStringValue().equals("validUserId"));
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+        Assert.assertEquals("Should contain 'userId' value", "validUserId", attr.getStringValue());
     }
 
     @Test
@@ -793,23 +796,40 @@ public class NewRelicTest {
         Assert.assertTrue("Should set valid user ID", NewRelic.setUserId(UUID.randomUUID().toString()));
 
         AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
-        Assert.assertTrue("Should contain 'userId' attr", attr.getName().equals(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
 
         NewRelic.setUserId(UUID.randomUUID().toString());
         Assert.assertTrue(analyticsController.getEventManager().isTransmitRequired());
 
-        Thread.sleep(2000);
+        String sessionId = NewRelic.currentSessionId();
+        for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
+            Assert.assertEquals(event.getCategory(), AnalyticsEventCategory.Session);
+        }
+
+        Thread.sleep(1000);
+        analyticsController.getEventManager().empty();
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        NewRelic.recordBreadcrumb("Test BreadCrumb");
+        Assert.assertNotEquals(sessionId, NewRelic.currentSessionId());
+
+        sessionId = NewRelic.currentSessionId();
+
+        Assert.assertEquals(2, analyticsController.getEventManager().size());
+
+        analyticsController.getEventManager().empty();
+
+        Thread.sleep(500);
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertNotEquals(sessionId, NewRelic.currentSessionId());
+        sessionId = NewRelic.currentSessionId();
+        Thread.sleep(1500);
+
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertNotEquals(sessionId, NewRelic.currentSessionId());
+
         NewRelic.setUserId(UUID.randomUUID().toString());
 
-        Thread.sleep(2000);
-        NewRelic.setUserId(UUID.randomUUID().toString());
-
-        Thread.sleep(2000);
-        NewRelic.setUserId(UUID.randomUUID().toString());
-
-        Thread.sleep(2000);
-        NewRelic.setUserId(UUID.randomUUID().toString());
-
+        Assert.assertEquals(3, analyticsController.getEventManager().size());
         Harvest.stop();
     }
 
@@ -819,7 +839,7 @@ public class NewRelicTest {
         Assert.assertTrue("Should set valid user ID", NewRelic.setUserId(UUID.randomUUID().toString()));
 
         AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
-        Assert.assertTrue("Should contain 'userId' attr", attr.getName().equals(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
 
         Harvest.stop();
     }
@@ -1058,8 +1078,8 @@ public class NewRelicTest {
         Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
 
         // for testing:
-        Assert.assertFalse("Remote logging is disabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
-        Assert.assertEquals("Remote logging level is NONE", LogLevel.NONE, agentConfiguration.getLogReportingConfiguration().getLogLevel());
+        Assert.assertFalse("Remote logging is enabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals("Remote logging level is DEBUG", LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
 
         nrInstance.withLoggingEnabled(true)
                 .withLogLevel(AgentLog.DEBUG)
@@ -1087,7 +1107,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1108,7 +1128,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.WARN.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1129,7 +1149,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.INFO.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1150,7 +1170,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.VERBOSE.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1171,7 +1191,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1193,7 +1213,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1216,7 +1236,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.INFO.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1243,7 +1263,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.WARN.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1270,7 +1290,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1294,7 +1314,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1323,7 +1343,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test

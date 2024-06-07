@@ -35,6 +35,7 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
+import com.newrelic.agent.android.util.NamedThreadFactory;
 import com.newrelic.agent.android.util.NetworkFailure;
 import com.newrelic.agent.android.util.OfflineStorage;
 
@@ -46,6 +47,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 
 /**
@@ -60,14 +64,16 @@ public final class NewRelic {
     private static final String UNKNOWN_HTTP_REQUEST_TYPE = "unknown";
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
-    protected static final AgentConfiguration agentConfiguration = new AgentConfiguration();
-    protected static boolean started = false;
-    protected static boolean isShutdown = false;
+    static final AgentConfiguration agentConfiguration = new AgentConfiguration();
+    static boolean started = false;
+    static boolean isShutdown = false;
 
-    protected boolean loggingEnabled = true;
-    protected int logLevel = AgentLog.INFO;
+    boolean loggingEnabled = true;
+    int logLevel = AgentLog.INFO;
 
-    protected NewRelic(String token) {
+    private static final ExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("NewRelic"));
+
+    private NewRelic(String token) {
         agentConfiguration.setApplicationToken(token);
     }
 
@@ -327,7 +333,7 @@ public final class NewRelic {
                     AgentLogManager.setAgentLog(new ForwardingAgentLog(new AndroidAgentLog()));
                 }
 
-                agentConfiguration.setLogReportingConfiguration(new LogReportingConfiguration(loggingEnabled, level));
+                agentConfiguration.getLogReportingConfiguration().setConfiguration(new LogReportingConfiguration(loggingEnabled, level));
 
                 try {
                     /**
@@ -337,7 +343,6 @@ public final class NewRelic {
                      *
                      * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
                      **/
-                    LogReporting.setLogLevel(level);
                     LogReporting.initialize(context.getCacheDir(), agentConfiguration);
 
                 } catch (IOException e) {
@@ -362,7 +367,6 @@ public final class NewRelic {
 
             } else {
                 logRecourse();
-                return;
             }
         } catch (Throwable e) {
             log.error("Error occurred while starting the New Relic agent!", e);
@@ -530,7 +534,7 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "recordMetric"));
 
-        if(log.getLevel() >= AgentLog.AUDIT) {
+        if (log.getLevel() >= AgentLog.AUDIT) {
             StringBuilder logString = new StringBuilder();
             log.audit(logString.append("NewRelic.recordMetric invoked for name ").append(name).append(", category: ").append(category)
                     .append(", count: ").append(count).append(", totalValue ").append(totalValue).append(", exclusiveValue: ").append(exclusiveValue)
@@ -933,29 +937,28 @@ public final class NewRelic {
     public static boolean setUserId(String userId) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setUserId"));
+        Runnable harvest = () -> {
+            final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+            final AnalyticsAttribute userIdAttr = controller.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
 
-        final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
-        final AnalyticsAttribute userIdAttr = controller.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
-
-        if (userIdAttr != null) {
-            if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
-                Runnable harvest = () -> {
+            if (userIdAttr != null) {
+                if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
                     Harvest.harvestNow(true, true);// call non-blocking harvest
                     controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
                             .setStringValue(agentConfiguration.provideSessionId())  // start a new session
                             .setPersistent(false);
-                     // remove session duration and user id attributes
+                    // remove session duration and user id attributes
                     controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
                     if (userId == null || userId.isEmpty()) {
                         controller.removeAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
                     }
-                };
-                harvest.run();
 
+                }
             }
-        }
-
-        return controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId, false);
+            controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
+        };
+        harvest.run();
+        return true;
     }
 
     /**

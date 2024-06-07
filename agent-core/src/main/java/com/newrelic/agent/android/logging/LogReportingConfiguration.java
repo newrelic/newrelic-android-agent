@@ -10,6 +10,7 @@ import com.google.gson.annotations.SerializedName;
 import java.util.concurrent.TimeUnit;
 
 public class LogReportingConfiguration extends LoggingConfiguration {
+
     static final long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.convert(30, TimeUnit.SECONDS);
     static final long DEFAULT_EXPIRATION_PERIOD = TimeUnit.SECONDS.convert(2, TimeUnit.DAYS);
 
@@ -29,16 +30,11 @@ public class LogReportingConfiguration extends LoggingConfiguration {
         this.expirationPeriod = DEFAULT_EXPIRATION_PERIOD;
     }
 
-    public LogReportingConfiguration(long harvestPeriod, long expirationPeriod) {
-        super(true, LogLevel.NONE);
-        this.harvestPeriod = harvestPeriod;
-        this.expirationPeriod = expirationPeriod;
-    }
-
     public LogReportingConfiguration(boolean enabled, LogLevel level, long harvestPeriod, long expirationPeriod) {
-        this(harvestPeriod, expirationPeriod);
         this.enabled = enabled;
         this.level = level;
+        this.harvestPeriod = harvestPeriod;
+        this.expirationPeriod = expirationPeriod;
     }
 
     public long getHarvestPeriod() {
@@ -59,4 +55,16 @@ public class LogReportingConfiguration extends LoggingConfiguration {
                 + "}";
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof LogReportingConfiguration) {
+            LogReportingConfiguration rhs = (LogReportingConfiguration) obj;
+            return enabled == rhs.enabled &&
+                    level.equals(rhs.level) &&
+                    harvestPeriod.equals(rhs.harvestPeriod) &&
+                    expirationPeriod.equals(rhs.expirationPeriod);
+        }
+
+        return false;
+    }
 }

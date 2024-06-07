@@ -20,10 +20,13 @@ import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
 import com.newrelic.agent.android.analytics.AnalyticsValidator;
 import com.newrelic.agent.android.analytics.ApplicationExitEvent;
+import com.newrelic.agent.android.analytics.EventManager;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 import com.newrelic.agent.android.util.Streams;
 
@@ -89,6 +92,7 @@ public class ApplicationExitMonitorTest {
         Streams.list(applicationExitMonitor.reportsDir).forEach(file -> {
             Assert.assertTrue(file.delete());
         });
+        FeatureFlag.disableFeature(FeatureFlag.ApplicationExitReporting);
     }
 
     @Test
@@ -151,7 +155,6 @@ public class ApplicationExitMonitorTest {
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE));
-            Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_PID_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE));
         }
@@ -170,17 +173,16 @@ public class ApplicationExitMonitorTest {
         Assert.assertEquals("Should not create AppExit events for Android 10 and below", 0, pendingEvents.size());
 
         Mockito.verify(logger, times(1)).warn(anyString());
+
+        Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_UNSUPPORTED_OS + Build.VERSION.SDK_INT));
     }
 
     @Test
     public void userShouldNotCreateCustomAppExitEvents() throws IOException {
         final ApplicationExitInfo exitInfo = provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR);
         final HashMap<String, Object> eventAttributes = new HashMap<>();
-        final String traceReport = Streams.slurpString(exitInfo.getTraceInputStream());
 
-        // should these be reserved attribute names for this event?
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
-        eventAttributes.put(AnalyticsAttribute.APP_EXIT_PID_ATTRIBUTE, exitInfo.getPid());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getDescription()));
@@ -198,7 +200,6 @@ public class ApplicationExitMonitorTest {
         final AnalyticsValidator analyticsValidator = new AnalyticsValidator();
 
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
-        eventAttributes.put(AnalyticsAttribute.APP_EXIT_PID_ATTRIBUTE, exitInfo.getPid());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, null);
@@ -269,6 +270,52 @@ public class ApplicationExitMonitorTest {
         }
     }
 
+    @Test
+    public void testEnabledStateFromAgentConfiguration() throws InterruptedException {
+        FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
+
+        AgentConfiguration agentConfiguration = AgentConfiguration.instance.get();
+        Assert.assertTrue(agentConfiguration.getApplicationExitConfiguration().isEnabled());
+
+        agentConfiguration.getApplicationExitConfiguration().enabled = false;
+        Assert.assertFalse(agentConfiguration.getApplicationExitConfiguration().isEnabled());
+    }
+
+    @Test
+    public void testSupportabilityMetrics() throws InterruptedException, IOException {
+        FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
+
+        applicationExitMonitor.harvestApplicationExitInfo();
+        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
+        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
+
+        Assert.assertNotNull(StatsEngine.SUPPORTABILITY.getStatsMap());
+        for (ApplicationExitInfo aei : applicationExitInfos) {
+            Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + aei.getStatus()));
+            Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + aei.getReason()));
+            Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + aei.getImportance()));
+        }
+    }
+
+    @Test
+    public void aeiHarvestShouldTriggerEventHarvest() throws InterruptedException {
+        FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
+        EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
+
+        applicationExitMonitor.harvestApplicationExitInfo();
+        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
+        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(1, TimeUnit.SECONDS);
+        Assert.assertFalse(eventManager.getQueuedEvents().isEmpty());
+        Assert.assertTrue(eventManager.isTransmitRequired());
+
+        Assert.assertNotNull(eventManager.getQueuedEvents()); // flush data reset flag
+        ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
+        applicationExitInfos.clear();
+        applicationExitMonitor.harvestApplicationExitInfo();
+        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
+        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(1, TimeUnit.SECONDS);
+        Assert.assertFalse(AnalyticsControllerImpl.getInstance().getEventManager().isTransmitRequired());
+    }
 
     private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {
         return provideApplicationExitInfo(reasonCode, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
