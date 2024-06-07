@@ -70,7 +70,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private String deviceID;
     private String entityGuid;
 
-    // Support remote configuration
+    // Support remote configuration for these features
     private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(true, LogLevel.INFO);
     private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
 
@@ -367,10 +367,6 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public LogReportingConfiguration getLogReportingConfiguration() {
         return logReportingConfiguration;
-    }
-
-    public void setLogReportingConfiguration(LogReportingConfiguration logReportingConfiguration) {
-        this.logReportingConfiguration = logReportingConfiguration;
     }
 
     public ApplicationExitConfiguration getApplicationExitConfiguration() {
