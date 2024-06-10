@@ -23,7 +23,6 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.Collection;
-import java.util.Iterator;
 
 public class HarvesterTest {
     Harvester harvester;
@@ -189,9 +188,13 @@ public class HarvesterTest {
         Assert.assertTrue("Should contain supportability metric to indicate configuration has changed",
                 StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CONFIGURATION_CHANGED));
 
-        Collection<AnalyticsEvent> events = controller.getEventManager().getQueuedEvents();
-        Iterator<AnalyticsEvent> iter = events.iterator();
-        AnalyticsEvent event = iter.next();
+        AnalyticsEvent event = controller.getEventManager()
+                .getQueuedEvents()
+                .stream()
+                .filter(analyticsEvent -> AnalyticsEvent.EVENT_TYPE_MOBILE_BREADCRUMB == analyticsEvent.getEventType())
+                .findFirst()
+                .orElse(null);
+
         Assert.assertEquals("Events should contain breadcrumb event.", AnalyticsEvent.EVENT_TYPE_MOBILE_BREADCRUMB, event.getEventType());
     }
 
@@ -204,10 +207,15 @@ public class HarvesterTest {
 
         reconnectAndUploadOnHarvestConfigurationUpdated();
 
-        LogReportingConfiguration postValue = harvester.getAgentConfiguration().getLogReportingConfiguration();
+        LogReportingConfiguration postValue = Mockito.spy(harvester.getAgentConfiguration().getLogReportingConfiguration());
+        Mockito.when(postValue.isSampled()).thenReturn(false);
         Assert.assertFalse(postValue.toString().equals(preValue.toString()));
-        Assert.assertTrue(postValue.getLoggingEnabled());
+        Assert.assertFalse(postValue.getLoggingEnabled());
         Assert.assertEquals(LogLevel.WARN, postValue.getLogLevel());
+
+        Mockito.reset(postValue);
+        Mockito.when(postValue.isSampled()).thenReturn(true);
+        Assert.assertTrue(postValue.getLoggingEnabled());
     }
 
     @Test

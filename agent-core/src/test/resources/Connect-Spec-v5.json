@@ -12,7 +12,7 @@
     "logs": {
       "enabled": false,
       "level": "WARN",
-      "sampling_rate": 10.0
+      "sampling_rate": 33.0
     },
     "application_exit_info": {
       "enabled": true

@@ -10,10 +10,10 @@ import com.google.gson.GsonBuilder;
 import com.newrelic.agent.android.RemoteConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.test.mock.Providers;
 
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -69,7 +69,10 @@ public class HarvestConfigurationTest {
         String configJson = gson.toJson(config);
         String expectedJson = "{" +
                 "\"account_id\":\"1\"," +
-                "\"configuration\":{\"application_exit_info\":{\"enabled\":true},\"logs\":{\"data_report_period\":30,\"expiration_period\":172800,\"enabled\":true,\"level\":\"INFO\"}}," +
+                "\"configuration\":{" +
+                    "\"application_exit_info\":{\"enabled\":true}," +
+                    "\"logs\":{\"data_report_period\":30,\"expiration_period\":172800,\"sampling_rate\":100,\"enabled\":true,\"level\":\"INFO\"}" +
+                "}," +
                 "\"data_token\":[1646468,1997527]," +
                 "\"entity_guid\":\"" + entityGuid + "\"," +
                 "\"request_headers_map\":{}," +
@@ -297,6 +300,6 @@ public class HarvestConfigurationTest {
         String connectResponse = Providers.provideJsonObject("/Connect-Spec-v4.json").toString();
         config = gson.fromJson(connectResponse, HarvestConfiguration.class);
         Assert.assertEquals("1646468", config.getApplication_id());
-
     }
+
 }
