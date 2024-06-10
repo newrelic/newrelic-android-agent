@@ -155,7 +155,6 @@ public class AgentDataReporter extends PayloadReporter {
                     //Offline storage: No network at all, don't send back data
                     if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                         log.warn("AgentDataReporter didn't send due to lack of network connection");
-                        StatsEngine.get().inc(MetricNames.OFFLINE_STORAGE_HANDLED_EXCEPTION);
                     }
                 }
             }

@@ -24,7 +24,8 @@ public enum FeatureFlag {
     Jetpack,
     OfflineStorage,
     LogReporting,
-    ApplicationExitReporting;
+    ApplicationExitReporting,
+    BackgroundReporting;
 
     public static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
 

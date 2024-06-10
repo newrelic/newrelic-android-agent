@@ -153,7 +153,6 @@ public class CrashReporter extends PayloadReporter {
                                 //Offline storage: No network at all, don't send back data
                                 if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                                     log.warn("CrashReporter didn't send due to lack of network connection");
-                                    StatsEngine.get().inc(MetricNames.OFFLINE_STORAGE_CRASH);
                                 }
                             }
                         }
