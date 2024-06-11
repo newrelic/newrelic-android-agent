@@ -40,7 +40,8 @@ public abstract class LogReporting {
     protected static AtomicReference<Logger> instance = new AtomicReference<>(agentLogger);
     protected static String entityGuid = "";
 
-    public static MessageValidator validator = new MessageValidator() {};
+    public static MessageValidator validator = new MessageValidator() {
+    };
 
     public static void initialize(File cacheDir, AgentConfiguration agentConfiguration) throws IOException {
         LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
@@ -124,13 +125,6 @@ public abstract class LogReporting {
         return entityGuid != null ? entityGuid : "";
     }
 
-    public static void setEntityGuid(String entityGuid) {
-        if (entityGuid == null || entityGuid.isEmpty()) {
-            AgentLogManager.getAgentLog().error("setEntityGuid: invalid entity guid value!");
-        } else {
-            LogReporting.entityGuid = entityGuid;
-        }
-    }
 
     public static class AgentLogger implements Logger {
         MessageValidator validator = new MessageValidator() {

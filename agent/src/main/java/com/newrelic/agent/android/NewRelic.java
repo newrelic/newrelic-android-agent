@@ -527,7 +527,7 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "recordMetric"));
 
-        if(log.getLevel() >= AgentLog.AUDIT) {
+        if (log.getLevel() >= AgentLog.AUDIT) {
             StringBuilder logString = new StringBuilder();
             log.audit(logString.append("NewRelic.recordMetric invoked for name ").append(name).append(", category: ").append(category)
                     .append(", count: ").append(count).append(", totalValue ").append(totalValue).append(", exclusiveValue: ").append(exclusiveValue)
@@ -1261,17 +1261,6 @@ public final class NewRelic {
         }
     }
 
-    /**
-     * Alternative way to pass in guid from the client side
-     *
-     * @param guid
-     */
-    public static void setEntityGuid(String guid) {
-        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
-                .replace(MetricNames.TAG_NAME, "setEntityGuid"));
-
-        LogReporting.setEntityGuid(guid);
-    }
 
     /**
      * Set the maximum size of the offline storage.  When the limit is reached, the agent will stop collecting offline data
