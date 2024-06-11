@@ -64,9 +64,9 @@ public final class NewRelic {
     private static final String UNKNOWN_HTTP_REQUEST_TYPE = "unknown";
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
-    static final AgentConfiguration agentConfiguration = new AgentConfiguration();
-    static boolean started = false;
-    static boolean isShutdown = false;
+    protected static final AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
+    protected static boolean started = false;
+    protected static boolean isShutdown = false;
 
     boolean loggingEnabled = true;
     int logLevel = AgentLog.INFO;
@@ -304,7 +304,7 @@ public final class NewRelic {
             log.setLevel(logLevel);
 
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-                // For testing: set the log reporting to the same values used for agent logging
+                // For testing: set log reporting to the same values used for agent logging
                 LogLevel level = LogLevel.NONE;
 
                 // translate the agent log level to LogReporting equivalent
@@ -1282,7 +1282,6 @@ public final class NewRelic {
             LogReporting.getLogger().logAll(throwable, attributes);
         }
     }
-
 
     /**
      * Set the maximum size of the offline storage.  When the limit is reached, the agent will stop collecting offline data

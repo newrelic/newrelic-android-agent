@@ -831,6 +831,12 @@ public class AndroidAgentImpl implements
                 log.debug("ApplicationExitReporting feature is enabled locally, but disabled in remote configuration.");
             }
         }
+
+        agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
     }
 
+    @Override
+    public void onHarvestConfigurationChanged() {
+        agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
+    }
 }

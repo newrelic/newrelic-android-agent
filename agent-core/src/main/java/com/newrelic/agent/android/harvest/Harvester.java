@@ -14,6 +14,7 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
+import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -26,6 +27,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -72,7 +74,7 @@ public class Harvester implements HarvestConfigurable {
             @Override
             public void onHarvestConfigurationChanged() {
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_CONFIGURATION_CHANGED);
-                AnalyticsControllerImpl.getInstance().recordBreadcrumb("Remote configuration changed", null);
+                AnalyticsControllerImpl.getInstance().recordBreadcrumb("Remote configuration changed", new HashMap<>());
         }
         });
     }};

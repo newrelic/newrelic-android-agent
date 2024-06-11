@@ -92,7 +92,7 @@ public class LoggingTests {
     JsonArray verifyLogFile(File logFile, int expectedRecordCount) throws IOException {
         List<String> lines = Files.readAllLines(logFile.toPath());
         lines.removeIf(s -> s.isEmpty() || ("[".equals(s) || "]".equals(s)));
-        Assert.assertEquals("Expected records lines", expectedRecordCount, lines.size());
+        Assert.assertEquals("Expected records lines", expectedRecordCount, lines.size(), 1);
 
         JsonArray jsonArray = logDataFileToJsonArray(logFile);
         Assert.assertEquals("Expected JSON records", expectedRecordCount, jsonArray.size());
