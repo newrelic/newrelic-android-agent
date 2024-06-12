@@ -1283,17 +1283,6 @@ public final class NewRelic {
         }
     }
 
-    /**
-     * Alternative way to pass in guid from the client side
-     *
-     * @param guid
-     */
-    public static void setEntityGuid(String guid) {
-        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
-                .replace(MetricNames.TAG_NAME, "setEntityGuid"));
-
-        LogReporting.setEntityGuid(guid);
-    }
 
     /**
      * Set the maximum size of the offline storage.  When the limit is reached, the agent will stop collecting offline data
