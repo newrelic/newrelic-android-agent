@@ -116,7 +116,10 @@ public class MetricNames {
     public static final String TAG_FRAMEWORK_VERSION = "<frameworkVersion>";
     public static final String TAG_DESTINATION = "<destination>";
     public static final String TAG_SUBDESTINATION = "<subdestination>";
-
-    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION = "OfflineStorage/HandledExceptions";
-    public static final String OFFLINE_STORAGE_CRASH = "OfflineStorage/Crashes";
+    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION_COUNT = "OfflineStorage/HandledException/Count";
+    public static final String OFFLINE_STORAGE_CRASH_COUNT = "OfflineStorage/Crash/Count";
+    public static final String OFFLINE_STORAGE_EVENT_COUNT = "OfflineStorage/Event/Count";
+    public static final String BACKGROUND_EVENT_COUNT = "Background/Event/Count";
+    public static final String BACKGROUND_HANDLED_EXCEPTION_COUNT = "Background/HandledException/Count";
+    public static final String BACKGROUND_CRASH_COUNT = "Background/Crash/Count";
 }
