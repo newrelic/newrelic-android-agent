@@ -35,7 +35,7 @@ public class LoggingTests {
         AgentLogManager.setAgentLog(new ConsoleAgentLog());
         AgentLogManager.getAgentLog().setLevel(AgentLog.DEBUG);
         AgentConfiguration.getInstance().setApplicationToken("<APP-TOKEN>>");
-        LogReporting.setEntityGuid("ENTITY-GUID");
+        AgentConfiguration.getInstance().setEntityGuid("<ENTITY-GUID>");
     }
 
     public LoggingTests() {

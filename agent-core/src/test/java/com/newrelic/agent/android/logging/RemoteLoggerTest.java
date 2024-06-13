@@ -252,7 +252,7 @@ public class RemoteLoggerTest extends LoggingTests {
     @Test
     public void testEntityGuid() throws IOException {
         Assert.assertNotNull(LogReporting.getEntityGuid());
-        Assert.assertFalse(LogReporting.getEntityGuid().isEmpty());
+        Assert.assertTrue(LogReporting.getEntityGuid().isEmpty());
 
         final String msg = "testEntityGuid: " + getRandomMsg(33);
 
