@@ -545,7 +545,7 @@ public class HarvestTests {
         TestHarvestAdapter testAdapter = new TestHarvestAdapter();
         Harvest.addHarvestListener(testAdapter);
 
-        harvestTimer.tickNow();
+        harvestTimer.tickNow(true);
         Assert.assertFalse("Harvest should not execute when app in background", testAdapter.didStart());
     }
 

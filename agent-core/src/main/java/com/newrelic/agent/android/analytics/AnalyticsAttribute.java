@@ -183,30 +183,36 @@ public class AnalyticsAttribute {
         return (attributeDataType == AttributeDataType.STRING) ? stringValue : null;
     }
 
-    public void setStringValue(String stringValue) {
+    public AnalyticsAttribute setStringValue(String stringValue) {
         this.doubleValue = Double.NaN;
         this.stringValue = stringValue;
         this.attributeDataType = AttributeDataType.STRING;
+
+        return this;
     }
 
     public double getDoubleValue() {
         return (attributeDataType == AttributeDataType.DOUBLE) ? doubleValue : Double.NaN;
     }
 
-    public void setDoubleValue(double doubleValue) {
+    public AnalyticsAttribute setDoubleValue(double doubleValue) {
         this.doubleValue = doubleValue;
         this.stringValue = null;
         this.attributeDataType = AttributeDataType.DOUBLE;
+
+        return this;
     }
 
     public boolean getBooleanValue() {
         return (attributeDataType == AttributeDataType.BOOLEAN) ? Boolean.valueOf(stringValue).booleanValue() : false;
     }
 
-    public void setBooleanValue(boolean boolValue) {
+    public AnalyticsAttribute setBooleanValue(boolean boolValue) {
         this.stringValue = Boolean.toString(boolValue);
         this.doubleValue = Double.NaN;
         this.attributeDataType = AttributeDataType.BOOLEAN;
+
+        return this;
     }
 
     public boolean isPersistent() {
@@ -214,8 +220,10 @@ public class AnalyticsAttribute {
         return this.isPersistent && !validator.isExcludedAttributeName(this.name);
     }
 
-    public void setPersistent(boolean isPersistent) {
+    public AnalyticsAttribute setPersistent(boolean isPersistent) {
         this.isPersistent = isPersistent;
+
+        return this;
     }
 
     @Override
