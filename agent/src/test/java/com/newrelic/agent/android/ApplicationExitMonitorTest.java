@@ -320,6 +320,36 @@ public class ApplicationExitMonitorTest {
         Assert.assertFalse(AnalyticsControllerImpl.getInstance().getEventManager().isTransmitRequired());
     }
 
+    @Test
+    public void getImportanceStringTest() {
+        String str1 = applicationExitMonitor.getImportanceString(100);
+        Assert.assertEquals("Foreground", str1);
+
+        String str2 = applicationExitMonitor.getImportanceString(125);
+        Assert.assertEquals("Foreground service", str2);
+
+        String str3 = applicationExitMonitor.getImportanceString(325);
+        Assert.assertEquals("Top sleeping", str3);
+
+        String str4 = applicationExitMonitor.getImportanceString(200);
+        Assert.assertEquals("Visible", str4);
+
+        String str5 = applicationExitMonitor.getImportanceString(230);
+        Assert.assertEquals("Perceptible", str5);
+
+        String str6 = applicationExitMonitor.getImportanceString(350);
+        Assert.assertEquals("Can't save state", str6);
+
+        String str7 = applicationExitMonitor.getImportanceString(300);
+        Assert.assertEquals("Service", str7);
+
+        String str8 = applicationExitMonitor.getImportanceString(400);
+        Assert.assertEquals("Cached", str8);
+
+        String str9 = applicationExitMonitor.getImportanceString(1000);
+        Assert.assertEquals("Gone", str9);
+    }
+
     private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {
         return provideApplicationExitInfo(reasonCode, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
     }
