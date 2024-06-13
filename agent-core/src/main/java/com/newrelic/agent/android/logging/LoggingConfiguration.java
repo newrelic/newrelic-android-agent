@@ -9,7 +9,6 @@ import com.google.gson.annotations.SerializedName;
 import com.newrelic.agent.android.AgentConfiguration;
 
 public class LoggingConfiguration {
-    static final AgentLog log = AgentLogManager.getAgentLog();
 
     @SerializedName("enabled")
     boolean enabled = false;

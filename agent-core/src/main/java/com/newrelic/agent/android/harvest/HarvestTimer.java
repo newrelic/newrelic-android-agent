@@ -7,6 +7,7 @@ package com.newrelic.agent.android.harvest;
 
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -79,13 +80,20 @@ public class HarvestTimer implements Runnable {
         TicToc t = new TicToc().tic();
 
         try {
-            if (ApplicationStateMonitor.isAppInBackground()) {
-                log.error("HarvestTimer: Attempting to harvest while app is in background");
-            } else {
+
+            if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
                 harvester.execute();
                 log.debug("Harvest: executed");
-                lastTickTime = now();
+                log.debug("Harvest: executed in the background");
+            } else {
+                if (ApplicationStateMonitor.isAppInBackground()) {
+                    log.error("HarvestTimer: Attempting to harvest while app is in background");
+                } else {
+                    harvester.execute();
+                    log.debug("Harvest: executed");
+                }
             }
+            lastTickTime = now();
         } catch (Exception e) {
             log.error("HarvestTimer: Exception in harvest execute: " + e.getMessage());
             AgentHealth.noticeException(e);
@@ -100,9 +108,11 @@ public class HarvestTimer implements Runnable {
     }
 
     public void start() {
-        if (ApplicationStateMonitor.isAppInBackground()) {
-            log.warn("HarvestTimer: Attempting to start while app is in background");
-            return;
+        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if (ApplicationStateMonitor.isAppInBackground()) {
+                log.warn("HarvestTimer: Attempting to start while app is in background");
+                return;
+            }
         }
 
         if (isRunning()) {

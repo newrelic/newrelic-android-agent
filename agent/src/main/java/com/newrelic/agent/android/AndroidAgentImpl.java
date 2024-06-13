@@ -631,15 +631,20 @@ public class AndroidAgentImpl implements
     @Override
     public void applicationForegrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application foregrounded");
-        if (!NewRelic.isShutdown) {
-            start();
+        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if (!NewRelic.isShutdown) {
+                start();
+            }
         }
     }
 
     @Override
     public void applicationBackgrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application backgrounded");
-        stop();
+        //BackgroundReporting
+        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            stop();
+        }
     }
 
     @Override

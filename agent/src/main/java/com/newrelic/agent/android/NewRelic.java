@@ -329,10 +329,6 @@ public final class NewRelic {
                         break;
                 }
 
-                if (loggingEnabled) {
-                    AgentLogManager.setAgentLog(new ForwardingAgentLog(new AndroidAgentLog()));
-                }
-
                 agentConfiguration.getLogReportingConfiguration().setConfiguration(new LogReportingConfiguration(loggingEnabled, level));
 
                 try {

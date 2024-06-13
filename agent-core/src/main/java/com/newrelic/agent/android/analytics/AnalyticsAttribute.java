@@ -90,6 +90,9 @@ public class AnalyticsAttribute {
     // Offline Storage
     public static final String OFFLINE_NAME_ATTRIBUTE = "offline";
 
+    //Background Reporting
+    public static final String BACKGROUND_ATTRIBUTE_NAME = "background";
+
     // ApplicationExitInfo
     public static final String APP_EXIT_TIMESTAMP_ATTRIBUTE = "exitTimestamp";
     public static final String APP_EXIT_DESCRIPTION_ATTRIBUTE = "description";

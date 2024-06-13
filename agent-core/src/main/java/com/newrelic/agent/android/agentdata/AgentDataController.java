@@ -12,11 +12,14 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.agentdata.builder.AgentDataBuilder;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.crash.Crash;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.crash.ApplicationInfo;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.ExceptionHelper;
 import com.newrelic.mobile.fbs.HexAgentDataBundle;
 
@@ -142,6 +145,15 @@ public class AgentDataController {
                 if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                     if (!Agent.hasReachableNetworkConnection(null)) {
                         attributes.put(AnalyticsAttribute.OFFLINE_NAME_ATTRIBUTE, true);
+                        StatsEngine.notice().inc(MetricNames.OFFLINE_STORAGE_HANDLED_EXCEPTION_COUNT);
+                    }
+                }
+
+                //Background Reporting
+                if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+                    if (ApplicationStateMonitor.isAppInBackground()) {
+                        attributes.put(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true);
+                        StatsEngine.notice().inc(MetricNames.BACKGROUND_HANDLED_EXCEPTION_COUNT);
                     }
                 }
 
