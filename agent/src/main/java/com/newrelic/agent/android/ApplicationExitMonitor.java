@@ -187,7 +187,7 @@ public class ApplicationExitMonitor {
                 importanceString = "Service";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED:
-                importanceString = "Cache";
+                importanceString = "Cached";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE:
                 importanceString = "Gone";
