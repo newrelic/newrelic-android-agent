@@ -9,6 +9,7 @@ import android.content.Context;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.NewRelic;
 import com.newrelic.agent.android.agentdata.AgentDataController;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
@@ -72,6 +73,7 @@ public class NativeReporting extends HarvestAdapter implements AgentNDKListener 
     NativeReporting(Context context, AgentConfiguration agentConfiguration) {
         AgentNDK.Builder builder = new AgentNDK.Builder(context);
         builder.withBuildId(Agent.getBuildId())
+                .withANRMonitor(!agentConfiguration.getApplicationExitConfiguration().isEnabled())
                 .withSessionId(agentConfiguration.getSessionID())
                 .withReportListener(this)
                 .withLogger(log)
