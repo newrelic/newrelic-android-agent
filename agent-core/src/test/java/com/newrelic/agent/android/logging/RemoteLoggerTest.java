@@ -251,8 +251,8 @@ public class RemoteLoggerTest extends LoggingTests {
 
     @Test
     public void testEntityGuid() throws IOException {
-        Assert.assertNotNull(LogReporting.getEntityGuid());
-        Assert.assertTrue(LogReporting.getEntityGuid().isEmpty());
+        Assert.assertNotNull(AgentConfiguration.getInstance().getEntityGuid());
+        Assert.assertFalse(AgentConfiguration.getInstance().getEntityGuid().isEmpty());
 
         final String msg = "testEntityGuid: " + getRandomMsg(33);
 
@@ -262,7 +262,7 @@ public class RemoteLoggerTest extends LoggingTests {
         JsonArray jsonArray = verifyWorkingLogFile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_ENTITY_ATTRIBUTE).getAsString(), LogReporting.getEntityGuid());
+        Assert.assertEquals(jsonObject.get(LogReporting.LOG_ENTITY_ATTRIBUTE).getAsString(), AgentConfiguration.getInstance().getEntityGuid());
     }
 
     /**

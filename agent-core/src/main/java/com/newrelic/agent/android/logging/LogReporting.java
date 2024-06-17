@@ -38,7 +38,6 @@ public abstract class LogReporting {
     protected static LogLevel logLevel = LogLevel.WARN;
     protected static AgentLogger agentLogger = new AgentLogger();
     protected static AtomicReference<Logger> instance = new AtomicReference<>(agentLogger);
-    protected static String entityGuid = "";
 
     public static MessageValidator validator = new MessageValidator() {
     };
@@ -54,8 +53,6 @@ public abstract class LogReporting {
         if (!LogReporter.getInstance().isStarted()) {
             agentLogger.log(LogLevel.ERROR, "LogReporting failed to initialize!");
         }
-
-        entityGuid = agentConfiguration.getEntityGuid();
     }
 
     public static Logger getLogger() {
@@ -121,14 +118,8 @@ public abstract class LogReporting {
                 LogLevel.NONE != getLogLevel();
     }
 
-    public static String getEntityGuid() {
-        return entityGuid != null ? entityGuid : "";
-    }
-
-
     public static class AgentLogger implements Logger {
-        MessageValidator validator = new MessageValidator() {
-        };
+        MessageValidator validator = new MessageValidator() {};
 
         /**
          * Writes a message to the current agent log using the provided log level.

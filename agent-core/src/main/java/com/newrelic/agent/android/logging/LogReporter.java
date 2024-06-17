@@ -131,6 +131,7 @@ public class LogReporter extends PayloadReporter {
     protected void start() {
         if (isEnabled()) {
             Harvest.addHarvestListener(instance.get());
+            LogReportingConfiguration.reseed();
             isStarted.set(true);
         } else {
             log.error("Attempted to start the log reported when disabled.");
@@ -566,7 +567,11 @@ public class LogReporter extends PayloadReporter {
             workingLogFile = getWorkingLogfile();
             resetWorkingLogFile();
 
-            closedLogFile.setReadOnly();
+            if (AgentConfiguration.getInstance().getLogReportingConfiguration().isSampled()) {
+                closedLogFile.setReadOnly();
+            } else {
+                closedLogFile.delete();
+            }
 
             log.debug("LogReporter: Finalized log data to [" + closedLogFile.getAbsolutePath() + "]");
 

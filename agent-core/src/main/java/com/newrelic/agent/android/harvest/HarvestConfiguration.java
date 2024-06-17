@@ -8,6 +8,7 @@ package com.newrelic.agent.android.harvest;
 import com.google.gson.annotations.SerializedName;
 import com.newrelic.agent.android.RemoteConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
+import com.newrelic.agent.android.logging.AgentLogManager;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -326,8 +327,12 @@ public class HarvestConfiguration implements HarvestConfigurable {
         this.trusted_account_key = trusted_account_key;
     }
 
-    public void setEntity_guid(String value) {
-        this.entity_guid = value;
+    public void setEntity_guid(String entityGuid) {
+        if (entityGuid == null || entityGuid.isEmpty()) {
+            AgentLogManager.getAgentLog().error("setEntity_guid: invalid entity guid value!");
+        } else {
+            this.entity_guid = entityGuid;
+        }
     }
 
     public void setRemote_configuration(final RemoteConfiguration remoteConfiguration) {

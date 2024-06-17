@@ -375,15 +375,22 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     /**
      * Update agent config with any changes returned in the harvest response.
-     * Currently, it is only the AEI config
      *
      * @param harvestConfiguration
      */
     @Override
     public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
         // update the global agent config w/changes
-        this.applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
-        this.logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);
+        applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
+        logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);
+        entityGuid = harvestConfiguration.getEntity_guid();
+
+        if (instance.get() != null) {
+            AgentConfiguration agentConfiguration = instance.get();
+            if (agentConfiguration != null && agentConfiguration != this) {
+               agentConfiguration.updateConfiguration(harvestConfiguration);
+            }
+        }
     }
 
     // return the default instance

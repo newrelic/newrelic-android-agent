@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.android.logging;
 
+import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.util.NamedThreadFactory;
 
@@ -91,6 +93,10 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
      */
     public void appendToWorkingLogFile(final LogLevel logLevel, final String message, final Throwable throwable, final Map<String, Object> attributes) {
         if (!(LogReporting.isRemoteLoggingEnabled() && isLevelEnabled(logLevel))) {
+            return;
+        }
+
+        if (!AgentConfiguration.getInstance().getLogReportingConfiguration().isSampled()) {
             return;
         }
 
@@ -248,7 +254,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
         Map<String, Object> attrs = new HashMap<>();
 
         attrs.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
-        attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, LogReporting.getEntityGuid());
+        attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, AgentConfiguration.getInstance().getEntityGuid());
 
         return attrs;
     }
