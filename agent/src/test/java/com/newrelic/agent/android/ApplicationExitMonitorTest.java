@@ -21,7 +21,6 @@ import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
 import com.newrelic.agent.android.analytics.AnalyticsValidator;
 import com.newrelic.agent.android.analytics.ApplicationExitEvent;
 import com.newrelic.agent.android.analytics.EventManager;
-import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
@@ -46,7 +45,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RunWith(RobolectricTestRunner.class)
@@ -77,8 +75,6 @@ public class ApplicationExitMonitorTest {
             Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfos);
         }
 
-        ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
-
         AgentConfiguration agentConfig = new AgentConfiguration();
         agentConfig.setEnableAnalyticsEvents(true);
         agentConfig.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
@@ -101,8 +97,6 @@ public class ApplicationExitMonitorTest {
         Assert.assertEquals(0, artifacts.size());
 
         applicationExitMonitor.harvestApplicationExitInfo();
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
         Assert.assertEquals(6, artifacts.size());
@@ -114,8 +108,6 @@ public class ApplicationExitMonitorTest {
         Assert.assertEquals(0, artifacts.size());
 
         applicationExitMonitor.harvestApplicationExitInfo();
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
         Assert.assertEquals(6, artifacts.size());
@@ -123,10 +115,7 @@ public class ApplicationExitMonitorTest {
         Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents().size());
 
         // call again with same data
-        ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
         applicationExitMonitor.harvestApplicationExitInfo();
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
         Assert.assertEquals(6, artifacts.size());
@@ -139,8 +128,6 @@ public class ApplicationExitMonitorTest {
         Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfos);
 
         applicationExitMonitor.harvestApplicationExitInfo();
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());
         Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
@@ -156,6 +143,7 @@ public class ApplicationExitMonitorTest {
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE));
+            Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE));
             Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE));
         }
     }
@@ -165,9 +153,6 @@ public class ApplicationExitMonitorTest {
     public void shouldNotCreateEventsForUnsupportSDK() throws InterruptedException {
         applicationExitInfos.clear();
         applicationExitMonitor.harvestApplicationExitInfo();
-
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
         Assert.assertEquals("Should not create AppExit events for Android 10 and below", 0, pendingEvents.size());
@@ -185,6 +170,7 @@ public class ApplicationExitMonitorTest {
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, applicationExitMonitor.getImportanceAsString(exitInfo.getImportance()));
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getDescription()));
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getProcessName()));
 
@@ -202,6 +188,7 @@ public class ApplicationExitMonitorTest {
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, applicationExitMonitor.getImportanceAsString(exitInfo.getImportance()));
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, null);
         eventAttributes.put(null, exitInfo.getProcessName());
 
@@ -233,8 +220,6 @@ public class ApplicationExitMonitorTest {
         applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE, ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING));
         applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28));
         applicationExitMonitor.harvestApplicationExitInfo();
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
         for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
@@ -248,7 +233,6 @@ public class ApplicationExitMonitorTest {
         }
 
         // reset app state, event states
-        ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
         AnalyticsControllerImpl.getInstance().getEventManager().empty();
 
         applicationExitInfos.clear();
@@ -256,8 +240,6 @@ public class ApplicationExitMonitorTest {
         applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND));
         applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED));
         applicationExitMonitor.harvestApplicationExitInfo();
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
 
         for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
             Assert.assertEquals(event.getEventType(), AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
@@ -286,10 +268,8 @@ public class ApplicationExitMonitorTest {
         FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
 
         applicationExitMonitor.harvestApplicationExitInfo();
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(3, TimeUnit.SECONDS);
-
         Assert.assertNotNull(StatsEngine.SUPPORTABILITY.getStatsMap());
+
         for (ApplicationExitInfo aei : applicationExitInfos) {
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + aei.getStatus()));
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + aei.getReason()));
@@ -303,18 +283,43 @@ public class ApplicationExitMonitorTest {
         EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
 
         applicationExitMonitor.harvestApplicationExitInfo();
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(1, TimeUnit.SECONDS);
         Assert.assertFalse(eventManager.getQueuedEvents().isEmpty());
         Assert.assertTrue(eventManager.isTransmitRequired());
 
         Assert.assertNotNull(eventManager.getQueuedEvents()); // flush data reset flag
-        ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
         applicationExitInfos.clear();
         applicationExitMonitor.harvestApplicationExitInfo();
-        ApplicationStateMonitor.getInstance().getExecutor().shutdown();
-        ApplicationStateMonitor.getInstance().getExecutor().awaitTermination(1, TimeUnit.SECONDS);
         Assert.assertFalse(AnalyticsControllerImpl.getInstance().getEventManager().isTransmitRequired());
+    }
+
+    @Test
+    public void getImportanceStringTest() {
+        String str1 = applicationExitMonitor.getImportanceAsString(100);
+        Assert.assertEquals("Foreground", str1);
+
+        String str2 = applicationExitMonitor.getImportanceAsString(125);
+        Assert.assertEquals("Foreground service", str2);
+
+        String str3 = applicationExitMonitor.getImportanceAsString(325);
+        Assert.assertEquals("Top sleeping", str3);
+
+        String str4 = applicationExitMonitor.getImportanceAsString(200);
+        Assert.assertEquals("Visible", str4);
+
+        String str5 = applicationExitMonitor.getImportanceAsString(230);
+        Assert.assertEquals("Perceptible", str5);
+
+        String str6 = applicationExitMonitor.getImportanceAsString(350);
+        Assert.assertEquals("Can't save state", str6);
+
+        String str7 = applicationExitMonitor.getImportanceAsString(300);
+        Assert.assertEquals("Service", str7);
+
+        String str8 = applicationExitMonitor.getImportanceAsString(400);
+        Assert.assertEquals("Cached", str8);
+
+        String str9 = applicationExitMonitor.getImportanceAsString(1000);
+        Assert.assertEquals("Gone", str9);
     }
 
     private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {

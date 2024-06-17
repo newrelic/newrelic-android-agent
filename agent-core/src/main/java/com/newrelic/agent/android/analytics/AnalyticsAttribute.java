@@ -98,6 +98,7 @@ public class AnalyticsAttribute {
     public static final String APP_EXIT_DESCRIPTION_ATTRIBUTE = "description";
     public static final String APP_EXIT_REASON_ATTRIBUTE = "reason";
     public static final String APP_EXIT_IMPORTANCE_ATTRIBUTE = "importance";
+    public static final String APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE = "importanceAsString";
     public static final String APP_EXIT_PROCESS_NAME_ATTRIBUTE = "processName";
     public static final String APP_EXIT_APP_STATE_ATTRIBUTE = "appState";
 
