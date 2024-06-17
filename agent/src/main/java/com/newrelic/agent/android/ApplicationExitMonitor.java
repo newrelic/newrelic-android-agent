@@ -112,7 +112,7 @@ public class ApplicationExitMonitor {
                     eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
                     eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
                     eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, getImportanceString(exitInfo.getImportance()));
+                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, getImportanceAsString(exitInfo.getImportance()));
                     eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
                     eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
 
@@ -162,38 +162,38 @@ public class ApplicationExitMonitor {
         return (null == attributeValue ? "null" : attributeValue.substring(0, Math.min(attributeValue.length(), AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH - 1)));
     }
 
-    protected String getImportanceString(int importance) {
-        String importanceString = "";
+    protected String getImportanceAsString(int importance) {
+        String importanceAsString = "";
         switch (importance) {
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
-                importanceString = "Foreground";
+                importanceAsString = "Foreground";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
-                importanceString = "Foreground service";
+                importanceAsString = "Foreground service";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
-                importanceString = "Top sleeping";
+                importanceAsString = "Top sleeping";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
-                importanceString = "Visible";
+                importanceAsString = "Visible";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
-                importanceString = "Perceptible";
+                importanceAsString = "Perceptible";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_CANT_SAVE_STATE:
-                importanceString = "Can't save state";
+                importanceAsString = "Can't save state";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE:
-                importanceString = "Service";
+                importanceAsString = "Service";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED:
-                importanceString = "Cached";
+                importanceAsString = "Cached";
                 break;
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE:
-                importanceString = "Gone";
+                importanceAsString = "Gone";
                 break;
         }
-        return importanceString;
+        return importanceAsString;
     }
 
 }

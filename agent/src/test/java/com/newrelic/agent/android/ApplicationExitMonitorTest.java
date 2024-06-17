@@ -186,7 +186,7 @@ public class ApplicationExitMonitorTest {
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
-        eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, applicationExitMonitor.getImportanceString(exitInfo.getImportance()));
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, applicationExitMonitor.getImportanceAsString(exitInfo.getImportance()));
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getDescription()));
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getProcessName()));
 
@@ -204,7 +204,7 @@ public class ApplicationExitMonitorTest {
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
-        eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, applicationExitMonitor.getImportanceString(exitInfo.getImportance()));
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, applicationExitMonitor.getImportanceAsString(exitInfo.getImportance()));
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, null);
         eventAttributes.put(null, exitInfo.getProcessName());
 
@@ -322,31 +322,31 @@ public class ApplicationExitMonitorTest {
 
     @Test
     public void getImportanceStringTest() {
-        String str1 = applicationExitMonitor.getImportanceString(100);
+        String str1 = applicationExitMonitor.getImportanceAsString(100);
         Assert.assertEquals("Foreground", str1);
 
-        String str2 = applicationExitMonitor.getImportanceString(125);
+        String str2 = applicationExitMonitor.getImportanceAsString(125);
         Assert.assertEquals("Foreground service", str2);
 
-        String str3 = applicationExitMonitor.getImportanceString(325);
+        String str3 = applicationExitMonitor.getImportanceAsString(325);
         Assert.assertEquals("Top sleeping", str3);
 
-        String str4 = applicationExitMonitor.getImportanceString(200);
+        String str4 = applicationExitMonitor.getImportanceAsString(200);
         Assert.assertEquals("Visible", str4);
 
-        String str5 = applicationExitMonitor.getImportanceString(230);
+        String str5 = applicationExitMonitor.getImportanceAsString(230);
         Assert.assertEquals("Perceptible", str5);
 
-        String str6 = applicationExitMonitor.getImportanceString(350);
+        String str6 = applicationExitMonitor.getImportanceAsString(350);
         Assert.assertEquals("Can't save state", str6);
 
-        String str7 = applicationExitMonitor.getImportanceString(300);
+        String str7 = applicationExitMonitor.getImportanceAsString(300);
         Assert.assertEquals("Service", str7);
 
-        String str8 = applicationExitMonitor.getImportanceString(400);
+        String str8 = applicationExitMonitor.getImportanceAsString(400);
         Assert.assertEquals("Cached", str8);
 
-        String str9 = applicationExitMonitor.getImportanceString(1000);
+        String str9 = applicationExitMonitor.getImportanceAsString(1000);
         Assert.assertEquals("Gone", str9);
     }
 
