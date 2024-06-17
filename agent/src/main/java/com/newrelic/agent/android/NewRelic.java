@@ -71,8 +71,6 @@ public final class NewRelic {
     boolean loggingEnabled = true;
     int logLevel = AgentLog.INFO;
 
-    private static final ExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("NewRelic"));
-
     private NewRelic(String token) {
         agentConfiguration.setApplicationToken(token);
     }

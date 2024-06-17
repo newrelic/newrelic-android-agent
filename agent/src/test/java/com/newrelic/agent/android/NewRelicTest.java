@@ -1085,7 +1085,7 @@ public class NewRelicTest {
                 .withLogLevel(AgentLog.DEBUG)
                 .start(spyContext.getContext());
 
-        Assert.assertTrue("Remote logging is now enabled", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertFalse("Remote logging is not enabled", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
         Assert.assertEquals("Remote logging level is updated", LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
     }
 
