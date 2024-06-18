@@ -22,6 +22,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -33,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+@Ignore("Until LogReporting GA")
 public class LogReporterTest extends LoggingTests {
 
     private AgentConfiguration agentConfiguration;

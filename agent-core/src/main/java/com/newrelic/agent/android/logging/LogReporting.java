@@ -119,34 +119,33 @@ public abstract class LogReporting {
     }
 
     public static class AgentLogger implements Logger {
-        MessageValidator validator = new MessageValidator() {};
+        MessageValidator validator = new MessageValidator() {
+        };
 
         /**
          * Writes a message to the current agent log using the provided log level.
          * At runtime, this will be the Android logger (Log) instance.
          */
         public void logToAgent(LogLevel level, String message) {
-            if (LogReporting.isLevelEnabled(level)) {
-                message = validator.validate(message);
+            message = validator.validate(message);
 
-                final AgentLog agentLog = AgentLogManager.getAgentLog();
-                switch (level) {
-                    case ERROR:
-                        agentLog.error(message);
-                        break;
-                    case WARN:
-                        agentLog.warn(message);
-                        break;
-                    case INFO:
-                        agentLog.info(message);
-                        break;
-                    case VERBOSE:
-                        agentLog.verbose(message);
-                        break;
-                    case DEBUG:
-                        agentLog.debug(message);
-                        break;
-                }
+            final AgentLog agentLog = AgentLogManager.getAgentLog();
+            switch (level) {
+                case ERROR:
+                    agentLog.error(message);
+                    break;
+                case WARN:
+                    agentLog.warn(message);
+                    break;
+                case INFO:
+                    agentLog.info(message);
+                    break;
+                case VERBOSE:
+                    agentLog.verbose(message);
+                    break;
+                case DEBUG:
+                    agentLog.debug(message);
+                    break;
             }
         }
 

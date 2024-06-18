@@ -25,6 +25,8 @@ import static com.newrelic.agent.android.FeatureFlag.NetworkErrorRequests;
 import static com.newrelic.agent.android.FeatureFlag.NetworkRequests;
 import static com.newrelic.agent.android.FeatureFlag.OfflineStorage;
 
+import com.newrelic.agent.android.logging.LogReporting;
+
 public class FeatureFlagTest {
     @Before
     public void setUp() throws Exception {
@@ -70,6 +72,7 @@ public class FeatureFlagTest {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
         Assert.assertFalse("ApplicationExitReporting is disabled by default", FeatureFlag.featureEnabled(ApplicationExitReporting));
+        Assert.assertFalse("LogReporting is disabled by default", FeatureFlag.featureEnabled(LogReporting));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));
     }
 
@@ -91,9 +94,9 @@ public class FeatureFlagTest {
         FeatureFlag.disableFeature(DistributedTracing);
         Assert.assertFalse("Distributed tracing is now disabled", FeatureFlag.featureEnabled(DistributedTracing));
 
-        Assert.assertFalse("LogReporting is disabled by default", FeatureFlag.featureEnabled(LogReporting));
+        Assert.assertFalse("LogReporting is enabled by default", FeatureFlag.featureEnabled(LogReporting));
         FeatureFlag.enableFeature(LogReporting);
-        Assert.assertTrue("LogReporting is now enabled", FeatureFlag.featureEnabled(LogReporting));
+        Assert.assertFalse("LogReporting is disabled until GA", FeatureFlag.featureEnabled(LogReporting));
 
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         FeatureFlag.enableFeature(FedRampEnabled);

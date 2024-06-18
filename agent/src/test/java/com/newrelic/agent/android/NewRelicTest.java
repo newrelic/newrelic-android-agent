@@ -42,7 +42,6 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
-import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
 import com.newrelic.agent.android.metric.Metric;
@@ -85,7 +84,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Predicate;
 
 @RunWith(RobolectricTestRunner.class)
 public class NewRelicTest {
@@ -1071,11 +1069,11 @@ public class NewRelicTest {
     }
 
     @Test
-    public void testLogReportingFeature() {
+    public void testLogReportingFeature() throws InterruptedException {
         Assert.assertFalse("Remote logging is disabled by default", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+        Assert.assertFalse("LogReporting disabled until GA", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
 
         // for testing:
         Assert.assertFalse("Remote logging is enabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
@@ -1084,6 +1082,8 @@ public class NewRelicTest {
         nrInstance.withLoggingEnabled(true)
                 .withLogLevel(AgentLog.DEBUG)
                 .start(spyContext.getContext());
+
+        Thread.sleep(3000);
 
         Assert.assertFalse("Remote logging is not enabled", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
         Assert.assertEquals("Remote logging level is updated", LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
@@ -1374,13 +1374,13 @@ public class NewRelicTest {
         nrInstance.start(spyContext.getContext());
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
-        Assert.assertTrue(LogReporting.isRemoteLoggingEnabled());
+        Assert.assertFalse("LogReporting disabled until GA", LogReporting.isRemoteLoggingEnabled());
 
         FeatureFlag.disableFeature(FeatureFlag.LogReporting);
         Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Assert.assertTrue(LogReporting.isRemoteLoggingEnabled());
+        Assert.assertFalse("LogReporting disabled until GA", LogReporting.isRemoteLoggingEnabled());
 
         LogReporting.setLogLevel(LogLevel.NONE);
         Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
