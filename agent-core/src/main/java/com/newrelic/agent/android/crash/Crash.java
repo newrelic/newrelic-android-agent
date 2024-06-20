@@ -28,6 +28,7 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.SafeJsonPrimitive;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -164,9 +165,19 @@ public class Crash extends HarvestableObject {
         //Offline Storage
         if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
             if (!Agent.hasReachableNetworkConnection(null)) {
-                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true));
+                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_NAME_ATTRIBUTE, true));
+                StatsEngine.notice().inc(MetricNames.OFFLINE_STORAGE_CRASH_COUNT);
             }
         }
+
+        //Background Reporting
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if (ApplicationStateMonitor.isAppInBackground()) {
+                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
+                StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
+            }
+        }
+
         return Collections.unmodifiableSet(attrs);
     }
 

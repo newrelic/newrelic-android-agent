@@ -7,6 +7,11 @@ package com.newrelic.agent.android;
 
 import static com.newrelic.agent.android.NewRelic.agentConfiguration;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -35,6 +40,9 @@ import com.newrelic.agent.android.harvest.HttpTransactions;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -52,25 +60,18 @@ import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 import com.newrelic.agent.android.util.OfflineStorage;
 
-import org.junit.Assert;
-
-import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.message.BasicHttpResponse;
-import org.apache.http.message.BasicStatusLine;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.robolectric.RobolectricTestRunner;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -106,7 +107,7 @@ public class NewRelicTest {
     }
 
     @Before
-    public void removeFinalModifiers() throws Exception {
+    public void removeFinalModifiers() {
         /** FIXME Field is no longer accessible in JDK 11
          Field field = Agent.class.getDeclaredField("MONO_INSTRUMENTATION_FLAG");
          field.setAccessible(true);
@@ -120,6 +121,10 @@ public class NewRelicTest {
     @Before
     public void setUp() {
         spyContext = new SpyContext();
+
+        NewRelic.started = false;
+        NewRelic.isShutdown = false;
+
         nrInstance = NewRelic.withApplicationToken(APP_TOKEN).withLogLevel(AgentLog.DEBUG);
         Assert.assertNotNull(nrInstance);
 
@@ -161,6 +166,17 @@ public class NewRelicTest {
     @Before
     public void setupDistributedTracing() {
         DistributedTracing.getInstance().setConfiguration(new TraceConfiguration(Providers.provideHarvestConfiguration()));
+    }
+
+    @Before
+    public void setupRemoteLogging() {
+        NewRelic.disableFeature(FeatureFlag.LogReporting);
+
+        LogReporting.setLogger(Mockito.spy(new RemoteLogger()));
+        LogReporting.setLogLevel(LogLevel.DEBUG);
+
+        agentConfiguration.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
+        agentConfiguration.getLogReportingConfiguration().setLoggingEnabled(LogReporting.isRemoteLoggingEnabled());
     }
 
     @After
@@ -270,7 +286,6 @@ public class NewRelicTest {
         NewRelic.disableFeature(FeatureFlag.CrashReporting);
         Assert.assertFalse("Should disable feature flag", FeatureFlag.featureEnabled(FeatureFlag.CrashReporting));
     }
-
 
     // @Test
     public void testIsStarted() {
@@ -398,27 +413,10 @@ public class NewRelicTest {
 
     }
 
-    private Metric findMetricByName(List<Metric> metrics, String name) {
-        for (Metric m : metrics) {
-            if (m.getName().toLowerCase().contains(name.toLowerCase())) {
-                return m;
-            }
-        }
-        return null;
-    }
-
     @Test
     @SuppressWarnings("deprecation")
     public void testNoticeHttpTransaction() {
         Map<String, String> map = new HashMap<String, String>();
-
-        // test all the decprecated overloads
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class);
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class);
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class, map.getClass());
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class, map.getClass(), String.class);
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class, map.getClass(), String.class, HttpResponse.class);
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class, map.getClass(), URLConnection.class);
 
         HarvestData harvestData = TestHarvest.getInstance().getHarvestData();
         HttpTransactions transactions = harvestData.getHttpTransactions();
@@ -437,8 +435,6 @@ public class NewRelicTest {
     @Test
     @SuppressWarnings("deprecation")
     public void testNoticeNetworkFailure() {
-        testDeprecatedMethod("noticeNetworkFailure", "public", String.class, long.class, long.class, NetworkFailure.class);
-
         long now = System.currentTimeMillis();
         long later = now + 1000;
 
@@ -720,6 +716,7 @@ public class NewRelicTest {
             for (AnalyticsAttribute a : event.getAttributeSet()) {
                 if (a.getName() == attrName) {
                     bFound = true;
+                    break;
                 }
             }
             Assert.assertTrue("Should find attribute", bFound);
@@ -745,48 +742,104 @@ public class NewRelicTest {
         Assert.assertEquals("Should be a Type-4 generated UUID", sessionId, UUID.fromString(sessionId).toString());
     }
 
-    private Method testDeprecatedMethod(final String methodName, final String modifier, Class<?>... parameterTypes) {
-        Method method = null;
-        try {
-            method = NewRelic.class.getMethod(methodName, parameterTypes);
-            Assert.assertNotNull(method);
-
-            Annotation[] annotations = method.getAnnotations();
-            Assert.assertTrue(annotations.length > 0);
-
-            method = NewRelic.class.getDeclaredMethod(methodName, parameterTypes);
-
-            // Test the method contains the deprecated annotation
-            boolean isDeprecated = false;
-            for (Annotation annotation : annotations) {
-                isDeprecated = annotation.annotationType().getName().equals("java.lang.Deprecated");
-                if (isDeprecated) {
-                    break;
-                }
-            }
-            Assert.assertTrue("Should contain @Deprecated annotation", isDeprecated);
-
-            // Test that shutdown is public/private/protected
-            String modifiers = Modifier.toString(method.getModifiers());
-            Assert.assertTrue("Modifier should be public", modifiers.toLowerCase().contains(modifier));
-
-        } catch (NoSuchMethodException e) {
-            // Method has been removed
-            Assert.assertNull(method);
-        }
-
-        return method;
-    }
-
     @Test
     public void testSetUserId() {
-        Assert.assertFalse("Should not set null user ID", NewRelic.setUserId(null));
-        Assert.assertFalse("Should not set empty user ID", NewRelic.setUserId(""));
+        Assert.assertTrue("Should not set null user ID", NewRelic.setUserId(null));
+        Assert.assertTrue("Should not set empty user ID", NewRelic.setUserId(""));
         Assert.assertTrue("Should set valid user ID", NewRelic.setUserId("validUserId"));
 
         AnalyticsAttribute attr = AnalyticsControllerImpl.getInstance().getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
-        Assert.assertTrue("Should contain 'userId' attr", attr.getName().equals(AnalyticsAttribute.USER_ID_ATTRIBUTE));
-        Assert.assertTrue("Should contain 'userId' value", attr.getStringValue().equals("validUserId"));
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+        Assert.assertEquals("Should contain 'userId' value", "validUserId", attr.getStringValue());
+    }
+
+    @Test
+    public void testSetUserIdWithSessionRestart() {
+        String preSessionId = NewRelic.currentSessionId();
+
+        Harvest.start();
+        Assert.assertTrue("Should set valid user ID", NewRelic.setUserId("preUserId"));
+
+        AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+        Assert.assertEquals("Should contain 'userId' value", "preUserId", attr.getStringValue());
+
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertEquals("Should contain updated 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+        Assert.assertNotEquals("Should contain updated 'userId' value", "validUserId", attr.getStringValue());
+
+        Assert.assertTrue(analyticsController.getEventManager().isTransmitRequired());
+        Assert.assertNotEquals("Should generate a new session", preSessionId, NewRelic.currentSessionId());
+        Assert.assertEquals("Should match system attribute", analyticsController.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE).getStringValue(),
+                NewRelic.currentSessionId());
+
+        AnalyticsEvent sessionEvent = eventManager.getQueuedEvents().stream()
+                .filter(analyticsEvent -> analyticsEvent.getCategory().equals(AnalyticsEventCategory.Session))
+                .findAny()
+                .get();
+        Assert.assertNotNull("Should create session event", sessionEvent);
+
+        String metric = StatsEngine.get().getStatsMap().keySet().stream()
+                .filter(stringMetricEntry -> stringMetricEntry.equals("Session/Duration"))
+                .findFirst()
+                .get();
+        Assert.assertNotNull("Should create session duration metric", metric);
+
+        Harvest.stop();
+    }
+
+    @Test
+    public void testSetUserIdWithSessionRestartAbuse() throws InterruptedException {
+        Harvest.start();
+        Assert.assertTrue("Should set valid user ID", NewRelic.setUserId(UUID.randomUUID().toString()));
+
+        AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertTrue(analyticsController.getEventManager().isTransmitRequired());
+
+        String sessionId = NewRelic.currentSessionId();
+        for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
+            Assert.assertEquals(event.getCategory(), AnalyticsEventCategory.Session);
+        }
+
+        Thread.sleep(1000);
+        analyticsController.getEventManager().empty();
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        NewRelic.recordBreadcrumb("Test BreadCrumb");
+        Assert.assertNotEquals(sessionId, NewRelic.currentSessionId());
+
+        sessionId = NewRelic.currentSessionId();
+
+        Assert.assertEquals(2, analyticsController.getEventManager().size());
+
+        analyticsController.getEventManager().empty();
+
+        Thread.sleep(500);
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertNotEquals(sessionId, NewRelic.currentSessionId());
+        sessionId = NewRelic.currentSessionId();
+        Thread.sleep(1500);
+
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertNotEquals(sessionId, NewRelic.currentSessionId());
+
+        NewRelic.setUserId(UUID.randomUUID().toString());
+
+        Assert.assertEquals(3, analyticsController.getEventManager().size());
+        Harvest.stop();
+    }
+
+    @Test
+    public void testSetUserIdHarvestOnMainThread() throws InterruptedException {
+        Harvest.start();
+        Assert.assertTrue("Should set valid user ID", NewRelic.setUserId(UUID.randomUUID().toString()));
+
+        AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+
+        Harvest.stop();
     }
 
     @Test
@@ -1016,6 +1069,374 @@ public class NewRelicTest {
     }
 
     @Test
+    public void testLogReportingFeature() throws InterruptedException {
+        Assert.assertFalse("Remote logging is disabled by default", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        Assert.assertFalse("LogReporting disabled until GA", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+
+        // for testing:
+        Assert.assertFalse("Remote logging is enabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals("Remote logging level is DEBUG", LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
+
+        nrInstance.withLoggingEnabled(true)
+                .withLogLevel(AgentLog.DEBUG)
+                .start(spyContext.getContext());
+
+        Thread.sleep(3000);
+
+        Assert.assertFalse("Remote logging is not enabled", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals("Remote logging level is updated", LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
+    }
+
+    @Test
+    public void testLogError() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        final String msg = "error message";
+        NewRelic.logError(msg);
+        verify(remoteLogger, times(1)).log(LogLevel.ERROR, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLogWarning() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        final String msg = "warning message";
+        NewRelic.logWarning(msg);
+        verify(remoteLogger, times(1)).log(LogLevel.WARN, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.WARN, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.WARN.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLogInfo() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        final String msg = "info message";
+        NewRelic.logInfo(msg);
+        verify(remoteLogger, times(1)).log(LogLevel.INFO, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.INFO.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLogVerbose() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        final String msg = "verbose message";
+        NewRelic.logVerbose(msg);
+        verify(remoteLogger, times(1)).log(LogLevel.VERBOSE, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.VERBOSE, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.VERBOSE.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLogDebug() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        final String msg = "debug message";
+        NewRelic.logDebug(msg);
+        verify(remoteLogger, times(1)).log(LogLevel.DEBUG, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLog() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        final String msg = "debug log message";
+        NewRelic.log(LogLevel.DEBUG, msg);
+        verify(remoteLogger, times(1)).log(LogLevel.DEBUG, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLogThrowable() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        final String msg = "An info log message with throwable";
+        Throwable throwable = new RuntimeException(msg);
+        NewRelic.logThrowable(LogLevel.INFO, msg, throwable);
+        verify(remoteLogger, times(1)).logThrowable(LogLevel.INFO, msg, throwable);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, throwable, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "logThrowable/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.INFO.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLogAttributes() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        // Gson will not serialize anonymous maps
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("level", "WARN");
+        attributes.put("message", "A stern WARNing");
+        attributes.put("cheddar", "wensleydale");
+
+        NewRelic.logAttributes(attributes);
+        verify(remoteLogger, times(1)).logAttributes(attributes);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), nullable(Throwable.class), anyMap());
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "logAttributes/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.WARN.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLogAll() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+
+        // Gson will not serialize anonymous maps
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("level", "dEbUg");
+        attributes.put("message", "Debug log message attributes with throwable");
+        attributes.put("cheddar", "stilton");
+
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        final String msg = (String) attributes.get("message");
+        Throwable throwable = new RuntimeException(msg);
+        NewRelic.logAll(throwable, attributes);
+        verify(remoteLogger, times(1)).logAll(throwable, attributes);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(Throwable.class), anyMap());
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "logAll/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLogWithRemoteLoggingDisabled() {
+        FeatureFlag.disableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
+        AgentLogManager.setAgentLog(agentLogger);
+
+        final String msg = "error log message";
+        NewRelic.log(LogLevel.ERROR, msg);
+        verify(remoteLogger, times(1)).log(LogLevel.ERROR, msg);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testLogWithLoggingDisabled() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        nrInstance.start(spyContext.getContext());
+
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+        LogReporting.setLogger(Mockito.spy(LogReporting.getLogger()));
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
+        AgentLogManager.setAgentLog(agentLogger);
+
+        // disable remote logging
+        LogReporting.setLogLevel(LogLevel.NONE);
+
+        final String msg = "error log message";
+        NewRelic.log(LogLevel.ERROR, msg);
+        verify(agentLogger, never()).error(msg);
+        verify(remoteLogger, never()).log(LogLevel.ERROR, msg);
+        verify(remoteLogger, never()).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+
+        final String metricName = MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
+                .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
+                .replace("<framework>/<frameworkVersion>/", "");
+
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().containsKey(metricName));
+    }
+
+    @Test
+    public void testRemoteLoggingBeforeAgentStart() {
+        // Gson will not serialize anonymous maps
+        final Map<String, Object> attrs = new HashMap<String, Object>();
+
+        attrs.put("level", "DEBUG");
+        attrs.put("message", "This is a debug message");
+
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+
+        // call API prior to starting the agent
+        NewRelic.logAll(new RuntimeException("LogReporting stopped"), attrs);
+
+        // start the agent w/LogReporting enabled
+        nrInstance.start(spyContext.getContext());
+
+        // call API after starting the agent
+        NewRelic.logAll(new RuntimeException("LogReporting started"), attrs);
+    }
+
+    @Test
+    public void testToggleRemoteLogging() {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+
+        nrInstance.start(spyContext.getContext());
+        Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
+
+        Assert.assertFalse("LogReporting disabled until GA", LogReporting.isRemoteLoggingEnabled());
+
+        FeatureFlag.disableFeature(FeatureFlag.LogReporting);
+        Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
+
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        Assert.assertFalse("LogReporting disabled until GA", LogReporting.isRemoteLoggingEnabled());
+
+        LogReporting.setLogLevel(LogLevel.NONE);
+        Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
+    }
+
+    @Test
+    public void testLogWithInvalidParameters() {
+        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logError(null);
+        verify(remoteLogger, times(1)).log(LogLevel.ERROR, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logWarning(null);
+        verify(remoteLogger, times(1)).log(LogLevel.WARN, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.WARN, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logInfo(null);
+        verify(remoteLogger, times(1)).log(LogLevel.INFO, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.INFO, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logVerbose(null);
+        verify(remoteLogger, times(1)).log(LogLevel.VERBOSE, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.VERBOSE, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logDebug(null);
+        verify(remoteLogger, times(1)).log(LogLevel.DEBUG, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.log(LogLevel.DEBUG, null);
+        verify(remoteLogger, times(1)).log(LogLevel.DEBUG, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, LogReporting.INVALID_MSG, null, null);
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logThrowable(LogLevel.DEBUG, null, null);
+        verify(remoteLogger, times(1)).logThrowable(LogLevel.DEBUG, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), isNull(), any(IllegalArgumentException.class), isNull());
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logAttributes(null);
+        verify(remoteLogger, times(1)).logAttributes(anyMap());
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), isNull(), anyMap());
+
+        Mockito.reset(remoteLogger);
+        NewRelic.logAll(null, null);
+        verify(remoteLogger, times(1)).logAll(any(IllegalArgumentException.class), anyMap());
+        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(IllegalArgumentException.class), anyMap());
+    }
+
+    @Test
     public void testSetMaxOfflineStorageSize() {
         OfflineStorage offlineStorageInstance = new OfflineStorage(spyContext.getContext());
         double defaultSize0 = offlineStorageInstance.getOfflineStorageSize();
@@ -1030,7 +1451,6 @@ public class NewRelicTest {
         double defaultSize2 = offlineStorageInstance.getOfflineStorageSize();
         Assert.assertEquals(10, defaultSize2, 0);
     }
-
 
     private static class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {
 
@@ -1074,17 +1494,6 @@ public class NewRelicTest {
         }
     }
 
-    private HttpResponse provideHttpResponse() {
-        ProtocolVersion proto = new ProtocolVersion("HTTP", 1, 1);
-        BasicStatusLine status = new BasicStatusLine(proto, 200, "test");
-        return provideCrossProcessHeaderResponse(new BasicHttpResponse(status));
-    }
-
-    private HttpResponse provideCrossProcessHeaderResponse(HttpResponse response) {
-        response.addHeader(Constants.Network.CROSS_PROCESS_ID_HEADER, "XPROCESS_ID");
-        return response;
-    }
-
     private URLConnection provideUrlConnection() {
         URLConnection urlConnection = null;
         try {
@@ -1098,12 +1507,17 @@ public class NewRelicTest {
         return urlConnection;
     }
 
+    private Metric findMetricByName(List<Metric> metrics, String name) {
+        return metrics.stream()
+                .filter(metric -> metric.getName().toLowerCase().contains(name.toLowerCase()))
+                .findFirst()
+                .orElse(null);
+    }
+
     static AnalyticsAttribute getAttributeByName(Collection<AnalyticsAttribute> attributes, String name) {
-        for (AnalyticsAttribute eventAttr : attributes) {
-            if (eventAttr.getName().equalsIgnoreCase(name)) {
-                return eventAttr;
-            }
-        }
-        return null;
+        return attributes.stream()
+                .filter(analyticsAttribute -> analyticsAttribute.getName().equalsIgnoreCase(name))
+                .findFirst()
+                .orElse(null);
     }
 }

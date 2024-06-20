@@ -1,0 +1,21 @@
+{
+  "data_token": [1646468, 2018235],
+  "account_id": "6060842",
+  "application_id": "601359369",
+  "trusted_account_key": "33",
+  "entity_guid": "MTA4MTY5OTR8TU9CSUxFfEFQUExJQ0FUSU9OfDE1MjIzNDU3Mg",
+  "request_headers_map": {
+    "NR-AgentConfiguration": "AQAY+cNeWo0",
+    "NR-Session": "vHAMZTjAUNgk68ABoAQBSkIAAfcAA3QChboYyAAC1NdWyZRb2x"
+  },
+  "configuration": {
+    "logs": {
+      "enabled": false,
+      "level": "WARN",
+      "sampling_rate": 33.0
+    },
+    "application_exit_info": {
+      "enabled": true
+    }
+  }
+}

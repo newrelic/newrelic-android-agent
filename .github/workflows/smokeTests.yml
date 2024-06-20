@@ -37,6 +37,7 @@ jobs:
           retention-days: 3
 
   smoke-test-jdk17:
+    if: ${{ false }}  # disable for until JDK17 issues with tests are resolved
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

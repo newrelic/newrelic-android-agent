@@ -87,15 +87,27 @@ public class AnalyticsAttribute {
     // UserActions
     public static final String ACTION_TYPE_ATTRIBUTE = "actionType";
 
+    // Offline Storage
+    public static final String OFFLINE_NAME_ATTRIBUTE = "offline";
+
+    //Background Reporting
+    public static final String BACKGROUND_ATTRIBUTE_NAME = "background";
+
+    // ApplicationExitInfo
+    public static final String APP_EXIT_TIMESTAMP_ATTRIBUTE = "exitTimestamp";
+    public static final String APP_EXIT_DESCRIPTION_ATTRIBUTE = "description";
+    public static final String APP_EXIT_REASON_ATTRIBUTE = "reason";
+    public static final String APP_EXIT_IMPORTANCE_ATTRIBUTE = "importance";
+    public static final String APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE = "importanceAsString";
+    public static final String APP_EXIT_PROCESS_NAME_ATTRIBUTE = "processName";
+    public static final String APP_EXIT_APP_STATE_ATTRIBUTE = "appState";
+
     public static final int ATTRIBUTE_NAME_MAX_LENGTH = 255;
 
     // For attributes attached to custom events sent using the Event API:
     public static final int ATTRIBUTE_VALUE_MAX_LENGTH = 4096;
 
-    //Offline Storage
-    public static final String OFFLINE_ATTRIBUTE_NAME = "offline";
-
-    private static final AgentLog log = AgentLogManager.getAgentLog();    
+    private static final AgentLog log = AgentLogManager.getAgentLog();
     private final static AnalyticsValidator validator = new AnalyticsValidator();
 
     private String name;
@@ -172,30 +184,36 @@ public class AnalyticsAttribute {
         return (attributeDataType == AttributeDataType.STRING) ? stringValue : null;
     }
 
-    public void setStringValue(String stringValue) {
+    public AnalyticsAttribute setStringValue(String stringValue) {
         this.doubleValue = Double.NaN;
         this.stringValue = stringValue;
         this.attributeDataType = AttributeDataType.STRING;
+
+        return this;
     }
 
     public double getDoubleValue() {
         return (attributeDataType == AttributeDataType.DOUBLE) ? doubleValue : Double.NaN;
     }
 
-    public void setDoubleValue(double doubleValue) {
+    public AnalyticsAttribute setDoubleValue(double doubleValue) {
         this.doubleValue = doubleValue;
         this.stringValue = null;
         this.attributeDataType = AttributeDataType.DOUBLE;
+
+        return this;
     }
 
     public boolean getBooleanValue() {
         return (attributeDataType == AttributeDataType.BOOLEAN) ? Boolean.valueOf(stringValue).booleanValue() : false;
     }
 
-    public void setBooleanValue(boolean boolValue) {
+    public AnalyticsAttribute setBooleanValue(boolean boolValue) {
         this.stringValue = Boolean.toString(boolValue);
         this.doubleValue = Double.NaN;
         this.attributeDataType = AttributeDataType.BOOLEAN;
+
+        return this;
     }
 
     public boolean isPersistent() {
@@ -203,8 +221,10 @@ public class AnalyticsAttribute {
         return this.isPersistent && !validator.isExcludedAttributeName(this.name);
     }
 
-    public void setPersistent(boolean isPersistent) {
+    public AnalyticsAttribute setPersistent(boolean isPersistent) {
         this.isPersistent = isPersistent;
+
+        return this;
     }
 
     @Override
@@ -337,12 +357,12 @@ public class AnalyticsAttribute {
      * Create a new instance of AnalyticsAttribute seeded with passed key and value
      *
      * @param key   Valid name of attribute (enforced)
-     * @param value One of supported types (String or Numeric)
+     * @param value One of supported types (String, Boolean or Numeric)
      * @return Validated attribute, or null on error
      */
     static AnalyticsAttribute createAttribute(String key, Object value) {
         try {
-            if (validator.isValidAttributeName(key)) {
+            if (null != value && validator.isValidAttributeName(key)) {
                 if (value instanceof String) {
                     if (validator.isValidAttributeValue(key, (String) value)) {
                         return new AnalyticsAttribute(key, String.valueOf(value));

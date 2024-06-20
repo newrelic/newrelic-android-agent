@@ -7,6 +7,7 @@ package com.newrelic.agent.android.harvest;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.test.mock.TestTrustManager;
+import com.newrelic.agent.android.util.Constants;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -16,9 +17,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.net.HttpURLConnection;
+import java.util.HashMap;
 
 @RunWith(JUnit4.class)
-public class HarvestConnectionTests {
+public class HarvestConnectionTest {
 
     private final static String COLLECTOR_HOST = "staging-mobile-collector.newrelic.com";
     private final static String ENABLED_APP_TOKEN_STAGING = "AAa2d4baa1094bf9049bb22895935e46f85c45c211";
@@ -41,19 +43,35 @@ public class HarvestConnectionTests {
     @Test
     public void testCreatePost() {
         final String uri = "https://mobile-collector.newrelic.com/foo";
+
+        System.setProperty("http.agent", "JUnit test");
+        connection.setServerTimestamp(1234);
+
         HttpURLConnection post = connection.createPost(uri);
         Assert.assertNotNull(post);
         Assert.assertEquals("POST", post.getRequestMethod());
         Assert.assertEquals(uri, post.getURL().toString());
+
+        Assert.assertNotNull(post.getRequestProperties().containsKey(Constants.Network.APPLICATION_LICENSE_HEADER));
+        Assert.assertNotNull(post.getRequestProperties().containsKey(Constants.Network.CONTENT_TYPE_HEADER));
+
+        Assert.assertTrue(post.getRequestProperty(Constants.Network.CONTENT_TYPE_HEADER).equals(Constants.Network.ContentType.JSON));
+
+        Assert.assertEquals(HarvestConnection.CONNECTION_TIMEOUT, post.getConnectTimeout());
+        Assert.assertEquals(HarvestConnection.READ_TIMEOUT, post.getReadTimeout());
+        Assert.assertTrue(post.getDoInput());
+        Assert.assertTrue(post.getDoOutput());
+        Assert.assertFalse(post.getUseCaches());
+        Assert.assertTrue(post.getRequestProperty(Constants.Network.CONNECT_TIME_HEADER).equals("1234"));
+        Assert.assertTrue(post.getRequestProperty(Constants.Network.USER_AGENT_HEADER).equals("JUnit test"));
     }
 
     @Test
     public void testCreateConnectPost() {
-        final String uri = "https://staging-mobile-collector.newrelic.com/mobile/v4/connect";
         HttpURLConnection connectPost = connection.createConnectPost();
         Assert.assertNotNull(connectPost);
         Assert.assertEquals("POST", connectPost.getRequestMethod());
-        Assert.assertEquals(uri, connectPost.getURL().toString());
+        Assert.assertEquals(connection.getCollectorConnectUri(), connectPost.getURL().toString());
 
         connection.useSsl(true);
         connectPost = connection.createConnectPost();
@@ -74,6 +92,7 @@ public class HarvestConnectionTests {
 
         Assert.assertNotNull(dataPost);
         Assert.assertTrue(dataPost.getURL().getProtocol().equals("https"));
+        Assert.assertEquals(connection.getCollectorDataUri(), dataPost.getURL().toString());
     }
 
     @Test
@@ -157,5 +176,22 @@ public class HarvestConnectionTests {
         // Check Response Code
         Assert.assertTrue(response.getResponseCode().isOK());
         Assert.assertEquals(HarvestResponse.Code.OK, response.getResponseCode());
+    }
+
+    @Test
+    public void testRequestHeaderMap() {
+        Assert.assertTrue(connection.requestHeaders.isEmpty());
+        connection.setRequestHeaderMap(new HashMap<>() {{
+            put("NR-AgentConfiguration", "DEAD-bEef");
+            put("NR-Session", "BvHPAMuZETj1AKUN4gkS68oAAAEBLCQoAAAAHQECBAkS6kzIAAA");
+        }});
+        Assert.assertEquals(2, connection.requestHeaders.size());
+        Assert.assertTrue(connection.requestHeaders.containsKey("NR-AgentConfiguration"));
+        Assert.assertFalse(connection.requestHeaders.containsKey("nr-session"));
+
+        HttpURLConnection connectPost = connection.createConnectPost();
+        Assert.assertNotNull(connectPost);
+        Assert.assertNotNull(connectPost.getRequestProperties().containsKey("NR-Session"));
+        Assert.assertNotNull(connectPost.getRequestProperties().containsKey("NR-AgentConfiguration"));
     }
 }

@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
+import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -24,7 +25,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.annotation.Config;
 
 @RunWith(RobolectricTestRunner.class)
 public class SavedStateTest {
@@ -455,6 +455,13 @@ public class SavedStateTest {
     }
 
     @Test
+    public void testOnHarvestConfigurationChanged() throws Exception {
+        SavedState spy = spy(savedState);
+        spy.onHarvestConfigurationChanged();
+        verify(spy).saveHarvestConfiguration(any(HarvestConfiguration.class));
+    }
+
+    @Test
     public void testOnHarvestComplete() throws InterruptedException {
         when(savedState.getDataTokenTTL()).thenReturn(2L);
 
@@ -480,5 +487,11 @@ public class SavedStateTest {
         savedState.loadHarvestConfiguration();
         Assert.assertTrue(savedState.has("dataToken"));
         Assert.assertTrue(savedState.has("dataTokenExpiration"));
+    }
+
+    @Test
+    public void testRequestHeadersMap() {
+        savedState.saveHarvestConfiguration(Providers.provideHarvestConfiguration());
+        Assert.assertEquals("Should return request header map", "{\"NR-AgentConfiguration\":\"+cNeWo\",\"NR-Session\":\"AyAAAAC1NxdWFyZVRvb2xz\"}", savedState.getString("requestHeadersMap"));
     }
 }

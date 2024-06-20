@@ -36,6 +36,9 @@ class AnalyticsEventFactory {
             case UserAction:
                 event = new UserActionEvent(name, eventAttributes);
                 break;
+            case ApplicationExit:
+                event = new ApplicationExitEvent(name, eventAttributes);
+                break;
         }
 
         return event;

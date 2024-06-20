@@ -20,9 +20,8 @@ import com.newrelic.agent.android.tracing.ActivityTrace;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.TimeUnit;
 
-public class Harvest {
+public class Harvest implements HarvestConfigurable {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final boolean DISABLE_ACTIVITY_TRACE_LIMITS_FOR_DEBUGGING = false;
     public static final long INVALID_SESSION_DURATION = 0;
@@ -41,7 +40,7 @@ public class Harvest {
     // Caches for incoming API calls during pre-initialization.
     private static final HarvestableCache activityTraceCache = new HarvestableCache();
 
-    private HarvestConfiguration configuration = HarvestConfiguration.getDefaultHarvestConfiguration();
+    private HarvestConfiguration harvestConfiguration = HarvestConfiguration.getDefaultHarvestConfiguration();
 
     /* Static access methods */
     public static void initialize(AgentConfiguration agentConfiguration) {
@@ -53,7 +52,7 @@ public class Harvest {
     public void initializeHarvester(AgentConfiguration agentConfiguration) {
         createHarvester();
         harvester.setAgentConfiguration(agentConfiguration);
-        harvester.setConfiguration(instance.getConfiguration());
+        harvester.setHarvestConfiguration(instance.getConfiguration());
         flushHarvestableCaches();
     }
 
@@ -73,21 +72,20 @@ public class Harvest {
         }
     }
 
-    public static void harvestNow(boolean finalizeSession) {
-        if (!isInitialized())
-            return;
+    public static void harvestNow(boolean finalizeSession, boolean bWait) {
+        if (isInitialized()) {
+            if (finalizeSession) {
+                // add session meta to next harvest
+                instance.finalizeSession();
 
-        if (finalizeSession) {
-            // add session meta to next harvest
-            instance.finalizeSession();
+                // flush eventManager buffer on next harvest
+                AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
+            }
 
-            // flush eventManager buffer on next harvest
-            AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
-        }
-
-        HarvestTimer harvestTimer = instance.getHarvestTimer();
-        if (harvestTimer != null) {
-            harvestTimer.tickNow();
+            final HarvestTimer harvestTimer = instance.getHarvestTimer();
+            if (harvestTimer != null) {
+                harvestTimer.tickNow(bWait);
+            }
         }
     }
 
@@ -342,7 +340,7 @@ public class Harvest {
     }
 
     public HarvestConfiguration getConfiguration() {
-        return configuration;
+        return harvestConfiguration;
     }
 
     public HarvestConnection getHarvestConnection() {
@@ -353,17 +351,18 @@ public class Harvest {
         harvestConnection = connection;
     }
 
-    public boolean shouldCollectNetworkErrors() {
-        return configuration.isCollect_network_errors();
+    @Override
+    public void setConfiguration(HarvestConfiguration harvestConfiguration) {
+        updateConfiguration(harvestConfiguration);
     }
 
-    public void setConfiguration(HarvestConfiguration newConfiguration) {
-        configuration.reconfigure(newConfiguration);
-
-        harvestTimer.setPeriod(TimeUnit.MILLISECONDS.convert(configuration.getData_report_period(), TimeUnit.SECONDS));
-        harvestConnection.setServerTimestamp(configuration.getServer_timestamp());
-        harvestData.setDataToken(configuration.getDataToken());
-        harvester.setConfiguration(configuration);
+    @Override
+    public void updateConfiguration(HarvestConfiguration newConfiguration) {
+        harvestConfiguration.updateConfiguration(newConfiguration);
+        harvestTimer.updateConfiguration(newConfiguration);
+        harvestConnection.updateConfiguration(newConfiguration);
+        harvestData.updateConfiguration(newConfiguration);
+        harvester.updateConfiguration(newConfiguration);
     }
 
     public void setConnectInformation(ConnectInformation connectInformation) {
@@ -374,7 +373,6 @@ public class Harvest {
     public static void setHarvestConfiguration(HarvestConfiguration configuration) {
         if (!isInitialized()) {
             log.error("Cannot configure Harvester before initialization.");
-            new Exception().printStackTrace();
             return;
         }
         log.debug("Harvest Configuration: " + configuration);
@@ -382,8 +380,9 @@ public class Harvest {
     }
 
     public static HarvestConfiguration getHarvestConfiguration() {
-        if (!isInitialized())
+        if (!isInitialized()) {
             return HarvestConfiguration.getDefaultHarvestConfiguration();
+        }
 
         return instance.getConfiguration();
     }
@@ -391,7 +390,6 @@ public class Harvest {
     public static void setHarvestConnectInformation(ConnectInformation connectInformation) {
         if (!isInitialized()) {
             log.error("Cannot configure Harvester before initialization.");
-            new Exception().printStackTrace();
             return;
         }
         log.debug(("Setting Harvest connect information: " + connectInformation));
@@ -405,7 +403,7 @@ public class Harvest {
     }
 
     protected ActivityTraceConfiguration getActivityTraceConfiguration() {
-        return configuration.getAt_capture();
+        return harvestConfiguration.getAt_capture();
     }
 
     void finalizeSession() {
@@ -422,7 +420,6 @@ public class Harvest {
 
         log.debug("Harvest: Generating sessionDuration attribute with value " + sessionDurationAsSeconds);
         AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-
         analyticsController.setAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE, sessionDurationAsSeconds, false);
 
         log.debug("Harvest: Generating session event.");

@@ -51,6 +51,10 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         return payload;
     }
 
+    public int getPayloadSize() {
+        return payload.getBytes().length;
+    }
+
     public void setPayload(byte[] payloadBytes) {
         this.payload.putBytes(payloadBytes);
     }
@@ -107,14 +111,15 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
     @SuppressWarnings("NewApi")
     public PayloadSender call() throws Exception {
         try {
-            timer.tic();
+            byte[] payloadBytes = getPayload().getBytes();
             final HttpURLConnection connection = getConnection();
-            connection.setFixedLengthStreamingMode(payload.getBytes().length);
-            connection.setRequestProperty(CONTENT_LENGTH_HEADER, Integer.toString(payload.getBytes().length));
+            connection.setFixedLengthStreamingMode(payloadBytes.length);
+            connection.setRequestProperty(CONTENT_LENGTH_HEADER, Integer.toString(payloadBytes.length));
             try {
+                timer.tic();
                 connection.connect();
                 try (final OutputStream out = new BufferedOutputStream(connection.getOutputStream())) {
-                    out.write(payload.getBytes());
+                    out.write(payloadBytes);
                     out.flush();
                 }
 
@@ -208,7 +213,6 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
     public boolean shouldRetry() {
         return false;
     }
-
 
     public interface CompletionHandler {
         void onResponse(PayloadSender payloadSender);

@@ -8,6 +8,8 @@ package com.newrelic.agent.android.test.mock;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
@@ -29,12 +31,16 @@ import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.MachineMeasurements;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 import com.newrelic.agent.android.tracing.Trace;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TraceType;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
+import com.newrelic.agent.android.util.TestUtil;
 
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -49,12 +55,14 @@ import org.apache.http.message.BasicStatusLine;
 import org.junit.Assert;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 public class Providers {
 
@@ -263,6 +271,7 @@ public class Providers {
      */
     public static HarvestConfiguration provideHarvestConfiguration() {
         HarvestConfiguration harvestConfiguration = new HarvestConfiguration();
+
         harvestConfiguration.setCross_process_id("x-process-id");
         harvestConfiguration.setError_limit(111);
         harvestConfiguration.setCollect_network_errors(true);
@@ -279,6 +288,11 @@ public class Providers {
         harvestConfiguration.setServer_timestamp(9876543210L);
         harvestConfiguration.setResponse_body_limit(1111);
         harvestConfiguration.setTrusted_account_key("33");
+        harvestConfiguration.getRequest_headers_map().put("NR-AgentConfiguration", "+cNeWo");
+        harvestConfiguration.getRequest_headers_map().put("NR-Session", "AyAAAAC1NxdWFyZVRvb2xz");
+        harvestConfiguration.setEntity_guid("MTA4MTY5OTR8TU9CSUxFfEFQUExJQ0FUSU9OfDE1MjIzNDU3Mg");
+        harvestConfiguration.setAccount_id("33");
+
         return harvestConfiguration;
     }
 
@@ -359,7 +373,32 @@ public class Providers {
 
     public static AgentConfiguration provideAgentConfiguration() {
         final AgentConfiguration conf = new AgentConfiguration();
+        
+        conf.setApplicationToken("dead-beef-baad-f00d");
+        conf.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
+        conf.getLogReportingConfiguration().setConfiguration(provideLogReportingConfiguration());
+
         return conf;
     }
+
+    public static LogReportingConfiguration provideLogReportingConfiguration() {
+        final LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.NONE);
+        return logReportingConfiguration;
+    }
+
+    public static JsonObject provideJsonObject(Object obj, Class clazz) {
+        String json = new Gson().toJson(obj, clazz);
+        return new Gson().fromJson(json, JsonObject.class);
+    }
+
+    public static JsonObject provideJsonObject(String path) {
+        try (InputStream is = Providers.class.getResourceAsStream(path)) {
+            final String json = TestUtil.slurp(is);
+            return new Gson().fromJson(json, JsonObject.class);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }
 

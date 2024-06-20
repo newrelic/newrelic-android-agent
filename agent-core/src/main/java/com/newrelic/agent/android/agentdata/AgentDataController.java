@@ -12,11 +12,14 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.agentdata.builder.AgentDataBuilder;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.crash.Crash;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.crash.ApplicationInfo;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.ExceptionHelper;
 import com.newrelic.mobile.fbs.HexAgentDataBundle;
 
@@ -54,8 +57,9 @@ public class AgentDataController {
         handledException.put(HexAttribute.HEX_ATTR_APP_BUILD_ID, applicationInfo.getApplicationBuild());
         handledException.put(HexAttribute.HEX_ATTR_SESSION_ID, agentConfiguration.getSessionID());
         handledException.put(HexAttribute.HEX_ATTR_TIMESTAMP_MS, System.currentTimeMillis());
-        handledException.put(HexAttribute.HEX_ATTR_MESSAGE, e.getMessage());
-        handledException.put(HexAttribute.HEX_ATTR_CAUSE, getRootCause(e).toString());
+        handledException.put(HexAttribute.HEX_ATTR_MESSAGE, (e.getMessage() != null && e.getMessage().length() > 4096 ) ? e.getMessage().substring(0, 4096) : e.getMessage());
+        String cause = getRootCause(e).toString();
+        handledException.put(HexAttribute.HEX_ATTR_CAUSE, cause.length() > 4096 ? cause.substring(0, 4096) : cause);
         handledException.put(HexAttribute.HEX_ATTR_NAME, e.getClass().toString());
         handledException.put(HexAttribute.HEX_ATTR_THREAD, threadSetFromStackElements(e.getStackTrace()));
 
@@ -140,7 +144,16 @@ public class AgentDataController {
                 //Offline Storage
                 if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                     if (!Agent.hasReachableNetworkConnection(null)) {
-                        attributes.put(AnalyticsAttribute.OFFLINE_ATTRIBUTE_NAME, true);
+                        attributes.put(AnalyticsAttribute.OFFLINE_NAME_ATTRIBUTE, true);
+                        StatsEngine.notice().inc(MetricNames.OFFLINE_STORAGE_HANDLED_EXCEPTION_COUNT);
+                    }
+                }
+
+                //Background Reporting
+                if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+                    if (ApplicationStateMonitor.isAppInBackground()) {
+                        attributes.put(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true);
+                        StatsEngine.notice().inc(MetricNames.BACKGROUND_HANDLED_EXCEPTION_COUNT);
                     }
                 }
 

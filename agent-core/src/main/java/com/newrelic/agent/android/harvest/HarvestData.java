@@ -25,7 +25,7 @@ import java.util.Set;
 
 /**
  * Information used in the {@code data} phase of harvesting.
- *
+ * <p>
  * The following entities are included in HarvestData:
  * <ul>
  *     <li>A {@link DataToken} which holds application identifying information.</li>
@@ -40,7 +40,7 @@ import java.util.Set;
  *     </li>
  * </ul>
  */
-public class HarvestData extends HarvestableArray {
+public class HarvestData extends HarvestableArray implements HarvestConfigurable {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
     private DataToken dataToken;
@@ -233,14 +233,18 @@ public class HarvestData extends HarvestableArray {
     @Override
     public String toString() {
         return "HarvestData{" +
-                "\n\tdataToken=" + dataToken +
-                ", \n\tdeviceInformation=" + deviceInformation +
-                ", \n\tharvestTimeDelta=" + harvestTimeDelta +
-                ", \n\thttpTransactions=" + httpTransactions +
-                ", \n\tmachineMeasurements=" + machineMeasurements +
-                ", \n\tactivityTraces=" + activityTraces +
-                ", \n\tsessionAttributes=" + sessionAttributes +
-                ", \n\tanalyticsAttributes=" + analyticsEvents +
+                "dataToken=" + dataToken +
+                ", deviceInformation=" + deviceInformation +
+                ", harvestTimeDelta=" + harvestTimeDelta +
+                ", httpTransactions=" + httpTransactions +
+                ", machineMeasurements=" + machineMeasurements +
+                ", activityTraces=" + activityTraces +
+                ", sessionAttributes=" + sessionAttributes +
+                ", analyticsAttributes=" + analyticsEvents +
                 '}';
+    }
+
+    public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
+        setDataToken(harvestConfiguration.getDataToken());
     }
 }

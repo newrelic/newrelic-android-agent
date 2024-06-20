@@ -24,7 +24,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class AgentDataReporter extends PayloadReporter implements HarvestLifecycleAware {
+public class AgentDataReporter extends PayloadReporter {
     protected static final AtomicReference<AgentDataReporter> instance = new AtomicReference<>(null);
     private static boolean reportExceptions = false;
 
@@ -155,7 +155,6 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
                     //Offline storage: No network at all, don't send back data
                     if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                         log.warn("AgentDataReporter didn't send due to lack of network connection");
-                        StatsEngine.get().inc(MetricNames.OFFLINE_STORAGE_HANDLED_EXCEPTION);
                     }
                 }
             }
@@ -192,54 +191,8 @@ public class AgentDataReporter extends PayloadReporter implements HarvestLifecyc
     }
 
     @Override
-    public void onHarvestStart() {
-    }
-
-    @Override
-    public void onHarvestStop() {
-    }
-
-    @Override
-    public void onHarvestBefore() {
-    }
-
-    @Override
     public void onHarvest() {
         PayloadController.submitCallable(reportCachedAgentDataCallable);
     }
 
-    @Override
-    public void onHarvestFinalize() {
-
-    }
-
-    @Override
-    public void onHarvestError() {
-
-    }
-
-    @Override
-    public void onHarvestSendFailed() {
-
-    }
-
-    @Override
-    public void onHarvestComplete() {
-
-    }
-
-    @Override
-    public void onHarvestConnected() {
-
-    }
-
-    @Override
-    public void onHarvestDisconnected() {
-
-    }
-
-    @Override
-    public void onHarvestDisabled() {
-
-    }
 }

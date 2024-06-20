@@ -9,6 +9,9 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
 import com.newrelic.agent.android.harvest.DataToken;
@@ -25,6 +28,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONTokener;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -33,6 +38,7 @@ public class SavedState extends HarvestAdapter {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
     private final String PREFERENCE_FILE_PREFIX = "com.newrelic.android.agent.v1_";
+    private final Gson gson = new GsonBuilder().create();
 
     // Harvest configuration
     private final String PREF_MAX_TRANSACTION_COUNT = "maxTransactionCount";
@@ -40,9 +46,7 @@ public class SavedState extends HarvestAdapter {
     private final String PREF_HARVEST_INTERVAL = "harvestIntervalInSeconds";
     private final String PREF_SERVER_TIMESTAMP = "serverTimestamp";
     private final String PREF_CROSS_PROCESS_ID = "crossProcessId";
-    private final String PREF_PRIORITY_ENCODING_KEY = "encoding_key";
     private final String PREF_ACCOUNT_ID = "account_id";
-    private final String PREF_APPLICATION_ID = "application_id";
     private final String PREF_TRUSTED_ACCOUNT_KEY = "trusted_account_key";
     private final String PREF_DATA_TOKEN = "dataToken";
     private final String PREF_DATA_TOKEN_EXPIRATION = "dataTokenExpiration";
@@ -53,9 +57,9 @@ public class SavedState extends HarvestAdapter {
     private final String PREF_ERROR_LIMIT = "errorLimit";
     private final String NEW_RELIC_AGENT_DISABLED_VERSION_KEY = "NewRelicAgentDisabledVersion";
     private final String PREF_ACTIVITY_TRACE_MIN_UTILIZATION = "activityTraceMinUtilization";
-    private Float activityTraceMinUtilization;
-
-    private final HarvestConfiguration configuration = new HarvestConfiguration();
+    private final String PREF_REMOTE_CONFIGURATION = "remoteConfiguration";
+    private final String PREF_REQUEST_HEADERS_MAP = "requestHeadersMap";
+    private final String PREF_ENTITY_GUID = "entityGuid";
 
     // Connect information
     private final String PREF_APP_NAME = "appName";
@@ -77,13 +81,15 @@ public class SavedState extends HarvestAdapter {
     private final String PREF_PLATFORM = "platform";
     private final String PREF_PLATFORM_VERSION = "platformVersion";
 
+    private Float activityTraceMinUtilization;
+    private final HarvestConfiguration configuration = new HarvestConfiguration();
     private final ConnectInformation connectInformation = new ConnectInformation(new ApplicationInformation(), new DeviceInformation());
 
     private final SharedPreferences prefs;
     private final SharedPreferences.Editor editor;
     private final Lock lock = new ReentrantLock();
 
-    // refresh the dat atoken every 2 weeks
+    // refresh the data token every 2 weeks
     private final long DATA_TOKEN_TTL_MS = TimeUnit.MILLISECONDS.convert(14, TimeUnit.DAYS);
 
     @SuppressLint("CommitPrefEdits")
@@ -95,10 +101,6 @@ public class SavedState extends HarvestAdapter {
     }
 
     public void saveHarvestConfiguration(HarvestConfiguration newConfiguration) {
-        // If the new configuration is the same as the current, skip saving.
-        if (configuration.equals(newConfiguration)) {
-            return;
-        }
 
         DataToken dataToken = newConfiguration.getDataToken();
         if (!dataToken.isValid()) {
@@ -131,14 +133,15 @@ public class SavedState extends HarvestAdapter {
         save(PREF_RESPONSE_BODY_LIMIT, newConfiguration.getResponse_body_limit());
         save(PREF_COLLECT_NETWORK_ERRORS, newConfiguration.isCollect_network_errors());
         save(PREF_ERROR_LIMIT, newConfiguration.getError_limit());
-        save(PREF_PRIORITY_ENCODING_KEY, newConfiguration.getPriority_encoding_key());
         save(PREF_ACCOUNT_ID, newConfiguration.getAccount_id());
-        save(PREF_APPLICATION_ID, newConfiguration.getApplication_id());
         save(PREF_TRUSTED_ACCOUNT_KEY, newConfiguration.getTrusted_account_key());
+        save(PREF_REMOTE_CONFIGURATION, gson.toJson(newConfiguration.getRemote_configuration()));
+        save(PREF_REQUEST_HEADERS_MAP, gson.toJson(newConfiguration.getRequest_headers_map()));
+        save(PREF_ENTITY_GUID, newConfiguration.getEntity_guid());
 
         saveActivityTraceMinUtilization((float) newConfiguration.getActivity_trace_min_utilization());
 
-        // Reload the configuration
+        // Reload the configuration(s)
         loadHarvestConfiguration();
     }
 
@@ -152,14 +155,8 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_CROSS_PROCESS_ID)) {
             configuration.setCross_process_id(getCrossProcessId());
         }
-        if (has(PREF_PRIORITY_ENCODING_KEY)) {
-            configuration.setPriority_encoding_key(getPriorityEncodingKey());
-        }
         if (has(PREF_ACCOUNT_ID)) {
             configuration.setAccount_id(getAccountId());
-        }
-        if (has(PREF_APPLICATION_ID)) {
-            configuration.setApplication_id(getApplicationId());
         }
         if (has(PREF_SERVER_TIMESTAMP)) {
             configuration.setServer_timestamp(getServerTimestamp());
@@ -188,24 +185,44 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_ACTIVITY_TRACE_MIN_UTILIZATION)) {
             configuration.setActivity_trace_min_utilization(getActivityTraceMinUtilization());
         }
-        if (has(PREF_PRIORITY_ENCODING_KEY)) {
-            configuration.setPriority_encoding_key(getPriorityEncodingKey());
-        }
-
         if (has(PREF_TRUSTED_ACCOUNT_KEY)) {
             configuration.setTrusted_account_key(getTrustedAccountKey());
         }
-
+        if (has(PREF_REMOTE_CONFIGURATION)) {
+            String remoteConfigAsJson = getString(PREF_REMOTE_CONFIGURATION);
+            try {
+                RemoteConfiguration remoteConfiguration = gson.fromJson(remoteConfigAsJson, RemoteConfiguration.class);
+                configuration.setRemote_configuration(remoteConfiguration);
+            } catch (JsonSyntaxException e) {
+                log.error("Failed to deserialize log reporting configuration: " + e);
+                configuration.setRemote_configuration(new RemoteConfiguration());
+            }
+        }
+        if (has(PREF_REQUEST_HEADERS_MAP)) {
+            String requestHeadersAsJson = getString(PREF_REQUEST_HEADERS_MAP);
+            try {
+                Map<String, String> requestHeadersMap = gson.fromJson(requestHeadersAsJson, Map.class);
+                configuration.setRequest_headers_map(requestHeadersMap);
+            } catch (JsonSyntaxException e) {
+                log.error("Failed to deserialize request header configuration: " + e);
+                configuration.setRequest_headers_map(new HashMap<>());
+            }
+        }
+        if (has(PREF_ENTITY_GUID)) {
+            configuration.setEntity_guid(getString(PREF_ENTITY_GUID));
+        }
 
         log.info("Loaded configuration: " + configuration);
     }
 
     public void saveConnectInformation(final ConnectInformation newConnectInformation) {
-        if (connectInformation.equals(newConnectInformation))
+        if (connectInformation.equals(newConnectInformation)) {
             return;
+        }
 
         saveApplicationInformation(newConnectInformation.getApplicationInformation());
         saveDeviceInformation(newConnectInformation.getDeviceInformation());
+
         // Reload the connect information
         loadConnectInformation();
     }
@@ -249,6 +266,7 @@ public class SavedState extends HarvestAdapter {
 
     public void loadConnectInformation() {
         final ApplicationInformation applicationInformation = new ApplicationInformation();
+        final DeviceInformation deviceInformation = new DeviceInformation();
 
         if (has(PREF_APP_NAME)) {
             applicationInformation.setAppName(getAppName());
@@ -265,8 +283,6 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_VERSION_CODE)) {
             applicationInformation.setVersionCode(getVersionCode());
         }
-
-        final DeviceInformation deviceInformation = new DeviceInformation();
         if (has(PREF_AGENT_NAME)) {
             deviceInformation.setAgentName(getAgentName());
         }
@@ -350,6 +366,11 @@ public class SavedState extends HarvestAdapter {
         String agentVersion = Agent.getDeviceInformation().getAgentVersion();
         log.info("Disabling agent version " + agentVersion);
         saveDisabledVersion(agentVersion);
+    }
+
+    @Override
+    public void onHarvestConfigurationChanged() {
+        saveHarvestConfiguration(Harvest.getHarvestConfiguration());
     }
 
     public void save(String key, String value) {
@@ -475,16 +496,8 @@ public class SavedState extends HarvestAdapter {
         return getString(PREF_CROSS_PROCESS_ID);
     }
 
-    public String getPriorityEncodingKey() {
-        return getString(PREF_PRIORITY_ENCODING_KEY);
-    }
-
     public String getAccountId() {
         return getString(PREF_ACCOUNT_ID);
-    }
-
-    public String getApplicationId() {
-        return getString(PREF_APPLICATION_ID);
     }
 
     public String getTrustedAccountKey() {

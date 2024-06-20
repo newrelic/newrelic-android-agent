@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.harvest;
 
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -19,8 +20,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class HarvestTimer implements Runnable {
-    public final static long DEFAULT_HARVEST_PERIOD = 60 * 1000; // ms
-    private final static long HARVEST_PERIOD_LEEWAY = 1000; // ms
+    public final static long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.toMillis(60);
+    private final static long HARVEST_PERIOD_LEEWAY = TimeUnit.SECONDS.toMillis(1);
     private final static long NEVER_TICKED = -1;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Harvester"));
     private final AgentLog log = AgentLogManager.getAgentLog();
@@ -29,7 +30,7 @@ public class HarvestTimer implements Runnable {
     protected final Harvester harvester;
     protected long lastTickTime;
     private long startTimeMs;
-    private Lock lock = new ReentrantLock();
+    private final Lock lock = new ReentrantLock();
 
     public HarvestTimer(Harvester harvester) {
         this.harvester = harvester;
@@ -42,7 +43,6 @@ public class HarvestTimer implements Runnable {
             tickIfReady();
         } catch (Exception e) {
             log.error("HarvestTimer: Exception in timer tick: " + e.getMessage());
-            e.printStackTrace();
             AgentHealth.noticeException(e);
         } finally {
             lock.unlock();
@@ -60,36 +60,39 @@ public class HarvestTimer implements Runnable {
         }
 
         log.debug("HarvestTimer: time since last tick: " + lastTickDelta);
-        long tickStart = now();
 
         // Perform the actual tick logic
         try {
             tick();
         } catch (Exception e) {
             log.error("HarvestTimer: Exception in timer tick: " + e.getMessage());
-            e.printStackTrace();
             AgentHealth.noticeException(e);
         }
 
-        lastTickTime = tickStart;
         log.debug("Set last tick time to: " + lastTickTime);
     }
 
     protected void tick() {
         log.debug("Harvest: tick");
-        TicToc t = new TicToc();
-        t.tic();
+        TicToc t = new TicToc().tic();
 
         try {
-            if (ApplicationStateMonitor.isAppInBackground()) {
-                log.error("HarvestTimer: Attempting to harvest while app is in background");
-            } else {
+
+            if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
                 harvester.execute();
                 log.debug("Harvest: executed");
+                log.debug("Harvest: executed in the background");
+            } else {
+                if (ApplicationStateMonitor.isAppInBackground()) {
+                    log.error("HarvestTimer: Attempting to harvest while app is in background");
+                } else {
+                    harvester.execute();
+                    log.debug("Harvest: executed");
+                }
             }
+            lastTickTime = now();
         } catch (Exception e) {
             log.error("HarvestTimer: Exception in harvest execute: " + e.getMessage());
-            e.printStackTrace();
             AgentHealth.noticeException(e);
         }
 
@@ -98,15 +101,15 @@ public class HarvestTimer implements Runnable {
             stop();
         }
 
-        long tickDelta = t.toc();
-
-        log.debug("HarvestTimer tick took " + tickDelta + "ms");
+        log.debug("HarvestTimer tick took " + t.toc() + "ms");
     }
 
     public void start() {
-        if (ApplicationStateMonitor.isAppInBackground()) {
-            log.warn("HarvestTimer: Attempting to start while app is in background");
-            return;
+        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if (ApplicationStateMonitor.isAppInBackground()) {
+                log.warn("HarvestTimer: Attempting to start while app is in background");
+                return;
+            }
         }
 
         if (isRunning()) {
@@ -120,10 +123,10 @@ public class HarvestTimer implements Runnable {
         }
 
         log.debug("HarvestTimer: Starting with a period of " + period + "ms");
-        startTimeMs = System.currentTimeMillis();
+        startTimeMs = now();
 
         // Harvest timer MUST always start immediately, per the spec
-        tickFuture = scheduler.scheduleAtFixedRate(this, 0, period, TimeUnit.MILLISECONDS);
+        tickFuture = scheduler.scheduleWithFixedDelay(this, 0, period, TimeUnit.MILLISECONDS);
 
         // Advance the harvester now.
         harvester.start();
@@ -135,7 +138,7 @@ public class HarvestTimer implements Runnable {
             return;
         }
         cancelPendingTasks();
-        log.debug("HarvestTimer: Stopped.");
+        log.debug("HarvestTimer: Stopped");
         startTimeMs = 0;
         harvester.stop();
     }
@@ -145,20 +148,24 @@ public class HarvestTimer implements Runnable {
         scheduler.shutdownNow();
     }
 
-    // Runs a tick of the Harvester immediately, disregarding any 'time since last tick' limits.
-    public void tickNow() {
-        final HarvestTimer timer = this;
-        ScheduledFuture future = scheduler.schedule(new Runnable() {
-            @Override
-            public void run() {
-                timer.tick();
-            }
-        }, 0, TimeUnit.SECONDS);
+    /**
+     * Executes a run of the Harvester immediately, disregarding any 'time since last tick' limits.
+     * Does not affect the next scheduled harvest time, so if abused could result in over-harvesting.
+     *
+     * @param bWait If true, wait for harvest completion
+     */
+    public void tickNow(boolean bWait) {
         try {
-            future.get();
+            // TODO throttle on api abuse
+            final HarvestTimer timer = this;
+            ScheduledFuture<?> future = scheduler.schedule(() -> timer.tick(), 0, TimeUnit.MILLISECONDS);
+            if (bWait && !future.isCancelled()) {
+                future.get();
+                startTimeMs = now();
+            }
+
         } catch (Exception e) {
             log.error("Exception waiting for tickNow to finish: " + e.getMessage());
-            e.printStackTrace();
             AgentHealth.noticeException(e);
         }
     }
@@ -172,14 +179,16 @@ public class HarvestTimer implements Runnable {
     }
 
     public long timeSinceLastTick() {
-        if (lastTickTime == 0)
-            return -1;
+        if (lastTickTime == 0) {
+            return NEVER_TICKED;
+        }
         return now() - lastTickTime;
     }
 
     public long timeSinceStart() {
-        if (startTimeMs == 0)
+        if (startTimeMs == 0) {
             return 0;
+        }
         return now() - startTimeMs;
     }
 
@@ -191,11 +200,15 @@ public class HarvestTimer implements Runnable {
         try {
             lock.lock();
             if (tickFuture != null) {
-                tickFuture.cancel(true);
+                tickFuture.cancel(false);
                 tickFuture = null;
             }
         } finally {
             lock.unlock();
         }
+    }
+
+    public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
+        // setPeriod(TimeUnit.MILLISECONDS.convert(harvestConfiguration.getData_report_period(), TimeUnit.SECONDS));
     }
 }

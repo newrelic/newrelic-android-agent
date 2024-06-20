@@ -8,8 +8,12 @@ package com.newrelic.agent.android;
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore;
 import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;
+import com.newrelic.agent.android.harvest.HarvestConfigurable;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
@@ -18,10 +22,11 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class AgentConfiguration {
+public class AgentConfiguration implements HarvestConfigurable {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
     private static final String DEFAULT_COLLECTOR_HOST = "mobile-collector.newrelic.com";
@@ -42,11 +47,12 @@ public class AgentConfiguration {
     static final String DEFAULT_DEVICE_UUID = "0";
     static final int DEVICE_UUID_MAX_LEN = 40;
 
+    protected static AtomicReference<AgentConfiguration> instance = new AtomicReference<>(new AgentConfiguration());
+
     private String collectorHost = DEFAULT_COLLECTOR_HOST;
     private String crashCollectorHost = DEFAULT_CRASH_COLLECTOR_HOST;
     private String applicationToken;
     private boolean useSsl = true;
-    private boolean useLocationService = false;
     private boolean reportCrashes = false;
     private boolean reportHandledExceptions = true;
     private boolean enableAnalyticsEvents = true;
@@ -55,15 +61,18 @@ public class AgentConfiguration {
     private String customBuildId = null;
     private String region = null;
     private String launchActivityClassName = null;
-
     private CrashStore crashStore;
     private AnalyticsAttributeStore analyticsAttributeStore;
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
     private AnalyticsEventStore eventStore;
-
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
+    private String entityGuid;
+
+    // Support remote configuration for these features
+    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(true, LogLevel.INFO);
+    private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
 
     public String getApplicationToken() {
         return applicationToken;
@@ -338,6 +347,15 @@ public class AgentConfiguration {
         return deviceID;
     }
 
+    public String getEntityGuid() {
+        return entityGuid;
+    }
+
+    public void setEntityGuid(String entityGuid) {
+        if (entityGuid != null && !entityGuid.isEmpty()) {
+            this.entityGuid = entityGuid.trim().strip();
+        }
+    }
 
     public String getLaunchActivityClassName() {
         return launchActivityClassName;
@@ -346,4 +364,39 @@ public class AgentConfiguration {
     public void setLaunchActivityClassName(String launchActivityClassName) {
         this.launchActivityClassName = launchActivityClassName;
     }
+
+    public LogReportingConfiguration getLogReportingConfiguration() {
+        return logReportingConfiguration;
+    }
+
+    public ApplicationExitConfiguration getApplicationExitConfiguration() {
+        return applicationExitConfiguration;
+    }
+
+    /**
+     * Update agent config with any changes returned in the harvest response.
+     *
+     * @param harvestConfiguration
+     */
+    @Override
+    public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
+        // update the global agent config w/changes
+        applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
+        logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);
+        entityGuid = harvestConfiguration.getEntity_guid();
+
+        if (instance.get() != null) {
+            AgentConfiguration agentConfiguration = instance.get();
+            if (agentConfiguration != null && agentConfiguration != this) {
+               agentConfiguration.updateConfiguration(harvestConfiguration);
+            }
+        }
+    }
+
+    // return the default instance
+    public static AgentConfiguration getInstance() {
+        instance.compareAndSet(null, new AgentConfiguration());
+        return instance.get();
+    }
+
 }

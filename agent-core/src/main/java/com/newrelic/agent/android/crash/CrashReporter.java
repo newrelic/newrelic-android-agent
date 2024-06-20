@@ -22,7 +22,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class CrashReporter extends PayloadReporter implements HarvestLifecycleAware {
+public class CrashReporter extends PayloadReporter {
     protected static AtomicReference<CrashReporter> instance = new AtomicReference<>(null);
 
     // Default to false (crash is reported on next app launch)
@@ -153,7 +153,6 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
                                 //Offline storage: No network at all, don't send back data
                                 if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
                                     log.warn("CrashReporter didn't send due to lack of network connection");
-                                    StatsEngine.get().inc(MetricNames.OFFLINE_STORAGE_CRASH);
                                 }
                             }
                         }
@@ -213,45 +212,6 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
     }
 
     @Override
-    public void onHarvestStart() {
-    }
-
-    @Override
-    public void onHarvestStop() {
-
-    }
-
-    @Override
-    public void onHarvestBefore() {
-
-    }
-
-    @Override
-    public void onHarvest() {
-
-    }
-
-    @Override
-    public void onHarvestFinalize() {
-
-    }
-
-    @Override
-    public void onHarvestError() {
-
-    }
-
-    @Override
-    public void onHarvestSendFailed() {
-
-    }
-
-    @Override
-    public void onHarvestComplete() {
-
-    }
-
-    @Override
     public void onHarvestConnected() {
         PayloadController.submitCallable(new Callable() {
             @Override
@@ -262,13 +222,4 @@ public class CrashReporter extends PayloadReporter implements HarvestLifecycleAw
         });
     }
 
-    @Override
-    public void onHarvestDisconnected() {
-
-    }
-
-    @Override
-    public void onHarvestDisabled() {
-
-    }
 }
