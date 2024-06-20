@@ -64,6 +64,10 @@ public class MainActivity extends AppCompatActivity
         // Add NewRelic
         NewRelic.enableFeature(FeatureFlag.NativeReporting);
         NewRelic.enableFeature(FeatureFlag.LogReporting);
+        NewRelic.enableFeature(FeatureFlag.OfflineStorage);
+        NewRelic.enableFeature(FeatureFlag.ApplicationExitReporting);
+        NewRelic.enableFeature(FeatureFlag.BackgroundReporting);
+
 
         NewRelic.withApplicationToken("<APP-ID>")    // ## Provide application ID to test map uploads
                 .withLogLevel(AgentLog.DEBUG)

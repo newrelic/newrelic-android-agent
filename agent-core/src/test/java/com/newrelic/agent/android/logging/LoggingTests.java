@@ -13,6 +13,7 @@ import com.newrelic.agent.android.util.Streams;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+@Ignore("Until LogReporting GA")
 public class LoggingTests {
     protected static File reportsDir;
     long tStart;

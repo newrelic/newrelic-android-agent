@@ -18,11 +18,13 @@ import com.newrelic.agent.android.FeatureFlag;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.Map;
 
+@Ignore("Until LogReporting GA")
 public class LogReportingTest extends LoggingTests {
 
     @Before

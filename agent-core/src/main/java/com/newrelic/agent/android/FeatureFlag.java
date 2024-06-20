@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.android;
 
+import com.newrelic.agent.android.logging.AgentLogManager;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -34,7 +36,14 @@ public enum FeatureFlag {
     }
 
     public static void enableFeature(FeatureFlag featureFlag) {
-        enabledFeatures.add(featureFlag);
+        switch (featureFlag) {
+            case LogReporting:
+                AgentLogManager.getAgentLog().error("LogReporting feature is disabled in this release");
+                break;
+            default:
+                enabledFeatures.add(featureFlag);
+                break;
+        }
     }
 
     public static void disableFeature(FeatureFlag featureFlag) {

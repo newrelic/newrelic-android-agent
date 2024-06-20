@@ -20,6 +20,7 @@ import com.newrelic.agent.android.util.Streams;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -31,6 +32,7 @@ import java.util.Arrays;
 
 import javax.net.ssl.HttpsURLConnection;
 
+@Ignore("Until LogReporting GA")
 public class LogForwarderTest extends LoggingTests {
 
     private File logDataReport;

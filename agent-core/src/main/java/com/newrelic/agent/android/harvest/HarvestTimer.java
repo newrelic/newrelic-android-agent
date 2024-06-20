@@ -5,8 +5,6 @@
 
 package com.newrelic.agent.android.harvest;
 
-import com.newrelic.agent.android.analytics.AnalyticsAttribute;
-import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -14,7 +12,6 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.NamedThreadFactory;
 
-import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -159,18 +156,14 @@ public class HarvestTimer implements Runnable {
      */
     public void tickNow(boolean bWait) {
         try {
-            // throttle on abuse
-//            if (timeSinceLastTick() <= TimeUnit.SECONDS.toMillis(15)) {
-//                log.warn("HarvestTimer.tickNow() called too frequently");
-//            } else {
+            // TODO throttle on api abuse
             final HarvestTimer timer = this;
             ScheduledFuture<?> future = scheduler.schedule(() -> timer.tick(), 0, TimeUnit.MILLISECONDS);
             if (bWait && !future.isCancelled()) {
                 future.get();
-                startTimeMs = System.currentTimeMillis();
+                startTimeMs = now();
             }
 
-//            }
         } catch (Exception e) {
             log.error("Exception waiting for tickNow to finish: " + e.getMessage());
             AgentHealth.noticeException(e);
