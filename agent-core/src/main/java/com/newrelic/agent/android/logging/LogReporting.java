@@ -38,7 +38,6 @@ public abstract class LogReporting {
     protected static LogLevel logLevel = LogLevel.WARN;
     protected static AgentLogger agentLogger = new AgentLogger();
     protected static AtomicReference<Logger> instance = new AtomicReference<>(agentLogger);
-    protected static String entityGuid = "";
 
     public static MessageValidator validator = new MessageValidator() {
     };
@@ -54,8 +53,6 @@ public abstract class LogReporting {
         if (!LogReporter.getInstance().isStarted()) {
             agentLogger.log(LogLevel.ERROR, "LogReporting failed to initialize!");
         }
-
-        entityGuid = agentConfiguration.getEntityGuid();
     }
 
     public static Logger getLogger() {
@@ -121,11 +118,6 @@ public abstract class LogReporting {
                 LogLevel.NONE != getLogLevel();
     }
 
-    public static String getEntityGuid() {
-        return entityGuid != null ? entityGuid : "";
-    }
-
-
     public static class AgentLogger implements Logger {
         MessageValidator validator = new MessageValidator() {
         };
@@ -135,27 +127,25 @@ public abstract class LogReporting {
          * At runtime, this will be the Android logger (Log) instance.
          */
         public void logToAgent(LogLevel level, String message) {
-            if (LogReporting.isLevelEnabled(level)) {
-                message = validator.validate(message);
+            message = validator.validate(message);
 
-                final AgentLog agentLog = AgentLogManager.getAgentLog();
-                switch (level) {
-                    case ERROR:
-                        agentLog.error(message);
-                        break;
-                    case WARN:
-                        agentLog.warn(message);
-                        break;
-                    case INFO:
-                        agentLog.info(message);
-                        break;
-                    case VERBOSE:
-                        agentLog.verbose(message);
-                        break;
-                    case DEBUG:
-                        agentLog.debug(message);
-                        break;
-                }
+            final AgentLog agentLog = AgentLogManager.getAgentLog();
+            switch (level) {
+                case ERROR:
+                    agentLog.error(message);
+                    break;
+                case WARN:
+                    agentLog.warn(message);
+                    break;
+                case INFO:
+                    agentLog.info(message);
+                    break;
+                case VERBOSE:
+                    agentLog.verbose(message);
+                    break;
+                case DEBUG:
+                    agentLog.debug(message);
+                    break;
             }
         }
 

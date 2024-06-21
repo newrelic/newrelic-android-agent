@@ -42,7 +42,6 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
-import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
 import com.newrelic.agent.android.metric.Metric;
@@ -61,7 +60,6 @@ import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 import com.newrelic.agent.android.util.OfflineStorage;
 
-import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.junit.After;
 import org.junit.Assert;
@@ -74,9 +72,6 @@ import org.robolectric.RobolectricTestRunner;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -292,7 +287,6 @@ public class NewRelicTest {
         Assert.assertFalse("Should disable feature flag", FeatureFlag.featureEnabled(FeatureFlag.CrashReporting));
     }
 
-
     // @Test
     public void testIsStarted() {
         Assert.assertFalse("Agent should not be started", NewRelic.isStarted());
@@ -419,27 +413,10 @@ public class NewRelicTest {
 
     }
 
-    private Metric findMetricByName(List<Metric> metrics, String name) {
-        for (Metric m : metrics) {
-            if (m.getName().toLowerCase().contains(name.toLowerCase())) {
-                return m;
-            }
-        }
-        return null;
-    }
-
     @Test
     @SuppressWarnings("deprecation")
     public void testNoticeHttpTransaction() {
         Map<String, String> map = new HashMap<String, String>();
-
-        // test all the decprecated overloads
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class);
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class);
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class, map.getClass());
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class, map.getClass(), String.class);
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class, map.getClass(), String.class, HttpResponse.class);
-        testDeprecatedMethod("noticeHttpTransaction", "public", String.class, int.class, long.class, long.class, long.class, long.class, String.class, map.getClass(), URLConnection.class);
 
         HarvestData harvestData = TestHarvest.getInstance().getHarvestData();
         HttpTransactions transactions = harvestData.getHttpTransactions();
@@ -458,8 +435,6 @@ public class NewRelicTest {
     @Test
     @SuppressWarnings("deprecation")
     public void testNoticeNetworkFailure() {
-        testDeprecatedMethod("noticeNetworkFailure", "public", String.class, long.class, long.class, NetworkFailure.class);
-
         long now = System.currentTimeMillis();
         long later = now + 1000;
 
@@ -741,6 +716,7 @@ public class NewRelicTest {
             for (AnalyticsAttribute a : event.getAttributeSet()) {
                 if (a.getName() == attrName) {
                     bFound = true;
+                    break;
                 }
             }
             Assert.assertTrue("Should find attribute", bFound);
@@ -766,48 +742,104 @@ public class NewRelicTest {
         Assert.assertEquals("Should be a Type-4 generated UUID", sessionId, UUID.fromString(sessionId).toString());
     }
 
-    private Method testDeprecatedMethod(final String methodName, final String modifier, Class<?>... parameterTypes) {
-        Method method = null;
-        try {
-            method = NewRelic.class.getMethod(methodName, parameterTypes);
-            Assert.assertNotNull(method);
-
-            Annotation[] annotations = method.getAnnotations();
-            Assert.assertTrue(annotations.length > 0);
-
-            method = NewRelic.class.getDeclaredMethod(methodName, parameterTypes);
-
-            // Test the method contains the deprecated annotation
-            boolean isDeprecated = false;
-            for (Annotation annotation : annotations) {
-                isDeprecated = annotation.annotationType().getName().equals("java.lang.Deprecated");
-                if (isDeprecated) {
-                    break;
-                }
-            }
-            Assert.assertTrue("Should contain @Deprecated annotation", isDeprecated);
-
-            // Test that shutdown is public/private/protected
-            String modifiers = Modifier.toString(method.getModifiers());
-            Assert.assertTrue("Modifier should be public", modifiers.toLowerCase().contains(modifier));
-
-        } catch (NoSuchMethodException e) {
-            // Method has been removed
-            Assert.assertNull(method);
-        }
-
-        return method;
-    }
-
     @Test
     public void testSetUserId() {
-        Assert.assertFalse("Should not set null user ID", NewRelic.setUserId(null));
-        Assert.assertFalse("Should not set empty user ID", NewRelic.setUserId(""));
+        Assert.assertTrue("Should not set null user ID", NewRelic.setUserId(null));
+        Assert.assertTrue("Should not set empty user ID", NewRelic.setUserId(""));
         Assert.assertTrue("Should set valid user ID", NewRelic.setUserId("validUserId"));
 
         AnalyticsAttribute attr = AnalyticsControllerImpl.getInstance().getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
-        Assert.assertTrue("Should contain 'userId' attr", attr.getName().equals(AnalyticsAttribute.USER_ID_ATTRIBUTE));
-        Assert.assertTrue("Should contain 'userId' value", attr.getStringValue().equals("validUserId"));
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+        Assert.assertEquals("Should contain 'userId' value", "validUserId", attr.getStringValue());
+    }
+
+    @Test
+    public void testSetUserIdWithSessionRestart() {
+        String preSessionId = NewRelic.currentSessionId();
+
+        Harvest.start();
+        Assert.assertTrue("Should set valid user ID", NewRelic.setUserId("preUserId"));
+
+        AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+        Assert.assertEquals("Should contain 'userId' value", "preUserId", attr.getStringValue());
+
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertEquals("Should contain updated 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+        Assert.assertNotEquals("Should contain updated 'userId' value", "validUserId", attr.getStringValue());
+
+        Assert.assertTrue(analyticsController.getEventManager().isTransmitRequired());
+        Assert.assertNotEquals("Should generate a new session", preSessionId, NewRelic.currentSessionId());
+        Assert.assertEquals("Should match system attribute", analyticsController.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE).getStringValue(),
+                NewRelic.currentSessionId());
+
+        AnalyticsEvent sessionEvent = eventManager.getQueuedEvents().stream()
+                .filter(analyticsEvent -> analyticsEvent.getCategory().equals(AnalyticsEventCategory.Session))
+                .findAny()
+                .get();
+        Assert.assertNotNull("Should create session event", sessionEvent);
+
+        String metric = StatsEngine.get().getStatsMap().keySet().stream()
+                .filter(stringMetricEntry -> stringMetricEntry.equals("Session/Duration"))
+                .findFirst()
+                .get();
+        Assert.assertNotNull("Should create session duration metric", metric);
+
+        Harvest.stop();
+    }
+
+    @Test
+    public void testSetUserIdWithSessionRestartAbuse() throws InterruptedException {
+        Harvest.start();
+        Assert.assertTrue("Should set valid user ID", NewRelic.setUserId(UUID.randomUUID().toString()));
+
+        AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertTrue(analyticsController.getEventManager().isTransmitRequired());
+
+        String sessionId = NewRelic.currentSessionId();
+        for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
+            Assert.assertEquals(event.getCategory(), AnalyticsEventCategory.Session);
+        }
+
+        Thread.sleep(1000);
+        analyticsController.getEventManager().empty();
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        NewRelic.recordBreadcrumb("Test BreadCrumb");
+        Assert.assertNotEquals(sessionId, NewRelic.currentSessionId());
+
+        sessionId = NewRelic.currentSessionId();
+
+        Assert.assertEquals(2, analyticsController.getEventManager().size());
+
+        analyticsController.getEventManager().empty();
+
+        Thread.sleep(500);
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertNotEquals(sessionId, NewRelic.currentSessionId());
+        sessionId = NewRelic.currentSessionId();
+        Thread.sleep(1500);
+
+        NewRelic.setUserId(UUID.randomUUID().toString());
+        Assert.assertNotEquals(sessionId, NewRelic.currentSessionId());
+
+        NewRelic.setUserId(UUID.randomUUID().toString());
+
+        Assert.assertEquals(3, analyticsController.getEventManager().size());
+        Harvest.stop();
+    }
+
+    @Test
+    public void testSetUserIdHarvestOnMainThread() throws InterruptedException {
+        Harvest.start();
+        Assert.assertTrue("Should set valid user ID", NewRelic.setUserId(UUID.randomUUID().toString()));
+
+        AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+
+        Harvest.stop();
     }
 
     @Test
@@ -1037,11 +1069,11 @@ public class NewRelicTest {
     }
 
     @Test
-    public void testLogReportingFeature() {
+    public void testLogReportingFeature() throws InterruptedException {
         Assert.assertFalse("Remote logging is disabled by default", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+        Assert.assertFalse("LogReporting disabled until GA", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
 
         // for testing:
         Assert.assertFalse("Remote logging is enabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
@@ -1051,7 +1083,9 @@ public class NewRelicTest {
                 .withLogLevel(AgentLog.DEBUG)
                 .start(spyContext.getContext());
 
-        Assert.assertTrue("Remote logging is now enabled", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        Thread.sleep(3000);
+
+        Assert.assertFalse("Remote logging is not enabled", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
         Assert.assertEquals("Remote logging level is updated", LogLevel.DEBUG, agentConfiguration.getLogReportingConfiguration().getLogLevel());
     }
 
@@ -1073,7 +1107,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1094,7 +1128,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.WARN.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1115,7 +1149,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.INFO.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1136,7 +1170,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.VERBOSE.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1157,7 +1191,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1179,7 +1213,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1202,7 +1236,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.INFO.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1229,7 +1263,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.WARN.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1256,7 +1290,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertTrue(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertTrue(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1280,7 +1314,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1309,7 +1343,7 @@ public class NewRelicTest {
                 .replace(MetricNames.TAG_STATE, LogLevel.DEBUG.name())
                 .replace("<framework>/<frameworkVersion>/", "");
 
-        Assert.assertFalse(StatsEngine.notice().getStatsMap().keySet().contains(metricName));
+        Assert.assertFalse(StatsEngine.notice().getStatsMap().containsKey(metricName));
     }
 
     @Test
@@ -1340,13 +1374,13 @@ public class NewRelicTest {
         nrInstance.start(spyContext.getContext());
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
 
-        Assert.assertTrue(LogReporting.isRemoteLoggingEnabled());
+        Assert.assertFalse("LogReporting disabled until GA", LogReporting.isRemoteLoggingEnabled());
 
         FeatureFlag.disableFeature(FeatureFlag.LogReporting);
         Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Assert.assertTrue(LogReporting.isRemoteLoggingEnabled());
+        Assert.assertFalse("LogReporting disabled until GA", LogReporting.isRemoteLoggingEnabled());
 
         LogReporting.setLogLevel(LogLevel.NONE);
         Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
@@ -1473,12 +1507,17 @@ public class NewRelicTest {
         return urlConnection;
     }
 
+    private Metric findMetricByName(List<Metric> metrics, String name) {
+        return metrics.stream()
+                .filter(metric -> metric.getName().toLowerCase().contains(name.toLowerCase()))
+                .findFirst()
+                .orElse(null);
+    }
+
     static AnalyticsAttribute getAttributeByName(Collection<AnalyticsAttribute> attributes, String name) {
-        for (AnalyticsAttribute eventAttr : attributes) {
-            if (eventAttr.getName().equalsIgnoreCase(name)) {
-                return eventAttr;
-            }
-        }
-        return null;
+        return attributes.stream()
+                .filter(analyticsAttribute -> analyticsAttribute.getName().equalsIgnoreCase(name))
+                .findFirst()
+                .orElse(null);
     }
 }

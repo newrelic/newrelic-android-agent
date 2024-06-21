@@ -42,6 +42,7 @@ import com.newrelic.agent.android.harvest.EnvironmentInformation;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
+import com.newrelic.agent.android.harvest.MachineMeasurements;
 import com.newrelic.agent.android.instrumentation.MetricCategory;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -521,10 +522,11 @@ public class AndroidAgentImpl implements
                     clearExistingData();
 
                     //make sure to add shutdown supportability metrics
-                    for (ConcurrentHashMap.Entry<String, Metric> entry : StatsEngine.notice().getStatsMap().entrySet()) {
-                        Metric metric = entry.getValue();
-                        if (Harvest.getInstance().getHarvestData() != null && Harvest.getInstance().getHarvestData().getMetrics() != null) {
-                            Harvest.getInstance().getHarvestData().getMetrics().addMetric(metric);
+                    HarvestData harvestData = Harvest.getInstance().getHarvestData();
+                    if (harvestData != null && harvestData.getMetrics() != null) {
+                        MachineMeasurements metrics = Harvest.getInstance().getHarvestData().getMetrics();
+                        for (ConcurrentHashMap.Entry<String, Metric> entry : StatsEngine.notice().getStatsMap().entrySet()) {
+                            metrics.addMetric(entry.getValue());
                         }
                     }
                 }
@@ -532,7 +534,7 @@ public class AndroidAgentImpl implements
                 log.error("There is an error during shutdown process: " + ex.getLocalizedMessage());
             }
 
-            Harvest.harvestNow(true);
+            Harvest.harvestNow(true, true);
 
             HarvestData harvestData = Harvest.getInstance().getHarvestData();
             log.debug("EventManager: recorded[" + eventManager.getEventsRecorded() + "] ejected[" + eventManager.getEventsEjected() + "]");
@@ -600,7 +602,6 @@ public class AndroidAgentImpl implements
             Agent.start();
         } catch (AgentInitializationException e) {
             log.error("Failed to initialize the agent: " + e.toString());
-            return;
         }
     }
 
@@ -630,15 +631,20 @@ public class AndroidAgentImpl implements
     @Override
     public void applicationForegrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application foregrounded");
-        if (!NewRelic.isShutdown) {
-            start();
+        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if (!NewRelic.isShutdown) {
+                start();
+            }
         }
     }
 
     @Override
     public void applicationBackgrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application backgrounded");
-        stop();
+        //BackgroundReporting
+        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            stop();
+        }
     }
 
     @Override
@@ -646,7 +652,6 @@ public class AndroidAgentImpl implements
         if (countryCode == null || adminRegion == null) {
             throw new IllegalArgumentException("Country code and administrative region are required.");
         }
-        // api.setLocation(new com.newrelic.agent.android.instrumentation.Location(countryCode, adminRegion));
     }
 
 
@@ -826,6 +831,12 @@ public class AndroidAgentImpl implements
                 log.debug("ApplicationExitReporting feature is enabled locally, but disabled in remote configuration.");
             }
         }
+
+        agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
     }
 
+    @Override
+    public void onHarvestConfigurationChanged() {
+        agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
+    }
 }

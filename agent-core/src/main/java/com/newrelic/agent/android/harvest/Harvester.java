@@ -14,7 +14,9 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
+import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -25,6 +27,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -71,7 +74,7 @@ public class Harvester implements HarvestConfigurable {
             @Override
             public void onHarvestConfigurationChanged() {
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_CONFIGURATION_CHANGED);
-                AnalyticsControllerImpl.getInstance().recordBreadcrumb("Remote configuration changed", null);
+                AnalyticsControllerImpl.getInstance().recordBreadcrumb("Remote configuration changed", new HashMap<>());
         }
         });
     }};
@@ -244,7 +247,12 @@ public class Harvester implements HarvestConfigurable {
             return;
         }
 
-        StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest", response.getResponseTime());
+        //Background reporting
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
+            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Background/", response.getResponseTime());
+        } else {
+            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/", response.getResponseTime());
+        }
 
         log.debug("Harvest data response: " + response.getResponseCode());
         log.debug("Harvest data response status code: " + response.getStatusCode());
@@ -253,7 +261,12 @@ public class Harvester implements HarvestConfigurable {
         if (response.isError()) {
             fireOnHarvestError();
 
-            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/" + response.getResponseCode());
+            //Background reporting
+            if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
+                StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/Background/" + response.getResponseCode());
+            } else {
+                StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/" + response.getResponseCode());
+            }
 
             switch (response.getResponseCode()) {
                 case UNAUTHORIZED:

@@ -16,6 +16,7 @@ import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
+import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.hybrid.StackTrace;
 import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -34,6 +35,7 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
+import com.newrelic.agent.android.util.NamedThreadFactory;
 import com.newrelic.agent.android.util.NetworkFailure;
 import com.newrelic.agent.android.util.OfflineStorage;
 
@@ -44,6 +46,10 @@ import java.net.URLConnection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 
 /**
@@ -58,14 +64,14 @@ public final class NewRelic {
     private static final String UNKNOWN_HTTP_REQUEST_TYPE = "unknown";
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
-    protected static final AgentConfiguration agentConfiguration = new AgentConfiguration();
+    protected static final AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
     protected static boolean started = false;
     protected static boolean isShutdown = false;
 
-    protected boolean loggingEnabled = true;
-    protected int logLevel = AgentLog.INFO;
+    boolean loggingEnabled = true;
+    int logLevel = AgentLog.INFO;
 
-    protected NewRelic(String token) {
+    private NewRelic(String token) {
         agentConfiguration.setApplicationToken(token);
     }
 
@@ -296,7 +302,7 @@ public final class NewRelic {
             log.setLevel(logLevel);
 
             if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-                // For testing: set the log reporting to the same values used for agent logging
+                // For testing: set log reporting to the same values used for agent logging
                 LogLevel level = LogLevel.NONE;
 
                 // translate the agent log level to LogReporting equivalent
@@ -319,10 +325,6 @@ public final class NewRelic {
                         break;
                     default:
                         break;
-                }
-
-                if (loggingEnabled) {
-                    AgentLogManager.setAgentLog(new ForwardingAgentLog(new AndroidAgentLog()));
                 }
 
                 agentConfiguration.getLogReportingConfiguration().setConfiguration(new LogReportingConfiguration(loggingEnabled, level));
@@ -359,7 +361,6 @@ public final class NewRelic {
 
             } else {
                 logRecourse();
-                return;
             }
         } catch (Throwable e) {
             log.error("Error occurred while starting the New Relic agent!", e);
@@ -828,7 +829,7 @@ public final class NewRelic {
 
 
     /**
-     * Custom Events related methods
+     * Custom Event and Attribute methods
      */
 
     /**
@@ -841,7 +842,6 @@ public final class NewRelic {
     public static boolean setAttribute(String name, String value) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setAttribute(String,String)"));
-
         return AnalyticsControllerImpl.getInstance().setAttribute(name, value);
     }
 
@@ -926,13 +926,33 @@ public final class NewRelic {
      * Sets a user ID attribute.
      *
      * @param userId The user ID as string value
-     * @return true if successful, false if the operation did not complete as anticipated.
+     * @return true if userId attribute as created or updated.
      */
     public static boolean setUserId(String userId) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setUserId"));
+        Runnable harvest = () -> {
+            final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+            final AnalyticsAttribute userIdAttr = controller.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
 
-        return AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
+            if (userIdAttr != null) {
+                if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
+                    Harvest.harvestNow(true, true);// call non-blocking harvest
+                    controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
+                            .setStringValue(agentConfiguration.provideSessionId())  // start a new session
+                            .setPersistent(false);
+                    // remove session duration and user id attributes
+                    controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
+                    if (userId == null || userId.isEmpty()) {
+                        controller.removeAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+                    }
+
+                }
+            }
+            controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
+        };
+        harvest.run();
+        return true;
     }
 
     /**
@@ -1260,7 +1280,6 @@ public final class NewRelic {
             LogReporting.getLogger().logAll(throwable, attributes);
         }
     }
-
 
     /**
      * Set the maximum size of the offline storage.  When the limit is reached, the agent will stop collecting offline data

@@ -12,9 +12,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.harvest.type.HarvestableObject;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -99,6 +102,15 @@ public class AnalyticsEvent extends HarvestableObject {
         if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
             if (!Agent.hasReachableNetworkConnection(null)) {
                 this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_NAME_ATTRIBUTE, true));
+                StatsEngine.notice().inc(MetricNames.OFFLINE_STORAGE_EVENT_COUNT);
+            }
+        }
+
+        //Background Reporting
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if (ApplicationStateMonitor.isAppInBackground()) {
+                this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
+                StatsEngine.notice().inc(MetricNames.BACKGROUND_EVENT_COUNT);
             }
         }
     }

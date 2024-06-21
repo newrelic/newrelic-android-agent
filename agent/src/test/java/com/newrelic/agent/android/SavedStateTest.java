@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
+import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -451,6 +452,13 @@ public class SavedStateTest {
         SavedState spy = spy(savedState);
         spy.onHarvestDisabled();
         verify(spy).saveDisabledVersion(anyString());
+    }
+
+    @Test
+    public void testOnHarvestConfigurationChanged() throws Exception {
+        SavedState spy = spy(savedState);
+        spy.onHarvestConfigurationChanged();
+        verify(spy).saveHarvestConfiguration(any(HarvestConfiguration.class));
     }
 
     @Test

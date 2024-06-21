@@ -44,8 +44,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 public class LogReporter extends PayloadReporter {
 
-    protected static final Type gtype = new TypeToken<Map<String, Object>>() {
-    }.getType();
+    protected static final Type gtype = new TypeToken<Map<String, Object>>() {}.getType();
     protected static final Gson gson = new GsonBuilder()
             .enableComplexMapKeySerialization()
             .create();
@@ -68,8 +67,8 @@ public class LogReporter extends PayloadReporter {
         }
     }
 
-    static int VORTEX_PAYLOAD_LIMIT = (1024 * 1023);                // Vortex upload limit: ~1 MB (10^6 B) compressed (less some padding)
-    static int MIN_PAYLOAD_THRESHOLD = -1; // TODO VORTEX_PAYLOAD_LIMIT / 4;    // Don't upload until we have at least this much data
+    static int VORTEX_PAYLOAD_LIMIT = (1024 * 1000);        // Vortex upload limit: ~1 MB (10^6 B) compressed (less some padding)
+    static int MIN_PAYLOAD_THRESHOLD = -1;                  // Don't upload until we have at least this much data (-1 disables check)
     protected int payloadBudget = VORTEX_PAYLOAD_LIMIT;
 
     static final long LOG_ENDPOINT_TIMEOUT = 10;    // FIXME This is a guess, check with Logging team
@@ -131,6 +130,7 @@ public class LogReporter extends PayloadReporter {
     protected void start() {
         if (isEnabled()) {
             Harvest.addHarvestListener(instance.get());
+            LogReportingConfiguration.reseed();
             isStarted.set(true);
         } else {
             log.error("Attempted to start the log reported when disabled.");
@@ -461,15 +461,16 @@ public class LogReporter extends PayloadReporter {
      */
     File rollLogfile(File workingLogFile) throws IOException {
         File closedLogFile;
+        int retries = 5;
 
         do {
             closedLogFile = new File(LogReporter.logDataStore,
                     String.format(Locale.getDefault(),
                             LogReporter.LOG_FILE_MASK,
                             System.currentTimeMillis(),
-                            LogReportState.CLOSED.extension));
+                                LogReportState.CLOSED.extension));
 
-        } while (closedLogFile.exists() && 0 < closedLogFile.length());
+        } while (closedLogFile.exists() && 0 < closedLogFile.length() && retries-- > 0);
 
         workingLogFile.renameTo(closedLogFile);
         closedLogFile.setLastModified(System.currentTimeMillis());
@@ -566,7 +567,11 @@ public class LogReporter extends PayloadReporter {
             workingLogFile = getWorkingLogfile();
             resetWorkingLogFile();
 
-            closedLogFile.setReadOnly();
+            if (AgentConfiguration.getInstance().getLogReportingConfiguration().isSampled()) {
+                closedLogFile.setReadOnly();
+            } else {
+                closedLogFile.delete();
+            }
 
             log.debug("LogReporter: Finalized log data to [" + closedLogFile.getAbsolutePath() + "]");
 

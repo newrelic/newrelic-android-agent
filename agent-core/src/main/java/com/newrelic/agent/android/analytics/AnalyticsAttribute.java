@@ -90,11 +90,15 @@ public class AnalyticsAttribute {
     // Offline Storage
     public static final String OFFLINE_NAME_ATTRIBUTE = "offline";
 
+    //Background Reporting
+    public static final String BACKGROUND_ATTRIBUTE_NAME = "background";
+
     // ApplicationExitInfo
     public static final String APP_EXIT_TIMESTAMP_ATTRIBUTE = "exitTimestamp";
     public static final String APP_EXIT_DESCRIPTION_ATTRIBUTE = "description";
     public static final String APP_EXIT_REASON_ATTRIBUTE = "reason";
     public static final String APP_EXIT_IMPORTANCE_ATTRIBUTE = "importance";
+    public static final String APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE = "importanceAsString";
     public static final String APP_EXIT_PROCESS_NAME_ATTRIBUTE = "processName";
     public static final String APP_EXIT_APP_STATE_ATTRIBUTE = "appState";
 
@@ -180,30 +184,36 @@ public class AnalyticsAttribute {
         return (attributeDataType == AttributeDataType.STRING) ? stringValue : null;
     }
 
-    public void setStringValue(String stringValue) {
+    public AnalyticsAttribute setStringValue(String stringValue) {
         this.doubleValue = Double.NaN;
         this.stringValue = stringValue;
         this.attributeDataType = AttributeDataType.STRING;
+
+        return this;
     }
 
     public double getDoubleValue() {
         return (attributeDataType == AttributeDataType.DOUBLE) ? doubleValue : Double.NaN;
     }
 
-    public void setDoubleValue(double doubleValue) {
+    public AnalyticsAttribute setDoubleValue(double doubleValue) {
         this.doubleValue = doubleValue;
         this.stringValue = null;
         this.attributeDataType = AttributeDataType.DOUBLE;
+
+        return this;
     }
 
     public boolean getBooleanValue() {
         return (attributeDataType == AttributeDataType.BOOLEAN) ? Boolean.valueOf(stringValue).booleanValue() : false;
     }
 
-    public void setBooleanValue(boolean boolValue) {
+    public AnalyticsAttribute setBooleanValue(boolean boolValue) {
         this.stringValue = Boolean.toString(boolValue);
         this.doubleValue = Double.NaN;
         this.attributeDataType = AttributeDataType.BOOLEAN;
+
+        return this;
     }
 
     public boolean isPersistent() {
@@ -211,8 +221,10 @@ public class AnalyticsAttribute {
         return this.isPersistent && !validator.isExcludedAttributeName(this.name);
     }
 
-    public void setPersistent(boolean isPersistent) {
+    public AnalyticsAttribute setPersistent(boolean isPersistent) {
         this.isPersistent = isPersistent;
+
+        return this;
     }
 
     @Override

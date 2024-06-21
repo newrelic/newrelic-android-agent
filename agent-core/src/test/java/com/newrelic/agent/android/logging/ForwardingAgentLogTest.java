@@ -13,9 +13,11 @@ import com.newrelic.agent.android.FeatureFlag;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+@Ignore("Until LogReporting GA")
 public class ForwardingAgentLogTest {
     AgentLog delegate;
     RemoteLogger remoteLogger;

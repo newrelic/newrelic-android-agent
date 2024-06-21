@@ -59,6 +59,7 @@ public class SavedState extends HarvestAdapter {
     private final String PREF_ACTIVITY_TRACE_MIN_UTILIZATION = "activityTraceMinUtilization";
     private final String PREF_REMOTE_CONFIGURATION = "remoteConfiguration";
     private final String PREF_REQUEST_HEADERS_MAP = "requestHeadersMap";
+    private final String PREF_ENTITY_GUID = "entityGuid";
 
     // Connect information
     private final String PREF_APP_NAME = "appName";
@@ -100,10 +101,6 @@ public class SavedState extends HarvestAdapter {
     }
 
     public void saveHarvestConfiguration(HarvestConfiguration newConfiguration) {
-        // If the new configuration is the same as the current, skip saving.
-        if (configuration.equals(newConfiguration)) {
-            return;
-        }
 
         DataToken dataToken = newConfiguration.getDataToken();
         if (!dataToken.isValid()) {
@@ -140,6 +137,7 @@ public class SavedState extends HarvestAdapter {
         save(PREF_TRUSTED_ACCOUNT_KEY, newConfiguration.getTrusted_account_key());
         save(PREF_REMOTE_CONFIGURATION, gson.toJson(newConfiguration.getRemote_configuration()));
         save(PREF_REQUEST_HEADERS_MAP, gson.toJson(newConfiguration.getRequest_headers_map()));
+        save(PREF_ENTITY_GUID, newConfiguration.getEntity_guid());
 
         saveActivityTraceMinUtilization((float) newConfiguration.getActivity_trace_min_utilization());
 
@@ -210,17 +208,21 @@ public class SavedState extends HarvestAdapter {
                 configuration.setRequest_headers_map(new HashMap<>());
             }
         }
-
+        if (has(PREF_ENTITY_GUID)) {
+            configuration.setEntity_guid(getString(PREF_ENTITY_GUID));
+        }
 
         log.info("Loaded configuration: " + configuration);
     }
 
     public void saveConnectInformation(final ConnectInformation newConnectInformation) {
-        if (connectInformation.equals(newConnectInformation))
+        if (connectInformation.equals(newConnectInformation)) {
             return;
+        }
 
         saveApplicationInformation(newConnectInformation.getApplicationInformation());
         saveDeviceInformation(newConnectInformation.getDeviceInformation());
+
         // Reload the connect information
         loadConnectInformation();
     }
@@ -364,6 +366,11 @@ public class SavedState extends HarvestAdapter {
         String agentVersion = Agent.getDeviceInformation().getAgentVersion();
         log.info("Disabling agent version " + agentVersion);
         saveDisabledVersion(agentVersion);
+    }
+
+    @Override
+    public void onHarvestConfigurationChanged() {
+        saveHarvestConfiguration(Harvest.getHarvestConfiguration());
     }
 
     public void save(String key, String value) {
