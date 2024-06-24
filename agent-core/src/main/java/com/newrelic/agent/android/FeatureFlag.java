@@ -68,5 +68,6 @@ public enum FeatureFlag {
         enableFeature(HandledExceptions);
         enableFeature(DistributedTracing);
         enableFeature(AppStartMetrics);
+        enableFeature(ApplicationExitReporting);
     }
 }

@@ -88,7 +88,6 @@ public class ApplicationExitMonitorTest {
         Streams.list(applicationExitMonitor.reportsDir).forEach(file -> {
             Assert.assertTrue(file.delete());
         });
-        FeatureFlag.disableFeature(FeatureFlag.ApplicationExitReporting);
     }
 
     @Test
