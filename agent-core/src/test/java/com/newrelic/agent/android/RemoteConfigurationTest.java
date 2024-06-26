@@ -45,7 +45,7 @@ public class RemoteConfigurationTest {
     @Test
     public void getLogReportingConfiguration() {
         Assert.assertNotNull(remoteConfig.getLogReportingConfiguration());
-        Assert.assertTrue(remoteConfig.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertFalse(remoteConfig.getLogReportingConfiguration().getLoggingEnabled());
         Assert.assertEquals(LogLevel.INFO, remoteConfig.getLogReportingConfiguration().getLogLevel());
     }
 

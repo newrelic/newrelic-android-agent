@@ -24,7 +24,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -35,7 +34,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-@Ignore("Until LogReporting GA")
 public class RemoteLoggerTest extends LoggingTests {
 
     private RemoteLogger logger;

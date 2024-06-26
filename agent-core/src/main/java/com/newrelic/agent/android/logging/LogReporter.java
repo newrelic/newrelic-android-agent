@@ -105,7 +105,8 @@ public class LogReporter extends PayloadReporter {
         LogReporting.setLogger(new RemoteLogger());
         log.debug("LogReporting: logger has been set to " + LogReporting.getLogger().getClass().getSimpleName());
 
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_LOG_REPORTING_INIT);
+        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_REPORTING_INIT);
+        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_SAMPLED + (agentConfiguration.getLogReportingConfiguration().isSampled() ? "true" : "false"));
 
         return instance.get();
     }

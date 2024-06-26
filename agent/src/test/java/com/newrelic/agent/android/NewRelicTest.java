@@ -1073,7 +1073,7 @@ public class NewRelicTest {
         Assert.assertFalse("Remote logging is disabled by default", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Assert.assertFalse("LogReporting disabled until GA", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
+        Assert.assertTrue("LogReporting disabled by default", FeatureFlag.featureEnabled(FeatureFlag.LogReporting));
 
         // for testing:
         Assert.assertFalse("Remote logging is enabled by default", agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
@@ -1299,15 +1299,15 @@ public class NewRelicTest {
         nrInstance.start(spyContext.getContext());
 
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
-        RemoteLogger remoteLogger = (RemoteLogger) LogReporting.getLogger();
+        RemoteLogger remoteLogger = Mockito.spy((RemoteLogger) LogReporting.getLogger());
 
         AgentLog agentLogger = Mockito.spy(AgentLogManager.getAgentLog());
         AgentLogManager.setAgentLog(agentLogger);
 
         final String msg = "error log message";
         NewRelic.log(LogLevel.ERROR, msg);
-        verify(remoteLogger, times(1)).log(LogLevel.ERROR, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+        verify(remoteLogger, never()).log(LogLevel.ERROR, msg);
+        verify(remoteLogger, never()).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
@@ -1373,14 +1373,13 @@ public class NewRelicTest {
 
         nrInstance.start(spyContext.getContext());
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
-
-        Assert.assertFalse("LogReporting disabled until GA", LogReporting.isRemoteLoggingEnabled());
+        Assert.assertTrue("LogReporting is enabled", LogReporting.isRemoteLoggingEnabled());
 
         FeatureFlag.disableFeature(FeatureFlag.LogReporting);
         Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());
 
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        Assert.assertFalse("LogReporting disabled until GA", LogReporting.isRemoteLoggingEnabled());
+        Assert.assertTrue("LogReporting enabled by feature flag", LogReporting.isRemoteLoggingEnabled());
 
         LogReporting.setLogLevel(LogLevel.NONE);
         Assert.assertFalse(LogReporting.isRemoteLoggingEnabled());

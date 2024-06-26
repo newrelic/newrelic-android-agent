@@ -71,7 +71,7 @@ public class HarvestConfigurationTest {
                 "\"account_id\":\"1\"," +
                 "\"configuration\":{" +
                     "\"application_exit_info\":{\"enabled\":true}," +
-                    "\"logs\":{\"data_report_period\":30,\"expiration_period\":172800,\"sampling_rate\":100,\"enabled\":true,\"level\":\"INFO\"}" +
+                    "\"logs\":{\"data_report_period\":30,\"expiration_period\":172800,\"sampling_rate\":100,\"enabled\":false,\"level\":\"INFO\"}" +
                 "}," +
                 "\"data_token\":[1646468,1997527]," +
                 "\"entity_guid\":\"" + entityGuid + "\"," +
