@@ -1100,7 +1100,7 @@ public class NewRelicTest {
         final String msg = "error message";
         NewRelic.logError(msg);
         verify(remoteLogger, times(1)).log(LogLevel.ERROR, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.ERROR, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
@@ -1121,7 +1121,7 @@ public class NewRelicTest {
         final String msg = "warning message";
         NewRelic.logWarning(msg);
         verify(remoteLogger, times(1)).log(LogLevel.WARN, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.WARN, msg, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.WARN, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
@@ -1142,7 +1142,7 @@ public class NewRelicTest {
         final String msg = "info message";
         NewRelic.logInfo(msg);
         verify(remoteLogger, times(1)).log(LogLevel.INFO, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
@@ -1163,7 +1163,7 @@ public class NewRelicTest {
         final String msg = "verbose message";
         NewRelic.logVerbose(msg);
         verify(remoteLogger, times(1)).log(LogLevel.VERBOSE, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.VERBOSE, msg, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.VERBOSE, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
@@ -1184,7 +1184,7 @@ public class NewRelicTest {
         final String msg = "debug message";
         NewRelic.logDebug(msg);
         verify(remoteLogger, times(1)).log(LogLevel.DEBUG, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, msg, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.DEBUG, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
@@ -1206,7 +1206,7 @@ public class NewRelicTest {
         final String msg = "debug log message";
         NewRelic.log(LogLevel.DEBUG, msg);
         verify(remoteLogger, times(1)).log(LogLevel.DEBUG, msg);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, msg, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.DEBUG, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
@@ -1229,7 +1229,7 @@ public class NewRelicTest {
         Throwable throwable = new RuntimeException(msg);
         NewRelic.logThrowable(LogLevel.INFO, msg, throwable);
         verify(remoteLogger, times(1)).logThrowable(LogLevel.INFO, msg, throwable);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, throwable, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, throwable, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "logThrowable/" + MetricNames.TAG_STATE)
@@ -1256,7 +1256,7 @@ public class NewRelicTest {
 
         NewRelic.logAttributes(attributes);
         verify(remoteLogger, times(1)).logAttributes(attributes);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), nullable(Throwable.class), anyMap());
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(any(LogLevel.class), anyString(), nullable(Throwable.class), anyMap());
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "logAttributes/" + MetricNames.TAG_STATE)
@@ -1283,7 +1283,7 @@ public class NewRelicTest {
         Throwable throwable = new RuntimeException(msg);
         NewRelic.logAll(throwable, attributes);
         verify(remoteLogger, times(1)).logAll(throwable, attributes);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(Throwable.class), anyMap());
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(any(LogLevel.class), anyString(), any(Throwable.class), anyMap());
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "logAll/" + MetricNames.TAG_STATE)
@@ -1307,7 +1307,7 @@ public class NewRelicTest {
         final String msg = "error log message";
         NewRelic.log(LogLevel.ERROR, msg);
         verify(remoteLogger, never()).log(LogLevel.ERROR, msg);
-        verify(remoteLogger, never()).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+        verify(remoteLogger, never()).appendToWorkingLogfile(LogLevel.ERROR, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
@@ -1336,7 +1336,7 @@ public class NewRelicTest {
         NewRelic.log(LogLevel.ERROR, msg);
         verify(agentLogger, never()).error(msg);
         verify(remoteLogger, never()).log(LogLevel.ERROR, msg);
-        verify(remoteLogger, never()).appendToWorkingLogFile(LogLevel.ERROR, msg, null, null);
+        verify(remoteLogger, never()).appendToWorkingLogfile(LogLevel.ERROR, msg, null, null);
 
         final String metricName = MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
@@ -1392,47 +1392,47 @@ public class NewRelicTest {
         Mockito.reset(remoteLogger);
         NewRelic.logError(null);
         verify(remoteLogger, times(1)).log(LogLevel.ERROR, null);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.ERROR, LogReporting.INVALID_MSG, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.ERROR, LogReporting.INVALID_MSG, null, null);
 
         Mockito.reset(remoteLogger);
         NewRelic.logWarning(null);
         verify(remoteLogger, times(1)).log(LogLevel.WARN, null);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.WARN, LogReporting.INVALID_MSG, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.WARN, LogReporting.INVALID_MSG, null, null);
 
         Mockito.reset(remoteLogger);
         NewRelic.logInfo(null);
         verify(remoteLogger, times(1)).log(LogLevel.INFO, null);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.INFO, LogReporting.INVALID_MSG, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.INFO, LogReporting.INVALID_MSG, null, null);
 
         Mockito.reset(remoteLogger);
         NewRelic.logVerbose(null);
         verify(remoteLogger, times(1)).log(LogLevel.VERBOSE, null);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.VERBOSE, LogReporting.INVALID_MSG, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.VERBOSE, LogReporting.INVALID_MSG, null, null);
 
         Mockito.reset(remoteLogger);
         NewRelic.logDebug(null);
         verify(remoteLogger, times(1)).log(LogLevel.DEBUG, null);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, LogReporting.INVALID_MSG, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.DEBUG, LogReporting.INVALID_MSG, null, null);
 
         Mockito.reset(remoteLogger);
         NewRelic.log(LogLevel.DEBUG, null);
         verify(remoteLogger, times(1)).log(LogLevel.DEBUG, null);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(LogLevel.DEBUG, LogReporting.INVALID_MSG, null, null);
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(LogLevel.DEBUG, LogReporting.INVALID_MSG, null, null);
 
         Mockito.reset(remoteLogger);
         NewRelic.logThrowable(LogLevel.DEBUG, null, null);
         verify(remoteLogger, times(1)).logThrowable(LogLevel.DEBUG, null, null);
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), isNull(), any(IllegalArgumentException.class), isNull());
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(any(LogLevel.class), isNull(), any(IllegalArgumentException.class), isNull());
 
         Mockito.reset(remoteLogger);
         NewRelic.logAttributes(null);
         verify(remoteLogger, times(1)).logAttributes(anyMap());
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), isNull(), anyMap());
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(any(LogLevel.class), anyString(), isNull(), anyMap());
 
         Mockito.reset(remoteLogger);
         NewRelic.logAll(null, null);
         verify(remoteLogger, times(1)).logAll(any(IllegalArgumentException.class), anyMap());
-        verify(remoteLogger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(IllegalArgumentException.class), anyMap());
+        verify(remoteLogger, times(1)).appendToWorkingLogfile(any(LogLevel.class), anyString(), any(IllegalArgumentException.class), anyMap());
     }
 
     @Test

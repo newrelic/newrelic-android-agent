@@ -27,7 +27,9 @@ import org.mockito.Mockito;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -158,18 +160,18 @@ public class LogReporterTest extends LoggingTests {
 
     @Test
     public void getCachedLogReports() throws Exception {
-        Set<File> completedLogFiles = logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED);
-        Assert.assertEquals(4, completedLogFiles.size(), 7);
+        Set<File> completedLogfiles = logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED);
+        Assert.assertEquals(4, completedLogfiles.size(), 7);
     }
 
     @Test
     public void mergeLogDataToArchive() throws Exception {
         seedLogData(7);
 
-        File archivedLogFile = logReporter.rollupLogDataFiles();
-        Assert.assertTrue((archivedLogFile.exists() && archivedLogFile.isFile() && archivedLogFile.length() > 0));
-        Assert.assertFalse(archivedLogFile.canWrite());
-        JsonArray jsonArray = new Gson().fromJson(Streams.newBufferedFileReader(archivedLogFile), JsonArray.class);
+        File archivedLogfile = logReporter.rollupLogDataFiles();
+        Assert.assertTrue((archivedLogfile.exists() && archivedLogfile.isFile() && archivedLogfile.length() > 0));
+        Assert.assertFalse(archivedLogfile.canWrite());
+        JsonArray jsonArray = new Gson().fromJson(Streams.newBufferedFileReader(archivedLogfile), JsonArray.class);
         Assert.assertEquals(7 * LogReporting.getLogLevelAsInt(), jsonArray.size());   // 7 logs, 2 (WARN) entries per log
     }
 
@@ -181,10 +183,10 @@ public class LogReporterTest extends LoggingTests {
         // add few more to overflow the rollup
         seedLogData(7, LogReporter.VORTEX_PAYLOAD_LIMIT / 5);
 
-        File archivedLogFile = logReporter.rollupLogDataFiles();
+        File archivedLogfile = logReporter.rollupLogDataFiles();
 
         // should be at least one rollup file
-        Assert.assertTrue(archivedLogFile.length() <= LogReporter.VORTEX_PAYLOAD_LIMIT);
+        Assert.assertTrue(archivedLogfile.length() <= LogReporter.VORTEX_PAYLOAD_LIMIT);
 
         // and a few leftover close files
         Set<File> leftOvers = logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED);
@@ -193,8 +195,8 @@ public class LogReporterTest extends LoggingTests {
 
     @Test
     public void mergeLogDataToEmptyArchive() throws Exception {
-        File archivedLogFile = logReporter.rollupLogDataFiles();
-        Assert.assertNull(archivedLogFile);
+        File archivedLogfile = logReporter.rollupLogDataFiles();
+        Assert.assertNull(archivedLogfile);
     }
 
     @Test
@@ -202,13 +204,13 @@ public class LogReporterTest extends LoggingTests {
         LogReporter.MIN_PAYLOAD_THRESHOLD = LogReporter.VORTEX_PAYLOAD_LIMIT / 10;
         seedLogData(1, LogReporter.MIN_PAYLOAD_THRESHOLD / 2);
 
-        File archivedLogFile = logReporter.rollupLogDataFiles();
-        Assert.assertNull("Don't archive if total log data size is below threshold", archivedLogFile);
+        File archivedLogfile = logReporter.rollupLogDataFiles();
+        Assert.assertNull("Don't archive if total log data size is below threshold", archivedLogfile);
 
         seedLogData(2, LogReporter.MIN_PAYLOAD_THRESHOLD / 2);
-        archivedLogFile = logReporter.rollupLogDataFiles();
-        Assert.assertNotNull(archivedLogFile);
-        Assert.assertTrue((archivedLogFile.exists() && archivedLogFile.isFile() && archivedLogFile.length() > LogReporter.MIN_PAYLOAD_THRESHOLD));
+        archivedLogfile = logReporter.rollupLogDataFiles();
+        Assert.assertNotNull(archivedLogfile);
+        Assert.assertTrue((archivedLogfile.exists() && archivedLogfile.isFile() && archivedLogfile.length() > LogReporter.MIN_PAYLOAD_THRESHOLD));
     }
 
     @Test
@@ -216,16 +218,16 @@ public class LogReporterTest extends LoggingTests {
         AgentLogManager.getAgentLog().setLevel(AgentLog.WARN);
         seedLogData(333);
 
-        File archivedLogFile = logReporter.rollupLogDataFiles();
+        File archivedLogfile = logReporter.rollupLogDataFiles();
         AgentLogManager.getAgentLog().setLevel(AgentLog.DEBUG);
-        logReporter.postLogReport(archivedLogFile);
+        logReporter.postLogReport(archivedLogfile);
     }
 
     @Test
     public void getWorkingLogfile() throws IOException {
-        File workingLogFile = logReporter.getWorkingLogfile();
-        Assert.assertTrue(workingLogFile.exists());
-        Assert.assertEquals(workingLogFile, new File(LogReporter.logDataStore,
+        File workingLogfile = logReporter.getWorkingLogfile();
+        Assert.assertTrue(workingLogfile.exists());
+        Assert.assertEquals(workingLogfile, new File(LogReporter.logDataStore,
                 String.format(Locale.getDefault(),
                         LogReporter.LOG_FILE_MASK,
                         "",
@@ -235,42 +237,42 @@ public class LogReporterTest extends LoggingTests {
     @Test
     public void rollLogfile() throws IOException {
         long tStart = System.currentTimeMillis();
-        File workingLogFile = logReporter.getWorkingLogfile();
-        Assert.assertEquals(tStart, workingLogFile.lastModified(), 100);
-        Assert.assertTrue(workingLogFile.exists());
+        File workingLogfile = logReporter.getWorkingLogfile();
+        Assert.assertEquals(tStart, workingLogfile.lastModified(), 100);
+        Assert.assertTrue(workingLogfile.exists());
 
-        File closeLogFile = logReporter.rollLogfile(workingLogFile);
-        Assert.assertTrue(closeLogFile.exists());
-        Assert.assertFalse(workingLogFile.exists());
-        Assert.assertTrue(closeLogFile.lastModified() >= tStart);
+        File closeLogfile = logReporter.rollLogfile(workingLogfile);
+        Assert.assertTrue(closeLogfile.exists());
+        Assert.assertFalse(workingLogfile.exists());
+        Assert.assertTrue(closeLogfile.lastModified() >= tStart);
     }
 
     @Test
-    public void rollWorkingLogFile() throws IOException {
-        Assert.assertNotNull(logReporter.workingLogFile);
-        Assert.assertTrue(logReporter.workingLogFile.exists());
+    public void rollWorkingLogfile() throws IOException {
+        Assert.assertNotNull(logReporter.workingLogfile);
+        Assert.assertTrue(logReporter.workingLogfile.exists());
 
-        Assert.assertNotNull(logReporter.workingLogFileWriter.get());
-        BufferedWriter writer = logReporter.workingLogFileWriter.get();
+        Assert.assertNotNull(logReporter.workingLogfileWriter.get());
+        BufferedWriter writer = logReporter.workingLogfileWriter.get();
 
         RemoteLogger remoteLogger = new RemoteLogger();
         remoteLogger.log(LogLevel.INFO, getRandomMsg(10));
         logger.flush();
 
-        File finalizedLogFile = logReporter.rollWorkingLogFile();
-        Assert.assertTrue(finalizedLogFile.exists());
-        Assert.assertTrue(logReporter.workingLogFile.exists());
-        Assert.assertNotEquals("Should create a new buffered writer", writer, logReporter.workingLogFileWriter.get());
+        File finalizedLogfile = logReporter.rollWorkingLogfile();
+        Assert.assertTrue(finalizedLogfile.exists());
+        Assert.assertTrue(logReporter.workingLogfile.exists());
+        Assert.assertNotEquals("Should create a new buffered writer", writer, logReporter.workingLogfileWriter.get());
     }
 
     @Test
     public void safeDelete() throws Exception {
-        File closedLogFile = logReporter.rollLogfile(logReporter.getWorkingLogfile());
-        Assert.assertTrue(closedLogFile.exists());
-        logReporter.safeDelete(closedLogFile);
-        Assert.assertFalse(closedLogFile.exists());
-        Assert.assertFalse(closedLogFile.canWrite());
-        Assert.assertTrue(logReporter.isLogfileTypeOf(closedLogFile, LogReporter.LogReportState.CLOSED));
+        File closedLogfile = logReporter.rollLogfile(logReporter.getWorkingLogfile());
+        Assert.assertTrue(closedLogfile.exists());
+        logReporter.safeDelete(closedLogfile);
+        Assert.assertFalse(closedLogfile.exists());
+        Assert.assertFalse(closedLogfile.canWrite());
+        Assert.assertTrue(logReporter.isLogfileTypeOf(closedLogfile, LogReporter.LogReportState.CLOSED));
     }
 
     @Test
@@ -370,36 +372,36 @@ public class LogReporterTest extends LoggingTests {
         logger.log(LogLevel.INFO, getRandomMsg(400));
         logger.flush();
 
-        verify(logReporter, atMostOnce()).rollWorkingLogFile();
+        verify(logReporter, atMostOnce()).rollWorkingLogfile();
     }
 
     @Test
     public void testHarvestLifecycle() throws Exception {
         seedLogData(3);
 
-        Assert.assertNotNull(logReporter.workingLogFile);
-        Assert.assertTrue(logReporter.workingLogFile.exists());
+        Assert.assertNotNull(logReporter.workingLogfile);
+        Assert.assertTrue(logReporter.workingLogfile.exists());
 
         logger.log(LogReporting.getLogLevel(), "Before onHarvestStart()");
         logReporter.onHarvestStart();
-        Assert.assertNotNull(logReporter.workingLogFileWriter.get());
+        Assert.assertNotNull(logReporter.workingLogfileWriter.get());
 
-        BufferedWriter writer = logReporter.workingLogFileWriter.get();
+        BufferedWriter writer = logReporter.workingLogfileWriter.get();
         logger.log(LogLevel.INFO, "After onHarvestStart()");
 
         logger.log(LogReporting.getLogLevel(), "Before onHarvest()");
         logReporter.onHarvest();
-        Assert.assertTrue(logReporter.workingLogFile.exists());
-        Assert.assertEquals("Should create a new working file", 0, logReporter.workingLogFile.length());
-        Assert.assertNotEquals("Should create a new buffered writer", writer, logReporter.workingLogFileWriter.get());
+        Assert.assertTrue(logReporter.workingLogfile.exists());
+        Assert.assertEquals("Should create a new working file", 0, logReporter.workingLogfile.length());
+        Assert.assertNotEquals("Should create a new buffered writer", writer, logReporter.workingLogfileWriter.get());
         logger.log(LogReporting.getLogLevel(), "After onHarvest()");
         logger.log(LogReporting.getLogLevel(), "Before onHarvestStop()");
 
         logReporter.onHarvestStop();
         logger.flush();
-        Assert.assertTrue(logReporter.workingLogFile.exists());
-        Assert.assertEquals("Should create a new working file", 0, logReporter.workingLogFile.length());
-        Assert.assertNotEquals("Should create a new buffered writer", writer, logReporter.workingLogFileWriter.get());
+        Assert.assertTrue(logReporter.workingLogfile.exists());
+        Assert.assertEquals("Should create a new working file", 0, logReporter.workingLogfile.length());
+        Assert.assertNotEquals("Should create a new buffered writer", writer, logReporter.workingLogfileWriter.get());
         Assert.assertFalse("Should not shutdown executor", logger.executor.isShutdown());
         logger.log(LogLevel.INFO, "After onHarvestStop()");
     }
@@ -417,13 +419,13 @@ public class LogReporterTest extends LoggingTests {
         logger.flush();
 
         // close working file writer without finalizing
-        logReporter.workingLogFileWriter.get().flush();
-        logReporter.workingLogFileWriter.get().close();
+        logReporter.workingLogfileWriter.get().flush();
+        logReporter.workingLogfileWriter.get().close();
 
-        verifyWorkingLogFile(2);
+        verifyWorkingLogfile(2);
         logger = new RemoteLogger();
 
-        JsonArray jsonArray = verifyWorkingLogFile(2);
+        JsonArray jsonArray = verifyWorkingLogfile(2);
         Assert.assertNotNull(jsonArray);
     }
 
@@ -437,9 +439,9 @@ public class LogReporterTest extends LoggingTests {
         logger.log(LogLevel.INFO, msg);
         logger.log(LogLevel.VERBOSE, msg);
         logger.log(LogLevel.DEBUG, msg);
-        logReporter.finalizeWorkingLogFile();
+        logReporter.finalizeWorkingLogfile();
 
-        Assert.assertNull(logReporter.workingLogFileWriter.get());
+        Assert.assertNull(logReporter.workingLogfileWriter.get());
     }
 
     @Test
@@ -452,6 +454,68 @@ public class LogReporterTest extends LoggingTests {
         Assert.assertTrue(logger.executor.isShutdown());
     }
 
+    @Test
+    public void decomposeRollup() throws Exception {
+        final File logDataFile = LogReporter.generateUniqueLogfile(LogReporter.LogReportState.ROLLUP);
 
+        try (OutputStream os = new FileOutputStream(logDataFile)) {
+            LogReporter.class.getResourceAsStream("/logReporting/logdata-vortex-413.rollup").transferTo(os);
+        }
+
+        long originalLength = logDataFile.length();
+        Set<File> splits = logReporter.decompose(logDataFile);
+        int combinedSplitLength = splits.stream().mapToInt(file -> Math.toIntExact(file.length())).sum();
+        Assert.assertEquals(originalLength, combinedSplitLength,2);
+
+        Assert.assertNull(logReporter.rollupLogDataFiles());
+        Assert.assertEquals(2, logReporter.getCachedLogReports(LogReporter.LogReportState.ROLLUP).size());
+    }
+
+    @Test
+    public void decomposeClosed() throws Exception {
+        final File logDataFile = LogReporter.generateUniqueLogfile(LogReporter.LogReportState.CLOSED);
+
+        try (OutputStream os = new FileOutputStream(logDataFile)) {
+            LogReporter.class.getResourceAsStream("/logReporting/logdata-vortex-413.dat").transferTo(os);
+        }
+
+        long originalLength = logDataFile.length();
+        Set<File> splits = logReporter.decompose(logDataFile);
+        int combinedSplitLength = splits.stream().mapToInt(file -> Math.toIntExact(file.length())).sum();
+        Assert.assertEquals(originalLength, combinedSplitLength, 2);
+
+        Assert.assertNull(logReporter.rollupLogDataFiles());
+        Assert.assertEquals(2, logReporter.getCachedLogReports(LogReporter.LogReportState.ROLLUP).size());
+        Assert.assertEquals(0, logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).size());
+    }
+
+    @Test
+    public void compress() throws IOException {
+        final File logDataFile = LogReporter.generateUniqueLogfile(LogReporter.LogReportState.ROLLUP);
+
+        try (OutputStream os = new FileOutputStream(logDataFile)) {
+            LogReporter.class.getResourceAsStream("/logReporting/logdata-vortex-413.rollup").transferTo(os);
+        }
+        Assert.assertTrue(logDataFile.exists());
+        Assert.assertEquals(1, logReporter.getCachedLogReports(LogReporter.LogReportState.ROLLUP).size());
+
+        File compressedFile = logReporter.compress(logDataFile, false);
+        Assert.assertEquals(1, logReporter.getCachedLogReports(".gz").size());
+        Assert.assertTrue(compressedFile.length() < logDataFile.length());
+
+        compressedFile.delete();
+        compressedFile = logReporter.compress(logDataFile, true);
+        Assert.assertFalse(logDataFile.exists());
+        Assert.assertTrue(compressedFile.exists());
+        Assert.assertEquals(0, logReporter.getCachedLogReports(LogReporter.LogReportState.ROLLUP).size());
+        Assert.assertEquals(1, logReporter.getCachedLogReports(".gz").size());
+
+    }
+
+    @Test
+    public void generateUniqueLogfileName() {
+        final File logDataFile = LogReporter.generateUniqueLogfile(LogReporter.LogReportState.ROLLUP);
+        Assert.assertTrue(logReporter.isLogfileTypeOf(logDataFile, LogReporter.LogReportState.ROLLUP));
+    }
 }
 
