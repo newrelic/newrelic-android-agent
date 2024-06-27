@@ -138,8 +138,8 @@ public class ApplicationExitMonitor {
                             eventAttributes);
 
                     StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
-                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + exitInfo.getReason());
-                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + exitInfo.getImportance());
+                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + getReasonAsString(exitInfo.getReason()));
+                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + getImportanceAsString(exitInfo.getImportance()));
                     StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited);
                     StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped);
                 }
@@ -163,7 +163,8 @@ public class ApplicationExitMonitor {
     }
 
     protected String getImportanceAsString(int importance) {
-        String importanceAsString = "";
+        String importanceAsString = String.valueOf(importance);
+
         switch (importance) {
             case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
                 importanceAsString = "Foreground";
@@ -194,6 +195,84 @@ public class ApplicationExitMonitor {
                 break;
         }
         return importanceAsString;
+    }
+
+    protected String getReasonAsString(int reason) {
+        String reasonAsString = String.valueOf(reason);
+
+        switch (reason) {
+            case 0:     // ApplicationExitInfo.REASON_UNKNOWN
+                reasonAsString = "Unknown";
+                break;
+                
+            case 1:     // ApplicationExitInfo.REASON_EXIT_SELF
+                reasonAsString = "Exit self";
+                break;
+
+            case 2:     // ApplicationExitInfo.REASON_SIGNALED
+                reasonAsString = "Signaled";
+                break;
+
+            case 3:     // ApplicationExitInfo.REASON_LOW_MEMORY
+                reasonAsString = "Low memory";
+                break;
+
+            case 4:     // ApplicationExitInfo.REASON_CRASH
+                reasonAsString = "Crash";
+                break;
+
+            case 5:     // ApplicationExitInfo.REASON_CRASH_NATIVE
+                reasonAsString = "Native crash";
+                break;
+
+            case 6:     // ApplicationExitInfo.REASON_ANR
+                reasonAsString = "ANR";
+                break;
+
+            case 7:     // ApplicationExitInfo.REASON_INITIALIZATION_FAILURE
+                reasonAsString = "Initialization failure";
+                break;
+
+            case 8:     // ApplicationExitInfo.REASON_PERMISSION_CHANGE
+                reasonAsString = "Permission change";
+                break;
+
+            case 9:     // ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE
+                reasonAsString = "Excessive resource usage";
+                break;
+
+            case 10:    // ApplicationExitInfo.REASON_USER_REQUESTED
+                reasonAsString = "User requested";
+                break;
+
+            case 11:    // ApplicationExitInfo.REASON_USER_STOPPED
+                reasonAsString = "User stopped";
+                break;
+
+            case 12:    // ApplicationExitInfo.REASON_DEPENDENCY_DIED
+                reasonAsString = "Dependency died";
+                break;
+
+            case 13:    // ApplicationExitInfo.REASON_OTHER
+                reasonAsString = "Other";
+                break;
+                
+            // requires update up SDK 33
+            case 14:    // ApplicationExitInfo.REASON_FREEZER
+                reasonAsString = "Freezer";
+                break;
+                
+            // requires update up SDK 34
+            case 15:    // ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGED
+                reasonAsString = "Package state changed";
+                break;
+
+            case 16:    // ApplicationExitInfo.REASON_PACKAGE_UPDATED
+                reasonAsString = "Package updated";
+                break;
+
+        }
+        return reasonAsString;  // TODO
     }
 
 }

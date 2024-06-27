@@ -191,7 +191,7 @@ public class ApplicationExitMonitorTest {
 
         Set<AnalyticsAttribute> analyticsAttributes = analyticsValidator.toValidatedAnalyticsAttributes(eventAttributes);
         Assert.assertTrue(eventAttributes.size() > analyticsAttributes.size());
-        Mockito.verify(logger, times(3)).warn(anyString());     // null attr names or values
+        Mockito.verify(logger, times(2)).warn(anyString());     // null attr names or values
 
         Assert.assertTrue(analyticsValidator.isValidEventName(applicationExitMonitor.packageName));
         Assert.assertTrue(analyticsValidator.isValidEventType(AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT));
@@ -268,8 +268,8 @@ public class ApplicationExitMonitorTest {
 
         for (ApplicationExitInfo aei : applicationExitInfoList) {
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + aei.getStatus()));
-            Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + aei.getReason()));
-            Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + aei.getImportance()));
+            Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + applicationExitMonitor.getReasonAsString(aei.getReason())));
+            Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + applicationExitMonitor.getImportanceAsString(aei.getImportance())));
         }
     }
 
@@ -316,6 +316,27 @@ public class ApplicationExitMonitorTest {
 
         String str9 = applicationExitMonitor.getImportanceAsString(1000);
         Assert.assertEquals("Gone", str9);
+    }
+
+    @Test
+    public void getReasonAsString() {
+        Assert.assertEquals("Unknown", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_UNKNOWN));
+        Assert.assertEquals("Exit self", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_EXIT_SELF));
+        Assert.assertEquals("Signaled", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_SIGNALED));
+        Assert.assertEquals("Low memory", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_LOW_MEMORY));
+        Assert.assertEquals("Crash", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_CRASH));
+        Assert.assertEquals("Native crash", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_CRASH_NATIVE));
+        Assert.assertEquals("ANR", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_ANR));
+        Assert.assertEquals("Initialization failure", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE));
+        Assert.assertEquals("Permission change", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_PERMISSION_CHANGE));
+        Assert.assertEquals("Excessive resource usage", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE));
+        Assert.assertEquals("User requested", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_USER_REQUESTED));
+        Assert.assertEquals("User stopped", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_USER_STOPPED));
+        Assert.assertEquals("Dependency died", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_DEPENDENCY_DIED));
+        Assert.assertEquals("Other", applicationExitMonitor.getReasonAsString(ApplicationExitInfo.REASON_OTHER));
+        Assert.assertEquals("Freezer", applicationExitMonitor.getReasonAsString(14));
+        Assert.assertEquals("Package state changed", applicationExitMonitor.getReasonAsString(15));
+        Assert.assertEquals("Package updated", applicationExitMonitor.getReasonAsString(16));
     }
 
     private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {

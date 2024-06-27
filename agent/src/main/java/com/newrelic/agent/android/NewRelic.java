@@ -295,18 +295,20 @@ public final class NewRelic {
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
             log.setLevel(logLevel);
 
-            try {
-                /**
-                 *  LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
-                 *  remove the oldest files when storage runs low, offloading some of the maintenance work from the reporter,
-                 *  but potentially resulting in unreported log file deletions.
-                 *
-                 * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
-                 **/
-                LogReporting.initialize(context.getCacheDir(), agentConfiguration);
+            if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+                try {
+                    /**
+                     *  LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
+                     *  remove the oldest files when storage runs low, offloading some of the maintenance work from the reporter,
+                     *  but potentially resulting in unreported log file deletions.
+                     *
+                     * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
+                     **/
+                    LogReporting.initialize(context.getCacheDir(), agentConfiguration);
 
-            } catch (IOException e) {
-                AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e);
+                } catch (IOException e) {
+                    AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e);
+                }
             }
 
             boolean instantApp = InstantApps.isInstantApp(context);
@@ -820,7 +822,6 @@ public final class NewRelic {
     public static boolean setAttribute(String name, double value) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setAttribute(String,double)"));
-
         return AnalyticsControllerImpl.getInstance().setAttribute(name, value);
     }
 
