@@ -53,7 +53,7 @@ public class ApplicationExitMonitorTest {
     private SpyContext spyContext;
 
     ApplicationExitMonitor applicationExitMonitor;
-    List<ApplicationExitInfo> applicationExitInfos;
+    List<ApplicationExitInfo> applicationExitInfoList;
 
     @Before
     public void setUp() throws Exception {
@@ -62,17 +62,17 @@ public class ApplicationExitMonitorTest {
 
         spyContext = new SpyContext();
         applicationExitMonitor = new ApplicationExitMonitor(spyContext.getContext());
-        applicationExitInfos = new ArrayList<>();
+        applicationExitInfoList = new ArrayList<>();
 
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH_NATIVE));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH_NATIVE));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfos);
+            Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfoList);
         }
 
         AgentConfiguration agentConfig = new AgentConfiguration();
@@ -85,13 +85,11 @@ public class ApplicationExitMonitorTest {
     @After
     public void tearDown() throws Exception {
         AnalyticsControllerImpl.shutdown();
-        Streams.list(applicationExitMonitor.reportsDir).forEach(file -> {
-            Assert.assertTrue(file.delete());
-        });
+        Streams.list(applicationExitMonitor.reportsDir).forEach(file -> Assert.assertTrue(file.delete()));
     }
 
     @Test
-    public void harvestApplicationExitInfo() throws InterruptedException {
+    public void harvestApplicationExitInfo() {
         List<File> artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
         Assert.assertEquals(0, artifacts.size());
 
@@ -102,7 +100,7 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void shouldNotHarvestRecordedApplicationExitInfo() throws InterruptedException {
+    public void shouldNotHarvestRecordedApplicationExitInfo() {
         List<File> artifacts = Streams.list(applicationExitMonitor.reportsDir).collect(Collectors.toList());
         Assert.assertEquals(0, artifacts.size());
 
@@ -123,8 +121,8 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void createMobileApplicationExitEvents() throws InterruptedException {
-        Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfos);
+    public void createMobileApplicationExitEvents() {
+        Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfoList);
 
         applicationExitMonitor.harvestApplicationExitInfo();
 
@@ -149,8 +147,8 @@ public class ApplicationExitMonitorTest {
 
     @Config(sdk = {Q})
     @Test
-    public void shouldNotCreateEventsForUnsupportSDK() throws InterruptedException {
-        applicationExitInfos.clear();
+    public void shouldNotCreateEventsForUnsupportedSDK() {
+        applicationExitInfoList.clear();
         applicationExitMonitor.harvestApplicationExitInfo();
 
         Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
@@ -208,19 +206,18 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void testApplicationExitImportance() throws InterruptedException, IOException {
-        Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfos);
+    public void testApplicationExitImportance() throws IOException {
+        Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfoList);
 
-        applicationExitInfos.clear();
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH_NATIVE, ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_LOW_MEMORY, ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_DEPENDENCY_DIED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE, ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28));
+        applicationExitInfoList.clear();
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH_NATIVE, ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_LOW_MEMORY, ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_DEPENDENCY_DIED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE, ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28));
         applicationExitMonitor.harvestApplicationExitInfo();
 
-        Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
         for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
             Assert.assertEquals(event.getEventType(), AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
             Assert.assertEquals(event.getCategory(), AnalyticsEventCategory.ApplicationExit);
@@ -234,10 +231,10 @@ public class ApplicationExitMonitorTest {
         // reset app state, event states
         AnalyticsControllerImpl.getInstance().getEventManager().empty();
 
-        applicationExitInfos.clear();
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH, ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND));
-        applicationExitInfos.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED));
+        applicationExitInfoList.clear();
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH, ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED));
         applicationExitMonitor.harvestApplicationExitInfo();
 
         for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
@@ -252,7 +249,7 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void testEnabledStateFromAgentConfiguration() throws InterruptedException {
+    public void testEnabledStateFromAgentConfiguration() {
         FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
 
         AgentConfiguration agentConfiguration = AgentConfiguration.instance.get();
@@ -263,13 +260,13 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void testSupportabilityMetrics() throws InterruptedException, IOException {
+    public void testSupportabilityMetrics() {
         FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
 
         applicationExitMonitor.harvestApplicationExitInfo();
         Assert.assertNotNull(StatsEngine.SUPPORTABILITY.getStatsMap());
 
-        for (ApplicationExitInfo aei : applicationExitInfos) {
+        for (ApplicationExitInfo aei : applicationExitInfoList) {
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + aei.getStatus()));
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + aei.getReason()));
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + aei.getImportance()));
@@ -277,7 +274,7 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void aeiHarvestShouldTriggerEventHarvest() throws InterruptedException {
+    public void aeiHarvestShouldTriggerEventHarvest() {
         FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
         EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
 
@@ -286,7 +283,7 @@ public class ApplicationExitMonitorTest {
         Assert.assertTrue(eventManager.isTransmitRequired());
 
         Assert.assertNotNull(eventManager.getQueuedEvents()); // flush data reset flag
-        applicationExitInfos.clear();
+        applicationExitInfoList.clear();
         applicationExitMonitor.harvestApplicationExitInfo();
         Assert.assertFalse(AnalyticsControllerImpl.getInstance().getEventManager().isTransmitRequired());
     }

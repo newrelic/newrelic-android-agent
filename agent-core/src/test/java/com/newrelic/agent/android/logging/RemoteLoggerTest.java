@@ -24,7 +24,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -35,7 +34,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-@Ignore("Until LogReporting GA")
 public class RemoteLoggerTest extends LoggingTests {
 
     private RemoteLogger logger;
@@ -82,9 +80,9 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.flush();
 
         verify(logger, times(5)).log(any(LogLevel.class), anyString());
-        verify(logger, times(0)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(), any());
+        verify(logger, times(0)).appendToWorkingLogfile(any(LogLevel.class), anyString(), any(), any());
 
-        JsonArray jsonArray = verifyWorkingLogFile(0);
+        JsonArray jsonArray = verifyWorkingLogfile(0);
         Assert.assertEquals(0, jsonArray.size());
     }
 
@@ -100,9 +98,9 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.flush();
 
         verify(logger, times(5)).log(any(LogLevel.class), anyString());
-        verify(logger, times(3)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(), any());
+        verify(logger, times(3)).appendToWorkingLogfile(any(LogLevel.class), anyString(), any(), any());
 
-        JsonArray jsonArray = verifyWorkingLogFile(3);
+        JsonArray jsonArray = verifyWorkingLogfile(3);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
@@ -115,9 +113,9 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.logThrowable(LogLevel.WARN, throwable.getMessage(), throwable);
         logger.flush();
 
-        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.WARN, throwable.getMessage(), throwable, null);
+        verify(logger, times(1)).appendToWorkingLogfile(LogLevel.WARN, throwable.getMessage(), throwable, null);
 
-        JsonArray jsonArray = verifyWorkingLogFile(1);
+        JsonArray jsonArray = verifyWorkingLogfile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), throwable.getLocalizedMessage());
@@ -134,9 +132,9 @@ public class RemoteLoggerTest extends LoggingTests {
 
         logger.logAttributes(attrs);
         logger.flush();
-        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, attrs);
+        verify(logger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, null, attrs);
 
-        JsonArray jsonArray = verifyWorkingLogFile(1);
+        JsonArray jsonArray = verifyWorkingLogfile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
@@ -152,9 +150,9 @@ public class RemoteLoggerTest extends LoggingTests {
         attrs.put("message", msg);
 
         logger.logAll(throwable, attrs);
-        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, throwable, attrs);
+        verify(logger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, throwable, attrs);
 
-        JsonArray jsonArray = verifyWorkingLogFile(1);
+        JsonArray jsonArray = verifyWorkingLogfile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
@@ -164,11 +162,11 @@ public class RemoteLoggerTest extends LoggingTests {
     public void appendLog() throws Exception {
         final String msg = "appendLog: " + getRandomMsg(24);
 
-        logger.appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
+        logger.appendToWorkingLogfile(LogLevel.INFO, msg, null, null);
         logger.flush();
-        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, msg, null, null);
+        verify(logger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, null, null);
 
-        JsonArray jsonArray = verifyWorkingLogFile(1);
+        JsonArray jsonArray = verifyWorkingLogfile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
@@ -198,7 +196,7 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.logAttributes(attrs);
         logger.flush();
 
-        JsonArray jsonArray = verifyWorkingLogFile(2);
+        JsonArray jsonArray = verifyWorkingLogfile(2);
         for (JsonElement jsonElement : jsonArray) {
             JsonObject json = jsonElement.getAsJsonObject();
             Assert.assertTrue("Log json should contain timestamp", json.has(LogReporting.LOG_TIMESTAMP_ATTRIBUTE));
@@ -236,19 +234,19 @@ public class RemoteLoggerTest extends LoggingTests {
 
         Mockito.reset(logger);
         logger.log(LogLevel.INFO, null);
-        verify(logger, times(1)).appendToWorkingLogFile(LogLevel.INFO, LogReporting.INVALID_MSG, null, null);
+        verify(logger, times(1)).appendToWorkingLogfile(LogLevel.INFO, LogReporting.INVALID_MSG, null, null);
 
         Mockito.reset(logger);
         logger.logAttributes(null);
-        verify(logger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), isNull(), anyMap());
+        verify(logger, times(1)).appendToWorkingLogfile(any(LogLevel.class), anyString(), isNull(), anyMap());
 
         Mockito.reset(logger);
         logger.logThrowable(LogLevel.ERROR, "", null);
-        verify(logger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), any(Throwable.class), isNull());
+        verify(logger, times(1)).appendToWorkingLogfile(any(LogLevel.class), anyString(), any(Throwable.class), isNull());
 
         Mockito.reset(logger);
         logger.logAll(null, null);
-        verify(logger, times(1)).appendToWorkingLogFile(any(LogLevel.class), anyString(), isNull(), anyMap());
+        verify(logger, times(1)).appendToWorkingLogfile(any(LogLevel.class), anyString(), isNull(), anyMap());
     }
 
     @Test
@@ -261,7 +259,7 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.log(LogLevel.ERROR, msg);
         logger.flush();
 
-        JsonArray jsonArray = verifyWorkingLogFile(1);
+        JsonArray jsonArray = verifyWorkingLogfile(1);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_ENTITY_ATTRIBUTE).getAsString(), AgentConfiguration.getInstance().getEntityGuid());
@@ -315,9 +313,9 @@ public class RemoteLoggerTest extends LoggingTests {
 
             TicToc fileIOTimer = new TicToc().tic();
             logger.flush();
-            logReporter.finalizeWorkingLogFile();
-            File rolledLog = logReporter.rollWorkingLogFile();
-            logReporter.resetWorkingLogFile();
+            logReporter.finalizeWorkingLogfile();
+            File rolledLog = logReporter.rollWorkingLogfile();
+            logReporter.resetWorkingLogfile();
             agentLog.warn("Run[" + testRun + "] File finalization[" + fileIOTimer.peek() + "] ms");
 
             logReporter.expire(0);
@@ -364,14 +362,14 @@ public class RemoteLoggerTest extends LoggingTests {
         }
 
         logger.flush();
-        logReporter.finalizeWorkingLogFile();
+        logReporter.finalizeWorkingLogfile();
 
         Set<File> files = logReporter.getCachedLogReports(LogReporter.LogReportState.ALL);
 
         // the working logfile may rollover, so we need to count all generated files
         Assert.assertFalse(files.isEmpty());
 
-        JsonArray jsonArray = verifySpannedLogFiles(files, N_THREADS * N_MSGS);
+        JsonArray jsonArray = verifySpannedLogfiles(files, N_THREADS * N_MSGS);
         for (int i = 0; i < (N_THREADS * N_MSGS); i++) {
             JsonObject jsonObject = jsonArray.get(i).getAsJsonObject();
             Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);

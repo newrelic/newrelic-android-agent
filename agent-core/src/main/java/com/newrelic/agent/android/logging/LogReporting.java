@@ -119,8 +119,7 @@ public abstract class LogReporting {
     }
 
     public static class AgentLogger implements Logger {
-        MessageValidator validator = new MessageValidator() {
-        };
+        MessageValidator validator = new MessageValidator() {};
 
         /**
          * Writes a message to the current agent log using the provided log level.

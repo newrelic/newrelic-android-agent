@@ -71,7 +71,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private String entityGuid;
 
     // Support remote configuration for these features
-    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(true, LogLevel.INFO);
+    private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.INFO);
     private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
 
     public String getApplicationToken() {

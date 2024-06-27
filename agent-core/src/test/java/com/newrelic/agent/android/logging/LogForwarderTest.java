@@ -20,7 +20,6 @@ import com.newrelic.agent.android.util.Streams;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -32,7 +31,6 @@ import java.util.Arrays;
 
 import javax.net.ssl.HttpsURLConnection;
 
-@Ignore("Until LogReporting GA")
 public class LogForwarderTest extends LoggingTests {
 
     private File logDataReport;
@@ -75,7 +73,7 @@ public class LogForwarderTest extends LoggingTests {
     }
 
     @Test
-    public void setPayload() throws IOException {
+    public void setPayload() {
         String payloadData = "The load carried"; // by an aircraft or spacecraft consisting of people or " +
         // "things (such as passengers or instruments) necessary to the purpose of the flight.";
 
@@ -90,7 +88,7 @@ public class LogForwarderTest extends LoggingTests {
 
     @Test
     public void getConnection() throws IOException {
-        Assert.assertTrue(logForwarder.getConnection() instanceof HttpURLConnection);
+        Assert.assertTrue(logForwarder.getConnection() instanceof HttpsURLConnection);
     }
 
     @Test

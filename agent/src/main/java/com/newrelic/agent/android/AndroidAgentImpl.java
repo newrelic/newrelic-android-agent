@@ -46,6 +46,11 @@ import com.newrelic.agent.android.harvest.MachineMeasurements;
 import com.newrelic.agent.android.instrumentation.MetricCategory;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.AndroidAgentLog;
+import com.newrelic.agent.android.logging.ForwardingAgentLog;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LoggingConfiguration;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
@@ -114,6 +119,16 @@ public class AndroidAgentImpl implements
 
         if (isDisabled()) {
             throw new AgentInitializationException("This version of the agent has been disabled");
+        }
+
+        agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
+
+        if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+            LoggingConfiguration loggingConfiguration = agentConfiguration.getLogReportingConfiguration();
+            if (loggingConfiguration.getLoggingEnabled() && loggingConfiguration.getLogLevel().ordinal() >= LogLevel.DEBUG.ordinal()) {
+                AgentLogManager.setAgentLog(new ForwardingAgentLog(new AndroidAgentLog()));
+                log.warn("Agent log data will be forwarded with remote logs.");
+            }
         }
 
         initApplicationInformation();
@@ -829,6 +844,12 @@ public class AndroidAgentImpl implements
                 new ApplicationExitMonitor(context).harvestApplicationExitInfo();
             } else {
                 log.debug("ApplicationExitReporting feature is enabled locally, but disabled in remote configuration.");
+            }
+        }
+
+        if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
+            if (LogReporting.isRemoteLoggingEnabled()) {
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_SAMPLED + agentConfiguration.getLogReportingConfiguration().isSampled());
             }
         }
 
