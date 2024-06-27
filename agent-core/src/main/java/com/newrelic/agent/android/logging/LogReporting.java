@@ -43,7 +43,7 @@ public abstract class LogReporting {
     };
 
     public static void initialize(File cacheDir, AgentConfiguration agentConfiguration) throws IOException {
-        if (agentConfiguration.getLogReportingConfiguration().getLoggingEnabled()) {
+        if (agentConfiguration.getLogReportingConfiguration().enabled) {
             LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
             LogReporter.initialize(cacheDir, agentConfiguration);
             LogReporter.getInstance().start();

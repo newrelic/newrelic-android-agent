@@ -50,6 +50,7 @@ import com.newrelic.agent.android.logging.AndroidAgentLog;
 import com.newrelic.agent.android.logging.ForwardingAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.LoggingConfiguration;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -125,9 +126,10 @@ public class AndroidAgentImpl implements
         agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
 
         if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-            LoggingConfiguration loggingConfiguration = agentConfiguration.getLogReportingConfiguration();
+            LogReportingConfiguration.reseed();
 
-            if (loggingConfiguration.getLoggingEnabled() ) {
+            LogReportingConfiguration logReportingConfiguration = agentConfiguration.getLogReportingConfiguration();
+            if (logReportingConfiguration.getLoggingEnabled() ) {
                 try {
                     /**
                      *  LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
@@ -142,7 +144,7 @@ public class AndroidAgentImpl implements
                     AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e);
                 }
 
-                if (loggingConfiguration.getLogLevel().ordinal() >= LogLevel.DEBUG.ordinal()) {
+                if (logReportingConfiguration.getLogLevel().ordinal() >= LogLevel.DEBUG.ordinal()) {
                     AgentLogManager.setAgentLog(new ForwardingAgentLog(new AndroidAgentLog()));
                     log.warn("Agent log data will be forwarded with remote logs.");
                 }

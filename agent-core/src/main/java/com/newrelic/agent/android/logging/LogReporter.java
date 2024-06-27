@@ -137,7 +137,6 @@ public class LogReporter extends PayloadReporter {
     protected void start() {
         if (isEnabled()) {
             Harvest.addHarvestListener(instance.get());
-            LogReportingConfiguration.reseed();
             isStarted.set(true);
         } else {
             log.error("Attempted to start the log reported when disabled.");
