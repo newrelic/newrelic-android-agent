@@ -24,10 +24,13 @@ import java.util.Map;
 
 public class LogReportingTest extends LoggingTests {
 
+    private AgentConfiguration agentConfiguration;
+
     @Before
     public void setUp() throws Exception {
         LogReporting.setLogLevel("InFo");
         agentLogger = Mockito.spy(agentLogger);
+        agentConfiguration = new AgentConfiguration();
     }
 
     @Test
@@ -81,20 +84,17 @@ public class LogReportingTest extends LoggingTests {
 
     @Test
     public void initializeLogReporting() throws Exception {
-        AgentConfiguration.getInstance().getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
+        LogReporting.initialize(reportsDir, agentConfiguration);
+        Assert.assertNull("LogReporter not initialized by default", LogReporter.getInstance());
 
-        LogReporting.initialize(reportsDir, AgentConfiguration.getInstance());
-        Assert.assertNotNull("LogReporter not initialized", LogReporter.getInstance());
-        Assert.assertFalse("LogReport is disabled by default", LogReporter.getInstance().isEnabled());
+        agentConfiguration.getLogReportingConfiguration().setLoggingEnabled(false);
+        LogReporting.initialize(reportsDir, agentConfiguration);
+        Assert.assertNull("LogReporter not initialized due to configuration settings", LogReporter.getInstance());
 
-        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        LogReporting.initialize(reportsDir, AgentConfiguration.getInstance());
-        Assert.assertFalse("LogReport was not started due to configuration settings", LogReporter.getInstance().isEnabled());
-
-        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
-        AgentConfiguration.getInstance().getLogReportingConfiguration().setLoggingEnabled(true);
-        LogReporting.initialize(reportsDir, AgentConfiguration.getInstance());
-        Assert.assertTrue("LogReport was started due to configuration settings", LogReporter.getInstance().isStarted());
+        agentConfiguration.getLogReportingConfiguration().setLoggingEnabled(true);
+        LogReporting.initialize(reportsDir, agentConfiguration);
+        Assert.assertNotNull("LogReporter initialized due to configuration settings", LogReporter.getInstance());
+        Assert.assertTrue("LogReporter was started due to configuration settings", LogReporter.getInstance().isStarted());
 
         Assert.assertTrue(LogReporting.getLogger() instanceof RemoteLogger);
     }
