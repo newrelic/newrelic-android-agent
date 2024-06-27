@@ -121,13 +121,31 @@ public class AndroidAgentImpl implements
             throw new AgentInitializationException("This version of the agent has been disabled");
         }
 
+        // update with cached settings
         agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
 
         if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
             LoggingConfiguration loggingConfiguration = agentConfiguration.getLogReportingConfiguration();
-            if (loggingConfiguration.getLoggingEnabled() && loggingConfiguration.getLogLevel().ordinal() >= LogLevel.DEBUG.ordinal()) {
-                AgentLogManager.setAgentLog(new ForwardingAgentLog(new AndroidAgentLog()));
-                log.warn("Agent log data will be forwarded with remote logs.");
+
+            if (loggingConfiguration.getLoggingEnabled() ) {
+                try {
+                    /**
+                     *  LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
+                     *  remove the oldest files when storage runs low, offloading some of the maintenance work from the reporter,
+                     *  but potentially resulting in unreported log file deletions.
+                     *
+                     * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
+                     **/
+                    LogReporting.initialize(context.getCacheDir(), agentConfiguration);
+
+                } catch (IOException e) {
+                    AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e);
+                }
+
+                if (loggingConfiguration.getLogLevel().ordinal() >= LogLevel.DEBUG.ordinal()) {
+                    AgentLogManager.setAgentLog(new ForwardingAgentLog(new AndroidAgentLog()));
+                    log.warn("Agent log data will be forwarded with remote logs.");
+                }
             }
         }
 

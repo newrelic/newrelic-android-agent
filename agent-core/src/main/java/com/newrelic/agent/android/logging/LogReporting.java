@@ -43,15 +43,14 @@ public abstract class LogReporting {
     };
 
     public static void initialize(File cacheDir, AgentConfiguration agentConfiguration) throws IOException {
-        LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
-        LogReporter.initialize(cacheDir, agentConfiguration);
-
-        if (LogReporter.getInstance().isEnabled()) {
+        if (agentConfiguration.getLogReportingConfiguration().getLoggingEnabled()) {
+            LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
+            LogReporter.initialize(cacheDir, agentConfiguration);
             LogReporter.getInstance().start();
-        }
 
-        if (!LogReporter.getInstance().isStarted()) {
-            agentLogger.log(LogLevel.ERROR, "LogReporting failed to initialize!");
+            if (!LogReporter.getInstance().isStarted()) {
+                agentLogger.log(LogLevel.ERROR, "LogReporting failed to initialize!");
+            }
         }
     }
 
@@ -119,7 +118,8 @@ public abstract class LogReporting {
     }
 
     public static class AgentLogger implements Logger {
-        MessageValidator validator = new MessageValidator() {};
+        MessageValidator validator = new MessageValidator() {
+        };
 
         /**
          * Writes a message to the current agent log using the provided log level.

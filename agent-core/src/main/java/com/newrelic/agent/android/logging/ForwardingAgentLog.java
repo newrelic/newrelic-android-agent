@@ -113,7 +113,7 @@ public class ForwardingAgentLog implements AgentLog {
     Map<String, Object> asAttributes(LogLevel level, String message) {
         Map<String, Object> attributes = new HashMap<>();
 
-        attributes.put(LogReporting.logLevel.name(), level);
+        attributes.put(LogReporting.LOG_LEVEL_ATTRIBUTE, level);
         attributes.put(LogReporting.LOG_MESSAGE_ATTRIBUTE, message);
         attributes.put(LogReporting.LOG_LOGGER_ATTRIBUTE, "Android agent " + Agent.getVersion());
 
