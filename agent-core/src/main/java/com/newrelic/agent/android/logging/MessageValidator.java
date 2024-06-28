@@ -13,7 +13,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 public interface MessageValidator {
-
+    // The message attribute on a log record MUST be truncated to 32768 bytes (32Kib) on the agent side.
+    int MAX_MESSAGE_LEN = (32 * 1024);
+    
     String INVALID_KEYSET = "{}\\[\\]]";
     String[] ANONYMIZATION_TARGETS = {
             "http?//{.*}/{.*}",
@@ -21,15 +23,35 @@ public interface MessageValidator {
     };
 
     /**
-     * TODO The message attribute on a log record MUST be truncated to 32768 bytes (32Kib) on the agent side.
+     * Validate content and length of message data.
      *
      * @param message
      * @return
      */
     default String validate(String message) {
-        return (null == message || message.isEmpty()) ? INVALID_MSG : message;
+        if (null == message || message.isEmpty()) {
+            message = INVALID_MSG;
+        } else if (message.length() > MAX_MESSAGE_LEN) {
+            message = message.substring(0, MAX_MESSAGE_LEN - 1);
+        }
+
+        return message;
     }
 
+    /**
+     * Some specific attributes have additional restrictions:
+     *  accountId: This is a reserved attribute name. If it is included, it will be dropped during ingest.
+     *  appId: Must be an integer. When using a non-integer data type, the data will be ingested but becomes unqueryable.
+     *  entity.guid, entity.name, and entity.type: These attributes are used internally to identify entities.
+     *      Any values submitted with these keys in the attributes section of a metric data point may cause undefined behavior
+     *  such as missing entities in the UI or telemetry not associating with the expected entities.
+     *  eventType: This is a reserved attribute name. If it is included, it will be dropped during ingest.
+     *  timestamp: Must be a Unix epoch timestamp (either in seconds or in milliseconds) or an ISO8601-formatted timestamp.
+     *
+     * @param attributes
+     * @return validated attribute map
+     * @link reserved attributes: https://source.datanerd.us/agents/agent-specs/blob/main/Application-Logging.md#log-record-attributes
+     */
     default Map<String, Object> validate(Map<String, Object> attributes) {
         if (null == attributes) {
             attributes = new HashMap<>();

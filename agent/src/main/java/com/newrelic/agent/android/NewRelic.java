@@ -22,10 +22,8 @@ import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
-import com.newrelic.agent.android.logging.ForwardingAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
-import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.logging.NullAgentLog;
 import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -35,7 +33,6 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
 import com.newrelic.agent.android.util.Constants;
-import com.newrelic.agent.android.util.NamedThreadFactory;
 import com.newrelic.agent.android.util.NetworkFailure;
 import com.newrelic.agent.android.util.OfflineStorage;
 
@@ -47,9 +44,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 
 /**
@@ -300,49 +294,6 @@ public final class NewRelic {
         try {
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
             log.setLevel(logLevel);
-
-            if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-                // For testing: set log reporting to the same values used for agent logging
-                LogLevel level = LogLevel.NONE;
-
-                // translate the agent log level to LogReporting equivalent
-                switch (logLevel) {
-                    case AgentLog.ERROR:
-                        level = LogLevel.ERROR;
-                        break;
-                    case AgentLog.WARN:
-                        level = LogLevel.WARN;
-                        break;
-                    case AgentLog.INFO:
-                        level = LogLevel.INFO;
-                        break;
-                    case AgentLog.VERBOSE:
-                        level = LogLevel.VERBOSE;
-                        break;
-                    case AgentLog.DEBUG:
-                    case AgentLog.AUDIT:
-                        level = LogLevel.DEBUG;
-                        break;
-                    default:
-                        break;
-                }
-
-                agentConfiguration.getLogReportingConfiguration().setConfiguration(new LogReportingConfiguration(loggingEnabled, level));
-
-                try {
-                    /**
-                     *  LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
-                     *  remove the oldest files when storage runs low, offloading some of the maintenance work from the reporter,
-                     *  but potentially resulting in unreported log file deletions.
-                     *
-                     * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
-                     **/
-                    LogReporting.initialize(context.getCacheDir(), agentConfiguration);
-
-                } catch (IOException e) {
-                    AgentLogManager.getAgentLog().error("Log reporting failed to initialize: " + e);
-                }
-            }
 
             boolean instantApp = InstantApps.isInstantApp(context);
 
@@ -855,7 +806,6 @@ public final class NewRelic {
     public static boolean setAttribute(String name, double value) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setAttribute(String,double)"));
-
         return AnalyticsControllerImpl.getInstance().setAttribute(name, value);
     }
 

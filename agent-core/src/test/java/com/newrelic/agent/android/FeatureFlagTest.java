@@ -65,13 +65,13 @@ public class FeatureFlagTest {
         Assert.assertTrue("Distributed tracing is enabled by default", FeatureFlag.featureEnabled(DistributedTracing));
         Assert.assertTrue("AppStartMetrics is enabled by default", FeatureFlag.featureEnabled(AppStartMetrics));
         Assert.assertTrue("ApplicationExitReporting is enabled by default", FeatureFlag.featureEnabled(ApplicationExitReporting));
+        Assert.assertTrue("LogReporting is enabled by default", FeatureFlag.featureEnabled(LogReporting));
     }
 
     @Test
     public void defaultDisabledFeatures() throws Exception {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
-        Assert.assertFalse("LogReporting is disabled by default", FeatureFlag.featureEnabled(LogReporting));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));
     }
 
@@ -93,9 +93,9 @@ public class FeatureFlagTest {
         FeatureFlag.disableFeature(DistributedTracing);
         Assert.assertFalse("Distributed tracing is now disabled", FeatureFlag.featureEnabled(DistributedTracing));
 
-        Assert.assertFalse("LogReporting is enabled by default", FeatureFlag.featureEnabled(LogReporting));
-        FeatureFlag.enableFeature(LogReporting);
-        Assert.assertFalse("LogReporting is disabled until GA", FeatureFlag.featureEnabled(LogReporting));
+        Assert.assertTrue("LogReporting is enabled by default", FeatureFlag.featureEnabled(LogReporting));
+        FeatureFlag.disableFeature(LogReporting);
+        Assert.assertFalse("LogReporting is now disabled", FeatureFlag.featureEnabled(LogReporting));
 
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         FeatureFlag.enableFeature(FedRampEnabled);
@@ -116,8 +116,8 @@ public class FeatureFlagTest {
         Assert.assertTrue("Distributed tracing is now enabled", FeatureFlag.featureEnabled(DistributedTracing));
         Assert.assertTrue("AppStartMetrics is now enabled", FeatureFlag.featureEnabled(AppStartMetrics));
         Assert.assertTrue("ApplicationExitReporting is now enabled", FeatureFlag.featureEnabled(ApplicationExitReporting));
+        Assert.assertTrue("LogReporting is now enabled", FeatureFlag.featureEnabled(LogReporting));
 
-        Assert.assertFalse("LogReporting is now disabled", FeatureFlag.featureEnabled(LogReporting));
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));

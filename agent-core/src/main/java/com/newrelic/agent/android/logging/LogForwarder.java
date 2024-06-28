@@ -29,13 +29,12 @@ import javax.net.ssl.HttpsURLConnection;
  * as its payload data, rather than bytes of the log data itself.
  */
 public class LogForwarder extends PayloadSender {
-    // TODO Provide for EU and FedRamp collectors
-    private final URI LOG_API_URL;
+    private final URI logCollectorUri;
     private final File file;
 
     public LogForwarder(final File logDataFile, AgentConfiguration agentConfiguration) {
         super(logDataFile.getAbsolutePath().getBytes(StandardCharsets.UTF_8), agentConfiguration);
-        LOG_API_URL = getCollectorURI();
+        logCollectorUri = getCollectorURI();
         this.file = logDataFile;
         this.payload.setPersisted(false);   // already in a file
     }
@@ -80,9 +79,8 @@ public class LogForwarder extends PayloadSender {
      */
     @Override
     public int getPayloadSize() {
-        String logDataFile = new String(super.getPayload().getBytes(), StandardCharsets.UTF_8);
         try {
-            return Math.toIntExact(new File(logDataFile).length());
+            return Math.toIntExact(file.length());
         } catch (ArithmeticException e) {
         }
 
@@ -91,7 +89,7 @@ public class LogForwarder extends PayloadSender {
 
     @Override
     protected HttpURLConnection getConnection() throws IOException {
-        HttpsURLConnection connection = (HttpsURLConnection) LOG_API_URL.toURL().openConnection();
+        HttpsURLConnection connection = (HttpsURLConnection) logCollectorUri.toURL().openConnection();
 
         connection.setRequestMethod("POST");
         connection.setRequestProperty(Constants.Network.CONTENT_TYPE_HEADER, Constants.Network.ContentType.JSON);
@@ -130,12 +128,12 @@ public class LogForwarder extends PayloadSender {
 
             case HttpURLConnection.HTTP_ENTITY_TOO_LARGE:
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_UPLOAD_REJECTED);
-                onFailedUpload("The request to rejected due to payload size limits - Response code [" + responseCode + "]");
+                onFailedUpload("The request was rejected due to payload size limits - Response code [" + responseCode + "]");
                 break;
 
             case 429: // Too Many Requests
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_UPLOAD_THROTTLED);
-                onFailedUpload("Log upload requests have been throttled- (will try again later) - Response code [" + responseCode + "]");
+                onFailedUpload("Log upload requests have been throttled (will try again later) - Response code [" + responseCode + "]");
                 break;
 
             case HttpsURLConnection.HTTP_INTERNAL_ERROR:
@@ -168,7 +166,7 @@ public class LogForwarder extends PayloadSender {
     @Override
     protected boolean shouldUploadOpportunistically() {
         try {
-            final String dest = LOG_API_URL.toURL().getHost();
+            final String dest = logCollectorUri.toURL().getHost();
             InetAddress inet = InetAddress.getByName(dest);
             return dest.equals(inet.getHostName());
 

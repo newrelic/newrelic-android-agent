@@ -250,7 +250,7 @@ public class HarvesterTest {
         Assert.assertTrue(harvestConfig.getEntity_guid().isEmpty());
 
         Assert.assertNotNull(harvestConfig.getRemote_configuration().getLogReportingConfiguration());
-        Assert.assertTrue(harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertFalse(harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLoggingEnabled());
         Assert.assertEquals(LogLevel.INFO, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getLogLevel());
         Assert.assertEquals(30, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getHarvestPeriod());
         Assert.assertEquals(172800, harvestConfig.getRemote_configuration().getLogReportingConfiguration().getExpirationPeriod());

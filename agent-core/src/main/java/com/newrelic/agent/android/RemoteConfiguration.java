@@ -30,7 +30,7 @@ public class RemoteConfiguration implements HarvestLifecycleAware, HarvestConfig
 
     public RemoteConfiguration() {
         this.applicationExitConfiguration = new ApplicationExitConfiguration(true);
-        this.logReportingConfiguration = new LogReportingConfiguration(true, LogLevel.INFO);
+        this.logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.INFO);
     }
 
     @Override
