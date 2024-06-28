@@ -43,15 +43,14 @@ public abstract class LogReporting {
     };
 
     public static void initialize(File cacheDir, AgentConfiguration agentConfiguration) throws IOException {
-        LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
-        LogReporter.initialize(cacheDir, agentConfiguration);
-
-        if (LogReporter.getInstance().isEnabled()) {
+        if (agentConfiguration.getLogReportingConfiguration().enabled) {
+            LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
+            LogReporter.initialize(cacheDir, agentConfiguration);
             LogReporter.getInstance().start();
-        }
 
-        if (!LogReporter.getInstance().isStarted()) {
-            agentLogger.log(LogLevel.ERROR, "LogReporting failed to initialize!");
+            if (!LogReporter.getInstance().isStarted()) {
+                agentLogger.log(LogLevel.ERROR, "LogReporting failed to initialize!");
+            }
         }
     }
 

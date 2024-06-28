@@ -98,7 +98,7 @@ public class LogReportingConfiguration extends LoggingConfiguration {
     /**
      * Generate a suitable seed. Range is [1...100];
      */
-    protected static int reseed() {
+    public static int reseed() {
         sampleSeed = (int) (Math.random() * 100.0) + 1;
         return sampleSeed;
     }

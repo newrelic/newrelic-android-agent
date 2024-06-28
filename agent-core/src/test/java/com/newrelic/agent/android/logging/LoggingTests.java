@@ -6,16 +6,11 @@
 package com.newrelic.agent.android.logging;
 
 import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.util.Streams;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,7 +19,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-@Ignore("Until LogReporting GA")
 public class LoggingTests {
     protected static File reportsDir;
     long tStart;
@@ -62,50 +56,30 @@ public class LoggingTests {
         return msg.toString().trim();
     }
 
-    JsonArray verifyWorkingLogFile(int expectedRecordCount) throws IOException {
+    JsonArray verifyWorkingLogfile(int expectedRecordCount) throws IOException {
         LogReporter logReporter = LogReporter.getInstance();
 
         Assert.assertNotNull(logReporter);
-        logReporter.finalizeWorkingLogFile();
+        logReporter.finalizeWorkingLogfile();
 
-        return verifyLogFile(logReporter.workingLogFile, expectedRecordCount);
+        return verifyLogfile(logReporter.workingLogfile, expectedRecordCount);
     }
 
-    JsonArray logDataFileToJsonArray(File logfile) throws IOException {
-        JsonArray jsonArray = new JsonArray();
-
-        try (BufferedReader reader = Streams.newBufferedFileReader(logfile)) {
-            reader.lines().forEach(s -> {
-                if (!(null == s || s.isEmpty())) {
-                    try {
-                        JsonObject messageAsJson = LogReporter.gson.fromJson(s, JsonObject.class);
-                        jsonArray.add(messageAsJson);
-                    } catch (JsonSyntaxException e) {
-                        Assert.fail("Invalid Json entry!");
-                    }
-                }
-
-            });
-        }
-
-        return jsonArray;
-    }
-
-    JsonArray verifyLogFile(File logFile, int expectedRecordCount) throws IOException {
+    JsonArray verifyLogfile(File logFile, int expectedRecordCount) throws IOException {
         List<String> lines = Files.readAllLines(logFile.toPath());
         lines.removeIf(s -> s.isEmpty() || ("[".equals(s) || "]".equals(s)));
         Assert.assertEquals("Expected records lines", expectedRecordCount, lines.size(), 1);
 
-        JsonArray jsonArray = logDataFileToJsonArray(logFile);
+        JsonArray jsonArray = LogReporter.logfileToJsonArray(logFile);
         Assert.assertEquals("Expected JSON records", expectedRecordCount, jsonArray.size());
 
         return jsonArray;
     }
 
-    JsonArray verifySpannedLogFiles(Set<File> logFiles, int expectedRecordCount) throws IOException {
+    JsonArray verifySpannedLogfiles(Set<File> logFiles, int expectedRecordCount) throws IOException {
         JsonArray jsonArray = new JsonArray();
         for (File logFile : logFiles) {
-            jsonArray.addAll(logDataFileToJsonArray(logFile));
+            jsonArray.addAll(LogReporter.logfileToJsonArray(logFile));
         }
         Assert.assertEquals("Expected JSON records", expectedRecordCount, jsonArray.size());
 
@@ -118,7 +92,7 @@ public class LoggingTests {
 
         for (int file = 0; file < numFiles; file++) {
             RemoteLogger remoteLogger = new RemoteLogger();
-            logReporter.resetWorkingLogFile();
+            logReporter.resetWorkingLogfile();
 
             remoteLogger.log(LogLevel.ERROR, getRandomMsg((int) (Math.random() * 30) + 12));
             remoteLogger.log(LogLevel.WARN, getRandomMsg((int) (Math.random() * 30) + 12));
@@ -127,8 +101,8 @@ public class LoggingTests {
             remoteLogger.log(LogLevel.VERBOSE, getRandomMsg((int) (Math.random() * 30) + 12));
             remoteLogger.flush();
 
-            logReporter.finalizeWorkingLogFile();
-            reportSet.add(logReporter.rollWorkingLogFile());
+            logReporter.finalizeWorkingLogfile();
+            reportSet.add(logReporter.rollWorkingLogfile());
         }
 
         return reportSet;
@@ -138,15 +112,12 @@ public class LoggingTests {
         final HashSet<File> reportSet = new HashSet<>();
         final LogReporter logReporter = LogReporter.getInstance();
 
-        minFileSize = Math.min(minFileSize, LogReporter.VORTEX_PAYLOAD_LIMIT);
-
         for (int file = 0; file < numFiles; file++) {
             final RemoteLogger remoteLogger = new RemoteLogger();
 
-            logReporter.resetWorkingLogFile();
-
-            while (logReporter.payloadBudget > 1024 &&
-                    (LogReporter.VORTEX_PAYLOAD_LIMIT - logReporter.payloadBudget) < minFileSize) {
+            logReporter.resetWorkingLogfile();
+            logReporter.payloadBudget = minFileSize;
+            while (logReporter.payloadBudget > 512) {   //  break before teh logReporter rolls the file
                 remoteLogger.log(LogLevel.ERROR, getRandomMsg((int) (Math.random() * 30) + 12));
                 remoteLogger.log(LogLevel.WARN, getRandomMsg((int) (Math.random() * 30) + 12));
                 remoteLogger.log(LogLevel.INFO, getRandomMsg((int) (Math.random() * 30) + 12));
@@ -155,8 +126,8 @@ public class LoggingTests {
                 remoteLogger.flush();
             }
 
-            logReporter.finalizeWorkingLogFile();
-            reportSet.add(logReporter.rollWorkingLogFile());
+            logReporter.finalizeWorkingLogfile();
+            reportSet.add(logReporter.rollWorkingLogfile());
         }
         return reportSet;
     }

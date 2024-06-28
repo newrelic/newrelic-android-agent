@@ -44,7 +44,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
     public void log(LogLevel logLevel, String message) {
         if (isLevelEnabled(logLevel)) {
             message = validator.validate(message);
-            appendToWorkingLogFile(logLevel, message, null, null);
+            appendToWorkingLogfile(logLevel, message, null, null);
         }
     }
 
@@ -52,7 +52,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
     public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
         if (isLevelEnabled(logLevel)) {
             throwable = validator.validate(throwable);
-            appendToWorkingLogFile(logLevel, message, throwable, null);
+            appendToWorkingLogfile(logLevel, message, throwable, null);
         }
     }
 
@@ -64,7 +64,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
 
         if (isLevelEnabled(logLevel)) {
             String message = (String) attributes.getOrDefault(LogReporting.LOG_MESSAGE_ATTRIBUTE, null);
-            appendToWorkingLogFile(logLevel, message, null, attributes);
+            appendToWorkingLogfile(logLevel, message, null, attributes);
         }
     }
 
@@ -77,7 +77,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
         if (isLevelEnabled(logLevel)) {
             String message = (String) attributes.getOrDefault(LogReporting.LOG_MESSAGE_ATTRIBUTE, null);
             message = validator.validate(message);
-            appendToWorkingLogFile(LogLevel.valueOf(level.toUpperCase()), message, throwable, attributes);
+            appendToWorkingLogfile(LogLevel.valueOf(level.toUpperCase()), message, throwable, attributes);
         }
     }
 
@@ -91,7 +91,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
      *                   Convert the classes to static nested classes to enable serialization and deserialization for them.
      * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#simple-json
      */
-    public void appendToWorkingLogFile(final LogLevel logLevel, final String message, final Throwable throwable, final Map<String, Object> attributes) {
+    public void appendToWorkingLogfile(final LogLevel logLevel, final String message, final Throwable throwable, final Map<String, Object> attributes) {
         if (!(LogReporting.isRemoteLoggingEnabled() && isLevelEnabled(logLevel))) {
             return;
         }
@@ -159,14 +159,14 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                 }
 
                 // pass data map to the reporter
-                logReporter.appendToWorkingLogFile(logDataMap);
+                logReporter.appendToWorkingLogfile(logDataMap);
 
             } catch (IOException e) {
                 AgentLogManager.getAgentLog().error("Error recording log message: " + e.toString());
 
                 // try recovery:
                 if (!(executor.isTerminating() || executor.isShutdown())) {
-                    if (null != logReporter.resetWorkingLogFile()) {
+                    if (null != logReporter.resetWorkingLogfile()) {
                         // super.logAttributes(logDataMap);
                     }
                 }
