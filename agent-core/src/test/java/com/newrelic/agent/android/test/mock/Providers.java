@@ -156,7 +156,7 @@ public class Providers {
     }
 
     public static Trace provideMethodTrace() throws TracingInactiveException, InterruptedException {
-        TraceMachine.enterMethod("methodTrace");
+        TraceMachine.enterMethod("tracedMethod");
         Trace trace = TraceMachine.getCurrentTrace();
         Assert.assertEquals(TraceType.TRACE, trace.getType());
         Thread.sleep(100);

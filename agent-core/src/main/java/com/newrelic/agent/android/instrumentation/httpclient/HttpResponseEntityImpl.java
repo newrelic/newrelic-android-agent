@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android.instrumentation.httpclient;
 
-import com.newrelic.agent.android.Measurements;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.instrumentation.TransactionState;
@@ -17,7 +16,7 @@ import com.newrelic.agent.android.instrumentation.io.StreamCompleteListener;
 import com.newrelic.agent.android.instrumentation.io.StreamCompleteListenerSource;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.util.Constants;
 
 import org.apache.http.Header;

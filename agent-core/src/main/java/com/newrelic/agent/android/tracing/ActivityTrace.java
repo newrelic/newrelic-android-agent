@@ -59,14 +59,14 @@ public class ActivityTrace extends HarvestableArray {
 
     private static final String SIZE_NORMAL = "NORMAL";
 
-    private static final HashMap<String, String> ENVIRONMENT_TYPE = new HashMap<String, String>() {{
+    private static final HashMap<String, String> ENVIRONMENT_TYPE = new HashMap<>() {{
         put("type", "ENVIRONMENT");
     }};
-    private static final HashMap<String, String> VITALS_TYPE = new HashMap<String, String>() {{
+    private static final HashMap<String, String> VITALS_TYPE = new HashMap<>() {{
         put("type", "VITALS");
     }};
 
-    private static final HashMap<String, String> ACTIVITY_HISTORY_TYPE = new HashMap<String, String>() {{
+    private static final HashMap<String, String> ACTIVITY_HISTORY_TYPE = new HashMap<>() {{
         put("type", "ACTIVITY_HISTORY");
     }};
 
@@ -127,8 +127,9 @@ public class ActivityTrace extends HarvestableArray {
 
         // Since there's no well defined end to a trace, we'll just use the timestamp of the last thing we record as the
         // duration of the activity trace.
-        if (trace.exitTimestamp > rootTrace.exitTimestamp)
+        if (trace.exitTimestamp > rootTrace.exitTimestamp) {
             rootTrace.exitTimestamp = trace.exitTimestamp;
+        }
 
         log.verbose("Added trace " + trace.myUUID.toString() + " missing children: " + missingChildren.size());
 

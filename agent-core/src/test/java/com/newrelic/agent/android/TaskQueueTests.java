@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2022-present New Relic Corporation. All rights reserved.
+ * Copyright (c) 2022-2024. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android.background;
+package com.newrelic.agent.android;
 
 import com.newrelic.agent.android.TaskQueue;
 import org.junit.Assert;

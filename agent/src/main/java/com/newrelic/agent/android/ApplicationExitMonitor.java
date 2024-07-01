@@ -144,7 +144,7 @@ public class ApplicationExitMonitor {
                     StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped);
                 }
 
-                log.debug("AEI: inspected " + applicationExitInfos.size() + " records: new[ " + recordsVisited + "] existing [" + recordsSkipped + "]");
+                log.debug("AEI: inspected " + applicationExitInfos.size() + " records: new[" + recordsVisited + "] existing [" + recordsSkipped + "]");
             }
 
             if (eventsAdded) {

@@ -13,7 +13,7 @@ import com.newrelic.agent.android.instrumentation.io.StreamCompleteEvent;
 import com.newrelic.agent.android.instrumentation.io.StreamCompleteListener;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.util.Constants;
 
 import java.io.IOException;

@@ -6,6 +6,8 @@
 package com.newrelic.agent.android.measurement.consumer;
 
 import com.newrelic.agent.android.harvest.HarvestAdapter;
+import com.newrelic.agent.android.logging.AgentLog;
+import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.measurement.Measurement;
 import com.newrelic.agent.android.measurement.MeasurementType;
 
@@ -17,6 +19,7 @@ import java.util.Collection;
  * implementation does nothing and does not retain the {@code Measurement}.
  */
 public class BaseMeasurementConsumer extends HarvestAdapter implements MeasurementConsumer {
+    protected static final AgentLog log = AgentLogManager.getAgentLog();
     private final MeasurementType measurementType;
 
     public BaseMeasurementConsumer(MeasurementType measurementType) {

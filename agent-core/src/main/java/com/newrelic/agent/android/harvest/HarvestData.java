@@ -207,6 +207,10 @@ public class HarvestData extends HarvestableArray implements HarvestConfigurable
     }
 
     public MachineMeasurements getMetrics() {
+        return getMachineMeasurements();
+    }
+
+    public MachineMeasurements getMachineMeasurements() {
         return machineMeasurements;
     }
 

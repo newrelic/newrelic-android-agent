@@ -9,6 +9,7 @@ import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.HarvestAdapter;
+import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -22,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class StatsEngine extends HarvestAdapter {
     public final static StatsEngine INSTANCE = new StatsEngine();
     public final static StatsEngine SUPPORTABILITY = new SupportabilityDecorator();
+    final static AgentLog log = AgentLogManager.getAgentLog();
 
     public boolean enabled = true;
 
@@ -31,10 +33,22 @@ public class StatsEngine extends HarvestAdapter {
         // You should never externally call new on a singleton.
     }
 
+    /**
+     * Returns a singleton of the StatsEngine instance
+     *
+     * @return Global instance used by the agent.
+     */
     public static StatsEngine get() {
         return INSTANCE;
     }
 
+    /**
+     * The SUPPORTABILITY instance should be used for internal supportability metrics.
+     * Call this method rather than get()
+     *
+     * @return Teh instance of a STatsEngine that decorates metric name templates with platform
+     * and version info.
+     */
     public static StatsEngine notice() {
         return SUPPORTABILITY;
     }
@@ -53,10 +67,10 @@ public class StatsEngine extends HarvestAdapter {
     }
 
     /**
-     * Increment a metric by n.
+     * Increment a metric count by a positive value.
      *
      * @param name  Name of the metric to increment.
-     * @param count Number to increment this metric by.
+     * @param count Number to increment this metric by. Negative increments are ignored.
      */
     public void inc(String name, long count) {
         Metric m = lazyGet(name);
@@ -76,7 +90,6 @@ public class StatsEngine extends HarvestAdapter {
         Metric m = lazyGet(name);
 
         synchronized (m) {
-            // s.haveTime = true;
             m.sample(value);
         }
     }
@@ -100,10 +113,14 @@ public class StatsEngine extends HarvestAdapter {
      * Record a time in milliseconds. This will also increment callCount by 1.
      *
      * @param name Name of the metric.
-     * @param time Time this call took in milliseconds.
+     * @param time Time this call took in milliseconds. Negative time values are ignored.
      */
     public void sampleTimeMs(String name, long time) {
-        sample(name, (float) time / 1000f);
+        if (time >= 0f && name != null) {
+            sample(name, (float) time / 1000f);
+        } else {
+            log.error("StatsEngine.sampleTimeMs() called with negative time value[" + time + "] or missing metric name.");
+        }
     }
 
     /**
@@ -189,7 +206,6 @@ public class StatsEngine extends HarvestAdapter {
      * test scenarios.
      */
     public synchronized static void disable() {
-
         INSTANCE.enabled = false;
         SUPPORTABILITY.enabled = false;
     }
@@ -198,7 +214,6 @@ public class StatsEngine extends HarvestAdapter {
      * Enable the Stats Engine (enabled by default).
      */
     public synchronized static void enable() {
-
         INSTANCE.enabled = true;
         SUPPORTABILITY.enabled = true;
     }

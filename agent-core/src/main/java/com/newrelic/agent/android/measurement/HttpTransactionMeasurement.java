@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2022-present New Relic Corporation. All rights reserved.
+ * Copyright (c) 2022-2024. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android.measurement.http;
+package com.newrelic.agent.android.measurement;
 
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.TraceContext;

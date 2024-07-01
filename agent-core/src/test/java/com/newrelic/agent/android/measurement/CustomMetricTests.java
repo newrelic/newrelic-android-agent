@@ -5,8 +5,8 @@
 
 package com.newrelic.agent.android.measurement;
 
-import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
-import com.newrelic.agent.android.measurement.producer.CustomMetricProducer;
+import com.newrelic.agent.android.measurement.consumer.CustomMetricMeasurementConsumer;
+import com.newrelic.agent.android.measurement.producer.CustomMetricMeasurementProducer;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricStore;
 import com.newrelic.agent.android.metric.MetricUnit;
@@ -23,7 +23,7 @@ public class CustomMetricTests {
 
     @Test
     public void testMetricNameFilteringAndUnits() {
-        CustomMetricProducer producer = new CustomMetricProducer();
+        CustomMetricMeasurementProducer producer = new CustomMetricMeasurementProducer();
 
         producer.produceMeasurement("Foo/bar", "Database" , 1, 1.0, 1.0, MetricUnit.OPERATIONS, MetricUnit.SECONDS);
         Collection<Measurement> measurements =  producer.drainMeasurements();
@@ -36,7 +36,7 @@ public class CustomMetricTests {
 
     @Test
     public void testConsumerAggregatesCustomMetric() {
-        TestCustomMetricConsumer consumer = new TestCustomMetricConsumer();
+        TestCustomMetricMeasurementConsumer consumer = new TestCustomMetricMeasurementConsumer();
 
         CustomMetricMeasurement metricMeasurement = new CustomMetricMeasurement("Foobar", 1, 1.0, 1.0);
 
@@ -61,7 +61,7 @@ public class CustomMetricTests {
         Assert.assertEquals(2, metric.getCount());
     }
 
-    class TestCustomMetricConsumer extends CustomMetricConsumer {
+    class TestCustomMetricMeasurementConsumer extends CustomMetricMeasurementConsumer {
         public MetricStore getMetrics() {
             return metrics;
         }

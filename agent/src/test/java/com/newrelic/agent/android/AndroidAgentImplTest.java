@@ -30,6 +30,11 @@ import com.newrelic.agent.android.harvest.Harvester;
 import com.newrelic.agent.android.harvest.MachineMeasurements;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
+import com.newrelic.agent.android.logging.ForwardingAgentLog;
+import com.newrelic.agent.android.logging.LogLevel;
+import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.LogReportingConfiguration;
+import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricStore;
@@ -43,6 +48,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.robolectric.RobolectricTestRunner;
 
 import java.util.Collection;
@@ -376,6 +382,27 @@ public class AndroidAgentImplTest {
         Assert.assertEquals(AgentConfiguration.DEVICE_UUID_MAX_LEN, uuid.length());
         Assert.assertTrue(StatsEngine.get().getStatsMap().containsKey(MetricNames.METRIC_UUID_TRUNCATED));
     }
+
+    @Test
+    public void testForwardingAgentLogging() throws AgentInitializationException {
+        FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+
+        agentConfig = Mockito.spy(agentConfig);
+
+        LogReportingConfiguration loggingConfig = spy(agentConfig.getLogReportingConfiguration());
+        Mockito.when(agentConfig.getLogReportingConfiguration()).thenReturn(loggingConfig);
+
+        agentConfig.getLogReportingConfiguration().setLoggingEnabled(true);
+        agentConfig.getLogReportingConfiguration().setLogLevel(LogLevel.INFO);
+        agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
+        Assert.assertFalse(AgentLogManager.getAgentLog() instanceof ForwardingAgentLog);
+
+        Mockito.when(loggingConfig.getLoggingEnabled()).thenReturn(true);
+        agentConfig.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
+        agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
+        Assert.assertTrue(AgentLogManager.getAgentLog() instanceof ForwardingAgentLog);
+    }
+
 
     private void agentStart() throws InterruptedException {
         Agent.start();

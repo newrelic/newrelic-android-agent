@@ -163,14 +163,6 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
 
             } catch (IOException e) {
                 AgentLogManager.getAgentLog().error("Error recording log message: " + e.toString());
-
-                // try recovery:
-                if (!(executor.isTerminating() || executor.isShutdown())) {
-                    if (null != logReporter.resetWorkingLogfile()) {
-                        // super.logAttributes(logDataMap);
-                    }
-                }
-
                 return false;
 
             } finally {
