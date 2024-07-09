@@ -30,11 +30,10 @@ import com.newrelic.agent.android.harvest.Harvester;
 import com.newrelic.agent.android.harvest.MachineMeasurements;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
+import com.newrelic.agent.android.logging.DefaultAgentLog;
 import com.newrelic.agent.android.logging.ForwardingAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
-import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
-import com.newrelic.agent.android.logging.RemoteLogger;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricStore;
@@ -386,6 +385,7 @@ public class AndroidAgentImplTest {
     @Test
     public void testForwardingAgentLogging() throws AgentInitializationException {
         FeatureFlag.enableFeature(FeatureFlag.LogReporting);
+        Assert.assertTrue(AgentLogManager.getAgentLog() instanceof DefaultAgentLog);
 
         agentConfig = Mockito.spy(agentConfig);
 
@@ -395,12 +395,13 @@ public class AndroidAgentImplTest {
         agentConfig.getLogReportingConfiguration().setLoggingEnabled(true);
         agentConfig.getLogReportingConfiguration().setLogLevel(LogLevel.INFO);
         agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
-        Assert.assertFalse(AgentLogManager.getAgentLog() instanceof ForwardingAgentLog);
+        DefaultAgentLog log = (DefaultAgentLog) AgentLogManager.getAgentLog();
+        Assert.assertTrue(log.getInstance() instanceof ConsoleAgentLog);
 
         Mockito.when(loggingConfig.getLoggingEnabled()).thenReturn(true);
         agentConfig.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
         agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
-        Assert.assertTrue(AgentLogManager.getAgentLog() instanceof ForwardingAgentLog);
+        Assert.assertTrue(log.getInstance() instanceof ForwardingAgentLog);
     }
 
 
