@@ -81,13 +81,15 @@ public class ApplicationStateMonitor {
     }
 
     public void activityStarted() {
+        log.info("Activity appears to have started");
+        log.info("Activity count: " + activityCount.get());
         final Runnable runner = () -> {
-            if (activityCount.incrementAndGet() == 1 && !foregrounded.get()) {
+            if (!foregrounded.get()) {
                 foregrounded.set(true);
                 notifyApplicationInForeground();
             }
         };
-
+        log.verbose("Activity count: " + activityCount.get());
         executor.execute(runner);
     }
 
