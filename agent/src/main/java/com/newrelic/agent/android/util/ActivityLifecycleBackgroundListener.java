@@ -24,14 +24,30 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
     @Override
     public void onActivityResumed(Activity activity) {
         log.info("ActivityLifecycleBackgroundListener.onActivityResumed");
-        if (isInBackground.getAndSet(false)) {
+        log.info("ActivityLifecycleBackgroundListener.onActivityResumed isInBackground: " + isInBackground.get());
+
+        if(!isInBackground.get()) {
+            log.info("ActivityLifecycleBackgroundListener.onActivityResumed isInBackground: " + !isInBackground.get());
             Runnable runner = new Runnable() {
                 @Override
                 public void run() {
+                    log.info("ActivityLifecycleBackgroundListener.onActivityResumed - notifying ApplicationStateMonitor");
                     ApplicationStateMonitor.getInstance().activityStarted();
                 }
             };
             executor.submit(runner);
+        } else {
+
+            if (isInBackground.getAndSet(false)) {
+                Runnable runner = new Runnable() {
+                    @Override
+                    public void run() {
+                        log.info("ActivityLifecycleBackgroundListener.onActivityResumed - notifying ApplicationStateMonitor");
+                        ApplicationStateMonitor.getInstance().activityStarted();
+                    }
+                };
+                executor.submit(runner);
+            }
         }
     }
 
@@ -58,6 +74,7 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
     // Necessary to detect Power button presses
     @Override
     public void onActivityStarted(Activity activity) {
+        log.info("ActivityLifecycleBackgroundListener.onActivityStarted");
         if (isInBackground.compareAndSet(true, false)) {
             Runnable runner = new Runnable() {
                 @Override
