@@ -31,17 +31,16 @@ public enum MetricCategory {
     }
 
     public static MetricCategory categoryForMethod(String fullMethodName) {
-        if (fullMethodName == null)
+        if (fullMethodName == null) {
             return MetricCategory.NONE;
+        }
 
         String methodName = null;
         int hashIndex = fullMethodName.indexOf("#");
         if (hashIndex >= 0) {
             methodName = fullMethodName.substring(hashIndex + 1);
         }
-        MetricCategory category = methodMap.get(methodName);
-        if (category == null)
-            category = MetricCategory.NONE;
-        return category;
+
+        return methodMap.getOrDefault(methodName, MetricCategory.NONE);
     }
 }

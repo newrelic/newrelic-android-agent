@@ -9,13 +9,19 @@ import com.newrelic.agent.android.harvest.AgentHealth;
 import com.newrelic.agent.android.harvest.AgentHealthException;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestAdapter;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.tracing.ActivityTrace;
 import com.newrelic.agent.android.tracing.Trace;
 import com.newrelic.agent.android.util.NamedThreadFactory;
 
-import java.util.concurrent.*;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class queues objects for asynchronous distribution to the internal Harvest and Measurement APIs. This allows
@@ -31,13 +37,8 @@ public class TaskQueue extends HarvestAdapter {
 
     private static final ScheduledExecutorService queueExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("TaskQueue"));
     private static final ConcurrentLinkedQueue<Object> queue = new ConcurrentLinkedQueue<Object>();
-    private static final Runnable dequeueTask = new Runnable() {
-        @Override
-        public void run() {
-            TaskQueue.dequeue();
-        }
-    };
-    private static Future dequeueFuture;
+    private static final Runnable dequeueTask = () -> TaskQueue.dequeue();
+    protected static Future dequeueFuture;
 
     /**
      * Enqueue an object into the internal queue.
@@ -73,21 +74,19 @@ public class TaskQueue extends HarvestAdapter {
      * Start the periodic dequeue task.
      */
     public static void start() {
-        if (dequeueFuture != null)
-            return;
-
-        dequeueFuture = queueExecutor.scheduleAtFixedRate(dequeueTask, 0, DEQUEUE_PERIOD_MS, TimeUnit.MILLISECONDS);
+        if (dequeueFuture == null) {
+            dequeueFuture = queueExecutor.scheduleWithFixedDelay(dequeueTask, 0, DEQUEUE_PERIOD_MS, TimeUnit.MILLISECONDS);
+        }
     }
 
     /**
      * Stop the periodic dequeue task.
      */
     public static void stop() {
-        if (dequeueFuture == null)
-            return;
-
-        dequeueFuture.cancel(true);
-        dequeueFuture = null;
+        if (dequeueFuture != null) {
+            dequeueFuture.cancel(true);
+            dequeueFuture = null;
+        }
     }
 
     /**
@@ -149,7 +148,7 @@ public class TaskQueue extends HarvestAdapter {
     }
 
     /**
-     * Returns the size of the internal queue. Used in unit tests.
+     * Returns the size of the internal queue.
      *
      * @return size of the internal queue.
      */
@@ -158,9 +157,16 @@ public class TaskQueue extends HarvestAdapter {
     }
 
     /**
-     * Clear the internal queue. Used in unit tests.
+     * Clear the internal queue.
      */
     public static void clear() {
         queue.clear();
+    }
+
+    /**
+     * Expose the implementation queue
+     */
+    protected static Queue<Object> getQueue() {
+        return queue;
     }
 }

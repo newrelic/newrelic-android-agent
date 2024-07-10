@@ -6,27 +6,24 @@
 package com.newrelic.agent.android;
 
 import com.newrelic.agent.android.activity.MeasuredActivity;
-import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.measurement.ThreadInfo;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.MeasurementEngine;
 import com.newrelic.agent.android.measurement.consumer.ActivityMeasurementConsumer;
-import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
-import com.newrelic.agent.android.measurement.consumer.HttpTransactionHarvestingConsumer;
+import com.newrelic.agent.android.measurement.consumer.CustomMetricMeasurementConsumer;
+import com.newrelic.agent.android.measurement.consumer.HttpTransactionMeasurementConsumer;
 import com.newrelic.agent.android.measurement.consumer.MeasurementConsumer;
 import com.newrelic.agent.android.measurement.consumer.MethodMeasurementConsumer;
 import com.newrelic.agent.android.measurement.consumer.SummaryMetricMeasurementConsumer;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
 import com.newrelic.agent.android.measurement.producer.ActivityMeasurementProducer;
-import com.newrelic.agent.android.measurement.producer.CustomMetricProducer;
+import com.newrelic.agent.android.measurement.producer.CustomMetricMeasurementProducer;
 import com.newrelic.agent.android.measurement.producer.MeasurementProducer;
 import com.newrelic.agent.android.measurement.producer.MethodMeasurementProducer;
 import com.newrelic.agent.android.measurement.producer.NetworkMeasurementProducer;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.tracing.Trace;
-
-import java.util.Map;
 
 /**
  * Primary user facing API for the Measurement Engine. Static methods which wrap an instance of a {@link MeasurementEngine}.
@@ -34,20 +31,20 @@ import java.util.Map;
 public class Measurements {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
-    private static final MeasurementEngine measurementEngine = new MeasurementEngine();
+    protected static final MeasurementEngine measurementEngine = new MeasurementEngine();
 
     // Measurement Producers
     private final static NetworkMeasurementProducer networkMeasurementProducer = new NetworkMeasurementProducer();
     private final static ActivityMeasurementProducer activityMeasurementProducer = new ActivityMeasurementProducer();
     private final static MethodMeasurementProducer methodMeasurementProducer = new MethodMeasurementProducer();
-    private final static CustomMetricProducer customMetricProducer = new CustomMetricProducer();
+    private final static CustomMetricMeasurementProducer customMetricMeasurementProducer = new CustomMetricMeasurementProducer();
 
-    // Measurement Consumers, Metric Producers
-    private final static HttpTransactionHarvestingConsumer httpTransactionHarvester = new HttpTransactionHarvestingConsumer();
+    // Measurement Consumers
+    private final static HttpTransactionMeasurementConsumer httpTransactionHarvester = new HttpTransactionMeasurementConsumer();
     private final static ActivityMeasurementConsumer activityConsumer = new ActivityMeasurementConsumer();
     private final static MethodMeasurementConsumer methodMeasurementConsumer = new MethodMeasurementConsumer();
+    private final static CustomMetricMeasurementConsumer customMetricMeasurementConsumer = new CustomMetricMeasurementConsumer();
     private final static SummaryMetricMeasurementConsumer summaryMetricMeasurementConsumer = new SummaryMetricMeasurementConsumer();
-    private final static CustomMetricConsumer customMetricConsumer = new CustomMetricConsumer();
 
     private static boolean broadcastNewMeasurements = true;
 
@@ -58,19 +55,19 @@ public class Measurements {
         log.info("Measurement Engine initialized.");
         TaskQueue.start();
 
-        // HTTP Error Measurements
+        // Producers
+        addMeasurementProducer(measurementEngine.getRootMeasurementPool());
         addMeasurementProducer(networkMeasurementProducer);
-
         addMeasurementProducer(activityMeasurementProducer);
         addMeasurementProducer(methodMeasurementProducer);
-        addMeasurementProducer(customMetricProducer);
+        addMeasurementProducer(customMetricMeasurementProducer);
 
         // Consumers
         addMeasurementConsumer(httpTransactionHarvester);
         addMeasurementConsumer(activityConsumer);
         addMeasurementConsumer(methodMeasurementConsumer);
+        addMeasurementConsumer(customMetricMeasurementConsumer);
         addMeasurementConsumer(summaryMetricMeasurementConsumer);
-        addMeasurementConsumer(customMetricConsumer);
     }
 
     /**
@@ -81,16 +78,17 @@ public class Measurements {
         measurementEngine.clear();
 
         log.info("Measurement Engine shutting down.");
+        removeMeasurementProducer(measurementEngine.getRootMeasurementPool());
         removeMeasurementProducer(networkMeasurementProducer);
         removeMeasurementProducer(activityMeasurementProducer);
         removeMeasurementProducer(methodMeasurementProducer);
-        removeMeasurementProducer(customMetricProducer);
+        removeMeasurementProducer(customMetricMeasurementProducer);
 
         removeMeasurementConsumer(httpTransactionHarvester);
         removeMeasurementConsumer(activityConsumer);
         removeMeasurementConsumer(methodMeasurementConsumer);
+        removeMeasurementConsumer(customMetricMeasurementConsumer);
         removeMeasurementConsumer(summaryMetricMeasurementConsumer);
-        removeMeasurementConsumer(customMetricConsumer);
     }
 
     /*** Measurement Production APIs ***/
@@ -109,17 +107,10 @@ public class Measurements {
 
     /* Custom Metrics */
 
-    public static void addCustomMetric(String name, String category, int count, double totalValue, double exclusiveValue) {
-        if (Harvest.isDisabled()) return;
-
-        customMetricProducer.produceMeasurement(name, category, count, totalValue, exclusiveValue);
-        newMeasurementBroadcast();
-    }
-
     public static void addCustomMetric(String name, String category, int count, double totalValue, double exclusiveValue, MetricUnit countUnit, MetricUnit valueUnit) {
         if (Harvest.isDisabled()) return;
 
-        customMetricProducer.produceMeasurement(name, category, count, totalValue, exclusiveValue, countUnit, valueUnit);
+        customMetricMeasurementProducer.produceMeasurement(name, category, count, totalValue, exclusiveValue, countUnit, valueUnit);
         newMeasurementBroadcast();
     }
 
@@ -180,11 +171,11 @@ public class Measurements {
      * @param activity The {@code MeasuredActivity} to end.
      */
     public static void endActivity(MeasuredActivity activity) {
-        if (Harvest.isDisabled()) return;
-
-        measurementEngine.endActivity(activity);
-        activityMeasurementProducer.produceMeasurement(activity);
-        newMeasurementBroadcast();
+        if (!Harvest.isDisabled()) {
+            measurementEngine.endActivity(activity);
+            activityMeasurementProducer.produceMeasurement(activity);
+            newMeasurementBroadcast();
+        }
     }
 
     /**

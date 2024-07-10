@@ -15,7 +15,7 @@ public class MetricStore {
     private final Map<String, Map<String, Metric>> metricStore;
 
     public MetricStore() {
-        metricStore = new ConcurrentHashMap<String, Map<String, Metric>>();
+        metricStore = new ConcurrentHashMap<>();
     }
 
     public void add(Metric metric) {
@@ -40,13 +40,14 @@ public class MetricStore {
     public Metric get(String name, String scope) {
         try {
             return metricStore.get(scope == null ? "" : scope).get(name);
-        } catch (NullPointerException e) {
-            return null;
+        } catch (NullPointerException ignored) {
         }
+
+        return null;
     }
 
     public List<Metric> getAll() {
-        List<Metric> metrics = new ArrayList<Metric>();
+        List<Metric> metrics = new ArrayList<>();
 
         for (Map.Entry<String, Map<String, Metric>> entry : metricStore.entrySet()) {
             for (Map.Entry<String, Metric> metricEntry : entry.getValue().entrySet()) {
@@ -79,11 +80,13 @@ public class MetricStore {
         final String scope = metric.getStringScope();
         final String name = metric.getName();
 
-        if (!metricStore.containsKey(scope))
+        if (!metricStore.containsKey(scope)) {
             return;
+        }
 
-        if (!metricStore.get(scope).containsKey(name))
+        if (!metricStore.get(scope).containsKey(name)) {
             return;
+        }
 
         metricStore.get(scope).remove(name);
     }

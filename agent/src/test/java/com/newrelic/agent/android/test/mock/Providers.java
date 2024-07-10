@@ -129,7 +129,6 @@ public class Providers {
     }
 
     public static Trace provideNetworkTrace() throws TracingInactiveException, InterruptedException {
-        TransactionState transactionState = provideTransactionState();
         Trace trace = TraceMachine.getCurrentTrace();
         Assert.assertEquals(TraceType.NETWORK, trace.getType());
         Thread.sleep(100);

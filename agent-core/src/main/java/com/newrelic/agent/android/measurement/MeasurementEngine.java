@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android;
+package com.newrelic.agent.android.measurement;
 
 import com.newrelic.agent.android.activity.MeasuredActivity;
 import com.newrelic.agent.android.activity.NamedActivity;
@@ -27,8 +27,8 @@ import java.util.concurrent.Future;
  */
 public class MeasurementEngine {
     private static final AgentLog log = AgentLogManager.getAgentLog();
-    final Map<String, MeasuredActivity> activities = new ConcurrentHashMap<String, MeasuredActivity>();
-    final MeasurementPool rootMeasurementPool = new MeasurementPool();
+    private final Map<String, MeasuredActivity> activities = new ConcurrentHashMap<>();
+    private final MeasurementPool rootMeasurementPool = new MeasurementPool();
 
     /**
      * Record the start of a new {@code MeasuredActivity}.
@@ -45,17 +45,14 @@ public class MeasurementEngine {
         final NamedActivity activity = new NamedActivity(activityName);
 
         // MeasurementEngines are allocated on the man (UI) thread, so anything that
-        // blocks during construction will block the UI thread, possibly causing and ANR.
+        // blocks during construction will block the UI thread, possibly causing an ANR.
         // There's not really a cleaner way, but the most precise point to decouple the
         // threads is here, when the new pool is assigned. The NamedActivity doesn't use
         // the pool directly, so postponing its addition to the instance should be safe.
 
-        bg(new Runnable() {
-            @Override
-            public void run() {
-                activity.setMeasurementPool(measurementPool);
-                rootMeasurementPool.addMeasurementConsumer(measurementPool);
-            }
+        runOnBackgroundThread(() -> {
+            activity.setMeasurementPool(measurementPool);
+            rootMeasurementPool.addMeasurementConsumer(measurementPool);
         });
 
         activities.put(activityName, activity);
@@ -152,11 +149,19 @@ public class MeasurementEngine {
         rootMeasurementPool.broadcastMeasurements();
     }
 
+    public Map<String, MeasuredActivity> getActivities() {
+        return activities;
+    }
+
+    public MeasurementPool getRootMeasurementPool() {
+        return rootMeasurementPool;
+    }
+
 
     // use judiciously
-    private final ExecutorService worker = Executors.newCachedThreadPool(new NamedThreadFactory("MeasurementEngine"));
+    protected final ExecutorService worker = Executors.newCachedThreadPool(new NamedThreadFactory("MeasurementEngine"));
 
-    Future<?> bg(Runnable runnable) {
+    Future<?> runOnBackgroundThread(Runnable runnable) {
         Future<?> future = null;
         try {
              future = worker.submit(runnable);

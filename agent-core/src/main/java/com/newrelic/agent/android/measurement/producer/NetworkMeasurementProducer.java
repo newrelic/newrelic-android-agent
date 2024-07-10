@@ -6,7 +6,7 @@
 package com.newrelic.agent.android.measurement.producer;
 
 import com.newrelic.agent.android.measurement.MeasurementType;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.util.Util;
 
 public class NetworkMeasurementProducer extends BaseMeasurementProducer {
@@ -24,10 +24,10 @@ public class NetworkMeasurementProducer extends BaseMeasurementProducer {
 
     public void produceMeasurement(HttpTransactionMeasurement transactionMeasurement) {
         String url = Util.sanitizeUrl(transactionMeasurement.getUrl());
-        if (url == null)
-            return;
 
-        transactionMeasurement.setUrl(url);
-        super.produceMeasurement(transactionMeasurement);
+        if (url != null) {
+            transactionMeasurement.setUrl(url);
+            super.produceMeasurement(transactionMeasurement);
+        }
     }
 }

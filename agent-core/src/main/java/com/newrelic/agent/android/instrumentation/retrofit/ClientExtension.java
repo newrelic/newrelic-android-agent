@@ -13,7 +13,7 @@ import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.util.Constants;
 
 import java.io.IOException;

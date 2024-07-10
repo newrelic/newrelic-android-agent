@@ -14,7 +14,8 @@ import com.newrelic.agent.android.api.common.CarrierType;
 import com.newrelic.agent.android.api.common.WanType;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HttpTransaction;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.MeasurementTest;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 
@@ -28,7 +29,7 @@ import java.util.Collection;
 import java.util.HashMap;
 
 @RunWith(JUnit4.class)
-public class HttpTransactionHarvestingConsumerTests {
+public class HttpTransactionHarvestingMeasurementTests extends MeasurementTest {
     private static final String TEST_URL = "https://dispicable.me";
     private static final String TEST_METHOD = "Man";
     private static final int TEST_STATUS = 204;
@@ -39,7 +40,7 @@ public class HttpTransactionHarvestingConsumerTests {
     private static final String TEST_RESPONSE_BODY = "Test";
 
     private TestStubAgentImpl agent;
-    private HttpTransactionHarvestingConsumer consumer;
+    private HttpTransactionMeasurementConsumer consumer;
     private final Long noTimeLikeThePresent = System.currentTimeMillis();
 
     @Before
@@ -47,7 +48,7 @@ public class HttpTransactionHarvestingConsumerTests {
         agent = new TestStubAgentImpl();
         Agent.setImpl(agent);
 
-        consumer = new HttpTransactionHarvestingConsumer();
+        consumer = new HttpTransactionMeasurementConsumer();
         Harvest.getInstance().createHarvester();
 
         FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
@@ -168,7 +169,7 @@ public class HttpTransactionHarvestingConsumerTests {
         return measurement;
     }
 
-    private static class TestStubAgentImpl extends StubAgentImpl {
+    static class TestStubAgentImpl extends StubAgentImpl {
         private String wanType = WanType.CDMA;
 
         public void setNetworkCarrier(String networkCarrier) {

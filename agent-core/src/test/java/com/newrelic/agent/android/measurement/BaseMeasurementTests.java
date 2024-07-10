@@ -11,7 +11,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class MeasurementTests {
+public class BaseMeasurementTests {
 
     @Test
     public void testGetMeasurementType() {
@@ -24,11 +24,9 @@ public class MeasurementTests {
         BaseMeasurement measurement = new BaseMeasurement(MeasurementType.Activity);
 
         measurement.setStartTime(System.currentTimeMillis());
-
         Assert.assertTrue(measurement.isInstantaneous());
 
         measurement.setEndTime(System.currentTimeMillis());
-
         Assert.assertFalse(measurement.isInstantaneous());
     }
 
@@ -76,7 +74,6 @@ public class MeasurementTests {
         CustomMetricMeasurement measurement = new CustomMetricMeasurement();
 
         measurement.setName("Custom measurement"); // What does a Measurement name really look like?
-
         Assert.assertEquals("Custom measurement", measurement.getName());
 
         measurement.setThreadInfo(new ThreadInfo() {
@@ -103,6 +100,5 @@ public class MeasurementTests {
         measurement2.setThreadInfo(new ThreadInfo());
 
         Assert.assertEquals(measurement.getThreadInfo().getId(), measurement2.getThreadInfo().getId());
-
     }
 }

@@ -29,7 +29,12 @@ public abstract class MetricMeasurementConsumer extends BaseMeasurementConsumer 
     public void consumeMeasurement(Measurement measurement) {
         final String name = formatMetricName(measurement.getName());
         final String scope = measurement.getScope();
-        final double delta = measurement.getEndTimeInSeconds() - measurement.getStartTimeInSeconds();
+        final double durationInSeconds = measurement.getEndTimeInSeconds() - measurement.getStartTimeInSeconds();
+
+        if (durationInSeconds < 0.) {
+            log.error("consumeMeasurement: measurement duration value[" + measurement.getName() + "] is negative!");
+            return;
+        }
 
         // We record both a scoped and an unscoped metric for scoped measurements
         if (scope != null) {
@@ -39,22 +44,22 @@ public abstract class MetricMeasurementConsumer extends BaseMeasurementConsumer 
                 metrics.add(scopedMetric);
             }
 
-            scopedMetric.sample(delta);
+            scopedMetric.sample(durationInSeconds);
             scopedMetric.addExclusive(measurement.getExclusiveTimeInSeconds());
         }
 
         // Allow subclasses the option of generating only scoped metrics.
-        if (!recordUnscopedMetrics)
-            return;
+        if (recordUnscopedMetrics) {
+            Metric unscopedMetric = metrics.get(name);
 
-        Metric unscopedMetric = metrics.get(name);
-        if (unscopedMetric == null) {
-            unscopedMetric = new Metric(name);
-            metrics.add(unscopedMetric);
+            if (unscopedMetric == null) {
+                unscopedMetric = new Metric(name);
+                metrics.add(unscopedMetric);
+            }
+
+            unscopedMetric.sample(durationInSeconds);
+            unscopedMetric.addExclusive(measurement.getExclusiveTimeInSeconds());
         }
-
-        unscopedMetric.sample(delta);
-        unscopedMetric.addExclusive(measurement.getExclusiveTimeInSeconds());
     }
 
     protected void addMetric(Metric newMetric) {
@@ -66,10 +71,15 @@ public abstract class MetricMeasurementConsumer extends BaseMeasurementConsumer 
             metric = metrics.get(newMetric.getName());
         }
 
-        if (metric != null)
+        if (metric != null) {
             metric.aggregate(newMetric);
-        else
+        } else {
             metrics.add(newMetric);
+        }
+    }
+
+    public MetricStore getMetrics() {
+        return metrics;
     }
 
     @Override
@@ -93,4 +103,5 @@ public abstract class MetricMeasurementConsumer extends BaseMeasurementConsumer 
     public void onHarvestSendFailed() {
         metrics.clear();
     }
+
 }
