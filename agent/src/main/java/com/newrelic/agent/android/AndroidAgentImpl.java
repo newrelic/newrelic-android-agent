@@ -51,7 +51,7 @@ import com.newrelic.agent.android.logging.ForwardingAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
-import com.newrelic.agent.android.logging.LoggingConfiguration;
+import com.newrelic.agent.android.measurement.MeasurementEngine;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
@@ -542,7 +542,7 @@ public class AndroidAgentImpl implements
             int eventsRecorded = eventManager.getEventsRecorded();
             int eventsEjected = eventManager.getEventsEjected();
 
-            Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENTS + "Recorded", MetricCategory.NONE.name(),
+            Measurements.addCustomMetric(MetricNames.SUPPORTABILITY_EVENT_RECORDED, MetricCategory.NONE.name(),
                     eventsRecorded, eventsEjected, eventsEjected, MetricUnit.OPERATIONS, MetricUnit.OPERATIONS);
         }
 

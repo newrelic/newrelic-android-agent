@@ -113,7 +113,7 @@ public class LogForwarder extends PayloadSender {
         switch (connection.getResponseCode()) {
             case HttpsURLConnection.HTTP_OK:
             case HttpsURLConnection.HTTP_ACCEPTED:
-                StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME, timer.toc());
+                StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME, timer.duration());
                 log.debug("LogForwarder: Log data forwarding took " + timer.duration() + "ms");
 
                 int payloadSize = getPayloadSize();
@@ -146,7 +146,7 @@ public class LogForwarder extends PayloadSender {
                 break;
         }
 
-        log.debug("Payload [" + file.getName() + "] delivery took " + timer.toc() + "ms");
+        log.debug("Payload [" + file.getName() + "] delivery took " + timer.duration() + "ms");
     }
 
     @Override

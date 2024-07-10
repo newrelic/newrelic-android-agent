@@ -9,10 +9,10 @@ import com.newrelic.agent.android.measurement.CustomMetricMeasurement;
 import com.newrelic.agent.android.measurement.MeasurementType;
 import com.newrelic.agent.android.metric.MetricUnit;
 
-public class CustomMetricProducer extends BaseMeasurementProducer {
+public class CustomMetricMeasurementProducer extends BaseMeasurementProducer {
     private static final String FILTER_REGEX = "[/\\[\\]|*]";
 
-    public CustomMetricProducer() {
+    public CustomMetricMeasurementProducer() {
         super(MeasurementType.Custom);
     }
 
@@ -26,13 +26,12 @@ public class CustomMetricProducer extends BaseMeasurementProducer {
         produceMeasurement(custom);
     }
 
-    private String createMetricName(String name, String category, MetricUnit countUnit, MetricUnit valueUnit) {
+    public static String createMetricName(String name, String category, MetricUnit countUnit, MetricUnit valueUnit) {
         final StringBuffer metricName = new StringBuffer();
 
         metricName.append(category.replaceAll(FILTER_REGEX, ""));
         metricName.append("/");
         metricName.append(name.replaceAll(FILTER_REGEX, ""));
-
 
         if (countUnit != null || valueUnit != null) {
             metricName.append("[");
@@ -45,6 +44,7 @@ public class CustomMetricProducer extends BaseMeasurementProducer {
             }
             metricName.append("]");
         }
+
         return metricName.toString();
     }
 }

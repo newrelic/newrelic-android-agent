@@ -14,7 +14,7 @@ import com.newrelic.agent.android.instrumentation.io.CountingOutputStream;
 import com.newrelic.agent.android.instrumentation.io.StreamCompleteEvent;
 import com.newrelic.agent.android.instrumentation.io.StreamCompleteListener;
 import com.newrelic.agent.android.instrumentation.io.StreamCompleteListenerSource;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;

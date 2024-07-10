@@ -16,7 +16,7 @@ import com.newrelic.agent.android.distributedtracing.TraceHeader;
 import com.newrelic.agent.android.instrumentation.io.CountingInputStream;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.Constants;
 

@@ -1,32 +1,37 @@
 /*
- * Copyright (c) 2022-present New Relic Corporation. All rights reserved.
+ * Copyright (c) 2024. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android.measurement;
+package com.newrelic.agent.android.measurement.producer;
 
-import com.newrelic.agent.android.measurement.producer.BaseMeasurementProducer;
+import com.newrelic.agent.android.measurement.BaseMeasurement;
+import com.newrelic.agent.android.measurement.Measurement;
+import com.newrelic.agent.android.measurement.MeasurementTest;
+import com.newrelic.agent.android.measurement.MeasurementType;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 import java.util.Collection;
 
-@RunWith(JUnit4.class)
-public class MeasurementProducerTests {
+public class BaseMeasurementProducerTest extends MeasurementTest {
+    BaseMeasurementProducer producer;
+
+    @Before
+    public void setUp() throws Exception {
+        producer = new BaseMeasurementProducer(MeasurementType.Method);
+    }
 
     @Test
     public void testGetProducedMeasurementType() {
-        BaseMeasurementProducer producer = new BaseMeasurementProducer(MeasurementType.Method);
         Assert.assertEquals(MeasurementType.Method, producer.getMeasurementType());
     }
 
     @Test
     public void testProduceMeasurement() {
-        BaseMeasurementProducer producer = new BaseMeasurementProducer(MeasurementType.Method);
-        Measurement measurement = new BaseMeasurement(MeasurementType.Method);
+        Measurement measurement = factory.provideMeasurement(MeasurementType.Method);
 
         producer.produceMeasurement(measurement);
         Collection<Measurement> producedMeasurements = producer.drainMeasurements();
@@ -38,8 +43,7 @@ public class MeasurementProducerTests {
 
     @Test
     public void testDrainMeasurements() {
-        BaseMeasurementProducer producer = new BaseMeasurementProducer(MeasurementType.Method);
-        Measurement measurement = new BaseMeasurement(MeasurementType.Method);
+        Measurement measurement = factory.provideMeasurement(MeasurementType.Method);
 
         producer.produceMeasurement(measurement);
 
@@ -62,4 +66,5 @@ public class MeasurementProducerTests {
         // Should be empty again
         Assert.assertEquals(0, producer.drainMeasurements().size());
     }
+
 }

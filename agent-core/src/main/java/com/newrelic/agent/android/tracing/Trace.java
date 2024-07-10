@@ -15,8 +15,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class Trace {
     private static final String CATEGORY_PARAMETER = "category";
-
     private static final AgentLog log = AgentLogManager.getAgentLog();
+
     // UUIDs are used for internal tracking
     final public UUID parentUUID;
     final public UUID myUUID = new UUID(Util.getRandom().nextLong(), Util.getRandom().nextLong());
@@ -32,9 +32,9 @@ public class Trace {
     public String scope;
 
     public long threadId = 0;
-    // We default to "main" here just in case the android interface isn't up yet and we're unable to get the real name
-    // of the thread.
-    public String threadName = "main";
+    // We default to "main" here just in case the android interface isn't up yet and we're unable
+    // to get the real name of the thread.
+    public String threadName = Thread.currentThread().getName();
 
     // We allocated these as needed for performance reasons.
     private volatile Map<String, Object> params;
@@ -128,8 +128,9 @@ public class Trace {
         }
 
         // This should be set, but just in case...
-        if (exitTimestamp == 0)
+        if (exitTimestamp == 0) {
             exitTimestamp = System.currentTimeMillis();
+        }
 
         exclusiveTime = getDurationAsMilliseconds() - childExclusiveTime;
 
@@ -170,7 +171,7 @@ public class Trace {
             log.error("Category annotation parameter is not of type MetricCategory");
             return null;
         }
-        return (MetricCategory)category;
+        return (MetricCategory) category;
     }
 
     private static Object createParameter(String parameterName, String parameterClass, String parameterValue) {

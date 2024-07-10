@@ -10,11 +10,11 @@ import com.newrelic.agent.android.measurement.Measurement;
 import com.newrelic.agent.android.measurement.MeasurementType;
 import com.newrelic.agent.android.metric.Metric;
 
-public class CustomMetricConsumer extends MetricMeasurementConsumer {
+public class CustomMetricMeasurementConsumer extends MetricMeasurementConsumer {
 
-    private static final String METRIC_PREFIX = "Custom/";
+    protected static final String METRIC_PREFIX = "Custom/";
 
-    public CustomMetricConsumer() {
+    public CustomMetricMeasurementConsumer() {
         super(MeasurementType.Custom);
     }
 

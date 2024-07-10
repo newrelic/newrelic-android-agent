@@ -43,7 +43,7 @@ import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.RemoteLogger;
-import com.newrelic.agent.android.measurement.consumer.CustomMetricConsumer;
+import com.newrelic.agent.android.measurement.consumer.CustomMetricMeasurementConsumer;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
@@ -384,7 +384,7 @@ public class NewRelicTest {
         final String metricCategory = "Cheese";
         final MetricUnit metricUnit = MetricUnit.BYTES_PER_SECOND;
 
-        TestCustomMetricConsumer customConsumer = new TestCustomMetricConsumer();
+        TestCustomMetricMeasurementConsumer customConsumer = new TestCustomMetricMeasurementConsumer();
         Measurements.addMeasurementConsumer(customConsumer);
 
         NewRelic.recordMetric("Wensleydale", metricCategory);
@@ -1486,7 +1486,7 @@ public class NewRelicTest {
         }
     }
 
-    private class TestCustomMetricConsumer extends CustomMetricConsumer {
+    private class TestCustomMetricMeasurementConsumer extends CustomMetricMeasurementConsumer {
         @Override
         protected void addMetric(Metric newMetric) {
             super.addMetric(newMetric);

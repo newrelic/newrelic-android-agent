@@ -7,7 +7,7 @@ package com.newrelic.agent.android.instrumentation;
 
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 
 import java.net.HttpURLConnection;
 import java.net.URLConnection;

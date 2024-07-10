@@ -11,7 +11,7 @@ import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.measurement.consumer.BaseMeasurementConsumer;
 import com.newrelic.agent.android.measurement.consumer.MeasurementConsumer;
 import com.newrelic.agent.android.measurement.producer.BaseMeasurementProducer;
-import com.newrelic.agent.android.measurement.producer.CustomMetricProducer;
+import com.newrelic.agent.android.measurement.producer.CustomMetricMeasurementProducer;
 import com.newrelic.agent.android.measurement.producer.MeasurementProducer;
 
 import org.junit.Assert;
@@ -245,7 +245,7 @@ public class MeasurementPoolTests {
 
     @Test
     public void testMeasurementPoolFillsFromAnotherPool() {
-        CustomMetricProducer producer = new CustomMetricProducer();
+        CustomMetricMeasurementProducer producer = new CustomMetricMeasurementProducer();
         MeasurementPool rootPool = new MeasurementPool();
         MeasurementPool activityPool = new MeasurementPool();
 
@@ -276,7 +276,7 @@ public class MeasurementPoolTests {
         Assert.assertEquals(6, nullMeasurements.size());
 
         MeasurementPool pool = new MeasurementPool();
-        CustomMetricProducer producer = new CustomMetricProducer();
+        CustomMetricMeasurementProducer producer = new CustomMetricMeasurementProducer();
         CountingMeasurementConsumer consumer = new CountingMeasurementConsumer(MeasurementType.Custom);
 
         // test null measurements against measurement producers

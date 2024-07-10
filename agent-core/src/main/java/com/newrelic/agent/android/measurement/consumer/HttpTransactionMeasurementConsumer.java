@@ -14,10 +14,10 @@ import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.measurement.Measurement;
 import com.newrelic.agent.android.measurement.MeasurementType;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 
-public class HttpTransactionHarvestingConsumer extends BaseMeasurementConsumer {
-    public HttpTransactionHarvestingConsumer() {
+public class HttpTransactionMeasurementConsumer extends BaseMeasurementConsumer {
+    public HttpTransactionMeasurementConsumer() {
         super(MeasurementType.Network);
     }
 

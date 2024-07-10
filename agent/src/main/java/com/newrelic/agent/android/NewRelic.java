@@ -25,7 +25,7 @@ import com.newrelic.agent.android.logging.AndroidAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.NullAgentLog;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
@@ -479,14 +479,14 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "recordMetric"));
 
-        if (log.getLevel() >= AgentLog.AUDIT) {
+        if (log.getLevel() == AgentLog.AUDIT) {
             StringBuilder logString = new StringBuilder();
             log.audit(logString.append("NewRelic.recordMetric invoked for name ").append(name).append(", category: ").append(category)
                     .append(", count: ").append(count).append(", totalValue ").append(totalValue).append(", exclusiveValue: ").append(exclusiveValue)
                     .append(", countUnit: ").append(countUnit).append(", valueUnit: ").append(valueUnit).toString());
         }
-        checkNull(category, "recordMetric: category must not be null. If no MetricCategory is applicable, use MetricCategory.NONE.");
 
+        checkNull(category, "recordMetric: category must not be null. If no MetricCategory is applicable, use MetricCategory.NONE.");
         checkEmpty(name, "recordMetric: name must not be empty.");
 
         if (!checkNegative(count, "recordMetric: count must not be negative.")) {

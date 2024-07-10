@@ -6,13 +6,13 @@
 package com.newrelic.agent.android.tracing;
 
 public interface TraceLifecycleAware {
-    public void onEnterMethod();
+    default void onEnterMethod() {}
 
-    public void onExitMethod();
+    default void onExitMethod() {}
 
-    public void onTraceStart(ActivityTrace activityTrace);
+    default void onTraceStart(ActivityTrace activityTrace) {}
 
-    public void onTraceComplete(ActivityTrace activityTrace);
+    default void onTraceComplete(ActivityTrace activityTrace) {}
 
-    public void onTraceRename(ActivityTrace activityTrace);
+    default void onTraceRename(ActivityTrace activityTrace) {}
 }

@@ -14,7 +14,7 @@ import com.newrelic.agent.android.measurement.CustomMetricMeasurement;
 import com.newrelic.agent.android.measurement.Measurement;
 import com.newrelic.agent.android.measurement.MeasurementType;
 import com.newrelic.agent.android.measurement.MethodMeasurement;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.tracing.ActivityTrace;
 import com.newrelic.agent.android.tracing.Trace;
@@ -27,12 +27,12 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer implements TraceLifecycleAware {
-    private static final String METRIC_PREFIX = "Mobile/Summary/";
-    private static final String ACTIVITY_METRIC_PREFIX = "Mobile/Activity/Summary/Name/";
+    protected static final String METRIC_PREFIX = "Mobile/Summary/";
+    protected static final String ACTIVITY_METRIC_PREFIX = "Mobile/Activity/Summary/Name/";
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
-    private final List<ActivityTrace> completedTraces = new CopyOnWriteArrayList<ActivityTrace>();
+    protected final List<ActivityTrace> completedTraces = new CopyOnWriteArrayList<ActivityTrace>();
 
     public SummaryMetricMeasurementConsumer() {
         super(MeasurementType.Any);
@@ -43,24 +43,22 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
 
     @Override
     public void consumeMeasurement(Measurement measurement) {
-        if (measurement == null)
-            return;
-
-        switch (measurement.getType()) {
-            case Method:
-                consumeMethodMeasurement((MethodMeasurement) measurement);
-                break;
-            case Network:
-                consumeNetworkMeasurement((HttpTransactionMeasurement) measurement);
-                break;
-            case Custom:
-                consumeCustomMeasurement((CustomMetricMeasurement) measurement);
-                break;
+        if (measurement != null) {
+            switch (measurement.getType()) {
+                case Method:
+                    consumeMethodMeasurement((MethodMeasurement) measurement);
+                    break;
+                case Network:
+                    consumeNetworkMeasurement((HttpTransactionMeasurement) measurement);
+                    break;
+                case Custom:
+                    consumeCustomMeasurement((CustomMetricMeasurement) measurement);
+                    break;
+            }
         }
-        return;
     }
 
-    private void consumeMethodMeasurement(MethodMeasurement methodMeasurement) {
+    void consumeMethodMeasurement(MethodMeasurement methodMeasurement) {
         if (methodMeasurement.getCategory() == null || methodMeasurement.getCategory() == MetricCategory.NONE) {
             methodMeasurement.setCategory(MetricCategory.categoryForMethod(methodMeasurement.getName()));
             if (methodMeasurement.getCategory() == MetricCategory.NONE) {
@@ -74,24 +72,25 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
         super.consumeMeasurement(summary);
     }
 
-    private void consumeCustomMeasurement(CustomMetricMeasurement customMetricMeasurement) {
-        if (customMetricMeasurement.getCategory() == null || customMetricMeasurement.getCategory() == MetricCategory.NONE)
+    void consumeCustomMeasurement(CustomMetricMeasurement customMetricMeasurement) {
+        if (customMetricMeasurement.getCategory() == null || customMetricMeasurement.getCategory() == MetricCategory.NONE) {
             return;
+        }
 
         final BaseMeasurement summary = new BaseMeasurement(customMetricMeasurement);
         summary.setName(customMetricMeasurement.getCategory().getCategoryName());
         super.consumeMeasurement(summary);
     }
 
-    private void consumeNetworkMeasurement(HttpTransactionMeasurement networkMeasurement) {
-        final BaseMeasurement summary = new BaseMeasurement(networkMeasurement);
+    void consumeNetworkMeasurement(HttpTransactionMeasurement httpTransactionMeasurement) {
+        final BaseMeasurement summary = new BaseMeasurement(httpTransactionMeasurement);
         summary.setName(MetricCategory.NETWORK.getCategoryName());
         super.consumeMeasurement(summary);
     }
 
     @Override
     protected String formatMetricName(String name) {
-        return METRIC_PREFIX + name.replace("#", "/");
+        return METRIC_PREFIX + (name != null ? name.replace("#", "/") : "");
     }
 
     @Override
@@ -115,35 +114,36 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
         completedTraces.clear();
     }
 
-    private void summarizeActivityNetworkMetrics(ActivityTrace activityTrace) {
+    void summarizeActivityNetworkMetrics(ActivityTrace activityTrace) {
         final String activityName = activityTrace.getActivityName();
 
         if (activityTrace.networkCountMetric.getCount() > 0) {
             final String name = activityTrace.networkCountMetric.getName();
-            activityTrace.networkCountMetric.setName(name.replace("<activity>", activityName));
-            activityTrace.networkCountMetric.setCount(1);
-            activityTrace.networkCountMetric.setMinFieldValue(activityTrace.networkCountMetric.getTotal());
-            activityTrace.networkCountMetric.setMaxFieldValue(activityTrace.networkCountMetric.getTotal());
+            activityTrace.networkCountMetric.setName(name.replace("<activity>", activityName))
+                    .setCount(1)
+                    .setMinFieldValue(activityTrace.networkCountMetric.getTotal())
+                    .setMaxFieldValue(activityTrace.networkCountMetric.getTotal());
             Harvest.addMetric(activityTrace.networkCountMetric);
         }
 
         if (activityTrace.networkTimeMetric.getCount() > 0) {
             final String name = activityTrace.networkTimeMetric.getName();
-            activityTrace.networkTimeMetric.setName(name.replace("<activity>", activityName));
-            activityTrace.networkTimeMetric.setCount(1);
-            activityTrace.networkTimeMetric.setMinFieldValue(activityTrace.networkTimeMetric.getTotal());
-            activityTrace.networkTimeMetric.setMaxFieldValue(activityTrace.networkTimeMetric.getTotal());
+            activityTrace.networkTimeMetric.setName(name.replace("<activity>", activityName))
+                    .setCount(1)
+                    .setMinFieldValue(activityTrace.networkTimeMetric.getTotal())
+                    .setMaxFieldValue(activityTrace.networkTimeMetric.getTotal());
+
             Harvest.addMetric(activityTrace.networkTimeMetric);
         }
     }
 
-    private void summarizeActivityMetrics(ActivityTrace activityTrace) {
+    void summarizeActivityMetrics(ActivityTrace activityTrace) {
         final Trace trace = activityTrace.rootTrace;
 
         // Gather all UI and background metrics associated with this Activity Trace.
         final List<Metric> activityMetrics = metrics.removeAllWithScope(trace.metricName);
         final List<Metric> backgroundMetrics = metrics.removeAllWithScope(trace.metricBackgroundName);
-        final Map<String, Metric> summaryMetrics = new HashMap<String, Metric>();
+        final Map<String, Metric> summaryMetrics = new HashMap<>();
 
         // Roll up both foreground and background metrics into a single metric set.  Taking care not
         // to add the same metric from the fore and background twice.
@@ -153,7 +153,7 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
             summaryMetrics.put(activityMetric.getName(), activityMetric);
         }
 
-        // Now, the background metrics.  If the metric is already present, aggregate it.  Otherwise, add it.
+        // Now, the background metrics.  If the metric is already present, aggregate it. Otherwise, add it.
         // This covers the case where a metric is only present in the background.
         for (final Metric backgroundMetric : backgroundMetrics) {
             if (summaryMetrics.containsKey(backgroundMetric.getName())) {
@@ -181,13 +181,12 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
 
             final double scaledTime = normalizedTime * traceTime;
 
-            metric.setTotal(scaledTime);
-            metric.setExclusive(scaledTime);
-            metric.setMinFieldValue(0.0);
-            metric.setMaxFieldValue(0.0);
-            metric.setSumOfSquares(0.0);
-            metric.setScope(ACTIVITY_METRIC_PREFIX + trace.displayName);
-
+            metric.setTotal(scaledTime)
+                    .setExclusive(scaledTime)
+                    .setMinFieldValue(Double.NaN)
+                    .setMaxFieldValue(Double.NaN)
+                    .setSumOfSquares(0.0)
+                    .setScope(ACTIVITY_METRIC_PREFIX + trace.displayName);
 
             // Send scoped and un-scoped metrics to the Harvester.
             Harvest.addMetric(metric);
@@ -203,35 +202,8 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
     }
 
     @Override
-    public void onHarvestError() {
-        // Override behavior: don't automatically clear out on error. Handle in onHarvest.
-    }
-
-    @Override
-    public void onHarvestComplete() {
-        // Override behavior: don't automatically clear out on complete. Handle in onHarvest.
-    }
-
-    @Override
-    public void onTraceStart(ActivityTrace activityTrace) {
-    }
-
-    @Override
     public void onTraceComplete(ActivityTrace activityTrace) {
         if (!completedTraces.contains(activityTrace))
             completedTraces.add(activityTrace);
     }
-
-    @Override
-    public void onEnterMethod() {
-    }
-
-    @Override
-    public void onExitMethod() {
-    }
-
-    @Override
-    public void onTraceRename(ActivityTrace activityTrace) {
-    }
-
 }
