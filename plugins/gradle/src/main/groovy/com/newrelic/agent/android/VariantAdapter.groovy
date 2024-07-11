@@ -6,7 +6,6 @@
 package com.newrelic.agent.android
 
 import com.newrelic.agent.android.agp4.AGP4Adapter
-import com.newrelic.agent.android.agp7.AGP70Adapter
 import com.newrelic.agent.android.agp7.AGP74Adapter
 import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.util.BuildId
@@ -89,7 +88,7 @@ abstract class VariantAdapter {
      * @return Instance of this variant, null if missing
      */
     def withVariant(String variantName) {
-        return variants.get().get(variantName.toLowerCase())
+        return variants.getting(variantName.toLowerCase()).getOrElse(null)
     }
 
     /**
@@ -99,9 +98,9 @@ abstract class VariantAdapter {
      */
     BuildTypeAdapter withBuildType(String variantName) {
         if (!buildTypes.getting(variantName).isPresent()) {
-            buildTypes.put(variantName, getBuildTypeProvider(variantName).get())
+            buildTypes.put(variantName, getBuildTypeProvider(variantName))
         }
-        return buildTypes.getting(variantName).get()
+        return buildTypes.getting(variantName).getOrElse(null)
     }
 
     /**
@@ -162,7 +161,7 @@ abstract class VariantAdapter {
     def wiredWithConfigProvider(String variantName) {
         def configProvider = getConfigProvider(variantName) { configTask ->
             def buildType = withBuildType(variantName)
-            def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/java/newrelicConfig${buildType.name}")
+            def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/java/newrelicConfig${buildType.name.capitalize()}")
 
             configTask.sourceOutputDir.set(objectFactory.directoryProperty().value(genSrcFolder))
             configTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))

@@ -12,10 +12,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class NewRelicConfigTaskTest extends PluginTest {
-
-    NewRelicExtension ext
-    BuildHelper buildHelper
-    VariantAdapter variantAdapter
     def provider
 
     NewRelicConfigTaskTest() {
@@ -24,62 +20,60 @@ class NewRelicConfigTaskTest extends PluginTest {
 
     @BeforeEach
     void setup() {
-        // Create the instances needed to test this class
-        ext = NewRelicExtension.register(project)
-        buildHelper = BuildHelper.register(project)
-        variantAdapter = buildHelper.variantAdapter
-        variantAdapter.configure(ext)
-
-        provider = buildHelper.variantAdapter.getConfigProvider("release")
+        provider = plugin.buildHelper.variantAdapter.getConfigProvider("release").get()
     }
 
     @Test
     void getBuildId() {
-        def task = provider.get().tap {
-            Assert.assertFalse(getBuildId().get().isEmpty())
-            Assert.assertFalse(UUID.fromString(getBuildId().get()).toString().isEmpty())
-        }
+        def buildId = provider.getBuildId().get()
+        Assert.assertFalse(buildId.isEmpty())
+        Assert.assertFalse(UUID.fromString(buildId).toString().isEmpty())
     }
 
     @Test
     void getMapProvider() {
-        def task = provider.get().tap {
-            Assert.assertEquals("r8", getMapProvider().get().toLowerCase())
-        }
+        Assert.assertEquals("r8", provider.getMapProvider().get().toLowerCase())
     }
 
     @Test
     void getMinifyEnabled() {
-        def task = provider.get().tap {
-            Assert.assertTrue(getMinifyEnabled().get())
-        }
+        Assert.assertTrue(provider.getMinifyEnabled().get())
     }
 
     @Test
     void getBuildMetrics() {
-        def task = provider.get().tap {
-            Assert.assertFalse(getBuildMetrics().get().toString().isEmpty())
-        }
+        Assert.assertFalse(provider.getBuildMetrics().get().toString().isEmpty())
     }
 
     @Test
     void getSourceOutputDir() {
-        provider.get().tap {
-            def f = getSourceOutputDir().file(CONFIG_CLASS).get().asFile
-            Assert.assertTrue(f.absolutePath.endsWith(NewRelicConfigTask.CONFIG_CLASS))
-        }
+        def f = provider.getSourceOutputDir().file(provider.CONFIG_CLASS).get().asFile
+        Assert.assertTrue(f.absolutePath.endsWith(NewRelicConfigTask.CONFIG_CLASS))
+
+        provider.newRelicConfigTask()
+        Assert.assertTrue(f.exists())
     }
 
     @Test
     void newRelicConfigTask() {
-        provider.configure {
-            // @TaskAction
-            newrelicConfigTask()
-        }
+        // @TaskAction
+        provider.newRelicConfigTask()
     }
 
     @Test
     void getLogger() {
-        Assert.assertEquals(provider.get().logger, NewRelicGradlePlugin.LOGGER)
+        Assert.assertEquals(provider.logger, NewRelicGradlePlugin.LOGGER)
+    }
+
+    @Test
+    void verifyMetadata() {
+        def f = provider.getSourceOutputDir().file(provider.METADATA).get().asFile
+        Assert.assertTrue(f.absolutePath.endsWith(NewRelicConfigTask.METADATA))
+
+        provider.newRelicConfigTask()
+        Assert.assertTrue(f.exists())
+
+        def buildId = provider.getBuildId().get()
+        Assert.assertTrue(f.text.contains(buildId))
     }
 }
