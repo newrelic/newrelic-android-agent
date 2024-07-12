@@ -190,6 +190,10 @@ public class StatsEngine extends HarvestAdapter {
     public void onHarvest() {
         calculateMetricsDataUseage();
         populateMetrics();
+    }
+
+    @Override
+    public void onHarvestComplete() {
         reset();
     }
 

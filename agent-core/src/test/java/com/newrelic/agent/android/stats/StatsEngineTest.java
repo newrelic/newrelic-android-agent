@@ -143,6 +143,17 @@ public class StatsEngineTest {
 
         StatsEngine.get().onHarvest();
         Assert.assertEquals(4, TaskQueue.size());
+        Assert.assertEquals(4, StatsEngine.get().getStatsMap().size());
+    }
+
+    @Test
+    public void onHarvestComplete() {
+        StatsEngine.get().lazyGet("metric1");
+        StatsEngine.get().lazyGet("metric2");
+        StatsEngine.get().lazyGet("metric3");
+        Assert.assertEquals(3, StatsEngine.get().getStatsMap().size());
+
+        StatsEngine.get().onHarvestComplete();
         Assert.assertEquals(0, StatsEngine.get().getStatsMap().size());
     }
 
