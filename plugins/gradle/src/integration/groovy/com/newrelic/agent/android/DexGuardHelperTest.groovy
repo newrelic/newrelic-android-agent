@@ -5,15 +5,15 @@
 
 package com.newrelic.agent.android
 
-import org.gradle.util.GradleVersion
+
 import org.junit.Assert
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 
 class DexGuardHelperTest extends PluginTest {
-    def dexGuardHelper
     def buildHelper
+    def dexGuardHelper
 
     @BeforeEach
     void setUp() {
@@ -23,14 +23,13 @@ class DexGuardHelperTest extends PluginTest {
         Mockito.when(project.getPlugins()).thenReturn(plugins)
         Mockito.when(plugins.hasPlugin(DexGuardHelper.PLUGIN_EXTENSION_NAME)).thenReturn(true)
 
-        buildHelper = Mockito.spy(BuildHelper.register(project))
-        buildHelper.variantAdapter.configure(buildHelper.extension)
-        Mockito.doReturn("7.6").when(buildHelper).getGradleVersion()
+        buildHelper = Mockito.spy(plugin.buildHelper)
+        Mockito.when(buildHelper.getGradleVersion()).thenReturn("7.6")
+        Mockito.when(buildHelper.getProject()).thenReturn(project);
 
         dexGuardHelper = Mockito.spy(DexGuardHelper.register(buildHelper))
-        Mockito.doReturn(true).when(dexGuardHelper).getEnabled()
-        Mockito.doReturn(DexGuardHelper.minSupportedVersion).when(dexGuardHelper).getCurrentVersion()
-
+        Mockito.when(dexGuardHelper.getEnabled()).thenReturn(true)
+        Mockito.when(dexGuardHelper.getCurrentVersion()). thenReturn(DexGuardHelper.minSupportedVersion)
     }
 
     @Test
