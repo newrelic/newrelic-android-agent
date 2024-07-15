@@ -204,6 +204,9 @@ public class StatsEngineTest {
         StatsEngine.get().onHarvest();
 
         Assert.assertEquals(4, TaskQueue.size());
+        Assert.assertEquals(4, StatsEngine.get().getStatsMap().size());
+
+        StatsEngine.get().onHarvestComplete();
         Assert.assertEquals(0, StatsEngine.get().getStatsMap().size());
     }
 
