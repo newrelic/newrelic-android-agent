@@ -112,7 +112,7 @@ public class MetricMeasurementTest extends MeasurementTest {
         Assert.assertEquals(3, consumer.metrics.getAll().size());
 
         consumer.onHarvestError();
-        Assert.assertEquals(0, consumer.metrics.getAll().size());
+        Assert.assertEquals(3, consumer.metrics.getAll().size());
     }
 
     @Test
@@ -123,6 +123,6 @@ public class MetricMeasurementTest extends MeasurementTest {
         Assert.assertEquals(3, consumer.metrics.getAll().size());
 
         consumer.onHarvestSendFailed();
-        Assert.assertEquals(0, consumer.metrics.getAll().size());
+        Assert.assertEquals(3, consumer.metrics.getAll().size());
     }
 }
