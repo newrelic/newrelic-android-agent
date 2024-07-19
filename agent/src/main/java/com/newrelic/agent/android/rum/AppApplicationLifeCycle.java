@@ -95,12 +95,12 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
                     || (agentConfiguration.getLaunchActivityClassName().equalsIgnoreCase(activity.getLocalClassName())))) {
                 firstActivityResumed = true;
                 if (tracer.isColdStart()) {
-                    StatsEngine.notice().sample(MetricNames.APP_LAUNCH_COLD, metrics.getColdStartTime() / 1000.0f);
+                    StatsEngine.get().sample(MetricNames.APP_LAUNCH_COLD, metrics.getColdStartTime() / 1000.0f);
                 }
             } else {
                 if (isForegrounded) {
                     isForegrounded = false;
-                    StatsEngine.notice().sample(MetricNames.APP_LAUNCH_HOT, metrics.getHotStartTime() / 1000.0f);
+                    StatsEngine.get().sample(MetricNames.APP_LAUNCH_HOT, metrics.getHotStartTime() / 1000.0f);
                 }
             }
             log.debug("App launch time " + metrics.toString());
