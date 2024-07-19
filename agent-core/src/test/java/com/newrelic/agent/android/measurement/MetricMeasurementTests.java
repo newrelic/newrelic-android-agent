@@ -116,7 +116,7 @@ public class MetricMeasurementTests {
 
         metricMeasurementConsumer.consumeMeasurement(measurementFactory());
         metricMeasurementConsumer.onHarvestError();
-        Assert.assertTrue(metricMeasurementConsumer.getMetricStore().getAll().isEmpty());
+        Assert.assertTrue(!metricMeasurementConsumer.getMetricStore().getAll().isEmpty());
     }
 
     @Test
@@ -125,7 +125,7 @@ public class MetricMeasurementTests {
 
         metricMeasurementConsumer.consumeMeasurement(measurementFactory());
         metricMeasurementConsumer.onHarvestSendFailed();
-        Assert.assertTrue(metricMeasurementConsumer.getMetricStore().getAll().isEmpty());
+        Assert.assertTrue(!metricMeasurementConsumer.getMetricStore().getAll().isEmpty());
     }
 
     private BaseMeasurement measurementFactory() {

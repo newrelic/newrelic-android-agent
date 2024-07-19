@@ -96,12 +96,12 @@ public abstract class MetricMeasurementConsumer extends BaseMeasurementConsumer 
 
     @Override
     public void onHarvestError() {
-        metrics.clear();
+
     }
 
     @Override
     public void onHarvestSendFailed() {
-        metrics.clear();
+
     }
 
 }
