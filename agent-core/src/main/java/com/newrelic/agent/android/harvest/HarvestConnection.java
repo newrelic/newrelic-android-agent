@@ -132,6 +132,7 @@ public class HarvestConnection implements HarvestErrorCodes, HarvestConfigurable
 
             try (final BufferedOutputStream out = new BufferedOutputStream(connection.getOutputStream())) {
                 out.write(byteBuffer.array());
+                byteBuffer.clear();
             }
 
             harvestResponse.setResponseTime(timer.toc());
