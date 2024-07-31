@@ -104,6 +104,8 @@ public class RemoteLoggerTest extends LoggingTests {
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+        Assert.assertTrue(jsonObject.has(LogReporting.lOG_SESSION_ID));
+        Assert.assertEquals(jsonObject.get(LogReporting.lOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     @Test
@@ -120,6 +122,8 @@ public class RemoteLoggerTest extends LoggingTests {
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), throwable.getLocalizedMessage());
         Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+        Assert.assertTrue(jsonObject.has(LogReporting.lOG_SESSION_ID));
+        Assert.assertEquals(jsonObject.get(LogReporting.lOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     @Test
@@ -138,6 +142,8 @@ public class RemoteLoggerTest extends LoggingTests {
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
+        Assert.assertTrue(jsonObject.has(LogReporting.lOG_SESSION_ID));
+        Assert.assertEquals(jsonObject.get(LogReporting.lOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     @Test
@@ -156,6 +162,8 @@ public class RemoteLoggerTest extends LoggingTests {
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
+        Assert.assertTrue(jsonObject.has(LogReporting.lOG_SESSION_ID));
+        Assert.assertEquals(jsonObject.get(LogReporting.lOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     @Test
@@ -171,6 +179,8 @@ public class RemoteLoggerTest extends LoggingTests {
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
         Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+        Assert.assertTrue(jsonObject.has(LogReporting.lOG_SESSION_ID));
+        Assert.assertEquals(jsonObject.get(LogReporting.lOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     // @Test  FIXME flakey test
@@ -201,6 +211,8 @@ public class RemoteLoggerTest extends LoggingTests {
             JsonObject json = jsonElement.getAsJsonObject();
             Assert.assertTrue("Log json should contain timestamp", json.has(LogReporting.LOG_TIMESTAMP_ATTRIBUTE));
             Assert.assertTrue("Log json should contain log level", json.has(LogReporting.LOG_LEVEL_ATTRIBUTE));
+            Assert.assertTrue(json.has(LogReporting.lOG_SESSION_ID));
+            Assert.assertEquals(json.get(LogReporting.lOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
         }
 
         // Element 1:
@@ -263,6 +275,8 @@ public class RemoteLoggerTest extends LoggingTests {
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_ENTITY_ATTRIBUTE).getAsString(), AgentConfiguration.getInstance().getEntityGuid());
+        Assert.assertTrue(jsonObject.has(LogReporting.lOG_SESSION_ID));
+        Assert.assertEquals(jsonObject.get(LogReporting.lOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     /**
@@ -375,6 +389,8 @@ public class RemoteLoggerTest extends LoggingTests {
             Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
             Assert.assertTrue(jsonObject.has(LogReporting.LOG_MESSAGE_ATTRIBUTE));
             Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+            Assert.assertTrue(jsonObject.has(LogReporting.lOG_SESSION_ID));
+            Assert.assertEquals(jsonObject.get(LogReporting.lOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
         }
     }
 

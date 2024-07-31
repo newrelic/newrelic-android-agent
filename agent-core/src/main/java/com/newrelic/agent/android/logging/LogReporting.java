@@ -34,6 +34,7 @@ public abstract class LogReporting {
     protected static final String LOG_ERROR_MESSAGE_ATTRIBUTE = "error.message";
     protected static final String LOG_ERROR_STACK_ATTRIBUTE = "error.stack";
     protected static final String LOG_ERROR_CLASS_ATTRIBUTE = "error.class";
+    protected static final String lOG_SESSION_ID = "sessionId";
 
     protected static LogLevel logLevel = LogLevel.WARN;
     protected static AgentLogger agentLogger = new AgentLogger();

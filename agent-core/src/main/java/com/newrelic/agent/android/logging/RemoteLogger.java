@@ -247,6 +247,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
 
         attrs.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
         attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, AgentConfiguration.getInstance().getEntityGuid());
+        attrs.put(LogReporting.lOG_SESSION_ID, AgentConfiguration.getInstance().getSessionID());
 
         return attrs;
     }
