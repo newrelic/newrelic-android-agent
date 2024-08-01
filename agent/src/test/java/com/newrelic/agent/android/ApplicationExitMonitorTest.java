@@ -349,7 +349,7 @@ public class ApplicationExitMonitorTest {
         Mockito.when(applicationExitInfo.getReason()).thenReturn(reasonCode);
         Mockito.when(applicationExitInfo.getPid()).thenReturn((int) (Math.random() * 9999) + 1);
         Mockito.when(applicationExitInfo.getDescription()).thenReturn("user request after error: Input dispatching timed out (adf8e62 com.newrelic.android.test.ApplicationExitMonitor/com.newrelic.android.test.ApplicationExitMonitor.MainActivity (server) is not responding. Waited 5005ms for MotionEvent)");
-        Mockito.when(applicationExitInfo.getTraceInputStream()).thenReturn(ApplicationExitMonitor.class.getResource("/ApplicationExitInfo.trace").openStream());
+        Mockito.when(applicationExitInfo.getTraceInputStream()).thenReturn(ApplicationExitMonitor.class.getResource("/applicationExitInfo/ApplicationExitInfo.trace").openStream());
         Mockito.when(applicationExitInfo.getRealUid()).thenReturn(667);     // the neighbor of the beast
         Mockito.when(applicationExitInfo.getPackageUid()).thenReturn(69);
         Mockito.when(applicationExitInfo.getDefiningUid()).thenReturn(42);

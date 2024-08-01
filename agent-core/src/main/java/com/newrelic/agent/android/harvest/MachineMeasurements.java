@@ -17,7 +17,7 @@ import java.util.HashMap;
  * A managed collection of {@code Harvestable} machine measurements such as CPU and Memory.
  */
 public class MachineMeasurements extends HarvestableArray {
-    private final MetricStore metrics = new MetricStore();
+    protected final MetricStore metrics = new MetricStore();
 
     // CPU Total
     // CPU System
@@ -54,7 +54,7 @@ public class MachineMeasurements extends HarvestableArray {
         for(Metric metric : metrics.getAll()) {
             JsonArray metricJson = new JsonArray();
 
-            HashMap<String, String> header = new HashMap<String, String>();
+            HashMap<String, String> header = new HashMap<>();
             header.put("name", metric.getName());
             header.put("scope", metric.getStringScope());
 

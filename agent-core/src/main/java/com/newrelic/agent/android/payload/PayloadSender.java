@@ -33,7 +33,7 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
 
     public PayloadSender(AgentConfiguration agentConfiguration) {
         this.agentConfiguration = agentConfiguration;
-        this.timer = new TicToc();
+        this.timer = new TicToc().tic();
         this.responseCode = 0;
     }
 
@@ -93,7 +93,7 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         }
 
 
-        log.debug("Payload [" + payload.getUuid() + "] delivery took " + timer.toc() + "ms");
+        log.debug("Payload [" + payload.getUuid() + "] delivery took " + timer.duration() + "ms");
     }
 
     protected void onRequestContent(String responseString) {

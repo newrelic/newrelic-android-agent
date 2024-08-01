@@ -84,6 +84,12 @@ public class AnalyticsAttribute {
 
     public static final String INSTANT_APP_ATTRIBUTE = "instantApp";
 
+    // NativeReporting
+    public static final String NATIVE_ROOTED_DEVICE_ATTRIBUTE = "rootedDevice";
+    public static final String NATIVE_EXCEPTION_MESSAGE_ATTRIBUTE = "exceptionMessage";
+    public static final String NATIVE_CRASHING_THREAD_ID_ATTRIBUTE = "crashingThreadId";
+    public static final String NATIVE_THREADS_ATTRIBUTE = "nativeThreads";
+
     // UserActions
     public static final String ACTION_TYPE_ATTRIBUTE = "actionType";
 

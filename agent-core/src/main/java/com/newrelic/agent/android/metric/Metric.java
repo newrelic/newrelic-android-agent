@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 New Relic Corporation. All rights reserved.
+ * Copyright (c) 2024. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -9,34 +9,55 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.newrelic.agent.android.harvest.type.HarvestableObject;
+import com.newrelic.agent.android.logging.AgentLog;
+import com.newrelic.agent.android.logging.AgentLogManager;
 
+/**
+ * Construct a metric instance suitable for ingest. Must include name, scope, average, count, min, max, sum of squares, exclusive
+ * <p>
+ * Note that the average and sum of squares are only computed on demand.
+ */
 public class Metric extends HarvestableObject {
+    final static AgentLog log = AgentLogManager.getAgentLog();
+
     private String name;
     private String scope;
-    private Double min;
-    private Double max;
-    private Double total;
-    private Double sumOfSquares;
-    private Double exclusive;
-    private long count;
+    private Double min = Double.NaN;
+    private Double max = Double.NaN;
+    private Double total = 0.0;
+    private Double sumOfSquares = 0.0;
+    private Double exclusive = 0.0;
+    private long count = 0;
+    private boolean isCountOnly = true;
 
-    // Here are the things we'll need to send back to the collector.  Note that the average and sum of squares are only
-    // computed on demand.
-    // name, scope, average, count, min, max, sum of squares, exclusive
 
+    /**
+     * Construct a new metric using a provided name
+     *
+     * @param name Name of the metric
+     */
     public Metric(String name) {
         this(name, null);
     }
 
+    /**
+     * Construct a new metric using a provided name and scope
+     *
+     * @param name  Name of the metric
+     * @param scope Name of the metric scope
+     */
     public Metric(String name, String scope) {
         super();
 
         this.name = name;
         this.scope = scope;
-
-        count = 0;
     }
 
+    /**
+     * Copy constructor
+     *
+     * @param metric Source metric value
+     */
     public Metric(Metric metric) {
         name = metric.getName();
         scope = metric.getScope();
@@ -46,197 +67,350 @@ public class Metric extends HarvestableObject {
         sumOfSquares = metric.getSumOfSquares();
         exclusive = metric.getExclusive();
         count = metric.getCount();
+        isCountOnly = metric.isCountOnly();
     }
 
-    public void sample(double value) {
+    /**
+     * Update the metric with the passed value:
+     * . increment the count
+     * . add the value's total to the metric
+     * . add the value's sum of squares to the metric
+     * . update the metric's min and max values
+     *
+     * @param value
+     */
+    public Metric sample(double value) {
         count++;
-
-        if (total == null) {
-            total = value;
-            sumOfSquares = value * value;
-        } else {
-            total += value;
-            sumOfSquares += value * value;
-        }
+        total += value;
+        isCountOnly = false;
 
         setMin(value);
         setMax(value);
+        addSumOfSquares(value);
+
+        return this;
     }
 
-    public void sampleMetricDataUsage(double bytesSent, double byteReceived) {
+    public Metric sampleMetricDataUsage(double bytesSent, double byteReceived) {
         //interaction count
         count++;
 
         //bytesSent
-        if (total == null) {
-            total = bytesSent;
-        } else {
-            total += bytesSent;
-        }
+        total += bytesSent;
 
         //bytesReceived
-        if (exclusive == null) {
-            exclusive = byteReceived;
-        } else {
-            exclusive += byteReceived;
-        }
+        exclusive += byteReceived;
 
         //the rest is unused, should be 0 by default
         sumOfSquares = 0.0;
         min = 0.0;
         max = 0.0;
+
+        return this;
     }
 
-    public void setMin(Double value) {
-        if (value == null)
-            return;
+    /**
+     * Aggregate current metric with passed metric value. If this metric is a counter, the
+     * passed metric's total, min, max, sumOfSquares and exclusive values are ignored.
+     */
+    public Metric aggregate(Metric metric) {
+        if (metric != null) {
+            increment(metric.getCount());
 
-        if (min == null) {
-            min = value;
-        } else {
-            if (value < min) {
-                min = value;
+            if (!metric.isCountOnly()) {
+                total += metric.getTotal();
+                sumOfSquares += metric.getSumOfSquares();
+                exclusive += metric.getExclusive();
+
+                if (!metric.min.isNaN()) {
+                    setMin(metric.min);
+                }
+
+                if (!metric.max.isNaN()) {
+                    setMax(metric.max);
+                }
             }
-        }
-    }
-
-    public void setMinFieldValue(Double value) {
-        min = value;
-    }
-
-    public void setMax(Double value) {
-        if (value == null)
-            return;
-
-        if (max == null) {
-            max = value;
         } else {
-            if (value > max) {
-                max = value;
-            }
-        }
-    }
-
-    public void setMaxFieldValue(Double value) {
-        max = value;
-    }
-
-    public void aggregate(Metric metric) {
-        if (metric == null)
-            return;
-
-        increment(metric.getCount());
-
-        if (metric.isCountOnly()) {
-            return;
+            log.error("Metric.aggregate() called with null metric!");
         }
 
-        total = total == null ? metric.getTotal() : total + metric.getTotal();
-        sumOfSquares = sumOfSquares == null ? metric.getSumOfSquares() : sumOfSquares + metric.getSumOfSquares();
-        exclusive = exclusive == null ? metric.getExclusive() : exclusive + metric.getExclusive();
-
-        setMin(metric.getMin());
-        setMax(metric.getMax());
+        return this;
     }
 
-    public void increment(long value) {
-        count += value;
+    /**
+     * Increment the metric count by value. Negative values are ignored.
+     *
+     * @param value Additional count to add to this metric
+     */
+    public Metric increment(long value) {
+        if (value > 0) {
+            count += value;
+        } else {
+            log.error("Metric.increment() called with negative value[" + value + "]");
+        }
+        return this;
     }
 
-    public void increment() {
+    /**
+     * Increment the metric count by 1.
+     */
+    public Metric increment() {
         increment(1);
+        return this;
     }
 
-    public double getSumOfSquares() {
-        return (sumOfSquares == null || sumOfSquares < 0) ? 0.0 : sumOfSquares;
+    /**
+     * Updates metrics sum of squares with value
+     */
+    public Metric addSumOfSquares(double value) {
+        double valueSquared = Math.pow(value, 2);
+        sumOfSquares = (sumOfSquares.isNaN() ? valueSquared : sumOfSquares + valueSquared);
+        return this;
     }
 
-    public long getCount() {
-        return count;
+    /**
+     * Adds exclusive value to the metric
+     */
+    public Metric addExclusive(double value) {
+        exclusive += value;
+        return this;
     }
 
-    public double getExclusive() {
-        return (exclusive == null || exclusive < 0) ? 0.0 : exclusive;
-    }
 
-    public void addExclusive(double value) {
-        if (exclusive == null) {
-            exclusive = value;
-        } else {
-            exclusive += value;
-        }
-    }
-
+    /**
+     * Return the unmodified name of the metric
+     *
+     * @return metric name
+     */
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
+    /**
+     * Return the unmodified scope of the metric
+     *
+     * @return metric scope name
+     */
     public String getScope() {
         return scope;
     }
 
+    /**
+     * Return the scope of the metric, or an empty string if scope is null.
+     *
+     * @return metric name
+     */
     public String getStringScope() {
         return scope == null ? "" : scope;
     }
 
-    public void setScope(String scope) {
-        this.scope = scope;
-    }
-
+    /**
+     * Return the unmodified minimum value of the metric
+     *
+     * @return metric min value
+     */
     public double getMin() {
-        return (min == null || min < 0) ? 0.0 : min;
+        return min.isNaN() ? 0.0 : min;
     }
 
+    /**
+     * Return the unmodified maximum value of the metric
+     *
+     * @return metric max value
+     */
     public double getMax() {
-        return (max == null || max < 0) ? 0.0 : max;
+        return max.isNaN() ? 0.0 : max;
     }
 
+    /**
+     * Return the unmodified total value of the metric
+     *
+     * @return metric total value
+     */
     public double getTotal() {
-        return (total == null || total < 0) ? 0.0 : total;
+        return total;
+    }
+
+    /**
+     * Return the current sum of squares value for this metric.
+     *
+     * @return Current sum of squares value. Should never be negative.
+     */
+    public double getSumOfSquares() {
+        return sumOfSquares;
+    }
+
+    /**
+     * Return the current exclusive value for this metric. The value should not be negative.
+     *
+     * @return Current exclusive value
+     */
+    public double getExclusive() {
+        return exclusive;
+    }
+
+    /**
+     * Return the current call count value for this metric. The value should not be negative.
+     *
+     * @return Current count value
+     */
+    public long getCount() {
+        return count;
     }
 
 
-    public void setTotal(Double total) {
-        this.total = total;
+    /**
+     * Set the name of the metric. Should not be null.
+     *
+     * @return this
+     */
+    public Metric setName(String name) {
+        this.name = name == null ? "" : name;
+        return this;
     }
 
-    public void setSumOfSquares(Double sumOfSquares) {
-        this.sumOfSquares = sumOfSquares;
+    /**
+     * Set the name of the metric. May be null.
+     *
+     * @return this
+     */
+    public Metric setScope(String scope) {
+        this.scope = scope;
+        return this;
     }
 
-    public void setExclusive(Double exclusive) {
-        this.exclusive = exclusive;
+    /**
+     * Sets the metric's minimum value if passed metric maximum is lesser or
+     * the metric has not been set
+     *
+     * @return this
+     */
+    public Metric setMin(double value) {
+        min = min.isNaN() ? value : Math.min(min, value);
+        return this;
     }
 
-    public void setCount(long count) {
-        this.count = count;
+    /**
+     * Sets the metric's minimum value to the unmodified passed value
+     */
+    public Metric setMinFieldValue(double value) {
+        min = value;
+        return this;
     }
 
+    /**
+     * Sets the metric's maximum value if passed metric maximum is greater or
+     * the metric has not been set.
+     *
+     * @return this
+     */
+    public Metric setMax(double value) {
+        max = max.isNaN() ? value : Math.max(max, value);
+        return this;
+    }
+
+    /**
+     * Sets the metric's maximum value to the unmodified passed value
+     *
+     * @return this
+     */
+    public Metric setMaxFieldValue(double value) {
+        max = value;
+        return this;
+    }
+
+    /**
+     * Set the unmodified total value of the metric.
+     *
+     * @return this
+     */
+    public Metric setTotal(double value) {
+        this.total = value;
+        return this;
+    }
+
+    /**
+     * Set the unmodified sum of squares value of the metric. Should not be negative.
+     *
+     * @return this
+     */
+    public Metric setSumOfSquares(double value) {
+        if (value >= 0) {
+            sumOfSquares = value;
+        } else {
+            log.error("Metric.setSumOfSquares() called with negative value[" + value + "]");
+        }
+        return this;
+    }
+
+    /**
+     * Set the unmodified exclusive value of the metric. Should not be negative.
+     *
+     * @return this
+     */
+    public Metric setExclusive(double value) {
+        if (value >= 0) {
+            exclusive = value;
+        } else {
+            log.error("Metric.setExclusive() called with negative value[" + value + "]");
+        }
+        return this;
+    }
+
+    /**
+     * Set the count of the metric. The value should not be negative.
+     *
+     * @return this
+     */
+    public Metric setCount(long value) {
+        if (value >= 0) {
+            count = value;
+        } else {
+            log.error("Metric.setCount() called with negative value[" + value + "]");
+        }
+        return this;
+    }
+
+
+    /**
+     * Reset the metric to default values
+     */
     public void clear() {
-        min = null;
-        max = null;
-        total = null;
-        sumOfSquares = null;
-        exclusive = null;
+        min = Double.NaN;
+        max = Double.NaN;
+        total = 0.0;
+        sumOfSquares = 0.0;
+        exclusive = 0.0;
         count = 0;
+        isCountOnly = true;
     }
 
+    /**
+     * Return true if the metric is used to track counts only
+     */
     public boolean isCountOnly() {
-        return total == null;
+        return isCountOnly;
     }
 
+    /**
+     * Return true if the metric is scoped to a given name
+     */
     public boolean isScoped() {
         return scope != null;
     }
 
+    /**
+     * Return false if the metric is scoped to a given name
+     */
     public boolean isUnscoped() {
-        return scope == null;
+        return !isScoped();
     }
 
+    /**
+     * Serialize metric to Json
+     *
+     * @return JsonElement representing metric data
+     */
     @Override
     public JsonElement asJson() {
         if (isCountOnly()) {
@@ -245,26 +419,36 @@ public class Metric extends HarvestableObject {
         return asJsonObject();
     }
 
+    /**
+     * Serialize metric to Json. Name and scope are encoded separately
+     *
+     * @return JsonElement representing metric data
+     */
     @Override
-    // Name and scope are encoded separately
     public JsonObject asJsonObject() {
         JsonObject jsonObject = new JsonObject();
 
         jsonObject.add("count", new JsonPrimitive(count));
-        if (total != null)
+        if (!isCountOnly) {
             jsonObject.add("total", new JsonPrimitive(total));
-        if (min != null)
-            jsonObject.add("min", new JsonPrimitive(min));
-        if (max != null)
-            jsonObject.add("max", new JsonPrimitive(max));
-        if (sumOfSquares != null)
+            if (!min.isNaN()) {
+                jsonObject.add("min", new JsonPrimitive(min));
+            }
+            if (!max.isNaN()) {
+                jsonObject.add("max", new JsonPrimitive(max));
+            }
             jsonObject.add("sum_of_squares", new JsonPrimitive(sumOfSquares));
-        if (exclusive != null)
             jsonObject.add("exclusive", new JsonPrimitive(exclusive));
+        }
 
         return jsonObject;
     }
 
+    /**
+     * Serialize metric to a String
+     *
+     * @return String representing metric data
+     */
     @Override
     public String toString() {
         return "Metric{" +

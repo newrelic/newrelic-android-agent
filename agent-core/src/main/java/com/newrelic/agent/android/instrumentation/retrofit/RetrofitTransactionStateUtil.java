@@ -7,7 +7,6 @@ package com.newrelic.agent.android.instrumentation.retrofit;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.Measurements;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
@@ -15,7 +14,7 @@ import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceHeader;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
-import com.newrelic.agent.android.measurement.http.HttpTransactionMeasurement;
+import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.util.Constants;
 
 import java.util.ArrayList;

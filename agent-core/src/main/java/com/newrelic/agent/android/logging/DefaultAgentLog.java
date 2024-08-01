@@ -76,4 +76,9 @@ public class DefaultAgentLog implements AgentLog {
             impl.setLevel(level);
         }
     }
+
+	public AgentLog getInstance() {
+		return impl;
+	}
+
 }

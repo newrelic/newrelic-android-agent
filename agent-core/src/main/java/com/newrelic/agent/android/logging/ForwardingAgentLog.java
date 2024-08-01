@@ -11,15 +11,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * AgentLog class that emits a log message to its provided delegate, the forwards the Remote logger.
+ * AgentLog class that emits a log message to its provided delegate, then forwards to the Remote logger.
  */
 public class ForwardingAgentLog implements AgentLog {
 
     private final AgentLog delegate;
-
-    public ForwardingAgentLog() {
-        this(new NullAgentLog());
-    }
 
     public ForwardingAgentLog(AgentLog agentLog) {
         this.delegate = agentLog;

@@ -26,6 +26,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_EVENTS = "Supportability/Events/";
     public static final String SUPPORTABILITY_EVENT_ADDED = SUPPORTABILITY_EVENTS + "Added";
     public static final String SUPPORTABILITY_EVENT_OVERFLOW = SUPPORTABILITY_EVENTS + "Overflow";
+    public static final String SUPPORTABILITY_EVENT_RECORDED = SUPPORTABILITY_EVENTS + "Recorded";
     public static final String SUPPORTABILITY_EVENT_EVICTED = SUPPORTABILITY_EVENTS + "Evicted";
     public static final String SUPPORTABILITY_EVENT_QUEUE_SIZE_EXCEEDED = SUPPORTABILITY_EVENTS + "Queue/Size/Exceeded";
     public static final String SUPPORTABILITY_EVENT_QUEUE_TIME_EXCEEDED = SUPPORTABILITY_EVENTS + "Queue/Time/Exceeded";

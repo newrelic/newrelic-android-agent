@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class MetricMeasurementConsumerTests {
+public class MetricMeasurementTests {
     private static final String TEST_NAME = "test name";
     private static final String TEST_SCOPE = "test scope";
     private static final long TEST_START_TIME = 1000;
@@ -106,9 +106,7 @@ public class MetricMeasurementConsumerTests {
         TestMetricMeasurementConsumer metricMeasurementConsumer = new TestMetricMeasurementConsumer();
 
         metricMeasurementConsumer.consumeMeasurement(measurementFactory());
-
         metricMeasurementConsumer.onHarvestComplete();
-
         Assert.assertTrue(metricMeasurementConsumer.getMetricStore().getAll().isEmpty());
     }
 
@@ -117,10 +115,8 @@ public class MetricMeasurementConsumerTests {
         TestMetricMeasurementConsumer metricMeasurementConsumer = new TestMetricMeasurementConsumer();
 
         metricMeasurementConsumer.consumeMeasurement(measurementFactory());
-
         metricMeasurementConsumer.onHarvestError();
-
-        Assert.assertTrue(metricMeasurementConsumer.getMetricStore().getAll().isEmpty());
+        Assert.assertTrue(!metricMeasurementConsumer.getMetricStore().getAll().isEmpty());
     }
 
     @Test
@@ -128,10 +124,8 @@ public class MetricMeasurementConsumerTests {
         TestMetricMeasurementConsumer metricMeasurementConsumer = new TestMetricMeasurementConsumer();
 
         metricMeasurementConsumer.consumeMeasurement(measurementFactory());
-
         metricMeasurementConsumer.onHarvestSendFailed();
-
-        Assert.assertTrue(metricMeasurementConsumer.getMetricStore().getAll().isEmpty());
+        Assert.assertTrue(!metricMeasurementConsumer.getMetricStore().getAll().isEmpty());
     }
 
     private BaseMeasurement measurementFactory() {
