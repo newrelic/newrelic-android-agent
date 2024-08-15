@@ -174,21 +174,17 @@ artifacts {
     archives shadowJar
 }
 
-if (project.findProperty("gradlePublishKey") != null && project.findProperty("gradlePublishSecret") != null) {
-    logger.info("Deploy to Gradle Plugin Portal:")
+gradlePlugin {
+    website = 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/'
+    vcsUrl = 'https://github.com/newrelic/newrelic-android-agent'
+    plugins {
+        newrelicPlugin {
+            id = 'com.newrelic.agent.android'
+            implementationClass = 'com.newrelic.agent.android.NewRelicGradlePlugin'
+            displayName = 'New Relic Android Gradle Plugin'
+            description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
+            tags.set(['monitoring', 'mobile', 'newrelic', 'android'])
 
-    gradlePlugin {
-        website = 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/'
-        vcsUrl = 'https://github.com/newrelic/newrelic-android-agent'
-        plugins {
-            newrelicPlugin {
-                id = 'com.newrelic.agent.android'
-                implementationClass = 'com.newrelic.agent.android.NewRelicGradlePlugin'
-                displayName = 'New Relic Android Gradle Plugin'
-                description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
-                tags.set(['monitoring', 'mobile', 'newrelic', 'android'])
-
-            }
         }
     }
 }
