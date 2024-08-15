@@ -56,6 +56,7 @@ public class Crash extends HarvestableObject {
     private Set<AnalyticsAttribute> sessionAttributes;
     private Collection<AnalyticsEvent> events;
     private int uploadCount;
+    private DataToken dataToken;
 
     public Crash(UUID uuid, String buildId, long timestamp) {
         final AgentImpl agentImpl = Agent.getImpl();
@@ -73,6 +74,7 @@ public class Crash extends HarvestableObject {
         this.events = new HashSet<AnalyticsEvent>();
         this.analyticsEnabled = true;
         this.uploadCount = 0;
+        this.dataToken = Harvest.getHarvestConfiguration().getDataToken();
     }
 
     public Crash(Throwable throwable) {
@@ -96,6 +98,7 @@ public class Crash extends HarvestableObject {
         this.events = events;
         this.analyticsEnabled = analyticsEnabled;
         this.uploadCount = 0;
+        this.dataToken = Harvest.getHarvestConfiguration().getDataToken();
     }
 
     protected String getAppToken() {
@@ -103,6 +106,10 @@ public class Crash extends HarvestableObject {
             return CrashReporter.getInstance().getAgentConfiguration().getApplicationToken();
         }
         return "<missing app token>";
+    }
+
+    protected DataToken getDataToken() {
+        return this.dataToken;
     }
 
     public static String getSafeBuildId() {
@@ -214,11 +221,7 @@ public class Crash extends HarvestableObject {
             }
         }
         data.add("analyticsEvents", eventArray);
-
-        final DataToken dataToken = Harvest.getHarvestConfiguration().getDataToken();
-        if (dataToken != null && dataToken.isValid()) {
-            data.add("dataToken", dataToken.asJsonArray());
-        }
+        data.add("dataToken", dataToken.asJsonArray());
 
         return data;
     }
@@ -252,7 +255,7 @@ public class Crash extends HarvestableObject {
         if (crashObject.has("uploadCount")) {
             crash.uploadCount = crashObject.get("uploadCount").getAsInt();
         }
-
+        crash.dataToken = DataToken.newFromJson(crashObject.get("dataToken").getAsJsonArray());
         return crash;
     }
 

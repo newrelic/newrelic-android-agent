@@ -270,12 +270,25 @@ public class Providers {
      * @throws Exception
      */
     public static HarvestConfiguration provideHarvestConfiguration() {
+        return getHarvestConfiguration();
+    }
+
+    public static HarvestConfiguration provideHarvestConfigurationAfterConnect() {
+        HarvestConfiguration harvestConfiguration = getHarvestConfiguration();
+        harvestConfiguration.setData_token(new int[]{33, 22});
+
+        return harvestConfiguration;
+    }
+
+
+    private static HarvestConfiguration getHarvestConfiguration() {
         HarvestConfiguration harvestConfiguration = new HarvestConfiguration();
 
         harvestConfiguration.setCross_process_id("x-process-id");
         harvestConfiguration.setError_limit(111);
         harvestConfiguration.setCollect_network_errors(true);
-        harvestConfiguration.setData_token(new int[]{111, 111});
+        //DataToken First Value is Account ID, Second Value is Agent ID
+        harvestConfiguration.setData_token(new int[]{33, 111});
         harvestConfiguration.setActivity_trace_max_report_attempts(222);
         harvestConfiguration.setActivity_trace_max_size(333);
         harvestConfiguration.setData_report_period(444);
@@ -295,6 +308,7 @@ public class Providers {
 
         return harvestConfiguration;
     }
+
 
     public static HttpTransaction provideHttpRequestError() {
         Map<String, String> params = new HashMap<>();
@@ -373,7 +387,7 @@ public class Providers {
 
     public static AgentConfiguration provideAgentConfiguration() {
         final AgentConfiguration conf = new AgentConfiguration();
-        
+
         conf.setApplicationToken("dead-beef-baad-f00d");
         conf.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
         conf.getLogReportingConfiguration().setConfiguration(provideLogReportingConfiguration());

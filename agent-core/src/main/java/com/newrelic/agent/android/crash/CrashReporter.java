@@ -114,11 +114,11 @@ public class CrashReporter extends PayloadReporter {
     }
 
     protected Future reportCrash(final Crash crash) {
-        final boolean hasValidDataToken = Harvest.getHarvestConfiguration().getDataToken().isValid();
+        if (crash != null) {
+            final boolean hasValidDataToken = crash.getDataToken().isValid();
 
-        if (isEnabled()) {
-            if (hasValidDataToken) {
-                if (crash != null) {
+            if (isEnabled()) {
+                if (hasValidDataToken) {
                     final CrashSender sender = new CrashSender(crash, agentConfiguration);
 
                     long crashSize = crash.asJsonObject().toString().getBytes().length;

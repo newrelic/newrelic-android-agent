@@ -327,6 +327,29 @@ public class CrashReporterTests {
         Assert.assertNotNull("Crash should be immediately placed on executor", future);
     }
 
+    @Test
+    public void shouldNotChangeDataTokenAfterHarvestConfigurationChange() throws Exception {
+        Harvest.initialize(agentConfiguration);
+        Harvest.setHarvestConfiguration(Providers.provideHarvestConfiguration());
+        PayloadController.initialize(agentConfiguration);
+
+        Crash crash1 = new Crash(new RuntimeException("testStoreSupportabilityMetrics"));
+
+        JsonObject crash1Json = crash1.asJsonObject();
+
+        // Change harvest configuration after Connect
+        Harvest.setHarvestConfiguration(Providers.provideHarvestConfigurationAfterConnect());
+
+        Crash crash2 = Crash.crashFromJsonString(crash1Json.toString());
+
+
+        Assert.assertArrayEquals("Crash should have the same data token", crash1.getDataToken().asIntArray(), crash2.getDataToken().asIntArray());
+        Crash crash3 = new Crash(new RuntimeException("testStoreSupportabilityMetrics"));
+
+        Assert.assertNotEquals("Crash should have a different data token", crash1.getDataToken().getAgentId(), crash3.getDataToken().getAgentId());
+
+    }
+
     private static class TestCrashReporter extends CrashReporter {
         public static CrashReporter initialize(AgentConfiguration agentConfiguration) {
             CrashReporter.initialize(agentConfiguration);
