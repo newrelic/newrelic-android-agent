@@ -176,6 +176,8 @@ publishing {
                 android.libraryVariants.all { variant ->
                     artifact variant.ext.fatJarProvider
                 }
+                artifact javadocJar
+                artifact sourcesJar
                 artifactId 'android-agent'
                 pom {
                     groupId = 'com.newrelic.agent.android'
