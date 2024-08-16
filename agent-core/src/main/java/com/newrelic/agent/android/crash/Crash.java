@@ -112,6 +112,10 @@ public class Crash extends HarvestableObject {
         return this.dataToken;
     }
 
+    public void setDataToken(DataToken dataToken) {
+        this.dataToken = dataToken;
+    }
+
     public static String getSafeBuildId() {
         String buildId = getBuildId();
         if (buildId == null || buildId.isEmpty()) {
