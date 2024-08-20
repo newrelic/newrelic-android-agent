@@ -174,7 +174,6 @@ artifacts {
     archives shadowJar
 }
 
-if(false) {
 gradlePlugin {
     website = 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/'
     vcsUrl = 'https://github.com/newrelic/newrelic-android-agent'
@@ -189,7 +188,6 @@ gradlePlugin {
         }
     }
 }
-    }
 
 apply from: "${rootDir}/gradle/publishing.gradle"
 
