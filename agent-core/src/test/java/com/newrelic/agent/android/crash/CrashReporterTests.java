@@ -11,6 +11,7 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.harvest.DataToken;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.PayloadController;
@@ -64,6 +65,9 @@ public class CrashReporterTests {
         agentConfiguration.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
 
         crashReporter = TestCrashReporter.initialize(agentConfiguration);
+
+        Harvest.initialize(agentConfiguration);
+        Harvest.setHarvestConfiguration(Providers.provideHarvestConfiguration());
 
         crash = spy(new Crash(new RuntimeException("testStoreSupportabilityMetrics")));
         crashSender = spy(new CrashSender(crash, agentConfiguration));
@@ -127,7 +131,7 @@ public class CrashReporterTests {
         TestCrashReporter.initialize(agentConfiguration);
 
         for (Integer i = 0; i < 3; i++) {
-            Crash crash = new Crash(new RuntimeException("testStoreExistingCrash" + i.toString()));
+            Crash crash = new Crash(new RuntimeException("testStoreExistingCrash" + i));
             crashStore.store(crash);
         }
         Assert.assertEquals("Should contain 3 crashes", 3, TestCrashReporter.getStoredCrashCount());
@@ -141,7 +145,7 @@ public class CrashReporterTests {
         TestCrashReporter.initialize(agentConfiguration);
 
         for (Integer i = 0; i < 3; i++) {
-            Crash crash = new Crash(new RuntimeException("testStoreExistingCrash" + i.toString()));
+            Crash crash = new Crash(new RuntimeException("testStoreExistingCrash" + i));
             for (int j = 0; j < MAX_UPLOAD_COUNT; j++) {
                 crash.incrementUploadCount();
             }
@@ -292,9 +296,10 @@ public class CrashReporterTests {
 
     @Test
     public void shouldNotReportCrashIfDataTokenIsInvalid() throws Exception {
-        Harvest.getHarvestConfiguration().setData_token(new int[]{0, 0});
         PayloadController.initialize(agentConfiguration);
         TestCrashReporter.setReportCrashes(true);
+
+        crash.setDataToken(new DataToken(0, 0));
 
         Future future = TestCrashReporter.getInstance().reportCrash(crash);
 
