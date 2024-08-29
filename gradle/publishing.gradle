@@ -18,6 +18,8 @@ publishing {
         mavenJava(MavenPublication) {
             groupId 'com.newrelic.agent.android'
             version project.versions.agent
+            artifact javadocJar
+            artifact sourcesJar
 
             pom {
                 name = 'com.newrelic.agent.android'
