@@ -100,7 +100,7 @@ abstract class ClassTransformWrapperTask extends DefaultTask {
                                 }
                             }
                         } catch (IOException fileException) {
-                            logger.error("[ClassTransform] [${classJar.asFile.path}] ${fileException.message}")
+                            logger.error("[ClassTransform] [${classFile.path}] ${fileException.message}")
                         }
                     }
                 }
