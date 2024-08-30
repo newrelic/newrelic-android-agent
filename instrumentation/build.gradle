@@ -163,8 +163,6 @@ publishing {
         mavenJava(MavenPublication) {
             artifact shadowJar
             artifactId 'instrumentation'
-            artifact javadocJar
-            artifact sourcesJar
             pom {
                 artifactId = 'instrumentation'
                 name = 'New Relic Android Instrumentation Agent'
