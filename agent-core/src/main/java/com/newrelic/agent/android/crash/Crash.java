@@ -109,7 +109,7 @@ public class Crash extends HarvestableObject {
         String buildId = getBuildId();
         if (buildId == null || buildId.isEmpty()) {
             buildId = Agent.getBuildId();
-            // since we're probably crashing, this may never get harvested
+           // since we're probably crashing, this may never get harvested
             StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_INVALID_BUILDID);
             if (buildId == null || buildId.isEmpty()) {
                 // still invalid, so this crash is useless
@@ -259,11 +259,7 @@ public class Crash extends HarvestableObject {
     protected Throwable getRootCause(Throwable throwable) {
         try {
             if (throwable != null) {
-                if (throwable.getCause() != null) {
-                    return throwable.getCause();
-                } else {
-                    return throwable;
-                }
+                return throwable;
             }
         } catch (Exception e) {
             // RuntimeException thrown on: Duplicate found in causal chain so cropping to prevent loop
