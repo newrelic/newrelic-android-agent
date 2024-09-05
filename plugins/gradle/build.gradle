@@ -59,18 +59,18 @@ compileKotlin {
 classes.dependsOn compileKotlin
 
 dependencies {
-    implementation project(path: ':instrumentation', configuration: 'shadow')
+    shadow project(path: ':instrumentation', configuration: 'shadow')
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 
     compileOnly 'com.android.tools.build:gradle:' + project.versions.agp.plugin
     compileOnly 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    compileOnly gradleApi()
+    shadow gradleApi()
 
     implementation 'commons-io:commons-io:' + project.versions.java.commonsIO
     implementation 'org.ow2.asm:asm:' + project.versions.java.asm
     implementation 'org.ow2.asm:asm-util:' + project.versions.java.asm
 
-    compileOnly localGroovy()
+    shadow localGroovy()
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
     testImplementation project(path: ':instrumentation', configuration: 'default')
@@ -171,7 +171,7 @@ shadowJar {
 }
 
 artifacts {
-    archives jar
+    archives shadowJar
 }
 
 gradlePlugin {
