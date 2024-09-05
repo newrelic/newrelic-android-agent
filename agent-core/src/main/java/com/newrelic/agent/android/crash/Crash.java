@@ -266,16 +266,13 @@ public class Crash extends HarvestableObject {
     protected Throwable getRootCause(Throwable throwable) {
         try {
             if (throwable != null) {
-                if (throwable.getCause() != null) {
-                    return throwable.getCause();
-                } else {
-                    return throwable;
-                }
+                return throwable;
             }
         } catch (Exception e) {
             // RuntimeException thrown on: Duplicate found in causal chain so cropping to prevent loop
             return throwable;
         }
+
         return new Throwable("Unknown cause");
     }
 
