@@ -112,6 +112,10 @@ public class Crash extends HarvestableObject {
         return this.dataToken;
     }
 
+    public void setDataToken(DataToken dataToken) {
+        this.dataToken = dataToken;
+    }
+
     public static String getSafeBuildId() {
         String buildId = getBuildId();
         if (buildId == null || buildId.isEmpty()) {
@@ -262,19 +266,11 @@ public class Crash extends HarvestableObject {
     protected Throwable getRootCause(Throwable throwable) {
         try {
             if (throwable != null) {
-                final Throwable cause = throwable.getCause();
-
-                if (cause == null) {
-                    return throwable;
-                } else {
-                    return getRootCause(cause);
-                }
+                return throwable;
             }
         } catch (Exception e) {
             // RuntimeException thrown on: Duplicate found in causal chain so cropping to prevent loop
-            if (throwable != null) {
-                return throwable;       // return the last known throwable
-            }
+            return throwable;
         }
 
         return new Throwable("Unknown cause");

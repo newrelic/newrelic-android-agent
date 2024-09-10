@@ -1138,6 +1138,7 @@ public class AnalyticsControllerImplTests {
     @Test
     public void testEventDeletionOnHarvest() {
         FeatureFlag.enableFeature(FeatureFlag.AnalyticsEvents);
+        FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
         AnalyticsEventStore eventStore = config.getEventStore();
         eventStore.clear();
 
@@ -1159,6 +1160,24 @@ public class AnalyticsControllerImplTests {
 
         controller.onHarvest();
         Assert.assertEquals(0, eventStore.count());
+
+        FeatureFlag.disableFeature(FeatureFlag.EventPersistence);
+        eventStore.clear();
+
+        Harvest.initialize(config);
+        AnalyticsEvent event3 = new AnalyticsEvent("event3");
+        AnalyticsEvent event4 = new AnalyticsEvent("event4");
+        controller.addEvent(event3);
+        controller.addEvent(event4);
+        events.add(event3);
+        events.add(event4);
+        data.setAnalyticsEvents(events);
+        data.setAnalyticsEnabled(true);
+        Assert.assertEquals(0, eventStore.count());
+
+        controller.onHarvest();
+        Assert.assertEquals(0, eventStore.count());
+
     }
 
     private static class TestStubAgentImpl extends StubAgentImpl {

@@ -158,8 +158,8 @@ public class CrashTests {
         throwable.initCause(cause);
         TestCrash testCrash = new TestCrash(null);
         Throwable rootCause = testCrash.getRootCause(throwable);
-        Assert.assertEquals("Root cause NullPointerException", cause, rootCause);
-        Assert.assertTrue("Root cause detailMessage was NPE", rootCause.getMessage().equalsIgnoreCase("NPE"));
+        Assert.assertEquals("Root cause always throwable", throwable, rootCause);
+        Assert.assertTrue("Root cause detailMessage was same as Throwable", rootCause.getMessage().equalsIgnoreCase("testDetermineRootCause"));
     }
 
     @Test
