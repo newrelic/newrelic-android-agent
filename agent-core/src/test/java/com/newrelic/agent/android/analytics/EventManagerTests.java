@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.analytics;
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
@@ -75,6 +76,23 @@ public class EventManagerTests implements EventListener {
 
         manager.addEvent(new CustomEvent("test2", null));
         Assert.assertEquals("EventQueue size should be 2", 2, manager.size());
+
+        FeatureFlag.disableFeature(FeatureFlag.EventPersistence);
+        eventStore.clear();
+        manager.addEvent(new CustomEvent("test", null));
+        Assert.assertEquals("No event added to the store", 0, eventStore.fetchAll().size());
+
+        manager.addEvent(new CustomEvent("test2", null));
+        Assert.assertEquals("No event added to the store", 0, eventStore.fetchAll().size());
+
+        FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
+        eventStore.clear();
+        manager.addEvent(new CustomEvent("test", null));
+        Assert.assertEquals("No event added to the store", 1, eventStore.fetchAll().size());
+
+        manager.addEvent(new CustomEvent("test2", null));
+        Assert.assertEquals("No event added to the store", 2, eventStore.fetchAll().size());
+
     }
 
     @Test

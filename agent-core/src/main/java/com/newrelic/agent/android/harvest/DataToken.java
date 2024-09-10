@@ -60,6 +60,13 @@ public class DataToken extends HarvestableArray {
         return accountId > 0 && agentId > 0;
     }
 
+    public static DataToken newFromJson(JsonArray jsonArray) {
+        final DataToken dataToken = new DataToken();
+        dataToken.setAccountId(jsonArray.get(0).getAsInt());
+        dataToken.setAgentId(jsonArray.get(1).getAsInt());
+        return dataToken;
+    }
+
     @Override
     public String toString() {
         return "DataToken{" +

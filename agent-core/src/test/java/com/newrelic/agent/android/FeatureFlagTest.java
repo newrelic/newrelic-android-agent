@@ -5,10 +5,6 @@
 
 package com.newrelic.agent.android;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import static com.newrelic.agent.android.FeatureFlag.AnalyticsEvents;
 import static com.newrelic.agent.android.FeatureFlag.AppStartMetrics;
 import static com.newrelic.agent.android.FeatureFlag.ApplicationExitReporting;
@@ -16,6 +12,7 @@ import static com.newrelic.agent.android.FeatureFlag.BackgroundReporting;
 import static com.newrelic.agent.android.FeatureFlag.CrashReporting;
 import static com.newrelic.agent.android.FeatureFlag.DefaultInteractions;
 import static com.newrelic.agent.android.FeatureFlag.DistributedTracing;
+import static com.newrelic.agent.android.FeatureFlag.EventPersistence;
 import static com.newrelic.agent.android.FeatureFlag.FedRampEnabled;
 import static com.newrelic.agent.android.FeatureFlag.HandledExceptions;
 import static com.newrelic.agent.android.FeatureFlag.HttpResponseBodyCapture;
@@ -24,6 +21,10 @@ import static com.newrelic.agent.android.FeatureFlag.LogReporting;
 import static com.newrelic.agent.android.FeatureFlag.NetworkErrorRequests;
 import static com.newrelic.agent.android.FeatureFlag.NetworkRequests;
 import static com.newrelic.agent.android.FeatureFlag.OfflineStorage;
+
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 public class FeatureFlagTest {
     @Before
@@ -73,6 +74,7 @@ public class FeatureFlagTest {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));
+        Assert.assertFalse("EventPersistence is disabled by default", FeatureFlag.featureEnabled(EventPersistence));
     }
 
     @Test
@@ -121,6 +123,7 @@ public class FeatureFlagTest {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));
+        Assert.assertFalse("EventPersistence is disabled by default", FeatureFlag.featureEnabled(EventPersistence));
     }
 
 }

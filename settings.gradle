@@ -10,7 +10,8 @@ pluginManagement {
                 kotlin  : '1.6.+',
                 shadow  : '7.1.2',
                 nexus   : '1.3.0',
-                spotbugs: '5.0.13'
+                spotbugs: '5.0.13',
+                gpp     : '1.2.1'
         ]
     }
 
@@ -25,6 +26,7 @@ pluginManagement {
         id("java")
         id("maven-publish")
         id("io.github.gradle-nexus.publish-plugin") version "${versions.nexus}"
+        id("com.gradle.plugin-publish") version "${versions.gpp}" apply false
         id("com.android.library") version "${versions.agp}"
         id("com.github.johnrengelman.shadow") version "${versions.shadow}"
         id("com.github.spotbugs") version "${versions.spotbugs}"

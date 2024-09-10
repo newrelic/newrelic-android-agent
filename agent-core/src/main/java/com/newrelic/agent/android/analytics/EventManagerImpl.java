@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.analytics;
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.HarvestTimer;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -203,7 +204,7 @@ public class EventManagerImpl implements EventManager, EventListener {
 
             if (events.get().add(event)) {
                 // log.audit("Event added: [" + event.asJson() + "]");
-                if (eventStore != null) {
+                if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence) && eventStore != null) {
                     eventStore.store(event);
                 }
                 eventsRecorded.incrementAndGet();

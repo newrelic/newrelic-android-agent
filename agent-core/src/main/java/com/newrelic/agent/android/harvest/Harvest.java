@@ -114,7 +114,9 @@ public class Harvest implements HarvestConfigurable {
     }
 
     public void shutdownHarvester() {
-        harvestTimer.shutdown();
+        if (harvestTimer != null) {
+            harvestTimer.shutdown();
+        }
         harvestTimer = null;
         harvester = null;
         harvestConnection = null;
