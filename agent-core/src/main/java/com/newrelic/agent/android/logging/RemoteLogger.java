@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.logging;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.util.NamedThreadFactory;
 
@@ -247,7 +246,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
 
         attrs.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
         attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, AgentConfiguration.getInstance().getEntityGuid());
-        attrs.put(LogReporting.lOG_SESSION_ID, AgentConfiguration.getInstance().getSessionID());
+        attrs.put(LogReporting.LOG_SESSION_ID, AgentConfiguration.getInstance().getSessionID());
 
         return attrs;
     }
