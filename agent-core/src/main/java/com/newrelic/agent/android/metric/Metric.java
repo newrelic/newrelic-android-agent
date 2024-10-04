@@ -146,7 +146,7 @@ public class Metric extends HarvestableObject {
         if (value > 0) {
             count += value;
         } else {
-            log.error("Metric.increment() called with negative value[" + value + "]");
+            log.error("Metric.increment() called with value[" + value + "] less then or equal to zero");
         }
         return this;
     }

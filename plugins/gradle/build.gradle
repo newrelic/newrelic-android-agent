@@ -6,6 +6,8 @@
 plugins {
     id("groovy")
     id("org.jetbrains.kotlin.jvm")
+    id("com.github.johnrengelman.shadow")
+    id("com.gradle.plugin-publish") version "1.2.1"
 }
 
 apply from: "$project.rootDir/jacoco.gradle"
@@ -57,19 +59,18 @@ compileKotlin {
 classes.dependsOn compileKotlin
 
 dependencies {
-    implementation project(path: ':instrumentation', configuration: 'shadow')
+    shadow project(path: ':instrumentation', configuration: 'shadow')
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 
     compileOnly 'com.android.tools.build:gradle:' + project.versions.agp.plugin
     compileOnly 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    compileOnly gradleApi()
+    shadow gradleApi()
 
     implementation 'commons-io:commons-io:' + project.versions.java.commonsIO
-    implementation 'com.guardsquare:proguard-gradle:' + project.versions.java.proguard
     implementation 'org.ow2.asm:asm:' + project.versions.java.asm
     implementation 'org.ow2.asm:asm-util:' + project.versions.java.asm
 
-    compileOnly localGroovy()
+    shadow localGroovy()
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
     testImplementation project(path: ':instrumentation', configuration: 'default')
@@ -131,6 +132,10 @@ tasks.withType(Copy).all {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+tasks.jar.configure {
+    classifier = 'default'
+}
+
 test {
     useJUnitPlatform()
     failFast = true
@@ -161,8 +166,27 @@ tasks.named('check') {
     dependsOn(tasks.named("integrationTests"))
 }
 
+shadowJar {
+    classifier = null
+}
+
 artifacts {
-    archives jar
+    archives shadowJar
+}
+
+gradlePlugin {
+    website = 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/'
+    vcsUrl = 'https://github.com/newrelic/newrelic-android-agent'
+    plugins {
+        newrelicPlugin {
+            id = 'com.newrelic.agent.android'
+            implementationClass = 'com.newrelic.agent.android.NewRelicGradlePlugin'
+            displayName = 'New Relic Android Gradle Plugin'
+            description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
+            tags.set(['monitoring', 'mobile', 'newrelic', 'android'])
+
+        }
+    }
 }
 
 apply from: "${rootDir}/gradle/publishing.gradle"

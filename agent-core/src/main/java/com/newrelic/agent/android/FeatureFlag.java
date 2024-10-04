@@ -25,7 +25,8 @@ public enum FeatureFlag {
     OfflineStorage,
     LogReporting,
     ApplicationExitReporting,
-    BackgroundReporting;
+    BackgroundReporting,
+    EventPersistence;
 
     public static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
 

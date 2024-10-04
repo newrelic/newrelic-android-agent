@@ -25,33 +25,34 @@ buildscript {
         ]
 
         versions = [
-                agent : newrelic.agent.version,
+                agent  : newrelic.agent.version,
                 gradle : "7.2",
                 jetpack: "2.5.3",
 
-                java  : [
+                java   : [
                         minVersion : JavaVersion.VERSION_11,
                         kotlin     : "1.6.10",
                         gson       : '2.8.9',
                         guava      : '18.0',
                         commonsIO  : '2.11.0',
                         javassist  : '3.22.0-GA',
-                        asm        : '9.1',
+                        asm        : '9.7',
                         proguard   : '7.3.1',
-                        slf4j      : '2.0.4',
-                        flatbuffers: '1.11.0'
+                        slf4j      : '2.0.16',
+                        flatbuffers: '1.11.0',
+                        gpp        : '1.2.1'
                 ],
 
-                test  : [
+                test   : [
                         junit       : '4.13.2',
                         jupiter     : '5.8.2',
                         mockitoCore : '4.11.0',
                         robolectric : '4.9.+',
                         androidxCore: '1.5.+',
-                        jacoco: '0.8.6'
+                        jacoco      : '0.8.6'
                 ],
 
-                agp   : [
+                agp    : [
                         // https://developer.android.com/studio/releases/platforms
                         plugin       : '7.4.2', // using Gradle 7.6
                         minSdk       : 24,      // Android 7

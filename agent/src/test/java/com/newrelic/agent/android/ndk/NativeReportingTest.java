@@ -215,7 +215,7 @@ public class NativeReportingTest {
     public void flushPendingReports() {
         Assert.assertEquals(6, Streams.list(agentNDK.getManagedContext().getReportsDir()).count());
         agentNDK.flushPendingReports();
-        counters.entrySet().forEach(c -> Assert.assertEquals(c.getKey(), 2, c.getValue().get()));
+        counters.forEach((key, value) -> Assert.assertEquals(key, 2, value.get()));
         Assert.assertEquals(0, Streams.list(agentNDK.getManagedContext().getReportsDir()).count());
     }
 
