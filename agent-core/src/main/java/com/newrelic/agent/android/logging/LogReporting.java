@@ -44,7 +44,6 @@ public abstract class LogReporting {
 
 
 
-
     protected static LogLevel logLevel = LogLevel.WARN;
     protected static AgentLogger agentLogger = new AgentLogger();
     protected static AtomicReference<Logger> instance = new AtomicReference<>(agentLogger);

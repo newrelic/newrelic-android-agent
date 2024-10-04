@@ -256,7 +256,6 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
         attrs.put(LogReporting.LOG_INSTRUMENTATION_VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
         attrs.put(LogReporting.LOG_INSTRUMENTATION_COLLECTOR_NAME, LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME);
 
-
         return attrs;
     }
 
