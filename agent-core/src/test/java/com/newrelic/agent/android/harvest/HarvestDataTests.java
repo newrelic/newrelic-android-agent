@@ -185,6 +185,50 @@ public class HarvestDataTests {
     }
 
     @Test
+    public void testActivityTracesArrayShouldBeEmptyWhenDeFaultInteractionsIsDisabled() throws Exception {
+
+
+        TestHarvest harvest = new TestHarvest();
+        HarvestData harvestData = new HarvestData();
+        harvest.createHarvester();
+        harvest.setHarvestData(harvestData);
+        Harvest.setInstance(harvest);
+
+        // ActivityTraces
+        ActivityTraces activityTraces = Providers.provideActivityTraces();
+        harvestData.setActivityTraces(activityTraces);
+
+        FeatureFlag.disableFeature(FeatureFlag.DefaultInteractions);
+
+        JsonArray array = harvestData.asJsonArray();
+        JsonArray activityTracesElement = array.get(6).getAsJsonArray();
+        Assert.assertEquals(0, activityTracesElement.size());
+
+
+    }
+
+    @Test
+    public void testActivityTracesArrayShouldNotBeEmptyWhenDeFaultInteractionsIsEnabled() throws Exception {
+
+
+        TestHarvest harvest = new TestHarvest();
+        HarvestData harvestData = new HarvestData();
+        harvest.createHarvester();
+        harvest.setHarvestData(harvestData);
+        Harvest.setInstance(harvest);
+
+        // ActivityTraces
+        ActivityTraces activityTraces = Providers.provideActivityTraces();
+        harvestData.setActivityTraces(activityTraces);
+
+        JsonArray array = harvestData.asJsonArray();
+        JsonArray activityTracesElement = array.get(6).getAsJsonArray();
+        Assert.assertEquals(2, activityTracesElement.size());
+
+
+    }
+
+    @Test
     public void testBuildHarvestHttpTransactions() {
         HttpTransactions transactions = new HttpTransactions();
 

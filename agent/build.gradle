@@ -100,6 +100,7 @@ dependencies {
     testImplementation 'junit:junit:' + project.versions.test.junit
     testImplementation 'org.mockito:mockito-core:' + project.versions.test.mockitoCore
     testImplementation 'androidx.test:core:' + project.versions.test.androidxCore
+    testImplementation 'org.jetbrains.kotlin:kotlin-test-junit:' + project.versions.java.kotlin
 }
 
 /**

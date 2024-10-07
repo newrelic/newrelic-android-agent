@@ -918,10 +918,14 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "recordCustomEvent"));
 
+        HashMap<String, Object> customEventAttributes;
         if (null == eventAttributes) {
-            eventAttributes = new HashMap<>();
+            customEventAttributes = new HashMap<>();
+        } else {
+            customEventAttributes = new HashMap<>(eventAttributes);
         }
-        return AnalyticsControllerImpl.getInstance().recordCustomEvent(eventType, eventAttributes);
+
+        return AnalyticsControllerImpl.getInstance().recordCustomEvent(eventType, customEventAttributes);
     }
 
     /**
@@ -934,13 +938,17 @@ public final class NewRelic {
      *                        be of type String, Double, or Boolean.
      */
     public static boolean recordCustomEvent(String eventType, String eventName, Map<String, Object> eventAttributes) {
+        HashMap<String, Object> customEventAttributes;
+
         if (null == eventAttributes) {
-            eventAttributes = new HashMap<>();
+            customEventAttributes = new HashMap<>();
+        } else {
+            customEventAttributes = new HashMap<>(eventAttributes);
         }
         if (eventName != null && !eventName.isEmpty()) {
-            eventAttributes.put(AnalyticsAttribute.EVENT_NAME_ATTRIBUTE, eventName);
+            customEventAttributes.put(AnalyticsAttribute.EVENT_NAME_ATTRIBUTE, eventName);
         }
-        return recordCustomEvent(eventType, eventAttributes);
+        return recordCustomEvent(eventType, customEventAttributes);
     }
 
     /**
@@ -953,6 +961,7 @@ public final class NewRelic {
     public static boolean recordBreadcrumb(String breadcrumbName) {
         return recordBreadcrumb(breadcrumbName, null);
     }
+
 
     /**
      * Records a MobileBreadcrumb event with a given name, and a map of key values
@@ -967,13 +976,16 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "recordBreadcrumb"));
 
+        HashMap<String, Object> breadcrumbAttributes;
         if (null == attributes) {
-            attributes = new HashMap<>();
+            breadcrumbAttributes = new HashMap<>();
+        } else {
+            breadcrumbAttributes = new HashMap<>(attributes);
         }
         if (breadcrumbName != null && !breadcrumbName.isEmpty()) {
-            attributes.put(AnalyticsAttribute.EVENT_NAME_ATTRIBUTE, breadcrumbName);
+            breadcrumbAttributes.put(AnalyticsAttribute.EVENT_NAME_ATTRIBUTE, breadcrumbName);
         }
-        return AnalyticsControllerImpl.getInstance().recordBreadcrumb(breadcrumbName, attributes);
+        return AnalyticsControllerImpl.getInstance().recordBreadcrumb(breadcrumbName, breadcrumbAttributes);
     }
 
     /**
@@ -998,10 +1010,14 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "recordHandledException"));
 
-        if (exceptionAttributes == null) {
-            exceptionAttributes = new HashMap<>();
+        HashMap<String, Object> handledExceptionAttributes;
+        if (null == exceptionAttributes) {
+            handledExceptionAttributes = new HashMap<>();
+        } else {
+            handledExceptionAttributes = new HashMap<>(exceptionAttributes);
         }
-        return recordHandledException((Throwable) exception, exceptionAttributes);
+
+        return recordHandledException((Throwable) exception, handledExceptionAttributes);
     }
 
     /**
@@ -1026,10 +1042,14 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "recordThrowable"));
 
-        if (attributes == null) {
-            attributes = new HashMap<>();
+        HashMap<String, Object> handledExceptionAttributes;
+        if (null == attributes) {
+            handledExceptionAttributes = new HashMap<>();
+        } else {
+            handledExceptionAttributes = new HashMap<>(attributes);
         }
-        return AgentDataController.sendAgentData(throwable, attributes);
+
+        return AgentDataController.sendAgentData(throwable, handledExceptionAttributes);
     }
 
     /**

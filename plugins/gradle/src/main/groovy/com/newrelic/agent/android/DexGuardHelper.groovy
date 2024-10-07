@@ -121,7 +121,7 @@ class DexGuardHelper {
 
             buildHelper.project.afterEvaluate {
                 def wiredTaskNames = [DEXGUARD_APK_TASK, DEXGUARD_AAB_TASK, DEXGUARD_BUNDLE_TASK, DEXGUARD_AAR_TASK].collect { it + variantName.capitalize() }
-                buildHelper.wireTaskProviderToDependencyNames(Set.of(wiredTaskNames)) { taskProvider ->
+                buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames.toSet()) { taskProvider ->
                     if (taskProvider.name.startsWith(DEXGUARD_APK_TASK)) {
                         finalizeMapUploadProvider(taskProvider, variantName) {
                             it.replace("<target>", "apk")
