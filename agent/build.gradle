@@ -9,7 +9,6 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     id("com.github.johnrengelman.shadow")
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
 }
 
 apply from: "$project.rootDir/jacoco.gradle"
