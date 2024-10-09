@@ -189,44 +189,6 @@ if (project.plugins.hasPlugin("com.gradle.plugin-publish")) {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            groupId 'com.newrelic.agent.android'
-            version project.versions.agent
-            // artifact javadocJar
-            // artifact sourcesJar
-
-            from components.java
-            artifactId 'agent-gradle-plugin'
-
-            pom {
-                name = 'New Relic Android Gradle Plugin'
-                description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
-                artifactId = 'agent-gradle-plugin'
-                url = 'https://newrelic.com'
-                packaging = 'jar'
-
-                licenses {
-                    license {
-                        url = 'https://newrelic.com/docs/java/java-agent-license'
-                    }
-                }
-
-                developers {
-                    developer {
-                        id = 'mobile-agents-team'
-                        name = 'Mobile Agents Team'
-                        email = 'mobile-agents@newrelic.com'
-                    }
-                }
-
-                scm {
-                    url = 'scm:git:https://github.com/newrelic/newrelic-android-agent.git'
-                    connection = 'scm:git:https://github.com/newrelic/newrelic-android-agent.git'
-                }
-            }
-        }
-
-        /*
-        mavenJava(MavenPublication) {
             from components.java
             artifactId 'agent-gradle-plugin'
             pom {
@@ -235,6 +197,5 @@ publishing {
                 description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
             }
         }
-        */
     }
 }
