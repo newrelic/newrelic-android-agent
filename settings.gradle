@@ -25,6 +25,7 @@ pluginManagement {
         id("base")
         id("java")
         id("maven-publish") apply false
+        id("signing") apply false
         id("io.github.gradle-nexus.publish-plugin") version "${versions.nexus}" apply false
         id("com.gradle.plugin-publish") version "${versions.gpp}" apply false
         //noinspection GradlePluginVersion

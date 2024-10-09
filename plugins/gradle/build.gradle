@@ -7,7 +7,7 @@ plugins {
     id("groovy")
     id("org.jetbrains.kotlin.jvm")
     // id("com.github.johnrengelman.shadow")
-    // id("com.gradle.plugin-publish")
+    id("com.gradle.plugin-publish") apply true
 }
 
 apply from: "$project.rootDir/jacoco.gradle"
