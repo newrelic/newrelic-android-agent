@@ -162,20 +162,37 @@ tasks.named('check') {
 }
 
 artifacts {
-    archives jar
+    archives shadowJar
 }
 
-apply from: "${rootDir}/gradle/publishing.gradle"
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-            artifactId 'agent-gradle-plugin'
-            pom {
-                artifactId = 'agent-gradle-plugin'
-                name = 'New Relic Android Gradle Plugin'
+if (project.plugins.hasPlugin("com.gradle.plugin-publish")) {
+    gradlePlugin {
+        website = 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/'
+        vcsUrl = 'https://github.com/newrelic/newrelic-android-agent'
+        plugins {
+            newrelicPlugin {
+                id = 'com.newrelic.agent.android'
+                implementationClass = 'com.newrelic.agent.android.NewRelicGradlePlugin'
+                displayName = 'New Relic Android Gradle Plugin'
                 description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
+                tags.set(['monitoring', 'mobile', 'newrelic', 'android'])
+            }
+        }
+    }
+    
+} else {
+    apply from: "${rootDir}/gradle/publishing.gradle"
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                artifactId 'agent-gradle-plugin'
+                pom {
+                    artifactId = 'agent-gradle-plugin'
+                    name = 'New Relic Android Gradle Plugin'
+                    description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
+                }
             }
         }
     }
