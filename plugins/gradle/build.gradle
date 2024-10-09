@@ -162,7 +162,7 @@ tasks.named('check') {
 }
 
 artifacts {
-    archives shadowJar
+    archives jar
 }
 
 if (project.plugins.hasPlugin("com.gradle.plugin-publish")) {

@@ -27,7 +27,8 @@ pluginManagement {
         id("maven-publish")
         id("io.github.gradle-nexus.publish-plugin") version "${versions.nexus}"
         id("com.gradle.plugin-publish") version "${versions.gpp}" apply false
-        id("com.android.library") version "${versions.agp}"
+        //noinspection GradlePluginVersion
+        id("com.android.library") version "${versions.agp}" apply false
         id("com.github.johnrengelman.shadow") version "${versions.shadow}"
         id("com.github.spotbugs") version "${versions.spotbugs}"
         id("org.jetbrains.kotlin.jvm") version "${versions.kotlin}" apply false
