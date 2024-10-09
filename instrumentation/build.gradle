@@ -156,6 +156,9 @@ artifacts {
 }
 
 
+/**
+ * Configure artifact publishing
+ */
 apply from: "${rootDir}/gradle/publishing.gradle"
 
 publishing {

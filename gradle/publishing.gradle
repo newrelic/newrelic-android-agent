@@ -4,7 +4,6 @@
  */
 
 apply plugin: 'maven-publish'
-apply plugin: 'signing'
 
 publishing {
     repositories {
@@ -50,6 +49,16 @@ publishing {
     }
 }
 
+project.tasks.register("install") {
+    dependsOn publishMavenJavaPublicationToMavenLocal
+    description "Publishes all Maven publications produced by this project to the local Maven cache. " +
+            "Replacement for the legacy 'maven' plugin task."
+    group "publishing"
+}
+
+
+apply plugin: 'signing'
+
 signing {
     useInMemoryPgpKeys(
             project.findProperty("signingKeyId"),
@@ -61,12 +70,5 @@ signing {
         gradle.taskGraph.hasTask("publishAllPublicationsToArtifactsRepository") ||
                 gradle.taskGraph.hasTask("publishAllPublicationsToSnapshotsRepository")
     }
-}
-
-project.tasks.register("install") {
-    dependsOn publishMavenJavaPublicationToMavenLocal
-    description "Publishes all Maven publications produced by this project to the local Maven cache. " +
-            "Replacement for the legacy 'maven' plugin task."
-    group "publishing"
 }
 

@@ -1,0 +1,21 @@
+/*
+ * Copyright (c) 2024 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+apply plugin: 'signing'
+
+signing {
+    useInMemoryPgpKeys(
+            project.findProperty("signingKeyId"),
+            project.findProperty("signingKey"),
+            project.findProperty("signingPassword")
+    )
+    sign publishing.publications.mavenJava
+    required {
+        gradle.taskGraph.hasTask("publishAllPublicationsToArtifactsRepository") ||
+                gradle.taskGraph.hasTask("publishAllPublicationsToSnapshotsRepository")
+    }
+}
+
+
