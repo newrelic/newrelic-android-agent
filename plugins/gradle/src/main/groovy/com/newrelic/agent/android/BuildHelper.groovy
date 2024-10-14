@@ -50,7 +50,7 @@ class BuildHelper {
 
     public final String gradleVersion = GradleVersion.current().version
     static final String minSupportedAGPVersion = '7.0.0'
-    static final String maxSupportedAGPVersion = "8.6"
+    static final String maxSupportedAGPVersion = "8.7"
     static final String minSupportedGradleVersion = '7.1'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
     static final String minSupportedAGPConfigCacheVersion = '7.0.0'
