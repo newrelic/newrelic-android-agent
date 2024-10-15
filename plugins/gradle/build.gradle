@@ -6,8 +6,7 @@
 plugins {
     id("groovy")
     id("org.jetbrains.kotlin.jvm")
-    id("com.github.johnrengelman.shadow")
-    id("com.gradle.plugin-publish") version "1.2.1"
+    id("com.gradle.plugin-publish")
 }
 
 apply from: "$project.rootDir/jacoco.gradle"
@@ -59,18 +58,19 @@ compileKotlin {
 classes.dependsOn compileKotlin
 
 dependencies {
-    shadow project(path: ':instrumentation', configuration: 'shadow')
+    implementation project(path: ':instrumentation', configuration: 'shadow')
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 
     compileOnly 'com.android.tools.build:gradle:' + project.versions.agp.plugin
     compileOnly 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    shadow gradleApi()
+    compileOnly gradleApi()
 
     implementation 'commons-io:commons-io:' + project.versions.java.commonsIO
+    implementation 'com.guardsquare:proguard-gradle:' + project.versions.java.proguard
     implementation 'org.ow2.asm:asm:' + project.versions.java.asm
     implementation 'org.ow2.asm:asm-util:' + project.versions.java.asm
 
-    shadow localGroovy()
+    compileOnly localGroovy()
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
     testImplementation project(path: ':instrumentation', configuration: 'default')
@@ -128,12 +128,22 @@ tasks.withType(Test).configureEach {
     }
 }
 
-tasks.withType(Copy).all {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+tasks.withType(AbstractPublishToMaven).configureEach {
+    if (name.contains("PluginMavenPublication")) {
+        logger.quiet("Ignoring publish task: $name")
+        enabled(false)
+    }
+
+    if (name.contains("NewrelicPluginPluginMarkerMavenPublication")) {
+        logger.quiet("Ignoring publish task: $name")
+        enabled(false)
+    }
+
+    dependsOn(tasks.named("signPluginMavenPublication"))
 }
 
-tasks.jar.configure {
-    classifier = 'default'
+tasks.withType(Copy).all {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 test {
@@ -166,27 +176,8 @@ tasks.named('check') {
     dependsOn(tasks.named("integrationTests"))
 }
 
-shadowJar {
-    classifier = null
-}
-
 artifacts {
-    archives shadowJar
-}
-
-gradlePlugin {
-    website = 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/'
-    vcsUrl = 'https://github.com/newrelic/newrelic-android-agent'
-    plugins {
-        newrelicPlugin {
-            id = 'com.newrelic.agent.android'
-            implementationClass = 'com.newrelic.agent.android.NewRelicGradlePlugin'
-            displayName = 'New Relic Android Gradle Plugin'
-            description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
-            tags.set(['monitoring', 'mobile', 'newrelic', 'android'])
-
-        }
-    }
+    archives jar
 }
 
 apply from: "${rootDir}/gradle/publishing.gradle"
@@ -204,3 +195,19 @@ publishing {
         }
     }
 }
+
+gradlePlugin {
+    website = 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/'
+    vcsUrl = 'https://github.com/newrelic/newrelic-android-agent'
+    plugins {
+        newrelicPlugin {
+            id = 'com.newrelic.agent.android'
+            implementationClass = 'com.newrelic.agent.android.NewRelicGradlePlugin'
+            displayName = 'New Relic Android Gradle Plugin'
+            description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
+            tags.set(['monitoring', 'mobile', 'newrelic', 'android'])
+        }
+    }
+}
+
+

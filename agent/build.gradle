@@ -171,22 +171,22 @@ def toFatJarTask(def variant) {
 apply from: "${rootDir}/gradle/publishing.gradle"
 
 publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId 'android-agent'
+            android.libraryVariants.all { variant ->
+                artifact variant.ext.fatJarProvider
+            }
+            artifact javadocJar
+            artifact sourcesJar
 
-        publications {
-            mavenJava(MavenPublication) {
-                android.libraryVariants.all { variant ->
-                    artifact variant.ext.fatJarProvider
-                }
-                artifact javadocJar
-                artifact sourcesJar
-                artifactId 'android-agent'
-                pom {
-                    groupId = 'com.newrelic.agent.android'
-                    artifactId = monoEnabled ? 'android-agent-static':'android-agent'
-                    version = rootProject.version
-                    name = 'New Relic Android Agent'
-                    description = 'The New Relic Android agent provides performance monitoring instrumentation for Android applications'
-                }
+            pom {
+                groupId = 'com.newrelic.agent.android'
+                artifactId = monoEnabled ? 'android-agent-static' : 'android-agent'
+                version = rootProject.version
+                name = 'New Relic Android Agent'
+                description = 'The New Relic Android agent provides performance monitoring instrumentation for Android applications'
             }
         }
     }
+}
