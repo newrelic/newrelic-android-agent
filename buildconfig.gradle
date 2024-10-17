@@ -38,7 +38,7 @@ buildscript {
                         javassist  : '3.22.0-GA',
                         asm        : '9.7',
                         proguard   : '7.3.1',
-                        slf4j      : '2.0.16',
+                        slf4j      : '2.0.4',
                         flatbuffers: '1.11.0',
                         gpp        : '1.2.1'
                 ],
