@@ -161,10 +161,12 @@ apply from: "${rootDir}/gradle/publishing.gradle"
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifact shadowJar
+
             artifactId 'instrumentation'
+            artifact shadowJar
             artifact javadocJar
             artifact sourcesJar
+
             pom {
                 artifactId = 'instrumentation'
                 name = 'New Relic Android Instrumentation Agent'

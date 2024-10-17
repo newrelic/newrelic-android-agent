@@ -10,6 +10,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.newrelic.agent.android.Agent;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.harvest.type.HarvestableArray;
@@ -101,7 +102,7 @@ public class HarvestData extends HarvestableArray implements HarvestConfigurable
 
         // Check the length of the Activity Trace and ensure it's under our limit.
         String activityTraceJson = activityTracesElement.toString();
-        if (activityTraceJson.length() < Harvest.getHarvestConfiguration().getActivity_trace_max_size()) {
+        if (activityTraceJson.length() < Harvest.getHarvestConfiguration().getActivity_trace_max_size() && FeatureFlag.featureEnabled(FeatureFlag.DefaultInteractions)) {
             array.add(activityTracesElement);
         } else {
             StatsEngine.get().sample(MetricNames.SUPPORTABILITY_TRACES_DROPPED, (float) activityTraceJson.length());

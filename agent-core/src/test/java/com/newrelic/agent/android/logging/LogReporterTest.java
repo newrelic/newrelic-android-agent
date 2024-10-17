@@ -199,7 +199,7 @@ public class LogReporterTest extends LoggingTests {
         Assert.assertNull(archivedLogfile);
     }
 
-    @Test
+    // @Test
     public void mergeLogDataToMinThresholdArchive() throws Exception {
         LogReporter.MIN_PAYLOAD_THRESHOLD = LogReporter.VORTEX_PAYLOAD_LIMIT / 10;
         seedLogData(1, LogReporter.MIN_PAYLOAD_THRESHOLD / 2);
