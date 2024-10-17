@@ -7,7 +7,7 @@ plugins {
     id("groovy")
     id("org.jetbrains.kotlin.jvm")
     id("com.github.johnrengelman.shadow")
-    id("com.gradle.plugin-publish") version "1.2.1"
+    id("com.gradle.plugin-publish")
 }
 
 apply from: "$project.rootDir/jacoco.gradle"
@@ -64,7 +64,7 @@ dependencies {
 
     compileOnly 'com.android.tools.build:gradle:' + project.versions.agp.plugin
     compileOnly 'com.android.tools.build:gradle-api:' + project.versions.agp.gradleApi
-    shadow gradleApi()
+    compileOnly gradleApi()
 
     implementation 'commons-io:commons-io:' + project.versions.java.commonsIO
     implementation 'org.ow2.asm:asm:' + project.versions.java.asm
@@ -128,6 +128,20 @@ tasks.withType(Test).configureEach {
     }
 }
 
+tasks.withType(AbstractPublishToMaven).configureEach {
+    if (name.endsWith("PluginMavenPublicationToSonatypeRepository")) {
+        logger.quiet("Ignoring publish task: $name")
+        enabled(false)
+    }
+
+    if (name.endsWith("NewrelicPluginPluginMarkerMavenPublicationToSonatypeRepository")) {
+        logger.quiet("Ignoring publish task: $name")
+        enabled(false)
+    }
+
+    dependsOn(tasks.named("signPluginMavenPublication"))
+}
+
 tasks.withType(Copy).all {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
@@ -174,6 +188,22 @@ artifacts {
     archives shadowJar
 }
 
+
+apply from: "${rootDir}/gradle/publishing.gradle"
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId 'agent-gradle-plugin'
+            pom {
+                name = 'New Relic Android Gradle Plugin'
+                description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
+            }
+        }
+    }
+}
+
 gradlePlugin {
     website = 'https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/'
     vcsUrl = 'https://github.com/newrelic/newrelic-android-agent'
@@ -184,23 +214,8 @@ gradlePlugin {
             displayName = 'New Relic Android Gradle Plugin'
             description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
             tags.set(['monitoring', 'mobile', 'newrelic', 'android'])
-
         }
     }
 }
 
-apply from: "${rootDir}/gradle/publishing.gradle"
 
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-            artifactId 'agent-gradle-plugin'
-            pom {
-                artifactId = 'agent-gradle-plugin'
-                name = 'New Relic Android Gradle Plugin'
-                description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
-            }
-        }
-    }
-}
