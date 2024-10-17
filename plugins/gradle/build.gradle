@@ -6,6 +6,7 @@
 plugins {
     id("groovy")
     id("org.jetbrains.kotlin.jvm")
+    id("com.github.johnrengelman.shadow")
     id("com.gradle.plugin-publish")
 }
 
@@ -58,7 +59,7 @@ compileKotlin {
 classes.dependsOn compileKotlin
 
 dependencies {
-    implementation project(path: ':instrumentation', configuration: 'shadow')
+    shadow project(path: ':instrumentation', configuration: 'shadow')
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 
     compileOnly 'com.android.tools.build:gradle:' + project.versions.agp.plugin
@@ -66,11 +67,10 @@ dependencies {
     compileOnly gradleApi()
 
     implementation 'commons-io:commons-io:' + project.versions.java.commonsIO
-    implementation 'com.guardsquare:proguard-gradle:' + project.versions.java.proguard
     implementation 'org.ow2.asm:asm:' + project.versions.java.asm
     implementation 'org.ow2.asm:asm-util:' + project.versions.java.asm
 
-    compileOnly localGroovy()
+    shadow localGroovy()
     compileOnly 'com.google.guava:guava:' + project.versions.java.guava
 
     testImplementation project(path: ':instrumentation', configuration: 'default')
@@ -129,12 +129,12 @@ tasks.withType(Test).configureEach {
 }
 
 tasks.withType(AbstractPublishToMaven).configureEach {
-    if (name.contains("PluginMavenPublication")) {
+    if (name.endsWith("PluginMavenPublicationToSonatypeRepository")) {
         logger.quiet("Ignoring publish task: $name")
         enabled(false)
     }
 
-    if (name.contains("NewrelicPluginPluginMarkerMavenPublication")) {
+    if (name.endsWith("NewrelicPluginPluginMarkerMavenPublicationToSonatypeRepository")) {
         logger.quiet("Ignoring publish task: $name")
         enabled(false)
     }
@@ -144,6 +144,10 @@ tasks.withType(AbstractPublishToMaven).configureEach {
 
 tasks.withType(Copy).all {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.jar.configure {
+    classifier = 'default'
 }
 
 test {
@@ -176,9 +180,14 @@ tasks.named('check') {
     dependsOn(tasks.named("integrationTests"))
 }
 
-artifacts {
-    archives jar
+shadowJar {
+    classifier = null
 }
+
+artifacts {
+    archives shadowJar
+}
+
 
 apply from: "${rootDir}/gradle/publishing.gradle"
 
@@ -188,7 +197,6 @@ publishing {
             from components.java
             artifactId 'agent-gradle-plugin'
             pom {
-                artifactId = 'agent-gradle-plugin'
                 name = 'New Relic Android Gradle Plugin'
                 description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
             }
