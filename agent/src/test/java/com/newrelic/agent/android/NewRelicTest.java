@@ -1513,7 +1513,7 @@ public class NewRelicTest {
                 .orElse(null);
     }
 
-    static AnalyticsAttribute getAttributeByName(Collection<AnalyticsAttribute> attributes, String name) {
+    static public AnalyticsAttribute getAttributeByName(Collection<AnalyticsAttribute> attributes, String name) {
         return attributes.stream()
                 .filter(analyticsAttribute -> analyticsAttribute.getName().equalsIgnoreCase(name))
                 .findFirst()

@@ -20,6 +20,7 @@ import android.os.Looper;
 import android.os.StatFs;
 import android.text.TextUtils;
 
+import com.newrelic.agent.android.aei.ApplicationExitMonitor;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
