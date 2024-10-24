@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android;
+package com.newrelic.agent.android.aei;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 
@@ -34,6 +35,19 @@ public class ApplicationExitConfigurationTest {
 
         FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
         Assert.assertTrue(applicationExitConfiguration.isEnabled());
+    }
+
+    @Test
+    public void setEnabled() {
+        Assert.assertFalse(applicationExitConfiguration.isEnabled());
+
+        applicationExitConfiguration.setEnabled(true);
+        Assert.assertFalse("Requires feature flag", applicationExitConfiguration.isEnabled());
+
+        FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
+        Assert.assertTrue(applicationExitConfiguration.isEnabled());
+
+        applicationExitConfiguration.setEnabled(true);
     }
 
     @Test
@@ -85,4 +99,5 @@ public class ApplicationExitConfigurationTest {
         applicationExitConfiguration.enabled = true;
         Assert.assertEquals("{\"enabled\":true}", gson.toJson(applicationExitConfiguration));
     }
+
 }

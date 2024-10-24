@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android;
 
+import com.newrelic.agent.android.aei.ApplicationExitConfiguration;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;

@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android;
 
+import com.newrelic.agent.android.aei.ApplicationExitConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore;
 import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;

@@ -6,7 +6,7 @@
 package com.newrelic.agent.android.harvest;
 
 import com.newrelic.agent.android.Agent;
-import com.newrelic.agent.android.ApplicationExitConfiguration;
+import com.newrelic.agent.android.aei.ApplicationExitConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
@@ -21,8 +21,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
-
-import java.util.Collection;
 
 public class HarvesterTest {
     Harvester harvester;

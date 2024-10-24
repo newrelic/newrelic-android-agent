@@ -1,9 +1,9 @@
-/**
- * Copyright 2021-present New Relic Corporation. All rights reserved.
+/*
+ * Copyright (c) 2024. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android;
+package com.newrelic.agent.android.aei;
 
 import static com.newrelic.agent.android.analytics.AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT;
 
@@ -51,7 +51,7 @@ public class ApplicationExitMonitor {
      **/
     @SuppressLint("SwitchIntDef")
     @SuppressWarnings("deprecation")
-    protected void harvestApplicationExitInfo() {
+    public void harvestApplicationExitInfo() {
 
         // Only supported in Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
