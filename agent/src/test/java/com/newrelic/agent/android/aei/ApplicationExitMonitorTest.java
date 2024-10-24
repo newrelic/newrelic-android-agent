@@ -408,6 +408,39 @@ public class ApplicationExitMonitorTest {
         Assert.assertEquals(currentSessionId, applicationExitMonitor.sessionMapper.getOrDefault(12345, currentSessionId));
     }
 
+    @Test
+    public void reconcileMetadata() throws IOException {
+        // harvest leaves a set of artifacts
+        applicationExitMonitor.harvestApplicationExitInfo();
+        int artifactsSize = applicationExitMonitor.getArtifacts().size();
+
+        applicationExitMonitor.reconcileMetadata(applicationExitInfoList);
+        // no artifacts are removed
+        Assert.assertEquals(artifactsSize, applicationExitMonitor.getArtifacts().size());
+
+        // ART deletes a few records
+        applicationExitInfoList.remove(2);
+        applicationExitInfoList.remove(3);
+        applicationExitMonitor.reconcileMetadata(applicationExitInfoList);
+
+        Assert.assertEquals(applicationExitInfoList.size(), applicationExitMonitor.getArtifacts().size());
+        Assert.assertTrue(artifactsSize > applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(artifactsSize - 2, applicationExitMonitor.getArtifacts().size());
+
+        // ART adds a few new records:
+        artifactsSize = applicationExitMonitor.getArtifacts().size();
+
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_USER_STOPPED));
+        applicationExitMonitor.harvestApplicationExitInfo();
+
+        applicationExitMonitor.reconcileMetadata(applicationExitInfoList);
+        Assert.assertEquals(applicationExitInfoList.size(), applicationExitMonitor.getArtifacts().size());
+        Assert.assertTrue(artifactsSize < applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(artifactsSize + 3, applicationExitMonitor.getArtifacts().size());
+    }
+
     private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {
         return provideApplicationExitInfo(reasonCode, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
     }

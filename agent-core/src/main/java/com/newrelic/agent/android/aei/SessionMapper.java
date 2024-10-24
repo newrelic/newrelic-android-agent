@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class SessionMapper {
 
@@ -43,12 +45,12 @@ public class SessionMapper {
     }
 
     public String get(int pid) {
-        return mapper.getOrDefault(pid, "");
+        return mapper.getOrDefault(pid, null);
     }
 
     public String getOrDefault(int pid, String defaultSessionId) {
         String sessionId = get(pid);
-        return sessionId.isEmpty() ? defaultSessionId : sessionId;
+        return (sessionId == null || sessionId.isEmpty()) ? defaultSessionId : sessionId;
     }
 
     @SuppressWarnings("unchecked")
@@ -92,4 +94,20 @@ public class SessionMapper {
             mapStore.delete();
         }
     }
+
+    public void erase(int pid) {
+        mapper.remove(pid);
+    }
+
+    /**
+     * Remove any elements whose key's are *not* in the passed set
+     */
+    synchronized public void erase(Set<Integer> pidSet) {
+        Set<Integer> currentKeySet = mapper.keySet();
+        currentKeySet.stream()
+                .filter(pid -> !pidSet.contains(pid))
+                .collect(Collectors.toSet())
+                .forEach(pid -> mapper.remove(pid));
+    }
+
 }

@@ -19,6 +19,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.Set;
 import java.util.UUID;
 
 public class SessionMapperTest {
@@ -64,13 +65,13 @@ public class SessionMapperTest {
 
     @Test
     public void get() {
-        Assert.assertNotEquals("", mapper.get(234));
-        Assert.assertEquals("", mapper.get(456));
+        Assert.assertNotNull(mapper.get(234));
+        Assert.assertNull(mapper.get(456));
     }
 
     @Test
     public void getOrDefault() {
-        Assert.assertEquals("", mapper.get(456));
+        Assert.assertNotNull(mapper.getOrDefault(456, UUID.randomUUID().toString()));
     }
 
     @Test
@@ -88,7 +89,6 @@ public class SessionMapperTest {
     public void flush() {
         Assert.assertEquals(0, sessionMapperFile.length());
         mapper.flush();
-        ;
         Assert.assertNotEquals(0, sessionMapperFile.length());
     }
 
@@ -105,5 +105,24 @@ public class SessionMapperTest {
         Assert.assertTrue(sessionMapperFile.exists() && sessionMapperFile.length() > 0);
         mapper.delete();
         Assert.assertFalse(sessionMapperFile.exists());
+    }
+
+    @Test
+    public void erase() {
+        Assert.assertNotNull(mapper.get(123));
+        Assert.assertNotNull(mapper.get(234));
+        Assert.assertNotNull(mapper.get(345));
+        Assert.assertNull(mapper.get(456));
+
+        Set<Integer> pidSet = Set.of(123, 234, 456);
+        mapper.erase(pidSet);
+
+        Assert.assertNotNull(mapper.get(123));
+        Assert.assertNotNull(mapper.get(234));
+        Assert.assertNull(mapper.get(345));
+
+        mapper.put(456, UUID.randomUUID().toString());
+        mapper.erase(pidSet);
+        Assert.assertNotNull(mapper.get(456));
     }
 }

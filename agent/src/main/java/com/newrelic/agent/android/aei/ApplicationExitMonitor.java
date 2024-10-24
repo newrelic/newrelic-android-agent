@@ -14,6 +14,8 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Process;
 
+import androidx.annotation.RequiresApi;
+
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
@@ -33,6 +35,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ApplicationExitMonitor {
@@ -53,6 +58,7 @@ public class ApplicationExitMonitor {
         this.am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
 
         reportsDir.mkdirs();
+        loadSessionMapper();
     }
 
     void loadSessionMapper() {
@@ -61,6 +67,7 @@ public class ApplicationExitMonitor {
         sessionMapper.flush();
     }
 
+    // a gettor useful in mock tests
     int getCurrentProcessId() {
         return Process.myPid();
     }
@@ -95,79 +102,79 @@ public class ApplicationExitMonitor {
                 if (artifact.exists() && (artifact.length() > 0)) {
                     log.debug("ApplicationExitMonitor: skipping exit info for pid[" + exitInfo.getPid() + "]: already recorded.");
                     recordsSkipped++;
-
-                } else {
-                    String traceReport = exitInfo.toString();
-
-                    // remove any empty files
-                    if (artifact.exists() && artifact.length() == 0) {
-                        artifact.delete();
-                    }
-
-                    try (OutputStream artifactOs = new FileOutputStream(artifact, false)) {
-
-                        if (null != exitInfo.getTraceInputStream()) {
-                            try (InputStream traceIs = exitInfo.getTraceInputStream()) {
-                                traceReport = Streams.slurpString(traceIs);
-                            } catch (IOException e) {
-                                log.info("ApplicationExitMonitor: " + e);
-                            }
-                        }
-
-                        artifactOs.write(traceReport.getBytes(StandardCharsets.UTF_8));
-                        artifactOs.flush();
-                        artifactOs.close();
-                        artifact.setReadOnly();
-
-                        recordsVisited++;
-
-                    } catch (IOException e) {
-                        log.debug("harvestApplicationExitInfo: AppExitInfo artifact error. " + e);
-                    }
-
-                    // finally, emit an event for the record
-                    final HashMap<String, Object> eventAttributes = new HashMap<>();
-
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, getImportanceAsString(exitInfo.getImportance()));
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
-
-                    // try to map the AEI with the session it occurred in
-                    String aeiSessionId = sessionMapper.get(exitInfo.getPid());
-                    if (!aeiSessionId.isEmpty()) {
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, aeiSessionId);
-                    }
-
-                    // Add fg/bg flag based on inferred importance:
-                    switch (exitInfo.getImportance()) {
-                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
-                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
-                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
-                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26:
-                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
-                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
-                        case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28:
-                            eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
-                            break;
-                        default:
-                            eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
-                            break;
-                    }
-
-                    eventsAdded |= AnalyticsControllerImpl.getInstance().internalRecordEvent(packageName,
-                            AnalyticsEventCategory.ApplicationExit,
-                            EVENT_TYPE_MOBILE_APPLICATION_EXIT,
-                            eventAttributes);
-
-                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
-                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + getReasonAsString(exitInfo.getReason()));
-                    StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + getImportanceAsString(exitInfo.getImportance()));
-                    StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited);
-                    StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped);
+                    continue;
                 }
+
+                String traceReport = exitInfo.toString();
+
+                // remove any empty files
+                if (artifact.exists() && artifact.length() == 0) {
+                    artifact.delete();
+                }
+
+                try (OutputStream artifactOs = new FileOutputStream(artifact, false)) {
+
+                    if (null != exitInfo.getTraceInputStream()) {
+                        try (InputStream traceIs = exitInfo.getTraceInputStream()) {
+                            traceReport = Streams.slurpString(traceIs);
+                        } catch (IOException e) {
+                            log.info("ApplicationExitMonitor: " + e);
+                        }
+                    }
+
+                    artifactOs.write(traceReport.getBytes(StandardCharsets.UTF_8));
+                    artifactOs.flush();
+                    artifactOs.close();
+                    artifact.setReadOnly();
+
+                    recordsVisited++;
+
+                } catch (IOException e) {
+                    log.debug("harvestApplicationExitInfo: AppExitInfo artifact error. " + e);
+                }
+
+                // finally, emit an event for the record
+                final HashMap<String, Object> eventAttributes = new HashMap<>();
+
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, getImportanceAsString(exitInfo.getImportance()));
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
+
+                // try to map the AEI with the session it occurred in
+                String aeiSessionId = sessionMapper.get(exitInfo.getPid());
+                if (!(aeiSessionId == null || aeiSessionId.isEmpty())) {
+                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, aeiSessionId);
+                }
+
+                // Add fg/bg flag based on inferred importance:
+                switch (exitInfo.getImportance()) {
+                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
+                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
+                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
+                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26:
+                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
+                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
+                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28:
+                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
+                        break;
+                    default:
+                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
+                        break;
+                }
+
+                eventsAdded |= AnalyticsControllerImpl.getInstance().internalRecordEvent(packageName,
+                        AnalyticsEventCategory.ApplicationExit,
+                        EVENT_TYPE_MOBILE_APPLICATION_EXIT,
+                        eventAttributes);
+
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + getReasonAsString(exitInfo.getReason()));
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + getImportanceAsString(exitInfo.getImportance()));
+                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited);
+                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped);
             }
 
             log.debug("AEI: inspected " + applicationExitInfos.size() + " records: new[" + recordsVisited + "] existing [" + recordsSkipped + "]");
@@ -177,10 +184,47 @@ public class ApplicationExitMonitor {
                 AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
             }
 
+            // sync the cache dir and session mapper
+            reconcileMetadata(applicationExitInfos);
+
         } else {
             log.warn("ApplicationExitMonitor: exit info reporting was enabled, but not supported by the current OS");
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_UNSUPPORTED_OS + Build.VERSION.SDK_INT);
         }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    public Set<Integer> currentPidSet(List<ApplicationExitInfo> applicationExitInfos) {
+        return applicationExitInfos.stream()
+                .mapToInt(applicationExitInfo -> applicationExitInfo.getPid())
+                .boxed()
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * For each existing artifact, if the pid contained in the filename doesn't exist in
+     * the passed AEI record set, delete the artifact.
+     *
+     * @param applicationExitInfos List of records reported from ART
+     **/
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    void reconcileMetadata(List<ApplicationExitInfo> applicationExitInfos) {
+        List<File> artifacts = getArtifacts();
+        Pattern regexp = Pattern.compile(String.format(Locale.getDefault(), ARTIFACT_NAME, "(\\d+)"));
+        Set<Integer> currentPids = currentPidSet(applicationExitInfos);
+
+        artifacts.forEach(aeiAtifact -> {
+            Matcher matcher = regexp.matcher(aeiAtifact.getName());
+            if (matcher.matches()) {
+                int pid = Integer.valueOf(matcher.group(1));
+                if (!currentPids.contains(pid)) {
+                    aeiAtifact.delete();
+                    sessionMapper.erase(pid);
+                }
+            }
+        });
+
+        sessionMapper.flush();
     }
 
     protected String toValidAttributeValue(String attributeValue) {
