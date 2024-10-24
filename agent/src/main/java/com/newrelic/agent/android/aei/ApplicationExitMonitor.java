@@ -12,7 +12,9 @@ import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
 import android.content.Context;
 import android.os.Build;
+import android.os.Process;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
@@ -30,20 +32,37 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 public class ApplicationExitMonitor {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
-    protected final String packageName;
+    static final String SESSION_ID_MAPPING_STORE = "sessionid.map";
+    static final String ARTIFACT_NAME = "aei-%s.dat";
+
     protected final File reportsDir;
+    protected final String packageName;
+    protected final SessionMapper sessionMapper;
     protected ActivityManager am;
 
     public ApplicationExitMonitor(final Context context) {
         this.reportsDir = new File(context.getCacheDir(), "newrelic/applicationExitInfo");
-        this.am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         this.packageName = context.getPackageName();
+        this.sessionMapper = new SessionMapper(new File(reportsDir, SESSION_ID_MAPPING_STORE));
+        this.am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
 
         reportsDir.mkdirs();
+    }
+
+    void loadSessionMapper() {
+        sessionMapper.load();
+        sessionMapper.put(getCurrentProcessId(), AgentConfiguration.getInstance().getSessionID());
+        sessionMapper.flush();
+    }
+
+    int getCurrentProcessId() {
+        return Process.myPid();
     }
 
     /**
@@ -60,7 +79,7 @@ public class ApplicationExitMonitor {
             int recordsSkipped = 0;
 
             if (null == am) {
-                log.error("harvestApplicationExitInfo: ActivityManager is null!");
+                log.error("harvestApplicationExitInfo: ActivityManager is null! Cannot record ApplicationExitInfo data.");
                 return;
             }
 
@@ -70,7 +89,7 @@ public class ApplicationExitMonitor {
 
             // the set may contain more than one report for this package name
             for (ApplicationExitInfo exitInfo : applicationExitInfos) {
-                File artifact = new File(reportsDir, "app-exit-" + exitInfo.getPid() + ".log");
+                File artifact = new File(reportsDir, String.format(Locale.getDefault(), ARTIFACT_NAME, String.valueOf(exitInfo.getPid())));
 
                 // If an artifact for this pid exists, it's been recorded already
                 if (artifact.exists() && (artifact.length() > 0)) {
@@ -116,6 +135,12 @@ public class ApplicationExitMonitor {
                     eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
                     eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
 
+                    // try to map the AEI with the session it occurred in
+                    String aeiSessionId = sessionMapper.get(exitInfo.getPid());
+                    if (!aeiSessionId.isEmpty()) {
+                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, aeiSessionId);
+                    }
+
                     // Add fg/bg flag based on inferred importance:
                     switch (exitInfo.getImportance()) {
                         case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
@@ -143,9 +168,9 @@ public class ApplicationExitMonitor {
                     StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited);
                     StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped);
                 }
-
-                log.debug("AEI: inspected " + applicationExitInfos.size() + " records: new[" + recordsVisited + "] existing [" + recordsSkipped + "]");
             }
+
+            log.debug("AEI: inspected " + applicationExitInfos.size() + " records: new[" + recordsVisited + "] existing [" + recordsSkipped + "]");
 
             if (eventsAdded) {
                 // flush eventManager buffer on next harvest
@@ -204,7 +229,7 @@ public class ApplicationExitMonitor {
             case 0:     // ApplicationExitInfo.REASON_UNKNOWN
                 reasonAsString = "Unknown";
                 break;
-                
+
             case 1:     // ApplicationExitInfo.REASON_EXIT_SELF
                 reasonAsString = "Exit self";
                 break;
@@ -256,12 +281,12 @@ public class ApplicationExitMonitor {
             case 13:    // ApplicationExitInfo.REASON_OTHER
                 reasonAsString = "Other";
                 break;
-                
+
             // requires update up SDK 33
             case 14:    // ApplicationExitInfo.REASON_FREEZER
                 reasonAsString = "Freezer";
                 break;
-                
+
             // requires update up SDK 34
             case 15:    // ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGED
                 reasonAsString = "Package state changed";
@@ -273,6 +298,14 @@ public class ApplicationExitMonitor {
 
         }
         return reasonAsString;  // TODO
+    }
+
+    List<File> getArtifacts() {
+        String regexp = String.format(Locale.getDefault(), ARTIFACT_NAME, "\\d+");
+
+        return Streams.list(reportsDir)
+                .filter(file -> file.isFile() && file.getName().matches(regexp))
+                .collect(Collectors.toList());
     }
 
 }
