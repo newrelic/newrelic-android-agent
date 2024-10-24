@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android;
+package com.newrelic.agent.android.aei;
 
 import com.google.gson.annotations.SerializedName;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 
@@ -19,6 +20,10 @@ public class ApplicationExitConfiguration {
 
     public boolean isEnabled() {
         return enabled && FeatureFlag.featureEnabled(FeatureFlag.ApplicationExitReporting);
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 
     public void setConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android;
+package com.newrelic.agent.android.aei;
 
 import static android.os.Build.VERSION_CODES.Q;
 import static com.newrelic.agent.android.analytics.AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT;
@@ -14,6 +14,12 @@ import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
 import android.os.Build;
 
+import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.NewRelic;
+import com.newrelic.agent.android.NewRelicTest;
+import com.newrelic.agent.android.NullAgentImpl;
+import com.newrelic.agent.android.SpyContext;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
@@ -252,10 +258,10 @@ public class ApplicationExitMonitorTest {
     public void testEnabledStateFromAgentConfiguration() {
         FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting);
 
-        AgentConfiguration agentConfiguration = AgentConfiguration.instance.get();
+        AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
         Assert.assertTrue(agentConfiguration.getApplicationExitConfiguration().isEnabled());
 
-        agentConfiguration.getApplicationExitConfiguration().enabled = false;
+        agentConfiguration.getApplicationExitConfiguration().setEnabled(false);
         Assert.assertFalse(agentConfiguration.getApplicationExitConfiguration().isEnabled());
     }
 
