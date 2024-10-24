@@ -51,6 +51,7 @@ public class SessionMapper {
         return sessionId.isEmpty() ? defaultSessionId : sessionId;
     }
 
+    @SuppressWarnings("unchecked")
     public SessionMapper load() {
         if (mapStore.exists() && mapStore.canRead()) {
             try {
@@ -82,7 +83,7 @@ public class SessionMapper {
         return mapStore.exists() && mapStore.canRead();
     }
 
-    void clear() {
+    public void clear() {
         mapper.clear();
     }
 
