@@ -77,7 +77,7 @@ public class FileBackedPayload extends Payload {
                 writer.write(new String(payloadBytes, StandardCharsets.UTF_8));
                 writer.flush();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                AgentLogManager.getAgentLog().error("FileBackedPayload: failed to write payload to backing file." + e);
             }
         } else {
             super.putBytes(payloadBytes);
