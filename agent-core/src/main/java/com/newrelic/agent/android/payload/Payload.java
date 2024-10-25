@@ -13,15 +13,16 @@ import java.util.UUID;
 
 
 public class Payload {
-    private final long timestamp;   // in millisecs
-    private final String uuid;
-    private ByteBuffer payload;
-    private boolean isPersistable = true;       // write to store
+    protected String uuid;
+    protected long timestamp;           // in millisecs
+    protected boolean isPersistable;    // save to store
+    protected ByteBuffer payload;
 
     public Payload() {
-        this.timestamp = System.currentTimeMillis();
         this.uuid = UUID.randomUUID().toString();
+        this.timestamp = System.currentTimeMillis();
         this.isPersistable = true;
+        this.payload = ByteBuffer.wrap("".getBytes());
     }
 
     public Payload(byte[] bytes) {
@@ -42,7 +43,7 @@ public class Payload {
     }
 
     public boolean isStale(final long ttl) {
-        return (timestamp + ttl) <= System.currentTimeMillis();
+        return (getTimestamp() + ttl) <= System.currentTimeMillis();
     }
 
     public void putBytes(byte[] payloadBytes) {
@@ -76,4 +77,7 @@ public class Payload {
         return asJsonObject().toString();
     }
 
+    public long size() {
+        return payload.array().length;
+    }
 }

@@ -453,7 +453,7 @@ public class LogReporter extends PayloadReporter {
     }
 
     /**
-     * Create a new filename for the log dat artifact, based on the state of the report
+     * Create a new filename for the log data artifact, based on the state of the report
      * @param state State of log data file
      * @return Unique filename
      */
