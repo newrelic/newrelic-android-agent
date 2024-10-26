@@ -5,8 +5,6 @@
 
 package com.newrelic.agent.android.aei;
 
-import static com.newrelic.agent.android.analytics.AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT;
-
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
@@ -19,7 +17,9 @@ import androidx.annotation.RequiresApi;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
+import com.newrelic.agent.android.analytics.EventManager;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -32,9 +32,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -91,16 +93,18 @@ public class ApplicationExitMonitor {
             }
 
             // we are reporting all reasons
-            final List<android.app.ApplicationExitInfo> applicationExitInfos =
+            final List<android.app.ApplicationExitInfo> applicationExitInfoList =
                     am.getHistoricalProcessExitReasons(packageName, 0, 0);
 
             // the set may contain more than one report for this package name
-            for (ApplicationExitInfo exitInfo : applicationExitInfos) {
-                File artifact = new File(reportsDir, String.format(Locale.getDefault(), ARTIFACT_NAME, String.valueOf(exitInfo.getPid())));
+            for (ApplicationExitInfo exitInfo : applicationExitInfoList) {
+                File artifact = new File(reportsDir, String.format(Locale.getDefault(), ARTIFACT_NAME,
+                        exitInfo.getPid()));
 
                 // If an artifact for this pid exists, it's been recorded already
                 if (artifact.exists() && (artifact.length() > 0)) {
-                    log.debug("ApplicationExitMonitor: skipping exit info for pid[" + exitInfo.getPid() + "]: already recorded.");
+                    log.debug("ApplicationExitMonitor: skipping exit info for pid[" +
+                            exitInfo.getPid() + "]: already recorded.");
                     recordsSkipped++;
                     continue;
                 }
@@ -145,7 +149,8 @@ public class ApplicationExitMonitor {
 
                 // try to map the AEI with the session it occurred in
                 String aeiSessionId = sessionMapper.get(exitInfo.getPid());
-                if (!(aeiSessionId == null || aeiSessionId.isEmpty())) {
+                if (!(aeiSessionId == null || aeiSessionId.isEmpty()) &&
+                        !aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
                     eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, aeiSessionId);
                 }
 
@@ -167,7 +172,7 @@ public class ApplicationExitMonitor {
 
                 eventsAdded |= AnalyticsControllerImpl.getInstance().internalRecordEvent(packageName,
                         AnalyticsEventCategory.ApplicationExit,
-                        EVENT_TYPE_MOBILE_APPLICATION_EXIT,
+                        AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT,
                         eventAttributes);
 
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
@@ -177,15 +182,35 @@ public class ApplicationExitMonitor {
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped);
             }
 
-            log.debug("AEI: inspected " + applicationExitInfos.size() + " records: new[" + recordsVisited + "] existing [" + recordsSkipped + "]");
-
+            log.debug("AEI: inspected " + applicationExitInfoList.size() + " records: new[" + recordsVisited + "] existing [" + recordsSkipped + "]");
+            
             if (eventsAdded) {
+                final EventManager eventMgr = AnalyticsControllerImpl.getInstance().getEventManager();
+
+                // isolate AEI events with `aeiSessionId` attribute
+                eventMgr.getQueuedEvents().stream()
+                        .filter(aeiEvent -> (AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT == aeiEvent.getEventType()))
+                        .collect(Collectors.toList())
+                        .forEach(aeiEvent -> {
+                            Collection<AnalyticsAttribute> attrSet = aeiEvent.getMutableAttributeSet();
+                            Optional<AnalyticsAttribute> aeiSessionId = attrSet.stream()
+                                    .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE))
+                                    .findFirst();
+
+                            // and swap the session ID attributes
+                            if (aeiSessionId.isPresent()) {
+                                attrSet.add(new AnalyticsAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE,
+                                        aeiSessionId.get().getStringValue()));
+                                attrSet.remove(aeiSessionId.get());
+                            }
+                        });
+
                 // flush eventManager buffer on next harvest
-                AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
+                eventMgr.setTransmitRequired();
             }
 
             // sync the cache dir and session mapper
-            reconcileMetadata(applicationExitInfos);
+            reconcileMetadata(applicationExitInfoList);
 
         } else {
             log.warn("ApplicationExitMonitor: exit info reporting was enabled, but not supported by the current OS");
@@ -194,8 +219,8 @@ public class ApplicationExitMonitor {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.R)
-    public Set<Integer> currentPidSet(List<ApplicationExitInfo> applicationExitInfos) {
-        return applicationExitInfos.stream()
+    public Set<Integer> currentPidSet(List<ApplicationExitInfo> applicationExitInfoList) {
+        return applicationExitInfoList.stream()
                 .mapToInt(applicationExitInfo -> applicationExitInfo.getPid())
                 .boxed()
                 .collect(Collectors.toSet());
@@ -205,13 +230,13 @@ public class ApplicationExitMonitor {
      * For each existing artifact, if the pid contained in the filename doesn't exist in
      * the passed AEI record set, delete the artifact.
      *
-     * @param applicationExitInfos List of records reported from ART
+     * @param applicationExitInfoList List of records reported from ART
      **/
     @RequiresApi(api = Build.VERSION_CODES.R)
-    void reconcileMetadata(List<ApplicationExitInfo> applicationExitInfos) {
+    void reconcileMetadata(List<ApplicationExitInfo> applicationExitInfoList) {
         List<File> artifacts = getArtifacts();
         Pattern regexp = Pattern.compile(String.format(Locale.getDefault(), ARTIFACT_NAME, "(\\d+)"));
-        Set<Integer> currentPids = currentPidSet(applicationExitInfos);
+        Set<Integer> currentPids = currentPidSet(applicationExitInfoList);
 
         artifacts.forEach(aeiAtifact -> {
             Matcher matcher = regexp.matcher(aeiAtifact.getName());

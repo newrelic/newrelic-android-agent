@@ -180,9 +180,8 @@ public class AnalyticsEvent extends HarvestableObject {
      *
      * @return a mutable set of the attributes bound to this event.
      */
-    Collection<AnalyticsAttribute> getMutableAttributeSet() {
+    public Collection<AnalyticsAttribute> getMutableAttributeSet() {
         Set<AnalyticsAttribute> collection = Collections.checkedSet(attributeSet, AnalyticsAttribute.class);
-        collection.add(new AnalyticsAttribute(AnalyticsAttribute.MUTABLE, true));
         return collection;
     }
 
