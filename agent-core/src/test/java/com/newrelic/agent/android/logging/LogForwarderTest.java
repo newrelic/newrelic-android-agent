@@ -49,6 +49,8 @@ public class LogForwarderTest extends LoggingTests {
         LogReporter.initialize(reportsDir, AgentConfiguration.getInstance());
 
         logDataReport = seedLogData(1, 12).iterator().next();
+        logDataReport.setWritable(true);
+
         logForwarder = Mockito.spy(new LogForwarder(logDataReport, AgentConfiguration.getInstance()));
 
         doReturn(Mockito.spy(logForwarder.getConnection())).when(logForwarder).getConnection();
@@ -74,8 +76,8 @@ public class LogForwarderTest extends LoggingTests {
 
     @Test
     public void setPayload() {
-        String payloadData = "The load carried"; // by an aircraft or spacecraft consisting of people or " +
-        // "things (such as passengers or instruments) necessary to the purpose of the flight.";
+        String payloadData = "The load carried by an aircraft or spacecraft consisting of people or " +
+                "things (such as passengers or instruments) necessary to the purpose of the flight.";
 
         logForwarder.setPayload(payloadData.getBytes(StandardCharsets.UTF_8));
         Assert.assertTrue(Arrays.equals(payloadData.getBytes(StandardCharsets.UTF_8), logForwarder.getPayload().getBytes()));

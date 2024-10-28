@@ -52,7 +52,7 @@ public class LogReporterTest extends LoggingTests {
         LogReporting.setLogLevel(LogLevel.WARN);
 
         agentConfiguration = new AgentConfiguration();
-        agentConfiguration.setApplicationToken("APP-TOKEN>");
+        agentConfiguration.setApplicationToken("<APP-TOKEN>");
         agentConfiguration.getLogReportingConfiguration().setConfiguration(new LogReportingConfiguration(true, LogLevel.DEBUG));
 
         logReporter = Mockito.spy(LogReporter.initialize(reportsDir, agentConfiguration));
