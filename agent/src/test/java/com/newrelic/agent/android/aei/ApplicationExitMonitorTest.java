@@ -5,8 +5,6 @@
 
 package com.newrelic.agent.android.aei;
 
-import static android.os.Build.VERSION_CODES.Q;
-import static com.newrelic.agent.android.analytics.AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 
@@ -50,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -169,7 +168,7 @@ public class ApplicationExitMonitorTest {
         }
     }
 
-    @Config(sdk = {Q})
+    @Config(sdk = {Build.VERSION_CODES.Q})
     @Test
     public void shouldNotCreateEventsForUnsupportedSDK() {
         applicationExitInfoList.clear();
@@ -195,7 +194,7 @@ public class ApplicationExitMonitorTest {
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getDescription()));
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getProcessName()));
 
-        NewRelic.recordCustomEvent(EVENT_TYPE_MOBILE_APPLICATION_EXIT, applicationExitMonitor.packageName, eventAttributes);
+        NewRelic.recordCustomEvent(AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT, applicationExitMonitor.packageName, eventAttributes);
         Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
         Assert.assertTrue("Should not create AppExit events as custom events", pendingEvents.isEmpty());
     }
@@ -387,8 +386,8 @@ public class ApplicationExitMonitorTest {
         ApplicationExitInfo aei = applicationExitInfoList.get(0);
         AnalyticsEvent event = pendingEvents.iterator().next();
         Collection<AnalyticsAttribute> attributeSet = event.getAttributeSet();
-        Assert.assertNotNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE));
-        AnalyticsAttribute attr = NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE);
+        AnalyticsAttribute attr = NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.SESSION_ID_ATTRIBUTE);
+        Assert.assertNotNull(attr);
         Assert.assertEquals(applicationExitMonitor.sessionMapper.get(aei.getPid()), attr.getStringValue());
     }
 
@@ -439,6 +438,28 @@ public class ApplicationExitMonitorTest {
         Assert.assertEquals(applicationExitInfoList.size(), applicationExitMonitor.getArtifacts().size());
         Assert.assertTrue(artifactsSize < applicationExitMonitor.getArtifacts().size());
         Assert.assertEquals(artifactsSize + 3, applicationExitMonitor.getArtifacts().size());
+    }
+
+    @Test
+    public void replaceAEISessionId() {
+        applicationExitMonitor.harvestApplicationExitInfo();
+        EventManager eventMgr = AnalyticsControllerImpl.getInstance().getEventManager();
+        List<AnalyticsEvent> aeiEvents = eventMgr.getQueuedEvents().stream()
+                .filter(aeiEvent -> aeiEvent.getType().equals(AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT))
+                .collect(Collectors.toList());
+
+        aeiEvents.forEach(aeiEvent -> {
+            Collection<AnalyticsAttribute> attrSet = aeiEvent.getMutableAttributeSet();
+            Optional<AnalyticsAttribute> aeiSessionId = attrSet.stream()
+                    .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE))
+                    .findFirst();
+            Assert.assertFalse(aeiSessionId.isPresent());
+
+            Optional<AnalyticsAttribute> sessionId = attrSet.stream()
+                    .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.SESSION_ID_ATTRIBUTE))
+                    .findFirst();
+            Assert.assertTrue(aeiSessionId.isPresent());
+        });
     }
 
     private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {
