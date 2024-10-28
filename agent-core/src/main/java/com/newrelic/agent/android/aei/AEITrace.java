@@ -46,7 +46,7 @@ public class AEITrace {
         // ----- pid 4473 at 2024-02-15 23:37:45.593138790-0800 -----
         Matcher headerMatcher = TRACE_HEADER_REGEXP.matcher(sysTrace);
         if (headerMatcher.matches()) {
-            if (!(null == pid || pid.isBlank())) {
+            if (null == pid || pid.isBlank()) {
                 pid = headerMatcher.group(1);
             }
             createTime = headerMatcher.group(2).strip();
