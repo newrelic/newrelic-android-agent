@@ -79,7 +79,7 @@ public class LogReporter extends PayloadReporter {
 
     static final long LOG_ENDPOINT_TIMEOUT = 10;    // FIXME This is a guess, check with Logging team
 
-    static final String LOG_REPORTS_DIR = "newrelic/logreporting";      // root dir for local data files
+    static final String LOG_REPORTS_DIR = "newrelic/logReporting";      // root dir for local data files
     static final String LOG_FILE_MASK = "logdata%s.%s";                 // log data file name. suffix will indicate working state
     static final Pattern LOG_FILE_REGEX = Pattern.compile("^(?<path>.*\\/" + LOG_REPORTS_DIR + ")\\/(?<file>logdata.*)\\.(?<extension>.*)$");
 
@@ -453,7 +453,7 @@ public class LogReporter extends PayloadReporter {
     }
 
     /**
-     * Create a new filename for the log dat artifact, based on the state of the report
+     * Create a new filename for the log data artifact, based on the state of the report
      * @param state State of log data file
      * @return Unique filename
      */

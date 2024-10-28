@@ -47,21 +47,15 @@ public class PayloadController implements HarvestLifecycleAware {
     protected static Map<String, Future> reapersInFlight = null;
     protected static boolean opportunisticUploads = false;
 
-    protected static final Runnable dequeueRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (isInitialized()) {
-                instance.get().dequeuePayloadSenders();
-            }
+    protected static final Runnable dequeueRunnable = () -> {
+        if (isInitialized()) {
+            instance.get().dequeuePayloadSenders();
         }
     };
 
-    protected static final Runnable requeueRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (isInitialized()) {
-                instance.get().requeuePayloadSenders();
-            }
+    protected static final Runnable requeueRunnable = () -> {
+        if (isInitialized()) {
+            instance.get().requeuePayloadSenders();
         }
     };
 
@@ -74,7 +68,7 @@ public class PayloadController implements HarvestLifecycleAware {
             payloadReaperQueue = new ConcurrentLinkedQueue<PayloadReaper>();
             payloadReaperRetryQueue = new ConcurrentLinkedQueue<PayloadReaper>();
             queueExecutor = new ThrottledScheduledThreadPoolExecutor(agentConfiguration.getIOThreadSize(), new NamedThreadFactory("PayloadWorker"));
-            requeueFuture = queueExecutor.scheduleAtFixedRate(requeueRunnable, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, TimeUnit.MILLISECONDS);
+            requeueFuture = queueExecutor.scheduleWithFixedDelay(requeueRunnable, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, TimeUnit.MILLISECONDS);
             reapersInFlight = new ConcurrentHashMap<String, Future>();
             opportunisticUploads = false;
 

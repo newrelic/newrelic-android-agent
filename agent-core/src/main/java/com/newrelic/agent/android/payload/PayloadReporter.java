@@ -49,4 +49,9 @@ public abstract class PayloadReporter implements HarvestLifecycleAware {
     public void onHarvestConfigurationChanged() {
         // TODO
     }
+
+    protected boolean isPayloadStale(Payload payload) {
+        return payload.isStale(agentConfiguration.getPayloadTTL());
+    }
+
 }
