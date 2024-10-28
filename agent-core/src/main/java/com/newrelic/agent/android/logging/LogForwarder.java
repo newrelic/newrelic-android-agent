@@ -7,36 +7,29 @@ package com.newrelic.agent.android.logging;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
-import com.newrelic.agent.android.payload.Payload;
+import com.newrelic.agent.android.payload.FileBackedPayload;
 import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
-import com.newrelic.agent.android.util.Streams;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.HttpsURLConnection;
 
 /**
- * LogForwarder is an implementation of PayloadSender that encodes the log data fiilename
- * as its payload data, rather than bytes of the log data itself.
+ * LogForwarder uses the FileBackPayload to transfer log data to the collector.
+ *
  */
 public class LogForwarder extends PayloadSender {
-    private final URI logCollectorUri;
-    private final File file;
 
     public LogForwarder(final File logDataFile, AgentConfiguration agentConfiguration) {
-        super(logDataFile.getAbsolutePath().getBytes(StandardCharsets.UTF_8), agentConfiguration);
-        logCollectorUri = getCollectorURI();
-        this.file = logDataFile;
-        this.payload.setPersisted(false);   // already in a file
+        super(agentConfiguration);
+        this.payload = new FileBackedPayload(logDataFile);
     }
 
     @Override
@@ -51,45 +44,8 @@ public class LogForwarder extends PayloadSender {
     }
 
     @Override
-    public Payload getPayload() {
-        try {
-            return new Payload(Streams.readAllBytes(file));
-        } catch (IOException e) {
-            AgentLogManager.getAgentLog().error("LogForwarder: failed to get payload. " + e);
-        }
-        return new Payload();
-    }
-
-    @Override
-    public void setPayload(byte[] payloadBytes) {
-        file.delete();
-        try (BufferedWriter writer = Streams.newBufferedFileWriter(file)) {
-            writer.write(new String(payloadBytes, StandardCharsets.UTF_8));
-            writer.flush();
-        } catch (IOException e) {
-            AgentLogManager.getAgentLog().error("LogForwarder: failed to set payload. " + e);
-        }
-    }
-
-    /**
-     * Returns the size of the payload (file). However, the max capacity of a ByteBuffer
-     * is 0x7fffffff (2^31-1), while a File length is 0x7fffffffffffffffL (2^53-1);
-     *
-     * @return Minimum of file size or Integer.MAX_VALUE.
-     */
-    @Override
-    public int getPayloadSize() {
-        try {
-            return Math.toIntExact(file.length());
-        } catch (ArithmeticException e) {
-        }
-
-        return Integer.MAX_VALUE;
-    }
-
-    @Override
     protected HttpURLConnection getConnection() throws IOException {
-        HttpsURLConnection connection = (HttpsURLConnection) logCollectorUri.toURL().openConnection();
+        HttpsURLConnection connection = (HttpsURLConnection) getCollectorURI().toURL().openConnection();
 
         connection.setRequestMethod("POST");
         connection.setRequestProperty(Constants.Network.CONTENT_TYPE_HEADER, Constants.Network.ContentType.JSON);
@@ -146,7 +102,7 @@ public class LogForwarder extends PayloadSender {
                 break;
         }
 
-        log.debug("Payload [" + file.getName() + "] delivery took " + timer.duration() + "ms");
+        log.debug("Payload [" + payload.getUuid() + "] delivery took " + timer.duration() + "ms");
     }
 
     @Override
@@ -166,7 +122,7 @@ public class LogForwarder extends PayloadSender {
     @Override
     protected boolean shouldUploadOpportunistically() {
         try {
-            final String dest = logCollectorUri.toURL().getHost();
+            final String dest = getCollectorURI().toURL().getHost();
             InetAddress inet = InetAddress.getByName(dest);
             return dest.equals(inet.getHostName());
 
@@ -181,7 +137,9 @@ public class LogForwarder extends PayloadSender {
         return true;
     }
 
-    URI getCollectorURI() {
-        return URI.create("https://" + agentConfiguration.getCollectorHost() + "/mobile/logs");
+    @Override
+    protected URI getCollectorURI() {
+        return URI.create(getProtocol() + agentConfiguration.getCollectorHost() + "/mobile/logs");
     }
+
 }
