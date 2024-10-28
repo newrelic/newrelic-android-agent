@@ -31,6 +31,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 public abstract class PayloadSender implements Callable<PayloadSender> {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
+    public static final int COLLECTOR_TIMEOUT = 5000;    // 5 seconds
 
     protected Payload payload;
     protected final AgentConfiguration agentConfiguration;
