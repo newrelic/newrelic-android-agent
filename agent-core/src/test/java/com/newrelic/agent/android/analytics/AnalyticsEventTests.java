@@ -136,7 +136,7 @@ public class AnalyticsEventTests {
         Collection<AnalyticsAttribute> mutableAttrs = analyticsEvents.get(0).getMutableAttributeSet();
 
         Assert.assertTrue(analyticsEvents.get(0).getAttributeSet().size() == mutableAttrs.size());
-        Assert.assertNotNull(getAttributeByName(mutableAttrs, AnalyticsAttribute.MUTABLE));
+        Assert.assertNull(getAttributeByName(mutableAttrs, AnalyticsAttribute.MUTABLE));
 
         try {
             getAttributeByName(immutableAttrs, "name").setStringValue("mutated");

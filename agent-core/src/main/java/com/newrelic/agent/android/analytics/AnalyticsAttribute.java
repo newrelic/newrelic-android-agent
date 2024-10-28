@@ -107,6 +107,8 @@ public class AnalyticsAttribute {
     public static final String APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE = "importanceAsString";
     public static final String APP_EXIT_PROCESS_NAME_ATTRIBUTE = "processName";
     public static final String APP_EXIT_APP_STATE_ATTRIBUTE = "appState";
+    public static final String APP_EXIT_SESSION_ID_ATTRIBUTE = "aeiSessionId";
+
 
     public static final int ATTRIBUTE_NAME_MAX_LENGTH = 255;
 
