@@ -111,6 +111,18 @@ public class FileBackedPayload extends Payload {
     /**
      * GZIP compress the payload file.
      *
+     * @param replace Delete the original file, rename the compressed file to the current file name
+     * @return File of new compressed file
+     * @throws IOException
+     */
+    File compress(boolean replace) throws IOException {
+        return compress(payloadFile(), replace);
+
+    }
+
+    /**
+     * GZIP compress the payload file.
+     *
      * @param payloadFile File to be compressed
      * @param replace     Delete the passed file, rename the compressed file to the pass file name
      * @return File of new compressed file
