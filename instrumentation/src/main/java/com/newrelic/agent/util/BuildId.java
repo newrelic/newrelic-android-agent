@@ -115,5 +115,4 @@ public class BuildId {
             log.debug("Project's buildId has been set to " + BuildId.customBuildId);
         }
     }
-
 }
