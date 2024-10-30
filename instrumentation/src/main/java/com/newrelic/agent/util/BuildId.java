@@ -52,7 +52,11 @@ public class BuildId {
         String buildId = variantBuildIds.get().get(DEFAULT_VARIANT);
         if (Strings.isNullOrEmpty(buildId)) {
             // cache the value for later use, such as uploading maps after Dexguard
-            buildId = autoBuildId();
+            if (Strings.isNullOrEmpty(customBuildId)) {
+                buildId = autoBuildId();
+            } else {
+                buildId = customBuildId;
+            }
             variantBuildIds.get().put(DEFAULT_VARIANT, buildId);
         }
 
@@ -80,11 +84,7 @@ public class BuildId {
         String buildId = variantBuildIds.get().get(variantName);
 
         if (Strings.isNullOrEmpty(buildId)) {
-            if (Strings.isNullOrEmpty(customBuildId)) {
-                buildId = autoBuildId();
-            } else {
-                buildId = customBuildId;
-            }
+            buildId = autoBuildId();
             variantBuildIds.get().put(variantName, buildId);
             log.debug("Variant[" + variantName + "] buildId[" + buildId + "]");
         }
@@ -110,7 +110,7 @@ public class BuildId {
     }
 
     public static void setCustomBuildId(String customBuildId) {
-        if (!Strings.isNullOrEmpty(customBuildId) && variantMapsEnabled) {
+        if (!Strings.isNullOrEmpty(customBuildId) && !variantMapsEnabled) {
             BuildId.customBuildId = customBuildId;
             log.debug("Project's buildId has been set to " + BuildId.customBuildId);
         }
