@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 public class SessionMapper {
@@ -36,7 +37,7 @@ public class SessionMapper {
 
     public SessionMapper put(int pid, String sessionId) {
         if (!(sessionId == null || sessionId.isEmpty() || 0 == pid)) {
-            mapper.put(pid, sessionId);
+            mapper.putIfAbsent(pid, sessionId);
         } else {
             AgentLogManager.getAgentLog().debug("Refusing to store null or empty sessionId[" + sessionId + "] for pid[" + pid + "]");
         }
@@ -58,9 +59,9 @@ public class SessionMapper {
         if (mapStore.exists() && mapStore.canRead()) {
             try {
                 String storeData = Streams.slurpString(mapStore, StandardCharsets.UTF_8.toString());
-                mapper.putAll(gson.fromJson(storeData, Map.class));
+                gson.fromJson(storeData, Map.class).forEach((key, val) -> mapper.putIfAbsent(Integer.parseInt((String) key), (String) val));
 
-            } catch (IOException e) {
+            } catch (Exception e) {
                 AgentLogManager.getAgentLog().error("Cannot read session ID mapper: " + e);
             }
         } else {
@@ -97,6 +98,10 @@ public class SessionMapper {
 
     public void erase(int pid) {
         mapper.remove(pid);
+    }
+
+    public int size() {
+        return mapper.size();
     }
 
     /**
