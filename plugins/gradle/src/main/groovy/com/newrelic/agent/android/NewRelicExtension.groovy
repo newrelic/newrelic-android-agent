@@ -31,6 +31,7 @@ abstract class NewRelicExtension {
     Property<Boolean> enabled
     Property<Boolean> instrumentTests
     Property<Boolean> variantMapsEnabled
+    Property<String> buildId
 
     NamedDomainObjectContainer<VariantConfiguration> variantConfigurations
 
@@ -52,6 +53,7 @@ abstract class NewRelicExtension {
         this.variantConfigurations = objectFactory.domainObjectContainer(VariantConfiguration, { name ->
             objectFactory.newInstance(VariantConfiguration.class, name)
         })
+        this.buildId = objectFactory.property(String.class).convention("")
     }
 
     boolean setEnabled(boolean state) {

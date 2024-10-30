@@ -22,6 +22,7 @@ public class BuildId {
     private static AtomicReference<Map<String, String>> variantBuildIds = new AtomicReference<>(null);
     private static Logger log = InstrumentationAgent.LOGGER;
     private static boolean variantMapsEnabled = true;
+    private static String customBuildId = "";
 
     static {
         invalidate();
@@ -79,7 +80,11 @@ public class BuildId {
         String buildId = variantBuildIds.get().get(variantName);
 
         if (Strings.isNullOrEmpty(buildId)) {
-            buildId = autoBuildId();
+            if (Strings.isNullOrEmpty(customBuildId)) {
+                buildId = autoBuildId();
+            } else {
+                buildId = customBuildId;
+            }
             variantBuildIds.get().put(variantName, buildId);
             log.debug("Variant[" + variantName + "] buildId[" + buildId + "]");
         }
@@ -102,6 +107,13 @@ public class BuildId {
     public static void setVariantMapsEnabled(boolean variantMapsEnabled) {
         BuildId.variantMapsEnabled = variantMapsEnabled;
         log.debug("Variant buildIds have been " + (BuildId.variantMapsEnabled ? "enabled" : "disabled"));
+    }
+
+    public static void setCustomBuildId(String customBuildId) {
+        if (!Strings.isNullOrEmpty(customBuildId) && variantMapsEnabled) {
+            BuildId.customBuildId = customBuildId;
+            log.debug("Project's buildId has been set to " + BuildId.customBuildId);
+        }
     }
 
 }
