@@ -55,7 +55,7 @@ public class AEITraceSender extends PayloadSender {
             return super.call();
 
         } catch (Exception e) {
-            onFailedUpload("Unable to report crash to New Relic, will try again later. " + e);
+            onFailedUpload("Unable to report AEI trace to New Relic, will try again later. " + e);
         }
 
         return this;

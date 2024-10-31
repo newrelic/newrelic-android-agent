@@ -207,7 +207,7 @@ public class AgentConfiguration implements HarvestConfigurable {
         this.applicationFrameworkVersion = applicationFrameworkVersion;
     }
 
-    protected String provideSessionId() {
+    public String provideSessionId() {
         sessionID = UUID.randomUUID().toString();
         return sessionID;
     }

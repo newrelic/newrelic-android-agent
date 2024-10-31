@@ -37,7 +37,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -51,6 +50,8 @@ public class ApplicationExitMonitor {
     protected final File reportsDir;
     protected final String packageName;
     protected final SessionMapper sessionMapper;
+
+    protected AEITraceReporter traceReporter;
     protected ActivityManager am;
 
     public ApplicationExitMonitor(final Context context) {
@@ -60,13 +61,21 @@ public class ApplicationExitMonitor {
         this.am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
 
         reportsDir.mkdirs();
-        loadSessionMapper();
-    }
 
-    void loadSessionMapper() {
-        sessionMapper.load();
-        sessionMapper.put(getCurrentProcessId(), AgentConfiguration.getInstance().getSessionID());
-        sessionMapper.flush();
+        try {
+            this.traceReporter = AEITraceReporter.initialize(reportsDir, AgentConfiguration.getInstance());
+            if (traceReporter != null) {
+                traceReporter.start();
+            }
+
+            if (!traceReporter.isStarted()) {
+                log.warn("ApplicationExitMonitor: No AEI trace reporter - AEITrace reporting will be disabled.");
+            }
+
+        } catch (IOException e) {
+            log.error("ApplicationExitMonitor: " + e);
+        }
+
     }
 
     // a gettor useful in mock tests
@@ -80,6 +89,7 @@ public class ApplicationExitMonitor {
     @SuppressLint("SwitchIntDef")
     @SuppressWarnings("deprecation")
     public void harvestApplicationExitInfo() {
+        sessionMapper.load();
 
         // Only supported in Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -109,6 +119,12 @@ public class ApplicationExitMonitor {
                     continue;
                 }
 
+                // try to map the AEI with the session it occurred in
+                String aeiSessionId = sessionMapper.get(exitInfo.getPid());
+                if (aeiSessionId == null || aeiSessionId.isEmpty() || aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
+                    // found a prior session ID
+                }
+
                 String traceReport = exitInfo.toString();
 
                 // remove any empty files
@@ -116,11 +132,14 @@ public class ApplicationExitMonitor {
                     artifact.delete();
                 }
 
+                // write a marker so we don't inspect this record again (over-reporting)
                 try (OutputStream artifactOs = new FileOutputStream(artifact, false)) {
 
                     if (null != exitInfo.getTraceInputStream()) {
                         try (InputStream traceIs = exitInfo.getTraceInputStream()) {
                             traceReport = Streams.slurpString(traceIs);
+                            traceReporter.reportAEITrace(traceReport, Integer.valueOf(exitInfo.getPid()));
+
                         } catch (IOException e) {
                             log.info("ApplicationExitMonitor: " + e);
                         }
@@ -137,6 +156,10 @@ public class ApplicationExitMonitor {
                     log.debug("harvestApplicationExitInfo: AppExitInfo artifact error. " + e);
                 }
 
+                if (aeiSessionId == null || aeiSessionId.isEmpty() || aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
+                    // ??? continue;
+                }
+
                 // finally, emit an event for the record
                 final HashMap<String, Object> eventAttributes = new HashMap<>();
 
@@ -148,9 +171,7 @@ public class ApplicationExitMonitor {
                 eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
 
                 // try to map the AEI with the session it occurred in
-                String aeiSessionId = sessionMapper.get(exitInfo.getPid());
-                if (!(aeiSessionId == null || aeiSessionId.isEmpty()) &&
-                        !aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
+                if (!(aeiSessionId == null || aeiSessionId.isEmpty()) && !aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
                     eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, aeiSessionId);
                 }
 
@@ -183,7 +204,7 @@ public class ApplicationExitMonitor {
             }
 
             log.debug("AEI: inspected " + applicationExitInfoList.size() + " records: new[" + recordsVisited + "] existing [" + recordsSkipped + "]");
-            
+
             if (eventsAdded) {
                 final EventManager eventMgr = AnalyticsControllerImpl.getInstance().getEventManager();
 
@@ -209,8 +230,11 @@ public class ApplicationExitMonitor {
                 eventMgr.setTransmitRequired();
             }
 
-            // sync the cache dir and session mapper
+            // sync the cache dir and session mapper with ART's current queue
             reconcileMetadata(applicationExitInfoList);
+
+            sessionMapper.put(getCurrentProcessId(), AgentConfiguration.getInstance().getSessionID());
+            sessionMapper.flush();
 
         } else {
             log.warn("ApplicationExitMonitor: exit info reporting was enabled, but not supported by the current OS");
@@ -219,11 +243,11 @@ public class ApplicationExitMonitor {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.R)
-    public Set<Integer> currentPidSet(List<ApplicationExitInfo> applicationExitInfoList) {
+    public List<Integer> getAEIPidSet(List<ApplicationExitInfo> applicationExitInfoList) {
         return applicationExitInfoList.stream()
                 .mapToInt(applicationExitInfo -> applicationExitInfo.getPid())
                 .boxed()
-                .collect(Collectors.toSet());
+                .collect(Collectors.toList());
     }
 
     /**
@@ -236,14 +260,14 @@ public class ApplicationExitMonitor {
     void reconcileMetadata(List<ApplicationExitInfo> applicationExitInfoList) {
         List<File> artifacts = getArtifacts();
         Pattern regexp = Pattern.compile(String.format(Locale.getDefault(), ARTIFACT_NAME, "(\\d+)"));
-        Set<Integer> currentPids = currentPidSet(applicationExitInfoList);
+        List<Integer> currentPids = getAEIPidSet(applicationExitInfoList);
 
-        artifacts.forEach(aeiAtifact -> {
-            Matcher matcher = regexp.matcher(aeiAtifact.getName());
+        artifacts.forEach(aeiArtifact -> {
+            Matcher matcher = regexp.matcher(aeiArtifact.getName());
             if (matcher.matches()) {
                 int pid = Integer.valueOf(matcher.group(1));
                 if (!currentPids.contains(pid)) {
-                    aeiAtifact.delete();
+                    aeiArtifact.delete();
                     sessionMapper.erase(pid);
                 }
             }
