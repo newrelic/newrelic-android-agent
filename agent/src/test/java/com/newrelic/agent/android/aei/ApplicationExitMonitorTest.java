@@ -47,10 +47,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @RunWith(RobolectricTestRunner.class)
@@ -59,16 +60,26 @@ public class ApplicationExitMonitorTest {
     private SpyContext spyContext;
 
     ApplicationExitMonitor applicationExitMonitor;
-    List<ApplicationExitInfo> applicationExitInfoList;
+    ArrayList<ApplicationExitInfo> applicationExitInfoList;
+    EventManager eventMgr;
 
     @Before
     public void setUp() throws Exception {
         logger = Mockito.spy(new ConsoleAgentLog());
+        logger.setLevel(AgentLog.DEBUG);
         AgentLogManager.setAgentLog(logger);
 
         spyContext = new SpyContext();
-        applicationExitMonitor = Mockito.spy(new ApplicationExitMonitor(spyContext.getContext()));
         applicationExitInfoList = new ArrayList<>();
+
+        AgentConfiguration agentConfig = new AgentConfiguration();
+        agentConfig.setEnableAnalyticsEvents(true);
+        agentConfig.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
+
+        AnalyticsControllerImpl.initialize(agentConfig, new NullAgentImpl());
+        eventMgr = AnalyticsControllerImpl.getInstance().getEventManager();
+
+        resetMocks();
 
         applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR));
         applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH_NATIVE));
@@ -77,31 +88,12 @@ public class ApplicationExitMonitorTest {
         applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE));
         applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE));
 
-        // seed the session mapper
-        Mockito.when(applicationExitMonitor.getCurrentProcessId()).thenReturn(66661);
-        applicationExitMonitor.loadSessionMapper();
-        applicationExitInfoList.forEach(aei ->
-                applicationExitMonitor.sessionMapper.put(aei.getPid(), UUID.randomUUID().toString())
-        );
-        applicationExitMonitor.sessionMapper.flush();
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfoList);
-        }
-
-        AgentConfiguration agentConfig = new AgentConfiguration();
-        agentConfig.setEnableAnalyticsEvents(true);
-        agentConfig.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
-
-        AnalyticsControllerImpl.initialize(agentConfig, new NullAgentImpl());
     }
 
     @After
     public void tearDown() throws Exception {
         AnalyticsControllerImpl.shutdown();
-        Streams.list(applicationExitMonitor.reportsDir).forEach(file -> Assert.assertTrue(file.delete()));
-        Assert.assertTrue(applicationExitMonitor.reportsDir.delete());
-        applicationExitMonitor.sessionMapper.delete();
+        Streams.list(applicationExitMonitor.reportsDir).forEach(file -> file.delete());
     }
 
     @Test
@@ -115,13 +107,6 @@ public class ApplicationExitMonitorTest {
         Assert.assertEquals(6, artifacts.size());
     }
 
-    private File getSessionMapper() {
-        return Streams.list(applicationExitMonitor.reportsDir)
-                .filter(file -> file.isFile() && file.getName().equals(ApplicationExitMonitor.SESSION_ID_MAPPING_STORE))
-                .collect(Collectors.toList())
-                .get(0);
-    }
-
     @Test
     public void shouldNotHarvestRecordedApplicationExitInfo() {
         List<File> artifacts = applicationExitMonitor.getArtifacts();
@@ -131,16 +116,16 @@ public class ApplicationExitMonitorTest {
 
         artifacts = applicationExitMonitor.getArtifacts();
         Assert.assertEquals(6, artifacts.size());
-        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());
-        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents().size());
+        Assert.assertEquals(6, eventMgr.getEventsRecorded());
+        Assert.assertEquals(6, eventMgr.getQueuedEvents().size());
 
         // call again with same data
         applicationExitMonitor.harvestApplicationExitInfo();
 
         artifacts = applicationExitMonitor.getArtifacts();
         Assert.assertEquals(6, artifacts.size());
-        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());
-        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents().size());
+        Assert.assertEquals(6, eventMgr.getEventsRecorded());
+        Assert.assertEquals(6, eventMgr.getQueuedEvents().size());
     }
 
     @Test
@@ -149,8 +134,8 @@ public class ApplicationExitMonitorTest {
 
         applicationExitMonitor.harvestApplicationExitInfo();
 
-        Assert.assertEquals(6, AnalyticsControllerImpl.getInstance().getEventManager().getEventsRecorded());
-        Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
+        Assert.assertEquals(6, eventMgr.getEventsRecorded());
+        Collection<AnalyticsEvent> pendingEvents = eventMgr.getQueuedEvents();
         Assert.assertEquals(6, pendingEvents.size());
         for (AnalyticsEvent event : pendingEvents) {
             Assert.assertEquals(event.getEventType(), AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
@@ -174,7 +159,7 @@ public class ApplicationExitMonitorTest {
         applicationExitInfoList.clear();
         applicationExitMonitor.harvestApplicationExitInfo();
 
-        Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
+        Collection<AnalyticsEvent> pendingEvents = eventMgr.getQueuedEvents();
         Assert.assertEquals("Should not create AppExit events for Android 10 and below", 0, pendingEvents.size());
 
         Mockito.verify(logger, times(1)).warn(anyString());
@@ -195,7 +180,7 @@ public class ApplicationExitMonitorTest {
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, applicationExitMonitor.toValidAttributeValue(exitInfo.getProcessName()));
 
         NewRelic.recordCustomEvent(AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT, applicationExitMonitor.packageName, eventAttributes);
-        Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
+        Collection<AnalyticsEvent> pendingEvents = eventMgr.getQueuedEvents();
         Assert.assertTrue("Should not create AppExit events as custom events", pendingEvents.isEmpty());
     }
 
@@ -242,7 +227,7 @@ public class ApplicationExitMonitorTest {
         applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28));
         applicationExitMonitor.harvestApplicationExitInfo();
 
-        for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
+        for (AnalyticsEvent event : eventMgr.getQueuedEvents()) {
             Assert.assertEquals(event.getEventType(), AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
             Assert.assertEquals(event.getCategory(), AnalyticsEventCategory.ApplicationExit);
             Assert.assertEquals(event.getName(), applicationExitMonitor.packageName);
@@ -253,15 +238,15 @@ public class ApplicationExitMonitorTest {
         }
 
         // reset app state, event states
-        AnalyticsControllerImpl.getInstance().getEventManager().empty();
-
+        eventMgr.empty();
+        int pid = applicationExitMonitor.getCurrentProcessId();
         applicationExitInfoList.clear();
-        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH, ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE));
-        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND));
-        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH, ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE, pid));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND, pid));
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_SIGNALED, ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED, pid));
         applicationExitMonitor.harvestApplicationExitInfo();
 
-        for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
+        for (AnalyticsEvent event : eventMgr.getQueuedEvents()) {
             Assert.assertEquals(event.getEventType(), AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
             Assert.assertEquals(event.getCategory(), AnalyticsEventCategory.ApplicationExit);
             Assert.assertEquals(event.getName(), applicationExitMonitor.packageName);
@@ -309,7 +294,7 @@ public class ApplicationExitMonitorTest {
         Assert.assertNotNull(eventManager.getQueuedEvents()); // flush data reset flag
         applicationExitInfoList.clear();
         applicationExitMonitor.harvestApplicationExitInfo();
-        Assert.assertFalse(AnalyticsControllerImpl.getInstance().getEventManager().isTransmitRequired());
+        Assert.assertFalse(eventMgr.isTransmitRequired());
     }
 
     @Test
@@ -364,31 +349,45 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void shouldPersistSessionMapper() {
-        applicationExitMonitor.sessionMapper.flush();
-        File mapper = getSessionMapper();
+    public void shouldPersistSessionMapper() throws Exception {
+        loadSessionMapper();
+
+        Assert.assertTrue(applicationExitMonitor.sessionMapper.flush());
+        File mapper = getSessionMapperFile();
+        Assert.assertNotNull(mapper);
         Assert.assertTrue(mapper.exists() && mapper.length() > 0);
 
         applicationExitMonitor.sessionMapper.delete();
         Assert.assertFalse(mapper.exists());
 
-        applicationExitMonitor.loadSessionMapper();
+        applicationExitMonitor.sessionMapper.flush();
         Assert.assertTrue(mapper.exists() && mapper.length() > 0);
     }
 
     @Test
-    public void shouldProvideHistoricSessionId() throws IOException {
+    public void shouldProvideHistoricSessionId() {
+        loadSessionMapper();
+
         applicationExitMonitor.harvestApplicationExitInfo();
 
-        Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
-        Assert.assertNotEquals(0, pendingEvents.size());
+        final Collection<AnalyticsEvent> pendingEvents = eventMgr.getQueuedEvents();
+        Assert.assertEquals(applicationExitInfoList.size(), pendingEvents.size());
+        Assert.assertEquals(6, pendingEvents.stream()
+                .filter(analyticsEvent -> AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT == analyticsEvent.getEventType())
+                .count());
 
-        ApplicationExitInfo aei = applicationExitInfoList.get(0);
-        AnalyticsEvent event = pendingEvents.iterator().next();
-        Collection<AnalyticsAttribute> attributeSet = event.getAttributeSet();
-        AnalyticsAttribute attr = NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.SESSION_ID_ATTRIBUTE);
-        Assert.assertNotNull(attr);
-        Assert.assertEquals(applicationExitMonitor.sessionMapper.get(aei.getPid()), attr.getStringValue());
+        // this assumes the AEI recs are in the same order as pending events
+        Iterator<ApplicationExitInfo> aeiIt = applicationExitInfoList.iterator();
+        pendingEvents.forEach(analyticsEvent -> {
+            AnalyticsAttribute sessionIdAttr = analyticsEvent.getAttributeSet().stream()
+                    .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.SESSION_ID_ATTRIBUTE))
+                    .findFirst()
+                    .orElse(null);
+            Assert.assertNotNull(sessionIdAttr);
+            Assert.assertTrue(applicationExitMonitor.sessionMapper.mapper.values().contains(sessionIdAttr.getStringValue()));
+            ApplicationExitInfo aei = aeiIt.next();
+            Assert.assertTrue(applicationExitMonitor.sessionMapper.get(aei.getPid()).equals(sessionIdAttr.getStringValue()));
+        });
     }
 
     @Test
@@ -396,12 +395,19 @@ public class ApplicationExitMonitorTest {
         applicationExitMonitor.sessionMapper.clear();
         applicationExitMonitor.harvestApplicationExitInfo();
 
-        Collection<AnalyticsEvent> pendingEvents = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
+        Collection<AnalyticsEvent> pendingEvents = eventMgr.getQueuedEvents();
         Assert.assertNotEquals(0, pendingEvents.size());
 
         AnalyticsEvent event = pendingEvents.iterator().next();
         Collection<AnalyticsAttribute> attributeSet = event.getAttributeSet();
-        Assert.assertNull(NewRelicTest.getAttributeByName(attributeSet, AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE));
+
+        Assert.assertNull(attributeSet.stream()
+                .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE))
+                .findFirst().orElse(null));
+
+        Assert.assertNull(attributeSet.stream()
+                .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.SESSION_ID_ATTRIBUTE))
+                .findFirst().orElse(null));
 
         String currentSessionId = AgentConfiguration.getInstance().getSessionID();
         Assert.assertEquals(currentSessionId, applicationExitMonitor.sessionMapper.getOrDefault(12345, currentSessionId));
@@ -409,13 +415,12 @@ public class ApplicationExitMonitorTest {
 
     @Test
     public void reconcileMetadata() throws IOException {
+        loadSessionMapper();
+
         // harvest leaves a set of artifacts
         applicationExitMonitor.harvestApplicationExitInfo();
         int artifactsSize = applicationExitMonitor.getArtifacts().size();
-
-        applicationExitMonitor.reconcileMetadata(applicationExitInfoList);
-        // no artifacts are removed
-        Assert.assertEquals(artifactsSize, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals("no artifacts are removed", artifactsSize, applicationExitMonitor.getArtifacts().size());
 
         // ART deletes a few records
         applicationExitInfoList.remove(2);
@@ -434,7 +439,6 @@ public class ApplicationExitMonitorTest {
         applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_USER_STOPPED));
         applicationExitMonitor.harvestApplicationExitInfo();
 
-        applicationExitMonitor.reconcileMetadata(applicationExitInfoList);
         Assert.assertEquals(applicationExitInfoList.size(), applicationExitMonitor.getArtifacts().size());
         Assert.assertTrue(artifactsSize < applicationExitMonitor.getArtifacts().size());
         Assert.assertEquals(artifactsSize + 3, applicationExitMonitor.getArtifacts().size());
@@ -443,34 +447,160 @@ public class ApplicationExitMonitorTest {
     @Test
     public void replaceAEISessionId() {
         applicationExitMonitor.harvestApplicationExitInfo();
-        EventManager eventMgr = AnalyticsControllerImpl.getInstance().getEventManager();
         List<AnalyticsEvent> aeiEvents = eventMgr.getQueuedEvents().stream()
                 .filter(aeiEvent -> aeiEvent.getType().equals(AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT))
                 .collect(Collectors.toList());
 
         aeiEvents.forEach(aeiEvent -> {
             Collection<AnalyticsAttribute> attrSet = aeiEvent.getMutableAttributeSet();
-            Optional<AnalyticsAttribute> aeiSessionId = attrSet.stream()
-                    .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE))
-                    .findFirst();
-            Assert.assertFalse(aeiSessionId.isPresent());
 
-            Optional<AnalyticsAttribute> sessionId = attrSet.stream()
+            Assert.assertFalse(attrSet.stream()
+                    .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE))
+                    .findFirst().isPresent());
+
+            Assert.assertTrue(attrSet.stream()
                     .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.SESSION_ID_ATTRIBUTE))
-                    .findFirst();
-            Assert.assertTrue(aeiSessionId.isPresent());
+                    .findFirst().isPresent());
         });
     }
 
-    private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {
-        return provideApplicationExitInfo(reasonCode, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+    @Test
+    public void fullLifecycle() throws Exception {
+        // events = eventMgr.getQueuedEvents().stream().filter(aeiEvent -> AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT == aeiEvent.getEventType()).collect(Collectors.toList());
+
+        // clear session state
+        applicationExitMonitor.sessionMapper.delete();
+        applicationExitMonitor.sessionMapper.clear();
+
+        Assert.assertEquals(6, applicationExitInfoList.size());
+        Assert.assertTrue(applicationExitMonitor.getArtifacts().isEmpty());
+        Assert.assertEquals(0, applicationExitMonitor.sessionMapper.size());
+        Assert.assertFalse(applicationExitMonitor.sessionMapper.mapStore.exists());
+
+        // session 0: agent is started w/AEI enabled and 6 historic AEI (2 ANR) records reported by ART
+        applicationExitMonitor.harvestApplicationExitInfo();
+        Assert.assertEquals(1, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(6, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(6, eventMgr.size());
+        Assert.assertEquals(2, eventMgr.getQueuedEvents().stream().filter(aeiEvent -> aeiEvent.getAttributeSet().stream().anyMatch(attribute -> {
+            return attribute.getName().equals(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE) && attribute.getDoubleValue() == 6.f;
+        })).count());
+
+        // session 1: AEI enabled, no new AEI records
+        resetMocks();
+        applicationExitMonitor.harvestApplicationExitInfo();
+        Assert.assertEquals(2, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(6, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(0, eventMgr.size());
+
+        // session 2: AEI disabled, no new AEI records
+        resetMocks();
+        // applicationExitMonitor.harvestApplicationExitInfo(); // not called when disabled
+        Assert.assertEquals(2, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(6, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(0, eventMgr.size());
+
+        // session 3: AEI disabled, 1 new AEI (1 ANR) records
+        resetMocks();
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, applicationExitMonitor.getCurrentProcessId()));
+        // applicationExitMonitor.harvestApplicationExitInfo(); // not called when disabled
+        Assert.assertEquals(2, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(6, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(0, eventMgr.size());
+
+        // session 4: AEI re-enabled, 1 new (0 ANR) records and 2 removed from ART report
+        applicationExitInfoList.remove(2);
+        applicationExitInfoList.remove(5);
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH, applicationExitMonitor.getCurrentProcessId()));
+        resetMocks();
+        applicationExitMonitor.harvestApplicationExitInfo();
+        Assert.assertEquals(3, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(6, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(1, eventMgr.size());
+        Assert.assertEquals(0, eventMgr.getQueuedEvents().stream().filter(aeiEvent -> aeiEvent.getAttributeSet().stream().anyMatch(attribute -> {
+            return attribute.getName().equals(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE) && attribute.getDoubleValue() == 6.f;
+        })).count());
+
+        // session 5: AEI enabled, 1 new ANR record and 3 records removed from ART report
+        applicationExitInfoList.remove(1);
+        applicationExitInfoList.remove(0);
+        applicationExitInfoList.remove(3);
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, applicationExitMonitor.getCurrentProcessId()));
+        resetMocks();
+        applicationExitMonitor.harvestApplicationExitInfo();
+        Assert.assertEquals(4, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(4, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(1, eventMgr.size());
+        Assert.assertEquals(1, eventMgr.getQueuedEvents().stream()
+                .filter(aeiEvent -> aeiEvent.getAttributeSet().stream().anyMatch(attribute -> attribute.getName().equals(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE) && attribute.getDoubleValue() == 6.f))
+                .filter(aeiEvent -> aeiEvent.getAttributeSet().stream().anyMatch(attribute -> attribute.getName().equals(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)))
+                .count());
+
+        // session 6: AEI enabled, ALL records removed from ART report
+        Assert.assertEquals(4, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(4, applicationExitMonitor.getArtifacts().size());
+        applicationExitInfoList.clear();
+        resetMocks();
+        applicationExitMonitor.harvestApplicationExitInfo();
+        Assert.assertEquals(4, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(0, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(0, eventMgr.size());
+
+        // session 7: AEI enabled, 1 new ANR record
+        Assert.assertEquals(4, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(0, applicationExitMonitor.getArtifacts().size());
+        applicationExitInfoList.add(provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, applicationExitMonitor.getCurrentProcessId()));
+        resetMocks();
+        applicationExitMonitor.harvestApplicationExitInfo();
+        Assert.assertEquals(5, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(1, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(1, eventMgr.size());
+        Assert.assertEquals(1, eventMgr.getQueuedEvents().stream()
+                .filter(aeiEvent -> aeiEvent.getAttributeSet().stream().anyMatch(attribute -> attribute.getName().equals(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE) && attribute.getDoubleValue() == 6.f))
+                .filter(aeiEvent -> aeiEvent.getAttributeSet().stream().anyMatch(attribute -> attribute.getName().equals(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)))
+                .count());
+
+        // session 8: AEI enabled and no new AEI records
+        resetMocks();
+        applicationExitMonitor.harvestApplicationExitInfo();
+        Assert.assertEquals(6, applicationExitMonitor.sessionMapper.size());
+        Assert.assertEquals(1, applicationExitMonitor.getArtifacts().size());
+        Assert.assertEquals(0, eventMgr.size());
     }
 
-    private ApplicationExitInfo provideApplicationExitInfo(int reasonCode, int importance) throws IOException {
+
+    static AtomicInteger pidCtr = new AtomicInteger(5000);
+
+    void resetMocks() {
+        applicationExitMonitor = Mockito.spy(new ApplicationExitMonitor(spyContext.getContext()));
+        applicationExitMonitor.reportsDir.deleteOnExit();
+
+        Mockito.when(applicationExitMonitor.getCurrentProcessId()).thenReturn(pidCtr.incrementAndGet());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Only supported in Android 11+
+            Mockito.when(applicationExitMonitor.am.getHistoricalProcessExitReasons(spyContext.getContext().getPackageName(), 0, 0)).thenReturn(applicationExitInfoList);
+        }
+
+        eventMgr.empty();
+        AgentConfiguration.getInstance().provideSessionId();
+    }
+
+    private ApplicationExitInfo provideApplicationExitInfo(int reasonCode) throws IOException {
+        ApplicationExitInfo applicationExitInfo = provideApplicationExitInfo(reasonCode, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND, pidCtr.incrementAndGet());
+
+        return applicationExitInfo;
+    }
+
+    private ApplicationExitInfo provideApplicationExitInfo(int reasonCode, int pid) throws IOException {
+        ApplicationExitInfo applicationExitInfo = provideApplicationExitInfo(reasonCode, ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND, pid);
+
+        return applicationExitInfo;
+    }
+
+    private ApplicationExitInfo provideApplicationExitInfo(int reasonCode, int importance, int pid) throws IOException {
         ApplicationExitInfo applicationExitInfo = Mockito.mock(ApplicationExitInfo.class);
 
         Mockito.when(applicationExitInfo.getReason()).thenReturn(reasonCode);
-        Mockito.when(applicationExitInfo.getPid()).thenReturn((int) (Math.random() * 9999) + 1);
         Mockito.when(applicationExitInfo.getDescription()).thenReturn("user request after error: Input dispatching timed out (adf8e62 com.newrelic.android.test.ApplicationExitMonitor/com.newrelic.android.test.ApplicationExitMonitor.MainActivity (server) is not responding. Waited 5005ms for MotionEvent)");
         Mockito.when(applicationExitInfo.getTraceInputStream()).thenReturn(ApplicationExitMonitor.class.getResource("/applicationExitInfo/ApplicationExitInfo.trace").openStream());
         Mockito.when(applicationExitInfo.getRealUid()).thenReturn(667);     // the neighbor of the beast
@@ -479,7 +609,29 @@ public class ApplicationExitMonitorTest {
         Mockito.when(applicationExitInfo.getTimestamp()).thenReturn(System.currentTimeMillis());
         Mockito.when(applicationExitInfo.getImportance()).thenReturn(importance);
 
+        Mockito.when(applicationExitInfo.getPid()).thenReturn(pid);
+
         return applicationExitInfo;
     }
 
+    private File getSessionMapperFile() {
+        return Streams.list(applicationExitMonitor.reportsDir)
+                .filter(file -> file.isFile() && file.getName().equals(ApplicationExitMonitor.SESSION_ID_MAPPING_STORE)).
+                findFirst().orElse(null);
+    }
+
+    void loadSessionMapper() {
+        // seed the session mapper
+        applicationExitInfoList.forEach(aei ->
+                applicationExitMonitor.sessionMapper.mapper.putIfAbsent(aei.getPid(), UUID.randomUUID().toString())
+        );
+        applicationExitMonitor.sessionMapper.flush();
+    }
+
+    int getRandomHistoricalPid() {
+        List<Integer> pids = new ArrayList<>(applicationExitMonitor.sessionMapper.mapper.keySet());
+        int rando = (int) (Math.random() * pids.size());
+
+        return Integer.parseInt(String.valueOf(pids.get(rando)));
+    }
 }

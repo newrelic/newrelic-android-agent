@@ -5,7 +5,6 @@
 
 package com.newrelic.agent.android.aei;
 
-import static com.newrelic.agent.android.aei.AEITraceSender.AEI_COLLECTOR_PATH;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
 
@@ -249,7 +248,7 @@ public class AEITraceSenderTest {
 
     @Test
     public void getCollectorURI() {
-        Assert.assertEquals("https://" + AgentConfiguration.getInstance().getCollectorHost() + AEI_COLLECTOR_PATH, traceSender.getCollectorURI().toString());
+        Assert.assertEquals("https://" + AgentConfiguration.getInstance().getCollectorHost() + AEITraceSender.AEI_COLLECTOR_PATH, traceSender.getCollectorURI().toString());
     }
 
     @Test

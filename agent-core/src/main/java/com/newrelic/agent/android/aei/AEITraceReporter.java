@@ -301,8 +301,6 @@ public class AEITraceReporter extends PayloadReporter {
         if (getCachedTraces().isEmpty()) {
             AEITraceReporter.shutdown();
         }
-
-        // PayloadController.submitCallable(reportCachedAgentDataCallable);
     }
 
     /**
