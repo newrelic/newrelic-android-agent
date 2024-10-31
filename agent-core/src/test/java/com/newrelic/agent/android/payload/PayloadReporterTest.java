@@ -11,11 +11,7 @@ import com.newrelic.agent.android.crash.CrashReporterTests;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import static org.mockito.Mockito.atMost;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import org.mockito.Mockito;
 
 public class PayloadReporterTest {
     private AgentConfiguration agentConfiguration;
@@ -23,13 +19,13 @@ public class PayloadReporterTest {
 
     @Before
     public void setUp() throws Exception {
-        agentConfiguration = spy(new AgentConfiguration());
+        agentConfiguration = Mockito.spy(new AgentConfiguration());
         agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(true);
         agentConfiguration.setReportHandledExceptions(true);
 
-        payloadreporter = spy(new PayloadReporter(agentConfiguration) {
+        payloadreporter = Mockito.spy(new PayloadReporter(agentConfiguration) {
             @Override
             protected void start() {
             }
@@ -43,17 +39,17 @@ public class PayloadReporterTest {
     @Test
     public void start() throws Exception {
         payloadreporter.start();
-        verify(payloadreporter, times(1)).start();
+        Mockito.verify(payloadreporter, Mockito.times(1)).start();
     }
 
     @Test
     public void stop() throws Exception {
         payloadreporter.stop();
-        verify(payloadreporter, times(1)).stop();
+        Mockito.verify(payloadreporter, Mockito.times(1)).stop();
     }
 
     @Test
-    public void isEnabled() throws Exception {
+    public void isEnabled() {
         payloadreporter.setEnabled(true);
         Assert.assertTrue(payloadreporter.isEnabled());
 
@@ -62,13 +58,13 @@ public class PayloadReporterTest {
     }
 
     @Test
-    public void setEnabled() throws Exception {
+    public void setEnabled() {
         payloadreporter.setEnabled(true);
         Assert.assertTrue(payloadreporter.isEnabled());
     }
 
     @Test
-    public void getAgentConfiguration() throws Exception {
+    public void getAgentConfiguration() {
         Assert.assertEquals(payloadreporter.getAgentConfiguration(), agentConfiguration);
     }
 

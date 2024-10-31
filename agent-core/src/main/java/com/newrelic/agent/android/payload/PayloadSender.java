@@ -27,7 +27,6 @@ import javax.net.ssl.HttpsURLConnection;
 
 public abstract class PayloadSender implements Callable<PayloadSender> {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
-    public static final int COLLECTOR_TIMEOUT = 5000;    // 5 seconds
 
     protected Payload payload;
     protected final AgentConfiguration agentConfiguration;
@@ -70,10 +69,12 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         switch (responseCode) {
             case HttpsURLConnection.HTTP_OK:
             case HttpsURLConnection.HTTP_ACCEPTED:
-                InputStream responseInputStream = connection.getInputStream();
-                if (responseInputStream != null) {
-                    String responseString = readStream(responseInputStream, responseInputStream.available());
-                    onRequestContent(responseString);
+                if (connection.getDoInput()) {
+                    InputStream responseInputStream = connection.getInputStream();
+                    if (responseInputStream != null) {
+                        String responseString = readStream(responseInputStream, responseInputStream.available());
+                        onRequestContent(responseString);
+                    }
                 }
                 break;
 
@@ -116,14 +117,17 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         try {
             byte[] payloadBytes = getPayload().getBytes();
             final HttpURLConnection connection = getConnection();
+
             connection.setFixedLengthStreamingMode(payloadBytes.length);
             connection.setRequestProperty(CONTENT_LENGTH_HEADER, Integer.toString(payloadBytes.length));
             try {
                 timer.tic();
                 connection.connect();
-                try (final OutputStream out = new BufferedOutputStream(connection.getOutputStream())) {
-                    out.write(payloadBytes);
-                    out.flush();
+                if (connection.getDoOutput()) {
+                    try (final OutputStream out = new BufferedOutputStream(connection.getOutputStream())) {
+                        out.write(payloadBytes);
+                        out.flush();
+                    }
                 }
 
                 responseCode = connection.getResponseCode();
@@ -204,9 +208,11 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
     }
 
     public interface CompletionHandler {
-        void onResponse(PayloadSender payloadSender);
+        default void onResponse(PayloadSender payloadSender) {
+        }
 
-        void onException(PayloadSender payloadSender, Exception e);
+        default void onException(PayloadSender payloadSender, Exception e) {
+        }
     }
 
 }

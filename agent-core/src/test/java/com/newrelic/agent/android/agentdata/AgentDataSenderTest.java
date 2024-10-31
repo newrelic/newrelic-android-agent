@@ -7,10 +7,8 @@ package com.newrelic.agent.android.agentdata;
 
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
 
 import com.google.flatbuffers.FlatBufferBuilder;
@@ -28,6 +26,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -90,7 +89,7 @@ public class AgentDataSenderTest {
     public void run() throws Exception {
         AgentDataSender agentDataSender = new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration);
         executor.submit(agentDataSender);
-        //without a local collector to point at this is expected to fail
+        // without a local collector to point at this is expected to fail
         boolean executed = executor.awaitTermination(agentConfiguration.getHexCollectorTimeout(), TimeUnit.MILLISECONDS);
         assertFalse(executed);
     }
@@ -119,35 +118,45 @@ public class AgentDataSenderTest {
     @Test
     public void testRequestResponse() throws Exception {
         AgentDataSender agentDataSender = spy(new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration));
-        HttpURLConnection connection = spy(agentDataSender.getConnection());
+        HttpURLConnection connection = getMockedConnection(agentDataSender); // Mockito.spy(agentDataSender.getConnection());
 
-        doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
-
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
         agentDataSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 200 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_HEX_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.get().getStatsMap().clear();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_ACCEPTED);
+        Mockito.doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
         agentDataSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 202 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_HEX_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.get().getStatsMap().clear();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_CREATED);
+        Mockito.doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         agentDataSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 201 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_HEX_FAILED_UPLOAD));
 
         Mockito.reset();
         StatsEngine.get().getStatsMap().clear();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR);
+        Mockito.doReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR).when(connection).getResponseCode();
         agentDataSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 500 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_HEX_FAILED_UPLOAD));
 
         Mockito.reset();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_BAD_REQUEST);
+        Mockito.doReturn(HttpsURLConnection.HTTP_BAD_REQUEST).when(connection).getResponseCode();
         agentDataSender.onRequestResponse(connection);
         verify(agentDataSender, atLeastOnce()).onFailedUpload(anyString());
+    }
+
+    private HttpURLConnection getMockedConnection(AgentDataSender agentDataSender) throws IOException {
+        HttpURLConnection connection = Mockito.spy(agentDataSender.getConnection());
+
+        Mockito.doNothing().when(connection).connect();
+        Mockito.doReturn(false).when(connection).getDoOutput();
+        Mockito.doReturn(false).when(connection).getDoInput();
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+
+        return connection;
     }
 
     @Test
@@ -163,7 +172,7 @@ public class AgentDataSenderTest {
         AgentDataSender agentDataSender = spy(new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration));
         HttpURLConnection connection = spy(agentDataSender.getConnection());
 
-        doReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT).when(connection).getResponseCode();
         agentDataSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 408 supportability metric",
                 StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_HEX_UPLOAD_TIMEOUT));
@@ -175,7 +184,7 @@ public class AgentDataSenderTest {
         AgentDataSender agentDataSender = spy(new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration));
         HttpURLConnection connection = spy(agentDataSender.getConnection());
 
-        doReturn(429).when(connection).getResponseCode();
+        Mockito.doReturn(429).when(connection).getResponseCode();
 
         agentDataSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 429 supportability metric",
