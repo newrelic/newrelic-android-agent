@@ -11,14 +11,14 @@ import com.newrelic.agent.android.crash.CrashReporterTests;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
+import javax.net.ssl.HttpsURLConnection;
 
 public class PayloadReaperTest {
     private AgentConfiguration agentConfiguration;
@@ -30,57 +30,52 @@ public class PayloadReaperTest {
 
     @Before
     public void setUp() throws Exception {
-        agentConfiguration = spy(new AgentConfiguration());
+        agentConfiguration = Mockito.spy(new AgentConfiguration());
         agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(true);
         agentConfiguration.setReportHandledExceptions(true);
         agentConfiguration.setUseSsl(true);
 
-        connection = spy((HttpURLConnection) new URL("http://www.newrelic.com").openConnection());
-        connection.setDoOutput(true);
+        connection = Mockito.spy((HttpURLConnection) new URL("http://www.newrelic.com").openConnection());
+        Mockito.doReturn(false).when(connection).getDoOutput();
+        Mockito.doReturn(false).when(connection).getDoInput();
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+        Mockito.doNothing().when(connection).connect();
 
         payload = new Payload("the tea's too hot".getBytes());
-        payloadSender = spy(new PayloadSender(payload, agentConfiguration) {
+        payloadSender = Mockito.spy(new PayloadSender(payload, agentConfiguration) {
             @Override
-            protected HttpURLConnection getConnection() throws IOException {
+            protected HttpURLConnection getConnection() {
                 return connection;
             }
         });
 
-        handler = spy(new PayloadSender.CompletionHandler() {
-            @Override
-            public void onResponse(PayloadSender payloadSender) {
-            }
-
-            @Override
-            public void onException(PayloadSender payloadSender, Exception e) {
-            }
-        });
-
-        payloadReaper = spy(new PayloadReaper(payloadSender, handler));
+        handler = Mockito.spy(new PayloadSender.CompletionHandler(){});
+        payloadReaper = Mockito.spy(new PayloadReaper(payloadSender, handler));
     }
 
     @Test
-    public void shouldThrowWithoutPayloadSender() throws Exception {
+    public void shouldThrowWithoutPayloadSender() {
         try {
             new PayloadReaper(null, null);
             Assert.fail("Should throw without payloadSender");
         } catch (Exception e) {
+            Assert.assertTrue(e instanceof NullPointerException);
         }
     }
 
     @Test
     public void shouldCallSender() throws Exception {
         payloadReaper.call();
-        verify(payloadSender).call();
+        Mockito.verify(payloadSender).call();
     }
 
     @Test
     public void shouldCallOnExceptionHandler() throws Exception {
         RuntimeException e = new RuntimeException("borked");
-        doThrow(e).when(payloadSender).call();
+        Mockito.doThrow(e).when(payloadSender).call();
         payloadReaper.call();
-        verify(handler).onException(payloadSender, e);
+        Mockito.verify(handler).onException(payloadSender, e);
     }
 }

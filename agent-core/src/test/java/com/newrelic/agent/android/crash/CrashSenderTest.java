@@ -5,6 +5,12 @@
 
 package com.newrelic.agent.android.crash;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
+
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -16,16 +22,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.io.IOException;
 import java.net.HttpURLConnection;
 
 import javax.net.ssl.HttpsURLConnection;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
 
 public class CrashSenderTest {
     private AgentConfiguration agentConfiguration;
@@ -75,29 +75,29 @@ public class CrashSenderTest {
 
     @Test
     public void testRequestResponse() throws Exception {
-        HttpURLConnection connection = spy(crashSender.getConnection());
+        HttpURLConnection connection = getMockedConnection(crashSender);
 
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_OK);
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 200 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
 
         Mockito.reset();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_ACCEPTED);
+        Mockito.doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 202 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
 
         Mockito.reset();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_CREATED);
+        Mockito.doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 201 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_FAILED_UPLOAD));
 
         Mockito.reset();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR);
+        Mockito.doReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 500 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_FAILED_UPLOAD));
 
         Mockito.reset();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_BAD_REQUEST);
+        Mockito.doReturn(HttpsURLConnection.HTTP_BAD_REQUEST).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         verify(crashSender, atLeastOnce()).onFailedUpload(anyString());
     }
@@ -114,9 +114,19 @@ public class CrashSenderTest {
     @Test
     public void testRequestException() throws Exception {
         CrashSender crashSender = spy(new CrashSender(crash, agentConfiguration));
-        when(crashSender.getConnection()).thenReturn(null);
+        Mockito.doReturn(null).when(crashSender).getConnection();
         crashSender.call();
         verify(crashSender, atLeastOnce()).onFailedUpload(any(String.class));
     }
 
+    private HttpURLConnection getMockedConnection(CrashSender crashSender) throws IOException {
+        HttpURLConnection connection = Mockito.spy(crashSender.getConnection());
+
+        Mockito.doReturn(false).when(connection).getDoOutput();
+        Mockito.doReturn(false).when(connection).getDoInput();
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+        Mockito.doNothing().when(connection).connect();
+
+        return connection;
+    }
 }
