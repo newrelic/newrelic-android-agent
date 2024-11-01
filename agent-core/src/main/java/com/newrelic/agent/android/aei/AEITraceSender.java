@@ -9,6 +9,7 @@ import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.FileBackedPayload;
+import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
@@ -23,6 +24,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 public class AEITraceSender extends PayloadSender {
     static final String AEI_COLLECTOR_PATH = "/errors?anr=true";
+    private static final int COLLECTOR_TIMEOUT = PayloadController.PAYLOAD_COLLECTOR_TIMEOUT;
 
     public AEITraceSender(String aeiTrace, AgentConfiguration agentConfiguration) {
         super(aeiTrace.getBytes(), agentConfiguration);
