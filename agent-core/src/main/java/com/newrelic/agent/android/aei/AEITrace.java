@@ -99,7 +99,7 @@ public class AEITrace {
     public String toString() {
         // transform trace data per DEM spec
         String flattenedThreads = threads.stream()
-                .collect(Collectors.joining("\n"));
+                .collect(Collectors.joining("\n\n"));
 
         return flattenedThreads;
     }

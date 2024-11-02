@@ -5,9 +5,6 @@
 
 package com.newrelic.agent.android.aei;
 
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
-
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -26,6 +23,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -63,7 +62,6 @@ public class AEITraceSenderTest {
 
         traceSender = Mockito.spy(new AEITraceSender(traceDataReport, AgentConfiguration.getInstance()));
 
-        doReturn(Mockito.spy(traceSender.getConnection())).when(traceSender).getConnection();
     }
 
     @After
@@ -75,7 +73,7 @@ public class AEITraceSenderTest {
     }
 
     @AfterClass
-    public static void afterClass() throws Exception {
+    public static void afterClass() {
         Assert.assertTrue(reportsDir.delete());
     }
 
@@ -120,46 +118,37 @@ public class AEITraceSenderTest {
 
     @Test
     public void onRequestResponse() throws IOException {
-        HttpURLConnection connection = traceSender.getConnection();
+        HttpURLConnection connection = getMockedConnection(traceSender);
 
         Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
-        // when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_OK);
         traceSender.onRequestResponse(connection);
-/*      FIXME
-        Assert.assertTrue("Should contain 200 supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME));
-*/
+        Assert.assertTrue("Should contain 200 supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
         Mockito.doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
         traceSender.onRequestResponse(connection);
-/*      FIXME
-        Assert.assertTrue("Should contain 202 supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME));
-*/
+        Assert.assertTrue("Should contain 202 supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
         Mockito.doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         traceSender.onRequestResponse(connection);
-/*      FIXME
-        Assert.assertFalse("Should not contain 201 success supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME));
-*/
+        Assert.assertFalse("Should not contain 201 success supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_UPLOAD_TIME));
 
         traceSender.onFailedUpload("boo");
-/*      FIXME
-        Assert.assertTrue("Should contain 500 supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_FAILED_UPLOAD));
-*/
-        Mockito.verify(traceSender, atLeastOnce()).onFailedUpload(Mockito.anyString());
+        Assert.assertTrue("Should contain 500 supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_FAILED_UPLOAD));
+        Mockito.verify(traceSender, Mockito.atLeastOnce()).onFailedUpload(Mockito.anyString());
     }
 
     @Test
     public void onFailedUpload() throws IOException {
-        HttpURLConnection connection = traceSender.getConnection();
+        HttpURLConnection connection = getMockedConnection(traceSender);
         Mockito.doReturn(503).when(connection).getResponseCode();
 
         traceSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain filed upload supportability metric",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_FAILED_UPLOAD));
+                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_FAILED_UPLOAD));
     }
 
     @Test
@@ -167,75 +156,67 @@ public class AEITraceSenderTest {
         Exception e = new RuntimeException("Upload failed");
         traceSender.onRequestException(e);
         Assert.assertTrue("Should contain filed upload supportability metric",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_FAILED_UPLOAD));
+                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_FAILED_UPLOAD));
     }
 
     @Test
     public void uploadRequest() throws Exception {
-        HttpURLConnection connection = traceSender.getConnection();
+        HttpURLConnection connection = getMockedConnection(traceSender);
 
         Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
         traceSender.onRequestResponse(connection);
-/*      FIXME
         Assert.assertTrue("Should contain 200 supportability metric",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
-*/
+                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
         Mockito.doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
         traceSender.onRequestResponse(connection);
-/*      FIXME
         Assert.assertTrue("Should contain 202 supportability metric",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
-*/
+                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
         Mockito.doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         traceSender.onRequestResponse(connection);
-/*      FIXME
-        Assert.assertFalse("Should not contain 202 supportability metric",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
-        Assert.assertTrue("Should contain 202 supportability metric",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_FAILED_UPLOAD));
-*/
+        Assert.assertFalse("Should contain 201 supportability metric",
+                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_AEI_UPLOAD_TIME));
     }
 
     @Test
     public void failedUploadRequest() throws Exception {
-        HttpURLConnection connection = traceSender.getConnection();
+        HttpURLConnection connection = getMockedConnection(traceSender);
 
         Mockito.doReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR).when(connection).getResponseCode();
         traceSender.onRequestResponse(connection);
-/*      FIXME
-        Assert.assertTrue("Should contain 500 supportability metric",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_REMOVED_REJECTED));
-*/
+        Mockito.verify(traceSender, Mockito.times(1)).onFailedUpload(Mockito.anyString());
     }
 
     @Test
     public void timedOutUploadRequest() throws Exception {
-        HttpURLConnection connection = traceSender.getConnection();
+        HttpURLConnection connection = getMockedConnection(traceSender);
 
         Mockito.doReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT).when(connection).getResponseCode();
         traceSender.onRequestResponse(connection);
-/*      FIXME
-        Assert.assertTrue("Should contain 408 supportability metric",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIMEOUT));
-*/
+        Mockito.verify(traceSender, Mockito.times(1)).onFailedUpload(Mockito.anyString());
+    }
+
+    @Test
+    public void rejecteddUploadRequest() throws Exception {
+        HttpURLConnection connection = getMockedConnection(traceSender);
+
+        Mockito.doReturn(HttpsURLConnection.HTTP_ENTITY_TOO_LARGE).when(connection).getResponseCode();
+        traceSender.onRequestResponse(connection);
+        Mockito.verify(traceSender, Mockito.times(1)).onFailedUpload(Mockito.anyString());
     }
 
     @Test
     public void throttledUploadRequest() throws Exception {
-        HttpURLConnection connection = traceSender.getConnection();
+        HttpURLConnection connection = getMockedConnection(traceSender);
 
-        doReturn(429).when(connection).getResponseCode();
+        Mockito.doReturn(429).when(connection).getResponseCode();
         traceSender.onRequestResponse(connection);
-/*      FIXME
-        Assert.assertTrue("Should contain 429 supportability metric",
-                StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_THROTTLED));
-*/
+        Mockito.verify(traceSender, Mockito.times(1)).onFailedUpload(Mockito.anyString());
     }
 
     @Test
@@ -256,9 +237,6 @@ public class AEITraceSenderTest {
         Assert.assertTrue(traceSender.shouldRetry());
     }
 
-    @Test
-    public void recordSupportabilityMetrics() throws Exception {
-    }
 
     Set<File> seedTraceData(int numFiles) throws Exception {
         final HashSet<File> reportSet = new HashSet<>();
@@ -274,5 +252,18 @@ public class AEITraceSenderTest {
         return reportSet;
     }
 
+    private HttpURLConnection getMockedConnection(AEITraceSender traceSender) throws IOException {
+        HttpURLConnection connection = Mockito.spy(traceSender.getConnection());
+
+        Mockito.doReturn(false).when(connection).getDoOutput();
+        Mockito.doReturn(false).when(connection).getDoInput();
+        Mockito.doNothing().when(connection).connect();
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+        Mockito.doReturn(new ByteArrayOutputStream(1)).when(connection).getOutputStream();
+        Mockito.doReturn(new ByteArrayInputStream("AEITraceSenderTest error:".getBytes(StandardCharsets.UTF_8)))
+                .when(connection).getInputStream();
+
+        return connection;
+    }
 
 }
