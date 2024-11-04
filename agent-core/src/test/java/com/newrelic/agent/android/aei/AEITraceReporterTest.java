@@ -31,6 +31,7 @@ import java.util.Set;
 public class AEITraceReporterTest {
     private static final int NUM_TRACE_FILES = 3;
     protected static File reportsDir;
+
     private AgentConfiguration agentConfiguration;
     private AEITraceReporter traceReporter;
     private String sysTrace;
@@ -71,7 +72,7 @@ public class AEITraceReporterTest {
     }
 
     @AfterClass
-    public static void afterClass() throws Exception {
+    public static void afterClass() {
         Assert.assertTrue(reportsDir.delete());
     }
 
@@ -182,10 +183,10 @@ public class AEITraceReporterTest {
     }
 
     @Test
-    public void getCachedTraces() throws Exception {
+    public void getCachedTraces() {
         Assert.assertEquals(NUM_TRACE_FILES, traceReporter.getCachedTraces().size());
-        seedTraceData(5);
-        Assert.assertEquals(NUM_TRACE_FILES + 5, traceReporter.getCachedTraces().size());
+        Set<File> seededTraces = seedTraceData(5);
+        Assert.assertEquals(NUM_TRACE_FILES + seededTraces.size(), traceReporter.getCachedTraces().size());
     }
 
     @Test
@@ -213,7 +214,7 @@ public class AEITraceReporterTest {
         Assert.assertEquals(0, traceReporter.getCachedTraces().size());
     }
 
-    Set<File> seedTraceData(int numFiles) throws Exception {
+    Set<File> seedTraceData(int numFiles) {
         final HashSet<File> reportSet = new HashSet<>();
 
         for (int file = 0; file < numFiles; file++) {

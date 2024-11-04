@@ -37,6 +37,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -50,9 +52,8 @@ public class ApplicationExitMonitor {
     protected final File reportsDir;
     protected final String packageName;
     protected final SessionMapper sessionMapper;
-
-    protected AEITraceReporter traceReporter;
-    protected ActivityManager am;
+    protected final ActivityManager am;
+    protected final AEITraceReporter traceReporter;
 
     public ApplicationExitMonitor(final Context context) {
         this.reportsDir = new File(context.getCacheDir(), "newrelic/applicationExitInfo");
@@ -62,20 +63,23 @@ public class ApplicationExitMonitor {
 
         reportsDir.mkdirs();
 
+        AEITraceReporter traceReporter = AEITraceReporter.getInstance();
         try {
-            this.traceReporter = AEITraceReporter.initialize(reportsDir, AgentConfiguration.getInstance());
+            traceReporter = AEITraceReporter.initialize(reportsDir, AgentConfiguration.getInstance());
             if (traceReporter != null) {
                 traceReporter.start();
-            }
-
-            if (!traceReporter.isStarted()) {
-                log.warn("ApplicationExitMonitor: No AEI trace reporter - AEITrace reporting will be disabled.");
+                if (!traceReporter.isStarted()) {
+                    log.warn("ApplicationExitMonitor: AEI trace reporter not started. AEITrace reporting will be disabled.");
+                }
+            } else {
+                log.warn("ApplicationExitMonitor: No AEI trace reporter. AEITrace reporting will be disabled.");
             }
 
         } catch (IOException e) {
             log.error("ApplicationExitMonitor: " + e);
         }
 
+        this.traceReporter = traceReporter;
     }
 
     // a gettor useful in mock tests
@@ -94,8 +98,9 @@ public class ApplicationExitMonitor {
         // Only supported in Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             boolean eventsAdded = false;
-            int recordsVisited = 0;
-            int recordsSkipped = 0;
+            AtomicInteger recordsVisited = new AtomicInteger(0);
+            AtomicInteger recordsSkipped = new AtomicInteger(0);
+            AtomicInteger recordsDropped = new AtomicInteger(0);
 
             if (null == am) {
                 log.error("harvestApplicationExitInfo: ActivityManager is null! Cannot record ApplicationExitInfo data.");
@@ -115,14 +120,15 @@ public class ApplicationExitMonitor {
                 if (artifact.exists() && (artifact.length() > 0)) {
                     log.debug("ApplicationExitMonitor: skipping exit info for pid[" +
                             exitInfo.getPid() + "]: already recorded.");
-                    recordsSkipped++;
+                    recordsSkipped.incrementAndGet();
                     continue;
                 }
 
                 // try to map the AEI with the session it occurred in
                 String aeiSessionId = sessionMapper.get(exitInfo.getPid());
-                if (aeiSessionId == null || aeiSessionId.isEmpty() || aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
+                if (!(aeiSessionId == null || aeiSessionId.isEmpty() || aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID()))) {
                     // found a prior session ID
+                    log.debug("ApplicationExitMonitor: Found session id [" + aeiSessionId + "] for AEI pid[" + exitInfo.getPid() + "]");
                 }
 
                 String traceReport = exitInfo.toString();
@@ -150,14 +156,16 @@ public class ApplicationExitMonitor {
                     artifactOs.close();
                     artifact.setReadOnly();
 
-                    recordsVisited++;
+                    recordsVisited.incrementAndGet();
 
                 } catch (IOException e) {
                     log.debug("harvestApplicationExitInfo: AppExitInfo artifact error. " + e);
                 }
 
                 if (aeiSessionId == null || aeiSessionId.isEmpty() || aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
-                    // ??? continue;
+                    // No previous session ID found in cache. Can't do anything with the event, so drop it
+                    recordsDropped.incrementAndGet();
+                    continue;
                 }
 
                 // finally, emit an event for the record
@@ -170,10 +178,8 @@ public class ApplicationExitMonitor {
                 eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
                 eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
 
-                // try to map the AEI with the session it occurred in
-                if (!(aeiSessionId == null || aeiSessionId.isEmpty()) && !aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, aeiSessionId);
-                }
+                // map the AEI with the session it occurred in (will be translated later)
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, aeiSessionId);
 
                 // Add fg/bg flag based on inferred importance:
                 switch (exitInfo.getImportance()) {
@@ -199,11 +205,12 @@ public class ApplicationExitMonitor {
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + getReasonAsString(exitInfo.getReason()));
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + getImportanceAsString(exitInfo.getImportance()));
-                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited);
-                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped);
+                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited.get());
+                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped.get());
+                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_DROPPED, recordsSkipped.get());
             }
 
-            log.debug("AEI: inspected " + applicationExitInfoList.size() + " records: new[" + recordsVisited + "] existing [" + recordsSkipped + "]");
+            log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited + "] existing [" + recordsSkipped + "] dropped[" + recordsDropped.get() + "]");
 
             if (eventsAdded) {
                 final EventManager eventMgr = AnalyticsControllerImpl.getInstance().getEventManager();
@@ -243,11 +250,11 @@ public class ApplicationExitMonitor {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.R)
-    public List<Integer> getAEIPidSet(List<ApplicationExitInfo> applicationExitInfoList) {
+    public Set<Integer> currentPidSet(List<ApplicationExitInfo> applicationExitInfoList) {
         return applicationExitInfoList.stream()
                 .mapToInt(applicationExitInfo -> applicationExitInfo.getPid())
                 .boxed()
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -260,7 +267,7 @@ public class ApplicationExitMonitor {
     void reconcileMetadata(List<ApplicationExitInfo> applicationExitInfoList) {
         List<File> artifacts = getArtifacts();
         Pattern regexp = Pattern.compile(String.format(Locale.getDefault(), ARTIFACT_NAME, "(\\d+)"));
-        List<Integer> currentPids = getAEIPidSet(applicationExitInfoList);
+        Set<Integer> currentPids = currentPidSet(applicationExitInfoList);
 
         artifacts.forEach(aeiArtifact -> {
             Matcher matcher = regexp.matcher(aeiArtifact.getName());

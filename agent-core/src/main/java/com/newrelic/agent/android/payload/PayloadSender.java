@@ -11,6 +11,8 @@ import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.Streams;
 
@@ -85,6 +87,10 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
 
             case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] has timed out (will try again later) - Response code [" + responseCode + "]");
+                break;
+
+            case HttpURLConnection.HTTP_ENTITY_TOO_LARGE:
+                onFailedUpload("The request was rejected due to payload size limits - Response code [" + responseCode + "]");
                 break;
 
             case 429: // 'Too Many Requests' not defined by HttpURLConnection

@@ -7,6 +7,8 @@ package com.newrelic.agent.android.aei;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.FileBackedPayload;
 import com.newrelic.agent.android.payload.PayloadController;
@@ -19,6 +21,8 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -48,6 +52,12 @@ public class AEITraceSender extends PayloadSender {
         connection.setConnectTimeout(COLLECTOR_TIMEOUT);
         connection.setReadTimeout(COLLECTOR_TIMEOUT);
 
+        // apply the headers passed in harvest configuration
+        Map<String, String> requestHeaders = Harvest.getHarvestConfiguration().getRequest_headers_map();
+        for (Map.Entry<String, String> stringStringEntry : requestHeaders.entrySet()) {
+            connection.setRequestProperty(stringStringEntry.getKey(), stringStringEntry.getValue());
+        }
+
         return connection;
     }
 
@@ -71,29 +81,16 @@ public class AEITraceSender extends PayloadSender {
      **/
     @Override
     protected void onRequestResponse(HttpURLConnection connection) throws IOException {
+        super.onRequestResponse(connection);
+
         int responseCode = connection.getResponseCode();
 
         switch (responseCode) {
             case HttpsURLConnection.HTTP_OK:
             case HttpsURLConnection.HTTP_ACCEPTED:
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME, timer.peek());
+                StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_AEI_UPLOAD_TIME, timer.peek());
                 break;
 
-            case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
-                onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] has timed out - (will try again later) - Response code [" + responseCode + "]");
-                break;
-
-            case 429: // Not defined by HttpURLConnection
-                onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] was has timed out - (will try again later) - Response code [" + responseCode + "]");
-                break;
-
-            case HttpsURLConnection.HTTP_INTERNAL_ERROR:
-                onFailedUpload("The payload was rejected and will be deleted - Response code " + connection.getResponseCode());
-                break;
-
-            default:
-                onFailedUpload("Something went wrong while submitting data (will try again later) - Response code " + connection.getResponseCode());
-                break;
         }
 
         log.debug("AEITraceSender: data reporting took " + timer.toc() + "ms");
@@ -102,13 +99,13 @@ public class AEITraceSender extends PayloadSender {
     @Override
     protected void onFailedUpload(String errorMsg) {
         log.error("AEITraceSender: " + errorMsg);
-        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_FAILED_UPLOAD);
+        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_FAILED_UPLOAD);
     }
 
     @Override
     protected void onRequestException(Exception e) {
         log.error("AEITraceSender: Crash upload failed: " + e);
-        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_FAILED_UPLOAD);
+        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_FAILED_UPLOAD);
     }
 
     /**
