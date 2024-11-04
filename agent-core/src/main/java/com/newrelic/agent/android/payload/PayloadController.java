@@ -35,8 +35,8 @@ public class PayloadController implements HarvestLifecycleAware {
 
     protected static final AgentLog log = AgentLogManager.getAgentLog();
 
-    public static final long PAYLOAD_COLLECTOR_TIMEOUT = 5000;             // 5 seconds
-    public static final long PAYLOAD_REQUEUE_PERIOD_MS = 2 * 60 * 1000;    // requeue failed uploads every 2 minutes
+    public static final int PAYLOAD_COLLECTOR_TIMEOUT = 5000;               // 5 seconds
+    public static final long PAYLOAD_REQUEUE_PERIOD_MS = 2 * 60 * 1000;     // requeue failed uploads every 2 minutes
 
     protected static Lock payloadQueueLock = new ReentrantLock(false);
     protected static AtomicReference<PayloadController> instance = new AtomicReference<>(null);
