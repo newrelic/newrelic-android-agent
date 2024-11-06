@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android;
 
+import android.app.Application;
 import android.content.Context;
 import android.text.TextUtils;
 
@@ -29,6 +30,7 @@ import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
+import com.newrelic.agent.android.sessionReplay.SessionReplayActivityLifecycleCallbacks;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
@@ -61,6 +63,7 @@ public final class NewRelic {
     protected static final AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
     protected static boolean started = false;
     protected static boolean isShutdown = false;
+    SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
 
     boolean loggingEnabled = true;
     int logLevel = AgentLog.INFO;
@@ -281,6 +284,7 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "start"));
 
+
         if (isShutdown) {
             log.error("NewRelic agent has shut down, relaunch your application to restart the agent.");
             return;
@@ -292,6 +296,9 @@ public final class NewRelic {
         }
 
         try {
+
+            sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
+            ((Application) context.getApplicationContext()).registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
             log.setLevel(logLevel);
 
