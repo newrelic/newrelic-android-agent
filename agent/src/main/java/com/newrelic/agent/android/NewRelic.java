@@ -7,8 +7,6 @@ package com.newrelic.agent.android;
 
 import android.app.Application;
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.TextUtils;
 
 import com.newrelic.agent.android.agentdata.AgentDataController;
@@ -32,7 +30,6 @@ import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
-import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.SessionReplayActivityLifecycleCallbacks;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -67,7 +64,6 @@ public final class NewRelic {
     protected static boolean started = false;
     protected static boolean isShutdown = false;
     SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
-    SessionReplay sessionReplay;
 
     boolean loggingEnabled = true;
     int logLevel = AgentLog.INFO;
@@ -300,13 +296,9 @@ public final class NewRelic {
         }
 
         try {
-            Handler uiHandler = new Handler(Looper.getMainLooper());
 
-            sessionReplay = new SessionReplay(((Application) context.getApplicationContext()), uiHandler);
-            sessionReplay.Initialize();
-            sessionReplay.startRecording();
-//            sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
-//            ((Application) context.getApplicationContext()).registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
+            sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
+            ((Application) context.getApplicationContext()).registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
             log.setLevel(logLevel);
 
