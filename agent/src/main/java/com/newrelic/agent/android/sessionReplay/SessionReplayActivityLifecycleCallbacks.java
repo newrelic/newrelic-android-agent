@@ -100,49 +100,49 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 Log.d(TAG, "Root View Changed in Listener");
                 Window window = Windows.getPhoneWindowForView(view);
                 WindowCallbackWrapper.getListeners(window).getTouchEventInterceptors().add(new OnTouchEventListener() {
-                       @Override
-                       public void onTouchEvent(MotionEvent motionEvent) {
+                                                                                               @Override
+                                                                                               public void onTouchEvent(MotionEvent motionEvent) {
 //                           Log.d(TAG, "Received Motion Event: " + motionEvent.toString());
-                           long timestamp = System.currentTimeMillis();
-                           MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
-                           motionEvent.getPointerCoords(0, pointerCoords);
+                                                                                                   long timestamp = System.currentTimeMillis();
+                                                                                                   MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
+                                                                                                   motionEvent.getPointerCoords(0, pointerCoords);
 
-                           if(currentTouchId == -1) {
+                                                                                                   if(currentTouchId == -1) {
 //                               currentTouchId = NewRelicIdGenerator.generateId();
-                               View containingView = findViewAtCoords(view, (int)pointerCoords.x, (int)pointerCoords.y);
-                               if(containingView != null) {
-                                   currentTouchId = getStableId(containingView);
-                                   Log.d(TAG, "Found originating View. Id is " + currentTouchId);
-                               } else {
-                                   Log.d(TAG, "Unable to find originating View. Generating ID");
-                                   currentTouchId = NewRelicIdGenerator.generateId();
-                               }
-                           }
+                                                                                                       View containingView = findViewAtCoords(view, (int)pointerCoords.x, (int)pointerCoords.y);
+                                                                                                       if(containingView != null) {
+                                                                                                           currentTouchId = getStableId(containingView);
+                                                                                                           Log.d(TAG, "Found originating View. Id is " + currentTouchId);
+                                                                                                       } else {
+                                                                                                           Log.d(TAG, "Unable to find originating View. Generating ID");
+                                                                                                           currentTouchId = NewRelicIdGenerator.generateId();
+                                                                                                       }
+                                                                                                   }
 
-                           RecordedTouchData moveTouch;
-                           if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                               if (currentTouchTracker == null) {
-                                   Log.d(TAG, "Adding Start Event");
-                                   moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
-                                   currentTouchTracker = new TouchTracker(moveTouch);
-                               }
-                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
-                               if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
-                                   Log.d(TAG, "Adding Move Event");
-                                   moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
-                                   SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
-                               }
-                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
-                               Log.d(TAG, "Adding End Event");
-                               moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
-                               currentTouchTracker.addEndTouch(moveTouch);
-                               touchTrackers.add(SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker);
-                               currentTouchTracker = null;
-                               currentTouchId = -1;
-                           }
+                                                                                                   RecordedTouchData moveTouch;
+                                                                                                   if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                                                                                                       if (currentTouchTracker == null) {
+                                                                                                           Log.d(TAG, "Adding Start Event");
+                                                                                                           moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
+                                                                                                           currentTouchTracker = new TouchTracker(moveTouch);
+                                                                                                       }
+                                                                                                   } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
+                                                                                                       if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
+                                                                                                           Log.d(TAG, "Adding Move Event");
+                                                                                                           moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
+                                                                                                           SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
+                                                                                                       }
+                                                                                                   } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
+                                                                                                       Log.d(TAG, "Adding End Event");
+                                                                                                       moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
+                                                                                                       currentTouchTracker.addEndTouch(moveTouch);
+                                                                                                       touchTrackers.add(SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker);
+                                                                                                       currentTouchTracker = null;
+                                                                                                       currentTouchId = -1;
+                                                                                                   }
 
-                       }
-                   }
+                                                                                               }
+                                                                                           }
                 );
 
             }
@@ -236,141 +236,141 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     private void logChildViews(ViewGroup viewGroup,ChildNode htmlChildNode,ChildNode styleNode) {
         for (int i = 0; i < viewGroup.getChildCount(); i++) {
             View child = viewGroup.getChildAt(i);
-                if(shouldPrintView(child)) {
+            if(shouldPrintView(child)) {
 
-                    int id = getStableId(child);
+                int id = getStableId(child);
 
-                    String attributeId =   child.getClass().getSimpleName()+"-"+id;
+                String attributeId =   child.getClass().getSimpleName()+"-"+id;
 
-                    int[] location = new int[2];
-                    child.getLocationOnScreen(location);
-                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: getLocationOnScreen " + "X: " + location[0] + " Y: " + location[1]);
+                int[] location = new int[2];
+                child.getLocationOnScreen(location);
+                Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: getLocationOnScreen " + "X: " + location[0] + " Y: " + location[1]);
 
-                    String styleContent ="#"+ attributeId + "{position: absolute; top: " + getPixel(location[1]) + "px; left: " + getPixel(location[0])+ "px; width: " + getPixel(child.getWidth()) + "px; height: " + getPixel(child.getHeight()) + "px;";
-                    ChildNode childViewNode = new ChildNode(new ArrayList<>(),id,"div",2,null,null,false);
+                String styleContent ="#"+ attributeId + "{position: absolute; top: " + getPixel(location[1]) + "px; left: " + getPixel(location[0])+ "px; width: " + getPixel(child.getWidth()) + "px; height: " + getPixel(child.getHeight()) + "px;";
+                ChildNode childViewNode = new ChildNode(new ArrayList<>(),id,"div",2,null,null,false);
 
-                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + child.getClass().getSimpleName());
-                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "X: " + child.getPivotX() + " Y: " + child.getPivotY());
-                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Width: " + child.getWidth() + " Height: " + child.getHeight());
-                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Visibility: " + child.getVisibility());
-                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Alpha: " + child.getAlpha());
-
-
+                Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + child.getClass().getSimpleName());
+                Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "X: " + child.getPivotX() + " Y: " + child.getPivotY());
+                Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Width: " + child.getWidth() + " Height: " + child.getHeight());
+                Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Visibility: " + child.getVisibility());
+                Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Alpha: " + child.getAlpha());
 
 
-                    int[] locationOnWindows = new int[2];
-                    child.getLocationInWindow(locationOnWindows);
-                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: getLocationInWindow" + "X: " + locationOnWindows[0] + " Y: " + locationOnWindows[1]);
 
-                    if(child.getBackground() != null){
-                        Drawable background = child.getBackground();
+
+                int[] locationOnWindows = new int[2];
+                child.getLocationInWindow(locationOnWindows);
+                Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: getLocationInWindow" + "X: " + locationOnWindows[0] + " Y: " + locationOnWindows[1]);
+
+                if(child.getBackground() != null){
+                    Drawable background = child.getBackground();
 
 
 //                        if(background instanceof ColorDrawable || background instanceof RippleDrawable || background instanceof InsetDrawable || background instanceof BitmapDrawable){
 //                            styleContent += "background-color: #" + toRGBColor(background) + ";";
 //                        }
 
-                        if(background instanceof GradientDrawable){
-                            GradientDrawable gradientDrawable = (GradientDrawable) background;
-                            styleContent += convertToCSS(gradientDrawable);
-                        }
-
-
+                    if(background instanceof GradientDrawable){
+                        GradientDrawable gradientDrawable = (GradientDrawable) background;
+                        styleContent += convertToCSS(gradientDrawable);
                     }
-
-                    if(child.getBackgroundTintList() != null){
-                        styleContent += "background-color: #" + Integer.toHexString(child.getBackgroundTintList().getColorForState(new int[] {android.R.attr.state_enabled},0)).substring(2) + ";";
-                    }
-
-                    if(child instanceof DatePicker) {
-                        ChildNode datePickerElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
-                        Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
-                        attributes.setType("date");
-                        datePickerElement.setAttributes(attributes);
-                        childViewNode.getChildNodes().add(datePickerElement);
-                    }
-
-                    if(child instanceof NumberPicker) {
-                        ChildNode numberPickerElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
-                        Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
-                        attributes.setType("number");
-                        numberPickerElement.setAttributes(attributes);
-                        childViewNode.getChildNodes().add(numberPickerElement);
-                    }
-
-                    if(child instanceof CheckBox){
-                       ChildNode checkBoxElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
-                       Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
-                       attributes.setType("checkbox");
-                       checkBoxElement.setAttributes(attributes);
-                       childViewNode.getChildNodes().add(checkBoxElement);
-
-                    }
-
-
-                    if (child instanceof CheckedTextView) {
-                        ChildNode checkBoxElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
-                        Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
-                        attributes.setType("checkbox");
-                        checkBoxElement.setAttributes(attributes);
-                        childViewNode.getChildNodes().add(checkBoxElement);
-                    }
-
-                    if(child instanceof RadioButton){
-                        ChildNode radioButtonElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
-                        Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
-                        attributes.setType("radio");
-                        //TODO: Add checked attribute
-                        Map<String, String> metadata = new HashMap<>();
-                        metadata.put("checked", String.valueOf(((RadioButton) child).isChecked()));
-                        attributes.setMetadata(metadata);
-                        radioButtonElement.setAttributes(attributes);
-                        childViewNode.getChildNodes().add(radioButtonElement);
-                    }
-
-                    if (child instanceof TextView) {
-                        ChildNode textElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"p",2,null,null,false);
-                        ChildNode textNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"",3,null,null,false);
-                        textNode.setType(3);
-                        textNode.setTextContent(((TextView) child).getText().toString());
-                        Typeface typeface = ((TextView) child).getTypeface();
-                        styleContent += "font-size: " + getPixel(((TextView) child).getTextSize()) + "px; color: #" + Integer.toHexString(((TextView) child).getCurrentTextColor()).substring(2) + ";"+"font-family: "+getFrontFamily(typeface)+";"+convertGravityToCSS(((TextView) child).getGravity());
-                        Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Text: " + ((TextView) child).getText());
-                        Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Size: " + ((TextView) child).getTextSize());
-                        Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Size: " + ((TextView) child).getTypeface());
-                        Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Text: #" + Integer.toHexString(((TextView) child).getCurrentTextColor()).substring(2));
-                        childViewNode.getChildNodes().add(textNode);
-                    }
-
-                    if (child instanceof ImageView) {
-                        styleContent += "background-color: #FF474C;";
-                        Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "BackGround: " + ((ImageView) child).getDrawable());
-                    }
-
-                    if (child instanceof EditText) {
-                        ChildNode textNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"",3,null,null,false);
-                        textNode.setType(3);
-                        if(((EditText) child).getText().toString().isEmpty()) {
-                            if(((EditText) child).getHint() != null) {
-                                textNode.setTextContent(((EditText) child).getHint().toString());
-                            }
-                        }
-                        Typeface typeface = ((EditText) child).getTypeface();
-                        styleContent += "font-size: " + getPixel(((EditText) child).getTextSize()) + "px; color: #" + Integer.toHexString(((EditText) child).getCurrentTextColor()).substring(2) + ";"+"font-family: "+getFrontFamily(typeface)+";";
-                    }
-
-
-
-                    childViewNode.setAttributes(new Attributes(attributeId));
-
-                    styleContent += "}";
-
-                    styleNode.textContent += styleContent;
-
-                    htmlChildNode.getChildNodes().add(childViewNode);
 
 
                 }
+
+                if(child.getBackgroundTintList() != null){
+                    styleContent += "background-color: #" + Integer.toHexString(child.getBackgroundTintList().getColorForState(new int[] {android.R.attr.state_enabled},0)).substring(2) + ";";
+                }
+
+                if(child instanceof DatePicker) {
+                    ChildNode datePickerElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                    Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                    attributes.setType("date");
+                    datePickerElement.setAttributes(attributes);
+                    childViewNode.getChildNodes().add(datePickerElement);
+                }
+
+                if(child instanceof NumberPicker) {
+                    ChildNode numberPickerElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                    Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                    attributes.setType("number");
+                    numberPickerElement.setAttributes(attributes);
+                    childViewNode.getChildNodes().add(numberPickerElement);
+                }
+
+                if(child instanceof CheckBox){
+                    ChildNode checkBoxElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                    Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                    attributes.setType("checkbox");
+                    checkBoxElement.setAttributes(attributes);
+                    childViewNode.getChildNodes().add(checkBoxElement);
+
+                }
+
+
+                if (child instanceof CheckedTextView) {
+                    ChildNode checkBoxElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                    Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                    attributes.setType("checkbox");
+                    checkBoxElement.setAttributes(attributes);
+                    childViewNode.getChildNodes().add(checkBoxElement);
+                }
+
+                if(child instanceof RadioButton){
+                    ChildNode radioButtonElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                    Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                    attributes.setType("radio");
+                    //TODO: Add checked attribute
+                    Map<String, String> metadata = new HashMap<>();
+                    metadata.put("checked", String.valueOf(((RadioButton) child).isChecked()));
+                    attributes.setMetadata(metadata);
+                    radioButtonElement.setAttributes(attributes);
+                    childViewNode.getChildNodes().add(radioButtonElement);
+                }
+
+                if (child instanceof TextView) {
+                    ChildNode textElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"p",2,null,null,false);
+                    ChildNode textNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"",3,null,null,false);
+                    textNode.setType(3);
+                    textNode.setTextContent(((TextView) child).getText().toString());
+                    Typeface typeface = ((TextView) child).getTypeface();
+                    styleContent += "font-size: " + getPixel(((TextView) child).getTextSize()) + "px; color: #" + Integer.toHexString(((TextView) child).getCurrentTextColor()).substring(2) + ";"+"font-family: "+getFrontFamily(typeface)+";"+convertGravityToCSS(((TextView) child).getGravity());
+                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Text: " + ((TextView) child).getText());
+                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Size: " + ((TextView) child).getTextSize());
+                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Size: " + ((TextView) child).getTypeface());
+                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Text: #" + Integer.toHexString(((TextView) child).getCurrentTextColor()).substring(2));
+                    childViewNode.getChildNodes().add(textNode);
+                }
+
+                if (child instanceof ImageView) {
+                    styleContent += "background-color: #FF474C;";
+                    Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "BackGround: " + ((ImageView) child).getDrawable());
+                }
+
+                if (child instanceof EditText) {
+                    ChildNode textNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"",3,null,null,false);
+                    textNode.setType(3);
+                    if(((EditText) child).getText().toString().isEmpty()) {
+                        if(((EditText) child).getHint() != null) {
+                            textNode.setTextContent(((EditText) child).getHint().toString());
+                        }
+                    }
+                    Typeface typeface = ((EditText) child).getTypeface();
+                    styleContent += "font-size: " + getPixel(((EditText) child).getTextSize()) + "px; color: #" + Integer.toHexString(((EditText) child).getCurrentTextColor()).substring(2) + ";"+"font-family: "+getFrontFamily(typeface)+";";
+                }
+
+
+
+                childViewNode.setAttributes(new Attributes(attributeId));
+
+                styleContent += "}";
+
+                styleNode.textContent += styleContent;
+
+                htmlChildNode.getChildNodes().add(childViewNode);
+
+
+            }
             if (child instanceof ViewGroup) {
                 logChildViews((ViewGroup) child,htmlChildNode,styleNode);
             }
