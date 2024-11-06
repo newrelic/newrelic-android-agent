@@ -115,7 +115,7 @@ public class FileBackedPayload extends Payload {
      * @return File of new compressed file
      * @throws IOException
      */
-    File compress(boolean replace) throws IOException {
+    public File compress(boolean replace) throws IOException {
         return compress(payloadFile(), replace);
 
     }
@@ -128,7 +128,7 @@ public class FileBackedPayload extends Payload {
      * @return File of new compressed file
      * @throws IOException
      */
-    File compress(final File payloadFile, boolean replace) throws IOException {
+    public File compress(final File payloadFile, boolean replace) throws IOException {
         File compressedFile = new File(payloadFile.getAbsolutePath() + ".gz");
 
         try (FileInputStream fis = new FileInputStream(payloadFile);
@@ -138,9 +138,8 @@ public class FileBackedPayload extends Payload {
             Streams.copy(fis, gzOut);
             gzOut.flush();
 
-            isCompressed = true;
-
             if (replace && payloadFile.delete()) {
+                isCompressed = true;
                 if (compressedFile.renameTo(payloadFile)) {
                     compressedFile = payloadFile;
                 }
@@ -148,6 +147,10 @@ public class FileBackedPayload extends Payload {
         }
 
         return compressedFile;
+    }
+
+    public boolean isCompressed() {
+        return isCompressed;
     }
 
 }
