@@ -11,6 +11,7 @@ import com.newrelic.agent.android.util.Streams;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +38,7 @@ public class FileBackedPayload extends Payload {
         if (payloadFile.exists()) {
             this.timestamp = payloadFile.lastModified();
             this.isPersistable = payloadFile.canWrite();
+            this.isCompressed = FileBackedPayload.isCompressed(payloadFile);
         }
     }
 
@@ -151,6 +153,18 @@ public class FileBackedPayload extends Payload {
 
     public boolean isCompressed() {
         return isCompressed;
+    }
+
+    public static boolean isCompressed(File payloadFile) {
+        try (FileInputStream fis = new FileInputStream(payloadFile)) {
+            byte[] buf = new byte[10];
+            fis.read(buf, 0, 9);
+            return buf[0] == (byte) 0x1f && buf[1] == (byte) 0x8b;
+        } catch (Exception e) {
+            AgentLogManager.getAgentLog().error("FileBackedPayload: isCompressed() - " + e);
+        }
+
+        return false;
     }
 
 }

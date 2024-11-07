@@ -41,7 +41,7 @@ public class AEITraceSender extends PayloadSender {
 
     /**
      * Header Example
-     *
+     * <p>
      * POST /mobile/errors?protocol_version=1&platform=native&type=application_exit
      * HTTP/1.1
      * Host: mobile-collector.newrelic.com
@@ -117,6 +117,10 @@ public class AEITraceSender extends PayloadSender {
                 StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_AEI_UPLOAD_TIME, timer.peek());
                 break;
 
+            // If rejected due to Vortex size limits, compress and retry on next harvest cycle
+            case HttpsURLConnection.HTTP_ENTITY_TOO_LARGE:
+                FileBackedPayload fileBackedPayload = (FileBackedPayload) payload;
+                fileBackedPayload.compress(true);
         }
 
         log.debug("AEITraceSender: data reporting took " + timer.toc() + "ms");

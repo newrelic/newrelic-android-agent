@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -136,6 +137,14 @@ public class AEITraceSenderTest {
         Assert.assertEquals(List.of(Agent.getDeviceInformation().getOsName()), requestProperties.get(Constants.Network.DEVICE_OS_NAME_HEADER));
         Assert.assertEquals(List.of(Agent.getApplicationInformation().getAppVersion()), requestProperties.get(Constants.Network.APP_VERSION_HEADER));
 
+        // verify the headers passed on the harvest config as well:
+        Assert.assertNotNull(harvestConfiguration.getRequest_headers_map());
+        harvestConfiguration.getRequest_headers_map().forEach(new BiConsumer<String, String>() {
+            @Override
+            public void accept(String s, String s2) {
+                Assert.assertTrue(requestProperties.containsKey(s));
+            }
+        });
     }
 
     @Test
@@ -245,12 +254,15 @@ public class AEITraceSenderTest {
     }
 
     @Test
-    public void rejecteddUploadRequest() throws Exception {
+    public void rejectedUploadRequest() throws Exception {
         HttpURLConnection connection = getMockedConnection(traceSender);
 
         Mockito.doReturn(HttpsURLConnection.HTTP_ENTITY_TOO_LARGE).when(connection).getResponseCode();
         traceSender.onRequestResponse(connection);
         Mockito.verify(traceSender, Mockito.times(1)).onFailedUpload(Mockito.anyString());
+
+        Assert.assertTrue(((FileBackedPayload) traceSender.getPayload()).isCompressed());
+        Assert.assertTrue(FileBackedPayload.isCompressed(traceDataReport));
     }
 
     @Test
@@ -279,7 +291,7 @@ public class AEITraceSenderTest {
     public void shouldRetry() {
         Assert.assertTrue(traceSender.shouldRetry());
     }
-    
+
     @Test
     public void compressedPayload() throws IOException {
         Assert.assertTrue(traceSender.getPayload() instanceof FileBackedPayload);
