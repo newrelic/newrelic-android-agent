@@ -113,7 +113,7 @@ public class FileBackedPayloadTest {
         AgentLogManager.getAgentLog().info("File compressed to " + (int) ((double) postSize / (double) preSize * 100.) + "% of original");
         compressedFile.delete();
 
-        compressedFile = payload.compress(dataFile, true);
+        compressedFile = payload.compress(true);
         Assert.assertEquals(compressedFile.getAbsolutePath(), dataFile.getAbsolutePath());
     }
 
