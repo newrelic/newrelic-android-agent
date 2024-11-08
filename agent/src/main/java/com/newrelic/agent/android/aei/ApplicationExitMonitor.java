@@ -20,6 +20,7 @@ import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
 import com.newrelic.agent.android.analytics.EventManager;
+import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -46,19 +47,19 @@ import java.util.stream.Collectors;
 public class ApplicationExitMonitor {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
-    static final String SESSION_ID_MAPPING_STORE = "sessionid.map";
+    static final String SESSION_ID_MAPPING_STORE = "sessionMeta.map";
     static final String ARTIFACT_NAME = "aei-%s.dat";
 
     protected final File reportsDir;
     protected final String packageName;
-    protected final SessionMapper sessionMapper;
+    protected final AEISessionMapper sessionMapper;
     protected final ActivityManager am;
     protected final AEITraceReporter traceReporter;
 
     public ApplicationExitMonitor(final Context context) {
         this.reportsDir = new File(context.getCacheDir(), "newrelic/applicationExitInfo");
         this.packageName = context.getPackageName();
-        this.sessionMapper = new SessionMapper(new File(reportsDir, SESSION_ID_MAPPING_STORE));
+        this.sessionMapper = new AEISessionMapper(new File(reportsDir, SESSION_ID_MAPPING_STORE));
         this.am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
 
         reportsDir.mkdirs();
@@ -125,7 +126,7 @@ public class ApplicationExitMonitor {
                 }
 
                 // try to map the AEI with the session it occurred in
-                String aeiSessionId = sessionMapper.get(exitInfo.getPid());
+                String aeiSessionId = sessionMapper.getSessionId(exitInfo.getPid());
                 if (!(aeiSessionId == null || aeiSessionId.isEmpty() || aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID()))) {
                     // found a prior session ID
                     log.debug("ApplicationExitMonitor: Found session id [" + aeiSessionId + "] for AEI pid[" + exitInfo.getPid() + "]");
@@ -162,11 +163,17 @@ public class ApplicationExitMonitor {
                     log.debug("harvestApplicationExitInfo: AppExitInfo artifact error. " + e);
                 }
 
-                if (aeiSessionId == null || aeiSessionId.isEmpty() || aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
+                // try to map the AEI with the session it occurred in
+                AEISessionMapper.AEISessionMeta sessionMeta = sessionMapper.get(exitInfo.getPid());
+
+                if (sessionMeta == null || !sessionMeta.isValid() || sessionMeta.sessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
                     // No previous session ID found in cache. Can't do anything with the event, so drop it
                     recordsDropped.incrementAndGet();
                     continue;
                 }
+
+                // found a prior session ID
+                log.debug("ApplicationExitMonitor: Using session meta [" + sessionMeta.sessionId + ", " + sessionMeta.realAgentId + "] for AEI pid[" + exitInfo.getPid() + "]");
 
                 // finally, emit an event for the record
                 final HashMap<String, Object> eventAttributes = new HashMap<>();
@@ -179,7 +186,7 @@ public class ApplicationExitMonitor {
                 eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
 
                 // map the AEI with the session it occurred in (will be translated later)
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, aeiSessionId);
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, sessionMeta.sessionId);
 
                 // Add fg/bg flag based on inferred importance:
                 switch (exitInfo.getImportance()) {
@@ -210,7 +217,7 @@ public class ApplicationExitMonitor {
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_DROPPED, recordsSkipped.get());
             }
 
-            log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited + "] existing [" + recordsSkipped + "] dropped[" + recordsDropped.get() + "]");
+            log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited.get() + "] existing [" + recordsSkipped.get() + "] dropped[" + recordsDropped.get() + "]");
 
             if (eventsAdded) {
                 final EventManager eventMgr = AnalyticsControllerImpl.getInstance().getEventManager();
@@ -240,7 +247,8 @@ public class ApplicationExitMonitor {
             // sync the cache dir and session mapper with ART's current queue
             reconcileMetadata(applicationExitInfoList);
 
-            sessionMapper.put(getCurrentProcessId(), AgentConfiguration.getInstance().getSessionID());
+            AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId());
+            sessionMapper.put(getCurrentProcessId(), model);
             sessionMapper.flush();
 
         } else {
