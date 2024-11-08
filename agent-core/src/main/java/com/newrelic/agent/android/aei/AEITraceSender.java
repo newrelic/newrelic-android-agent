@@ -21,38 +21,64 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
 public class AEITraceSender extends PayloadSender {
-    static final String AEI_COLLECTOR_PATH = "/errors?anr=true";
-    private static final int COLLECTOR_TIMEOUT = PayloadController.PAYLOAD_COLLECTOR_TIMEOUT;
+    static final String AEI_COLLECTOR_PATH = "/mobile/errors?protocol_version=1&platform=native&type=application_exit";
+    static final int COLLECTOR_TIMEOUT = PayloadController.PAYLOAD_COLLECTOR_TIMEOUT;
 
     public AEITraceSender(String aeiTrace, AgentConfiguration agentConfiguration) {
         super(aeiTrace.getBytes(), agentConfiguration);
         setPayload(aeiTrace.getBytes());
     }
 
-    public  AEITraceSender(File traceDataFile, AgentConfiguration agentConfiguration) {
+    public AEITraceSender(File traceDataFile, AgentConfiguration agentConfiguration) {
         super(traceDataFile.getAbsolutePath().getBytes(StandardCharsets.UTF_8), agentConfiguration);
         this.payload = new FileBackedPayload(traceDataFile);
     }
 
+    /**
+     * Header Example
+     * <p>
+     * POST /mobile/errors?protocol_version=1&platform=native&type=application_exit
+     * HTTP/1.1
+     * Host: mobile-collector.newrelic.com
+     * content-encoding: identity
+     * content-type: application/json
+     * X-App-License-Key: ${mobile license}
+     * X-NewRelic-Session: ${session}
+     * X-NewRelic-AgentConfiguration: ${agent-configuration}
+     * X-NewRelic-Account-Id: {Account Id}
+     * X-NewRelic-Trusted-Account-Id: {someId}
+     * X-NewRelic-Entity-Guid: {guid for app}.
+     * X-NewRelic-Os-Name: {osName}
+     * X-NewRelic-App-Version: {appVersion}
+     *
+     * @return
+     * @throws IOException
+     */
     @Override
     protected HttpURLConnection getConnection() throws IOException {
         final HttpURLConnection connection = (HttpURLConnection) getCollectorURI().toURL().openConnection();
+        final HarvestConfiguration harvestConfiguration = Harvest.getHarvestConfiguration();
 
         connection.setDoOutput(true);
-        connection.setRequestProperty(Constants.Network.CONTENT_TYPE_HEADER, Constants.Network.ContentType.JSON);
-        connection.setRequestProperty(agentConfiguration.getAppTokenHeader(), agentConfiguration.getApplicationToken());
-        connection.setRequestProperty(agentConfiguration.getDeviceOsNameHeader(), Agent.getDeviceInformation().getOsName());
-        connection.setRequestProperty(agentConfiguration.getAppVersionHeader(), Agent.getApplicationInformation().getAppVersion());
+        connection.setRequestMethod("POST");
         connection.setConnectTimeout(COLLECTOR_TIMEOUT);
         connection.setReadTimeout(COLLECTOR_TIMEOUT);
 
-        // apply the headers passed in harvest configuration
+        connection.setRequestProperty(Constants.Network.CONTENT_ENCODING_HEADER, Constants.Network.Encoding.IDENTITY);
+        connection.setRequestProperty(Constants.Network.CONTENT_TYPE_HEADER, Constants.Network.ContentType.JSON);
+        connection.setRequestProperty(Constants.Network.APPLICATION_LICENSE_HEADER, agentConfiguration.getApplicationToken());
+        connection.setRequestProperty(Constants.Network.ACCOUNT_ID_HEADER, harvestConfiguration.getAccount_id());
+        connection.setRequestProperty(Constants.Network.TRUSTED_ACCOUNT_ID_HEADER, harvestConfiguration.getTrusted_account_key());
+        connection.setRequestProperty(Constants.Network.ENTITY_GUID_HEADER, harvestConfiguration.getEntity_guid());
+        connection.setRequestProperty(Constants.Network.DEVICE_OS_NAME_HEADER, Agent.getDeviceInformation().getOsName());
+        connection.setRequestProperty(Constants.Network.APP_VERSION_HEADER, Agent.getApplicationInformation().getAppVersion());
+
+        // apply the headers passed in harvest configuration (X-NewRelic-Session, X-NewRelic-AgentConfiguration)
         Map<String, String> requestHeaders = Harvest.getHarvestConfiguration().getRequest_headers_map();
         for (Map.Entry<String, String> stringStringEntry : requestHeaders.entrySet()) {
             connection.setRequestProperty(stringStringEntry.getKey(), stringStringEntry.getValue());
@@ -91,6 +117,10 @@ public class AEITraceSender extends PayloadSender {
                 StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_AEI_UPLOAD_TIME, timer.peek());
                 break;
 
+            // If rejected due to Vortex size limits, compress and retry on next harvest cycle
+            case HttpsURLConnection.HTTP_ENTITY_TOO_LARGE:
+                FileBackedPayload fileBackedPayload = (FileBackedPayload) payload;
+                fileBackedPayload.compress(true);
         }
 
         log.debug("AEITraceSender: data reporting took " + timer.toc() + "ms");
