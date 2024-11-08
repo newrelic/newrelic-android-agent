@@ -23,7 +23,7 @@ public class TraceConfigurationTest {
 
     @Test
     public void testIsSampled() {
-        Assert.assertFalse(traceConfiguration.isSampled());
+        Assert.assertTrue(traceConfiguration.isSampled());
     }
 
     @Test
