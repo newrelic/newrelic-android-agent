@@ -7,27 +7,28 @@ package com.newrelic.agent.android.aei;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.util.Streams;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-public class SessionMapper {
+public class AEISessionMapper {
 
     static final Gson gson = new GsonBuilder().create();
 
     final File mapStore;
-    final Map<Integer, String> mapper;
+    final Map<Integer, AEISessionMeta> mapper;
 
-    public SessionMapper(File mapStore) {
+    public AEISessionMapper(File mapStore) {
         this.mapStore = mapStore;
         this.mapper = new HashMap<>();
         if (mapStore.exists()) {
@@ -35,31 +36,45 @@ public class SessionMapper {
         }
     }
 
-    public SessionMapper put(int pid, String sessionId) {
-        if (!(sessionId == null || sessionId.isEmpty() || 0 == pid)) {
-            mapper.putIfAbsent(pid, sessionId);
+    public AEISessionMapper put(int pid, AEISessionMeta model) {
+        if (model != null && !(model.sessionId == null || model.sessionId.isEmpty())) {
+            mapper.putIfAbsent(pid, model);
         } else {
-            AgentLogManager.getAgentLog().debug("Refusing to store null or empty sessionId[" + sessionId + "] for pid[" + pid + "]");
+            AgentLogManager.getAgentLog().debug("Refusing to store null or empty session model for pid[" + pid + "]");
         }
 
         return this;
     }
 
-    public String get(int pid) {
+    public AEISessionMeta get(int pid) {
         return mapper.getOrDefault(pid, null);
     }
 
+    public String getSessionId(int pid) {
+        AEISessionMeta model = get(pid);
+        return model == null ? "" : model.sessionId;
+    }
+
+    public int getRealAgentID(int pid) {
+        AEISessionMeta model = get(pid);
+        return model == null ? 0 : model.realAgentId;
+    }
+
     public String getOrDefault(int pid, String defaultSessionId) {
-        String sessionId = get(pid);
-        return (sessionId == null || sessionId.isEmpty()) ? defaultSessionId : sessionId;
+        AEISessionMeta model = get(pid);
+        return (model == null || model.sessionId == null || model.sessionId.isEmpty())
+                ? defaultSessionId : model.sessionId;
     }
 
     @SuppressWarnings("unchecked")
-    public SessionMapper load() {
+    public AEISessionMapper load() {
         if (mapStore.exists() && mapStore.canRead()) {
             try {
                 String storeData = Streams.slurpString(mapStore, StandardCharsets.UTF_8.toString());
-                gson.fromJson(storeData, Map.class).forEach((key, val) -> mapper.putIfAbsent(Integer.parseInt((String) key), (String) val));
+                final Type gtype = new TypeToken<Map<Integer, AEISessionMeta>>(){}.getType();
+                Map map = gson.fromJson(storeData, gtype);
+
+                map.forEach((key, val) -> mapper.putIfAbsent((Integer) key, (AEISessionMeta) val));
 
             } catch (Exception e) {
                 AgentLogManager.getAgentLog().error("Cannot read session ID mapper: " + e);
@@ -115,4 +130,17 @@ public class SessionMapper {
                 .forEach(pid -> mapper.remove(pid));
     }
 
+    public static class AEISessionMeta {
+        final String sessionId;
+        final int realAgentId;
+
+        public AEISessionMeta(String sessionId, int realAgentId) {
+            this.sessionId = sessionId == null ? "" : sessionId;
+            this.realAgentId = realAgentId;
+        }
+
+        public boolean isValid() {
+            return !(sessionId == null || sessionId.isEmpty() || realAgentId == 0);
+        }
+    }
 }

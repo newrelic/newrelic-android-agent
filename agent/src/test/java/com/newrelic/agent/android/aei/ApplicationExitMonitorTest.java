@@ -25,6 +25,9 @@ import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
 import com.newrelic.agent.android.analytics.AnalyticsValidator;
 import com.newrelic.agent.android.analytics.ApplicationExitEvent;
 import com.newrelic.agent.android.analytics.EventManager;
+import com.newrelic.agent.android.harvest.DataToken;
+import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
@@ -36,6 +39,7 @@ import com.newrelic.agent.android.util.Streams;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -62,6 +66,13 @@ public class ApplicationExitMonitorTest {
     ApplicationExitMonitor applicationExitMonitor;
     ArrayList<ApplicationExitInfo> applicationExitInfoList;
     EventManager eventMgr;
+
+    @BeforeClass
+    public static void beforeClass() throws Exception {
+        HarvestConfiguration harvestConfig = Harvest.getHarvestConfiguration();
+        harvestConfig.setData_token(new DataToken(1, 2).asIntArray());
+        harvestConfig.setEntity_guid(UUID.randomUUID().toString());
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -387,9 +398,8 @@ public class ApplicationExitMonitorTest {
                     .findFirst()
                     .orElse(null);
             Assert.assertNotNull(sessionIdAttr);
-            Assert.assertTrue(applicationExitMonitor.sessionMapper.mapper.values().contains(sessionIdAttr.getStringValue()));
             ApplicationExitInfo aei = aeiIt.next();
-            Assert.assertTrue(applicationExitMonitor.sessionMapper.get(aei.getPid()).equals(sessionIdAttr.getStringValue()));
+            Assert.assertTrue(applicationExitMonitor.sessionMapper.getSessionId(aei.getPid()).equals(sessionIdAttr.getStringValue()));
         });
     }
 
@@ -402,7 +412,7 @@ public class ApplicationExitMonitorTest {
         Assert.assertEquals(0, pendingEvents.size());
 
         String currentSessionId = AgentConfiguration.getInstance().getSessionID();
-        Assert.assertEquals(currentSessionId, applicationExitMonitor.sessionMapper.getOrDefault(12345, currentSessionId));
+        Assert.assertNotEquals(currentSessionId, applicationExitMonitor.sessionMapper.getSessionId(12345));
     }
 
     @Test
@@ -478,7 +488,6 @@ public class ApplicationExitMonitorTest {
 
     @Test
     public void fullLifecycle() throws Exception {
-        // events = eventMgr.getQueuedEvents().stream().filter(aeiEvent -> AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT == aeiEvent.getEventType()).collect(Collectors.toList());
 
         // clear session state
         applicationExitMonitor.sessionMapper.delete();
@@ -635,7 +644,8 @@ public class ApplicationExitMonitorTest {
     void loadSessionMapper() {
         // seed the session mapper
         applicationExitInfoList.forEach(aei ->
-                applicationExitMonitor.sessionMapper.mapper.putIfAbsent(aei.getPid(), UUID.randomUUID().toString())
+                applicationExitMonitor.sessionMapper.mapper.putIfAbsent(aei.getPid(),
+                        new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234))
         );
         applicationExitMonitor.sessionMapper.flush();
     }
