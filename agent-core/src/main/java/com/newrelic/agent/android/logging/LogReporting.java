@@ -45,7 +45,6 @@ public abstract class LogReporting {
     protected static final String LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE = "attributes";
     protected static final String LOG_PAYLOAD_LOGS_ATTRIBUTE = "logs";
 
-
     protected static LogLevel logLevel = LogLevel.WARN;
     protected static AgentLogger agentLogger = new AgentLogger();
     protected static AtomicReference<Logger> instance = new AtomicReference<>(agentLogger);
@@ -166,16 +165,16 @@ public abstract class LogReporting {
 
         public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
 
-            if (null != throwable) {
-                StringWriter sw = new StringWriter();
-                throwable.printStackTrace(new PrintWriter(sw));
-                message = String.format(Locale.getDefault(), "%s: %s", message, sw);
+
+            if (null == throwable) {
+                logToAgent(logLevel, message);
+                return;
 
             }
-            message = validator.validate(message);
-
-
-            logToAgent(logLevel, message);
+            StringWriter sw = new StringWriter();
+            throwable.printStackTrace(new PrintWriter(sw));
+            logToAgent(logLevel, String.format(Locale.getDefault(),
+                    "%s %s", message, sw));
         }
 
         public void logAttributes(Map<String, Object> attributes) {
