@@ -2,6 +2,8 @@ package com.newrelic.agent.android.sessionReplay.models;
 
 public class Attributes{
     public String id;
+    public String type;
+    public String value;
 
     public Attributes(String id) {
         this.id = id;
@@ -11,5 +13,20 @@ public class Attributes{
     }
     public void setId(String id) {
         this.id = id;
+    }
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
     }
 }
