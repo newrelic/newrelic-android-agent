@@ -604,16 +604,21 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
      */
     @Override
     public boolean removeAllAttributes() {
-        log.audit("AnalyticsControllerImpl.removeAttributes(): " + attributeStore.count() + userAttributes.size());
+        if (attributeStore != null && userAttributes != null) {
+            log.audit("AnalyticsControllerImpl.removeAttributes(): " + attributeStore.count() + userAttributes.size());
 
-        if (!isInitializedAndEnabled()) {
+
+            if (!isInitializedAndEnabled()) {
+                return false;
+            }
+
+            attributeStore.clear();
+            userAttributes.clear();
+
+            return true;
+        } else{
             return false;
         }
-
-        attributeStore.clear();
-        userAttributes.clear();
-
-        return true;
     }
 
 
