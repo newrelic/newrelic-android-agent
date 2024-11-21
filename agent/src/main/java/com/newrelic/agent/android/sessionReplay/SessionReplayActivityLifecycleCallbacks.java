@@ -21,6 +21,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -135,7 +136,13 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
                         styleNode.getChildNodes().add(styleChildNode);
 
+
                         sessionReplayRoots.add(sessionReplayRoot);
+
+                        String json = new Gson().toJson(sessionReplayRoot);
+
+                        Log.d(TAG, "jsonPayloadForRRWEB: " + json);
+
                     }
                 }
 
@@ -193,7 +200,17 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                         styleContent += "background-color: #" + Integer.toHexString(child.getBackgroundTintList().getColorForState(new int[] {android.R.attr.state_enabled},0)).substring(2) + ";";
                     }
 
+                    if(child instanceof CheckBox){
+                       ChildNode checkBoxElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                       Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                       attributes.setType("checkbox");
+                       checkBoxElement.setAttributes(attributes);
+                       childViewNode.getChildNodes().add(checkBoxElement);
+
+                    }
+
                     if (child instanceof TextView) {
+                        ChildNode textElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"p",2,null,null,false);
                         ChildNode textNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"",3,null,null,false);
                         textNode.setType(3);
                         textNode.setTextContent(((TextView) child).getText().toString());
@@ -204,10 +221,6 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                         Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Size: " + ((TextView) child).getTypeface());
                         Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "Text: #" + Integer.toHexString(((TextView) child).getCurrentTextColor()).substring(2));
                         childViewNode.getChildNodes().add(textNode);
-                    }
-
-                    if (child instanceof Button) {
-                        Log.d(TAG, "SessionReplayActivityLifecycleCallbacks: " + "BackGround: " + ((Button) child).getBackground().getColorFilter());
                     }
 
                     if (child instanceof ImageView) {
@@ -248,21 +261,21 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     private String getFrontFamily(Typeface typeface) {
 
         if(typeface.equals(Typeface.DEFAULT)){
-            return "DEFAULT";
+            return "roboto, sans-serif";
         }
         if(typeface.equals(Typeface.DEFAULT_BOLD)){
             return "sans-serif-bold";
         }
         if(typeface.equals(Typeface.MONOSPACE)){
-            return "MONOSPACE";
+            return "monospace";
         }
         if(typeface.equals(Typeface.SANS_SERIF)){
-            return "SANS_SERIF";
+            return "sans-serif";
         }
         if(typeface.equals(Typeface.SERIF)){
-            return "SERIF";
+            return "serif";
         }
-        return "DEFAULT";
+        return "roboto, sans-serif";
     }
 
     public String convertGravityToCSS(int gravity) {
