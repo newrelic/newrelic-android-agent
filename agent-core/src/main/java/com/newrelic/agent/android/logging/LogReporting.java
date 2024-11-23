@@ -41,7 +41,9 @@ public abstract class LogReporting {
     protected static final String LOG_INSTRUMENTATION_PROVIDER_ATTRIBUTE = "mobile";
     protected static final String LOG_INSTRUMENTATION_ANDROID_NAME = "AndroidAgent";
     protected static final String LOG_INSTRUMENTATION_COLLECTOR_NAME = "collector.name";
-
+    protected static final String LOG_PAYLOAD_COMMON_ATTRIBUTE = "common";
+    protected static final String LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE = "attributes";
+    protected static final String LOG_PAYLOAD_LOGS_ATTRIBUTE = "logs";
 
     protected static LogLevel logLevel = LogLevel.WARN;
     protected static AgentLogger agentLogger = new AgentLogger();
@@ -162,6 +164,7 @@ public abstract class LogReporting {
         }
 
         public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
+
 
             if (null == throwable) {
                 logToAgent(logLevel, message);
