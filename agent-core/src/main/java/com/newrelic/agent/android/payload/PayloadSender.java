@@ -17,6 +17,7 @@ import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.Streams;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -24,6 +25,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
+import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -117,21 +119,29 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         log.error(errorMsg);
     }
 
+    private byte[] gzipPayload(byte[] payloadBytes) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
+            gzipOutputStream.write(payloadBytes);
+        }
+        return byteArrayOutputStream.toByteArray();
+    }
+
     @Override
     @SuppressWarnings("NewApi")
     public PayloadSender call() throws Exception {
         try {
             byte[] payloadBytes = getPayload().getBytes();
+            byte[] gzippedPayloadBytes = gzipPayload(payloadBytes);
             final HttpURLConnection connection = getConnection();
 
-            connection.setFixedLengthStreamingMode(payloadBytes.length);
-            connection.setRequestProperty(CONTENT_LENGTH_HEADER, Integer.toString(payloadBytes.length));
+            connection.setRequestProperty("Content-Encoding", "gzip");
             try {
                 timer.tic();
                 connection.connect();
                 if (connection.getDoOutput()) {
                     try (final OutputStream out = new BufferedOutputStream(connection.getOutputStream())) {
-                        out.write(payloadBytes);
+                        out.write(gzippedPayloadBytes);
                         out.flush();
                     }
                 }
