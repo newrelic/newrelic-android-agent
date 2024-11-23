@@ -12,14 +12,13 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Process;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
-import com.newrelic.agent.android.analytics.AnalyticsEventCategory;
-import com.newrelic.agent.android.analytics.EventManager;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -32,13 +31,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,6 +56,40 @@ public class ApplicationExitMonitor {
     protected final AEISessionMapper sessionMapper;
     protected final ActivityManager am;
     protected final AEITraceReporter traceReporter;
+
+    private static final Map<Integer, String> REASON_MAP = new HashMap<>();
+    private static final Map<Integer, String> IMPORTANCE_MAP = new HashMap<>();
+
+    static {
+        REASON_MAP.put(0, "Unknown");
+        REASON_MAP.put(1, "Exit self");
+        REASON_MAP.put(2, "Signaled");
+        REASON_MAP.put(3, "Low memory");
+        REASON_MAP.put(4, "Crash");
+        REASON_MAP.put(5, "Native crash");
+        REASON_MAP.put(6, "ANR");
+        REASON_MAP.put(7, "Initialization failure");
+        REASON_MAP.put(8, "Permission change");
+        REASON_MAP.put(9, "Excessive resource usage");
+        REASON_MAP.put(10, "User requested");
+        REASON_MAP.put(11, "User stopped");
+        REASON_MAP.put(12, "Dependency died");
+        REASON_MAP.put(13, "Other");
+        REASON_MAP.put(14, "Freezer");
+        REASON_MAP.put(15, "Package state changed");
+        REASON_MAP.put(16, "Package updated");
+
+        IMPORTANCE_MAP.put(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND, "Foreground");
+        IMPORTANCE_MAP.put(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE, "Foreground service");
+        IMPORTANCE_MAP.put(ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING, "Top sleeping");
+        IMPORTANCE_MAP.put(ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE, "Visible");
+        IMPORTANCE_MAP.put(ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE, "Perceptible");
+        IMPORTANCE_MAP.put(ActivityManager.RunningAppProcessInfo.IMPORTANCE_CANT_SAVE_STATE, "Can't save state");
+        IMPORTANCE_MAP.put(ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE, "Service");
+        IMPORTANCE_MAP.put(ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED, "Cached");
+        IMPORTANCE_MAP.put(ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE, "Gone");
+    }
+
 
     public ApplicationExitMonitor(final Context context) {
         this.reportsDir = new File(context.getCacheDir(), "newrelic/applicationExitInfo");
@@ -83,7 +118,7 @@ public class ApplicationExitMonitor {
         this.traceReporter = traceReporter;
     }
 
-    // a gettor useful in mock tests
+    // a getter useful in mock tests
     int getCurrentProcessId() {
         return Process.myPid();
     }
@@ -98,7 +133,6 @@ public class ApplicationExitMonitor {
 
         // Only supported in Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            boolean eventsAdded = false;
             AtomicInteger recordsVisited = new AtomicInteger(0);
             AtomicInteger recordsSkipped = new AtomicInteger(0);
             AtomicInteger recordsDropped = new AtomicInteger(0);
@@ -145,8 +179,6 @@ public class ApplicationExitMonitor {
                     if (null != exitInfo.getTraceInputStream()) {
                         try (InputStream traceIs = exitInfo.getTraceInputStream()) {
                             traceReport = Streams.slurpString(traceIs);
-                            traceReporter.reportAEITrace(traceReport, Integer.valueOf(exitInfo.getPid()));
-
                         } catch (IOException e) {
                             log.info("ApplicationExitMonitor: " + e);
                         }
@@ -176,38 +208,12 @@ public class ApplicationExitMonitor {
                 log.debug("ApplicationExitMonitor: Using session meta [" + sessionMeta.sessionId + ", " + sessionMeta.realAgentId + "] for AEI pid[" + exitInfo.getPid() + "]");
 
                 // finally, emit an event for the record
-                final HashMap<String, Object> eventAttributes = new HashMap<>();
-
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, getImportanceAsString(exitInfo.getImportance()));
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
-
-                // map the AEI with the session it occurred in (will be translated later)
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE, sessionMeta.sessionId);
-
-                // Add fg/bg flag based on inferred importance:
-                switch (exitInfo.getImportance()) {
-                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
-                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
-                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
-                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26:
-                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
-                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
-                    case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28:
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
-                        break;
-                    default:
-                        eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
-                        break;
+                final HashMap<String, Object> eventAttributes;
+                try {
+                    eventAttributes = getEventAttributesForAEI(exitInfo, sessionMeta, traceReport);
+                } catch (UnsupportedEncodingException e) {
+                    throw new RuntimeException(e);
                 }
-
-                eventsAdded |= AnalyticsControllerImpl.getInstance().internalRecordEvent(packageName,
-                        AnalyticsEventCategory.ApplicationExit,
-                        AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT,
-                        eventAttributes);
 
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS + exitInfo.getStatus());
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_REASON + getReasonAsString(exitInfo.getReason()));
@@ -215,46 +221,72 @@ public class ApplicationExitMonitor {
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited.get());
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped.get());
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_DROPPED, recordsSkipped.get());
-            }
 
+                final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+                Error error = new Error(analyticsController.getSessionAttributes(),eventAttributes,sessionMeta);
+
+                traceReporter.reportAEITrace(error.asJsonObject().toString(),exitInfo.getPid());
+            }
             log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited.get() + "] existing [" + recordsSkipped.get() + "] dropped[" + recordsDropped.get() + "]");
-
-            if (eventsAdded) {
-                final EventManager eventMgr = AnalyticsControllerImpl.getInstance().getEventManager();
-
-                // isolate AEI events with `aeiSessionId` attribute
-                eventMgr.getQueuedEvents().stream()
-                        .filter(aeiEvent -> (AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT == aeiEvent.getEventType()))
-                        .collect(Collectors.toList())
-                        .forEach(aeiEvent -> {
-                            Collection<AnalyticsAttribute> attrSet = aeiEvent.getMutableAttributeSet();
-                            Optional<AnalyticsAttribute> aeiSessionId = attrSet.stream()
-                                    .filter(attribute -> attribute.getName().equals(AnalyticsAttribute.APP_EXIT_SESSION_ID_ATTRIBUTE))
-                                    .findFirst();
-
-                            // and swap the session ID attributes
-                            if (aeiSessionId.isPresent()) {
-                                attrSet.add(new AnalyticsAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE,
-                                        aeiSessionId.get().getStringValue()));
-                                attrSet.remove(aeiSessionId.get());
-                            }
-                        });
-
-                // flush eventManager buffer on next harvest
-                eventMgr.setTransmitRequired();
-            }
-
-            // sync the cache dir and session mapper with ART's current queue
-            reconcileMetadata(applicationExitInfoList);
 
             AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId());
             sessionMapper.put(getCurrentProcessId(), model);
             sessionMapper.flush();
 
+            // sync the cache dir and session mapper
+            reconcileMetadata(applicationExitInfoList);
+
         } else {
             log.warn("ApplicationExitMonitor: exit info reporting was enabled, but not supported by the current OS");
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_UNSUPPORTED_OS + Build.VERSION.SDK_INT);
         }
+    }
+
+    /**
+     * Create an event for the AEI record and return the attributes
+     **/
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    @NonNull
+    protected HashMap<String, Object> getEventAttributesForAEI(ApplicationExitInfo exitInfo, AEISessionMapper.AEISessionMeta sessionMeta, String traceReport) throws UnsupportedEncodingException {
+        final HashMap<String, Object> eventAttributes = new HashMap<>();
+
+            eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
+
+            eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
+            eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
+            eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, getImportanceAsString(exitInfo.getImportance()));
+            eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
+            eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
+
+            // map the AEI with the session it occurred in (will be translated later)
+            eventAttributes.put(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, sessionMeta.sessionId);
+            eventAttributes.put(AnalyticsAttribute.APP_EXIT_ID_ATTRIBUTE, UUID.randomUUID().toString());
+            eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_ID_ATTRIBUTE, exitInfo.getPid());
+            eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
+
+            // Add fg/bg flag based on inferred importance:
+            switch (exitInfo.getImportance()) {
+                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
+                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
+                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
+                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
+                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
+                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
+                    break;
+                default:
+                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
+                    break;
+            }
+
+            // Add the reason for the exit
+            if (exitInfo.getReason() == ApplicationExitInfo.REASON_ANR) {
+                AEITrace aeiTrace = new AEITrace();
+                aeiTrace.decomposeFromSystemTrace(traceReport);
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_THREADS_ATTRIBUTE, URLEncoder.encode(traceReport, StandardCharsets.UTF_8.toString()));
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_FINGERPRINT_ATTRIBUTE, Build.FINGERPRINT);
+
+        }
+        return eventAttributes;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.R)
@@ -295,117 +327,12 @@ public class ApplicationExitMonitor {
         return (null == attributeValue ? "null" : attributeValue.substring(0, Math.min(attributeValue.length(), AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH - 1)));
     }
 
-    protected String getImportanceAsString(int importance) {
-        String importanceAsString = String.valueOf(importance);
-
-        switch (importance) {
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
-                importanceAsString = "Foreground";
-                break;
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
-                importanceAsString = "Foreground service";
-                break;
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
-                importanceAsString = "Top sleeping";
-                break;
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
-                importanceAsString = "Visible";
-                break;
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
-                importanceAsString = "Perceptible";
-                break;
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_CANT_SAVE_STATE:
-                importanceAsString = "Can't save state";
-                break;
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE:
-                importanceAsString = "Service";
-                break;
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED:
-                importanceAsString = "Cached";
-                break;
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE:
-                importanceAsString = "Gone";
-                break;
-        }
-        return importanceAsString;
+    protected String getReasonAsString(int reason) {
+        return REASON_MAP.getOrDefault(reason, String.valueOf(reason));
     }
 
-    protected String getReasonAsString(int reason) {
-        String reasonAsString = String.valueOf(reason);
-
-        switch (reason) {
-            case 0:     // ApplicationExitInfo.REASON_UNKNOWN
-                reasonAsString = "Unknown";
-                break;
-
-            case 1:     // ApplicationExitInfo.REASON_EXIT_SELF
-                reasonAsString = "Exit self";
-                break;
-
-            case 2:     // ApplicationExitInfo.REASON_SIGNALED
-                reasonAsString = "Signaled";
-                break;
-
-            case 3:     // ApplicationExitInfo.REASON_LOW_MEMORY
-                reasonAsString = "Low memory";
-                break;
-
-            case 4:     // ApplicationExitInfo.REASON_CRASH
-                reasonAsString = "Crash";
-                break;
-
-            case 5:     // ApplicationExitInfo.REASON_CRASH_NATIVE
-                reasonAsString = "Native crash";
-                break;
-
-            case 6:     // ApplicationExitInfo.REASON_ANR
-                reasonAsString = "ANR";
-                break;
-
-            case 7:     // ApplicationExitInfo.REASON_INITIALIZATION_FAILURE
-                reasonAsString = "Initialization failure";
-                break;
-
-            case 8:     // ApplicationExitInfo.REASON_PERMISSION_CHANGE
-                reasonAsString = "Permission change";
-                break;
-
-            case 9:     // ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE
-                reasonAsString = "Excessive resource usage";
-                break;
-
-            case 10:    // ApplicationExitInfo.REASON_USER_REQUESTED
-                reasonAsString = "User requested";
-                break;
-
-            case 11:    // ApplicationExitInfo.REASON_USER_STOPPED
-                reasonAsString = "User stopped";
-                break;
-
-            case 12:    // ApplicationExitInfo.REASON_DEPENDENCY_DIED
-                reasonAsString = "Dependency died";
-                break;
-
-            case 13:    // ApplicationExitInfo.REASON_OTHER
-                reasonAsString = "Other";
-                break;
-
-            // requires update up SDK 33
-            case 14:    // ApplicationExitInfo.REASON_FREEZER
-                reasonAsString = "Freezer";
-                break;
-
-            // requires update up SDK 34
-            case 15:    // ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGED
-                reasonAsString = "Package state changed";
-                break;
-
-            case 16:    // ApplicationExitInfo.REASON_PACKAGE_UPDATED
-                reasonAsString = "Package updated";
-                break;
-
-        }
-        return reasonAsString;  // TODO
+    protected String getImportanceAsString(int importance) {
+        return IMPORTANCE_MAP.getOrDefault(importance, String.valueOf(importance));
     }
 
     List<File> getArtifacts() {

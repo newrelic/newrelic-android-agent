@@ -35,6 +35,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -345,7 +346,7 @@ public class Proguard {
                         final byte[] cbuf = new byte[USEFUL_BUFFER_SIZE];
                         while (bis.read(cbuf, 0, USEFUL_BUFFER_SIZE) != -1) {
                             if (cbuf.length > 0) {
-                                dos.writeBytes(URLEncoder.encode(new String(cbuf), "UTF-8"));
+                                dos.writeBytes(URLEncoder.encode(new String(cbuf), StandardCharsets.UTF_8));
                             }
                         }
                     }
