@@ -130,7 +130,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                 logDataMap.put(LogReporting.LOG_LEVEL_ATTRIBUTE, logLevel.name().toUpperCase());
 
                 // set data with reserved attribute values
-                logDataMap.putAll(getCommonBlockAttributes());
+//                logDataMap.putAll(getCommonBlockAttributes());
 
                 // translate a passed message to attributes
                 if (message != null) {
@@ -245,18 +245,6 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
      *
      * @return Map of common block attributes
      */
-    static Map<String, Object> getCommonBlockAttributes() {
-        Map<String, Object> attrs = new HashMap<>();
 
-        attrs.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, System.currentTimeMillis());
-        attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, AgentConfiguration.getInstance().getEntityGuid());
-        attrs.put(LogReporting.LOG_SESSION_ID, AgentConfiguration.getInstance().getSessionID());
-        attrs.put(LogReporting.LOG_INSTRUMENTATION_PROVIDER, LogReporting.LOG_INSTRUMENTATION_PROVIDER_ATTRIBUTE);
-        attrs.put(LogReporting.LOG_INSTRUMENTATION_NAME, AgentConfiguration.getInstance().getApplicationFramework().equals(ApplicationFramework.Native) ? LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME : AgentConfiguration.getInstance().getApplicationFramework().name());
-        attrs.put(LogReporting.LOG_INSTRUMENTATION_VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
-        attrs.put(LogReporting.LOG_INSTRUMENTATION_COLLECTOR_NAME, LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME);
-
-        return attrs;
-    }
 
 }

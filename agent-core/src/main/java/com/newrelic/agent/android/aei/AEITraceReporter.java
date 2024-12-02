@@ -126,18 +126,15 @@ public class AEITraceReporter extends PayloadReporter {
         }
     }
 
-    public AEITrace reportAEITrace(String systrace, int pid) {
-        return reportAEITrace(systrace, generateUniqueDataFilename(pid));
+    public void reportAEITrace(String aeiError,int pid) {
+         reportAEITrace(aeiError, generateUniqueDataFilename(pid));
     }
 
-    public AEITrace reportAEITrace(String systrace, File artifact) {
-        AEITrace trace = new AEITrace(artifact);
-
-        trace.decomposeFromSystemTrace(systrace);
+    public void reportAEITrace(String aeiError, File artifact) {
 
         // store the report prior to upload:
         try (OutputStream artifactOs = new FileOutputStream(artifact, false)) {
-            artifactOs.write(trace.toString().getBytes(StandardCharsets.UTF_8));
+            artifactOs.write(aeiError.getBytes(StandardCharsets.UTF_8));
             artifactOs.flush();
             artifactOs.close();
             artifact.setReadOnly();
@@ -146,24 +143,24 @@ public class AEITraceReporter extends PayloadReporter {
             log.debug("AEITraceReporter: AppExitInfo artifact error. " + e);
         }
 
-        return trace;
     }
 
     // upload any cached agent data posts
     protected void postCachedAgentData() {
         if (isInitialized()) {
-            getCachedTraces().forEach(traceDataFile -> {
-                if (postAEITrace(traceDataFile)) {
-                    log.info("AEI: Uploaded trace data [" + traceDataFile.getAbsolutePath() + "]");
-                    if (safeDelete(traceDataFile)) {
-                        log.debug("AEI: Trace data artifact[" + traceDataFile.getName() + "] removed from device");
+            if (Agent.hasReachableNetworkConnection(null)) {
+                getCachedTraces().forEach(traceDataFile -> {
+                    if (postAEITrace(traceDataFile)) {
+                        log.info("AEI: Uploaded trace data [" + traceDataFile.getAbsolutePath() + "]");
+                        if (safeDelete(traceDataFile)) {
+                            log.debug("AEI: Trace data artifact[" + traceDataFile.getName() + "] removed from device");
+                        }
+                    } else {
+                        log.error("AEITraceReporter: upload failed for trace data [" + traceDataFile.getAbsolutePath() + "]");
                     }
-                } else {
-                    log.error("AEITraceReporter: upload failed for trace data [" + traceDataFile.getAbsolutePath() + "]");
-                }
-            });
+                });
+            }
         }
-
         // delete (drop) any traces that have aged out
         expire(Math.toIntExact(reportTTL));
     }

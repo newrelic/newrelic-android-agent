@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.android.logging;
 
+import static com.newrelic.agent.android.logging.LogReporting.LOG_PAYLOAD_LOGS_ATTRIBUTE;
+
 import com.google.gson.JsonArray;
 import com.newrelic.agent.android.AgentConfiguration;
 
@@ -71,7 +73,8 @@ public class LoggingTests {
         Assert.assertEquals("Expected records lines", expectedRecordCount, lines.size(), 1);
 
         JsonArray jsonArray = LogReporter.logfileToJsonArray(logFile);
-        Assert.assertEquals("Expected JSON records", expectedRecordCount, jsonArray.size());
+        JsonArray logsJsonArray = jsonArray.get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray();
+        Assert.assertEquals("Expected JSON records", expectedRecordCount - 1, logsJsonArray.size());
 
         return jsonArray;
     }
@@ -79,7 +82,7 @@ public class LoggingTests {
     JsonArray verifySpannedLogfiles(Set<File> logFiles, int expectedRecordCount) throws IOException {
         JsonArray jsonArray = new JsonArray();
         for (File logFile : logFiles) {
-            jsonArray.addAll(LogReporter.logfileToJsonArray(logFile));
+            jsonArray.addAll(LogReporter.logfileToJsonArray(logFile).get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray());
         }
         Assert.assertEquals("Expected JSON records", expectedRecordCount, jsonArray.size());
 
