@@ -46,7 +46,7 @@ public class TraceConfiguration extends HarvestAdapter {
     }
 
     public boolean isSampled() {
-        return true;   // always for Mike's test
+        return true;   // always true for open telemetry trace
     }
 
     @Override
