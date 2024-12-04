@@ -27,13 +27,18 @@ public final class Constants {
         public static final String CONNECT_TIME_HEADER = "X-NewRelic-Connect-Time";
         public static final String CROSS_PROCESS_ID_HEADER = "X-NewRelic-ID";
         public static final String DEVICE_OS_NAME_HEADER = "X-NewRelic-OS-Name";
-        public static final String API_KEY = "Api-Key";
+        public static final String ACCOUNT_ID_HEADER = "X-NewRelic-Account-Id";
+        public static final String TRUSTED_ACCOUNT_ID_HEADER = "X-NewRelic-Trusted-Account-Id";
+        public static final String ENTITY_GUID_HEADER = "X-NewRelic-Entity-Guid";
+        public static final String SESSION_ID_HEADER = "X-NewRelic-Session";
+        public static final String AGENT_CONFIGURATION_HEADER = "X-NewRelic-AgentConfiguration";
 
         public static final String CONTENT_TYPE_HEADER = "Content-Type";
         public static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
         public static final String CONTENT_LENGTH_HEADER = "Content-Length";
         public static final String USER_AGENT_HEADER = "User-Agent";
         public static final String HOST_HEADER = "Host";
+
         public static final long MAX_PAYLOAD_SIZE = 1000000; //bytes
 
         public final class ContentType {

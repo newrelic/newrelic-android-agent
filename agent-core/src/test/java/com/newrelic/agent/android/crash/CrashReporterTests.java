@@ -26,22 +26,15 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.List;
 import java.util.concurrent.Future;
 
 import javax.net.ssl.HttpsURLConnection;
-
-import static com.newrelic.agent.android.crash.Crash.MAX_UPLOAD_COUNT;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @RunWith(JUnit4.class)
 public class CrashReporterTests {
@@ -69,8 +62,8 @@ public class CrashReporterTests {
         Harvest.initialize(agentConfiguration);
         Harvest.setHarvestConfiguration(Providers.provideHarvestConfiguration());
 
-        crash = spy(new Crash(new RuntimeException("testStoreSupportabilityMetrics")));
-        crashSender = spy(new CrashSender(crash, agentConfiguration));
+        crash = Mockito.spy(new Crash(new RuntimeException("testStoreSupportabilityMetrics")));
+        crashSender = Mockito.spy(new CrashSender(crash, agentConfiguration));
 
         TestCrashReporter.resetForTesting();
         StatsEngine.reset();
@@ -82,7 +75,7 @@ public class CrashReporterTests {
     }
 
     @Test
-    public void testInitialization() throws Exception {
+    public void testInitialization() {
         agentConfiguration.setReportCrashes(true);
         TestCrashReporter.initialize(agentConfiguration);
         Assert.assertEquals("Should initialize with agent configuration.", agentConfiguration, TestCrashReporter.getInstance().getAgentConfiguration());
@@ -90,7 +83,7 @@ public class CrashReporterTests {
     }
 
     @Test
-    public void testDisableCrashReporting() throws Exception {
+    public void testDisableCrashReporting() {
         FeatureFlag.disableFeature(FeatureFlag.CrashReporting);
         TestCrashReporter.initialize(agentConfiguration);
         Assert.assertFalse("Should disable crash reporting on init.", TestCrashReporter.getInstance().isEnabled());
@@ -98,7 +91,7 @@ public class CrashReporterTests {
     }
 
     @Test
-    public void testDisableJustInTimeCrashReporting() throws Exception {
+    public void testDisableJustInTimeCrashReporting() {
         agentConfiguration.setReportCrashes(false);
         crashReporter = TestCrashReporter.initialize(agentConfiguration);
         Assert.assertTrue("Should enable crash reporting on init.", TestCrashReporter.getInstance().isEnabled());
@@ -110,11 +103,11 @@ public class CrashReporterTests {
         crashReporter.storeAndReportCrash(new Crash(new RuntimeException("testStoreExistingCrashes")));
         crashReporter.storeAndReportCrash(new Crash(new RuntimeException("testStoreExistingCrashes")));
         Assert.assertEquals("CrashStore should contain 3 crash.", 3, crashStore.count());
-        verify(crashReporter, never()).reportCrash(any(Crash.class));
+        Mockito.verify(crashReporter, Mockito.never()).reportCrash(ArgumentMatchers.any(Crash.class));
     }
 
     @Test
-    public void testStoreExistingCrashes() throws Exception {
+    public void testStoreExistingCrashes() {
         Crash crash = new Crash(new RuntimeException("testStoreExistingCrashes"));
         crashStore.store(crash);
         Assert.assertEquals("CrashStore should contain 1 crash.", 1, crashStore.count());
@@ -127,7 +120,7 @@ public class CrashReporterTests {
     }
 
     @Test
-    public void testReportSavedCrashes() throws Exception {
+    public void testReportSavedCrashes() {
         TestCrashReporter.initialize(agentConfiguration);
 
         for (Integer i = 0; i < 3; i++) {
@@ -137,16 +130,16 @@ public class CrashReporterTests {
         Assert.assertEquals("Should contain 3 crashes", 3, TestCrashReporter.getStoredCrashCount());
 
         crashReporter.reportSavedCrashes();
-        verify(crashReporter, times(3)).reportCrash(any(Crash.class));
+        Mockito.verify(crashReporter, Mockito.times(3)).reportCrash(ArgumentMatchers.any(Crash.class));
     }
 
     @Test
-    public void testRemoveStaleCrashes() throws Exception {
+    public void testRemoveStaleCrashes() {
         TestCrashReporter.initialize(agentConfiguration);
 
         for (Integer i = 0; i < 3; i++) {
             Crash crash = new Crash(new RuntimeException("testStoreExistingCrash" + i));
-            for (int j = 0; j < MAX_UPLOAD_COUNT; j++) {
+            for (int j = 0; j < Crash.MAX_UPLOAD_COUNT; j++) {
                 crash.incrementUploadCount();
             }
             crashStore.store(crash);
@@ -158,44 +151,44 @@ public class CrashReporterTests {
         Assert.assertEquals("Should contain no crashes", 0, TestCrashReporter.getStoredCrashCount());
         Assert.assertTrue("Should contain 'stale crash removed' supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_REMOVED_STALE));
 
-        verify(crashReporter, times(0)).reportCrash(any(Crash.class));
+        Mockito.verify(crashReporter, Mockito.times(0)).reportCrash(ArgumentMatchers.any(Crash.class));
     }
 
     @Test
     public void testCrashUpload() throws Exception {
-        HttpURLConnection connection = spy(crashSender.getConnection());
+        HttpURLConnection connection = getMockedConnection();
 
-        doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 200 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.get().getStatsMap().clear();
-        doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 202 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.get().getStatsMap().clear();
-        doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertFalse("Should not contain 202 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
     }
 
     @Test
     public void testFailedCrashUpload() throws Exception {
-        HttpURLConnection connection = spy(crashSender.getConnection());
+        HttpURLConnection connection = getMockedConnection();
 
-        doReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 500 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_FAILED_UPLOAD));
     }
 
     @Test
     public void testTimeoutCrashUpload() throws Exception {
-        HttpURLConnection connection = spy(crashSender.getConnection());
+        HttpURLConnection connection = getMockedConnection();
 
-        doReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 408 supportability metric",
                 StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIMEOUT));
@@ -203,32 +196,31 @@ public class CrashReporterTests {
 
     @Test
     public void testThrottledCrashUpload() throws Exception {
-        HttpURLConnection connection = spy(crashSender.getConnection());
+        HttpURLConnection connection = getMockedConnection();
 
-        doReturn(429).when(connection).getResponseCode();
+        Mockito.doReturn(429).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 429 supportability metric",
                 StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_THROTTLED));
     }
 
-
     @Test
     public void testStoreSupportabilityMetrics() throws Exception {
-        HttpURLConnection connection = spy(crashSender.getConnection());
+        HttpURLConnection connection = getMockedConnection();
 
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_OK);
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 200 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.get().getStatsMap().clear();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_ACCEPTED);
+        Mockito.doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertTrue("Should contain 202 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.get().getStatsMap().clear();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_CREATED);
+        Mockito.doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertFalse("Should not contain 201 success supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
 
@@ -315,7 +307,7 @@ public class CrashReporterTests {
         Assert.assertEquals("Should contain 1 crashes", 1, TestCrashReporter.getStoredCrashCount());
 
         crashReporter.reportSavedCrashes();
-        verify(crashReporter, times(1)).reportCrash(any(Crash.class));
+        Mockito.verify(crashReporter, Mockito.times(1)).reportCrash(ArgumentMatchers.any(Crash.class));
         Assert.assertEquals("Should still contain 1 crashes", 1, TestCrashReporter.getStoredCrashCount());
     }
 
@@ -355,10 +347,22 @@ public class CrashReporterTests {
 
     }
 
+
+    private HttpURLConnection getMockedConnection() throws IOException {
+        HttpURLConnection connection = Mockito.spy(crashSender.getConnection());
+
+        Mockito.doReturn(false).when(connection).getDoOutput();
+        Mockito.doReturn(false).when(connection).getDoInput();
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+        Mockito.doNothing().when(connection).connect();
+
+        return connection;
+    }
+
     private static class TestCrashReporter extends CrashReporter {
         public static CrashReporter initialize(AgentConfiguration agentConfiguration) {
             CrashReporter.initialize(agentConfiguration);
-            instance.set(spy(new TestCrashReporter(agentConfiguration)));
+            instance.set(Mockito.spy(new TestCrashReporter(agentConfiguration)));
             return instance.get();
         }
 
@@ -378,12 +382,6 @@ public class CrashReporterTests {
                 return instance.get().crashStore.fetchAll();
             }
             return null;
-        }
-
-        public static void clear() {
-            if (isInitialized()) {
-                instance.get().crashStore.clear();
-            }
         }
 
         public static void resetForTesting() {

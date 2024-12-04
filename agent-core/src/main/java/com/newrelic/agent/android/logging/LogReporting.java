@@ -41,8 +41,9 @@ public abstract class LogReporting {
     protected static final String LOG_INSTRUMENTATION_PROVIDER_ATTRIBUTE = "mobile";
     protected static final String LOG_INSTRUMENTATION_ANDROID_NAME = "AndroidAgent";
     protected static final String LOG_INSTRUMENTATION_COLLECTOR_NAME = "collector.name";
-
-
+    protected static final String LOG_PAYLOAD_COMMON_ATTRIBUTE = "common";
+    protected static final String LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE = "attributes";
+    protected static final String LOG_PAYLOAD_LOGS_ATTRIBUTE = "logs";
 
     protected static LogLevel logLevel = LogLevel.WARN;
     protected static AgentLogger agentLogger = new AgentLogger();
@@ -163,13 +164,17 @@ public abstract class LogReporting {
         }
 
         public void logThrowable(LogLevel logLevel, String message, Throwable throwable) {
+
+
+            if (null == throwable) {
+                logToAgent(logLevel, message);
+                return;
+
+            }
             StringWriter sw = new StringWriter();
-
-            message = validator.validate(message);
-            throwable = validator.validate(throwable);
             throwable.printStackTrace(new PrintWriter(sw));
-
-            logToAgent(logLevel, String.format(Locale.getDefault(), "%s: %s", message, sw.toString()));
+            logToAgent(logLevel, String.format(Locale.getDefault(),
+                    "%s %s", message, sw));
         }
 
         public void logAttributes(Map<String, Object> attributes) {
@@ -189,17 +194,23 @@ public abstract class LogReporting {
             attributes = validator.validate(attributes);
 
             String logLevel = (String) attributes.getOrDefault("level", LogLevel.INFO.name());
-            StringWriter sw = new StringWriter();
             Map<String, Object> finalAttributes = attributes;
             String mapAsString = finalAttributes.keySet().stream()
                     .map(key -> key + "=" + finalAttributes.get(key))
                     .collect(Collectors.joining(",", "{", "}"));
 
-            throwable = validator.validate(throwable);
-            throwable.printStackTrace(new PrintWriter(sw));
+            String message;
+            if (null == throwable) {
+                message = String.format(Locale.getDefault(),
+                        "%s: %s", TAG, mapAsString);
+            } else {
+                StringWriter sw = new StringWriter();
+                throwable.printStackTrace(new PrintWriter(sw));
+                message = String.format(Locale.getDefault(),
+                        "%s: %s %s", TAG, mapAsString, sw);
+            }
 
-            logToAgent(LogLevel.valueOf(logLevel.toUpperCase()), String.format(Locale.getDefault(),
-                    "%s: %s %s", TAG, sw.toString(), mapAsString));
+            logToAgent(LogLevel.valueOf(logLevel.toUpperCase()), message);
         }
     }
 

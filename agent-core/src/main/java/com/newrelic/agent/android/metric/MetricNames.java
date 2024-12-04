@@ -95,6 +95,19 @@ public class MetricNames {
     public static final String SUPPORTABILITY_AEI_REMOTE_CONFIG = SUPPORTABILITY_AEI + "remoteConfiguration/";
     public static final String SUPPORTABILITY_AEI_VISITED = SUPPORTABILITY_AEI + "visited";
     public static final String SUPPORTABILITY_AEI_SKIPPED = SUPPORTABILITY_AEI + "skipped";
+    public static final String SUPPORTABILITY_AEI_DROPPED = SUPPORTABILITY_AEI + "dropped";
+    public static final String SUPPORTABILITY_AEI_UPLOAD_TIME = SUPPORTABILITY_AEI + "UploadTime";
+    public static final String SUPPORTABILITY_AEI_FAILED_UPLOAD = SUPPORTABILITY_AEI + "FailedUpload";
+
+    public static final String SUPPORTABILITY_OFFLINE_STORAGE = SUPPORTABILITY_AGENT + "OfflineStorage/";
+    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "HandledException/Count";
+    public static final String OFFLINE_STORAGE_CRASH_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "Crash/Count";
+    public static final String OFFLINE_STORAGE_EVENT_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "Event/Count";
+
+    public static final String SUPPORTABILITY_BACKGROUND = SUPPORTABILITY_AGENT + "Background/";
+    public static final String BACKGROUND_EVENT_COUNT = SUPPORTABILITY_BACKGROUND + "Event/Count";
+    public static final String BACKGROUND_HANDLED_EXCEPTION_COUNT = SUPPORTABILITY_BACKGROUND + "HandledException/Count";
+    public static final String BACKGROUND_CRASH_COUNT = SUPPORTABILITY_BACKGROUND + "Crash/Count";
 
     public static final String SUPPORTABILITY_DATA_TOKEN = SUPPORTABILITY_AGENT + "DataToken/";
     public static final String SUPPORTABILITY_INVALID_DATA_TOKEN = SUPPORTABILITY_DATA_TOKEN + "Invalid";
@@ -118,10 +131,4 @@ public class MetricNames {
     public static final String TAG_FRAMEWORK_VERSION = "<frameworkVersion>";
     public static final String TAG_DESTINATION = "<destination>";
     public static final String TAG_SUBDESTINATION = "<subdestination>";
-    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION_COUNT = "OfflineStorage/HandledException/Count";
-    public static final String OFFLINE_STORAGE_CRASH_COUNT = "OfflineStorage/Crash/Count";
-    public static final String OFFLINE_STORAGE_EVENT_COUNT = "OfflineStorage/Event/Count";
-    public static final String BACKGROUND_EVENT_COUNT = "Background/Event/Count";
-    public static final String BACKGROUND_HANDLED_EXCEPTION_COUNT = "Background/HandledException/Count";
-    public static final String BACKGROUND_CRASH_COUNT = "Background/Crash/Count";
 }

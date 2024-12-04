@@ -179,7 +179,7 @@ public class AgentDataReporter extends PayloadReporter {
         return reportAgentData(payload);
     }
 
-    private boolean isPayloadStale(Payload payload) {
+    protected boolean isPayloadStale(Payload payload) {
         if (payload.isStale(agentConfiguration.getPayloadTTL())) {
             payloadStore.delete(payload);
             log.info("Payload [" + payload.getUuid() + "] has become stale, and has been removed");

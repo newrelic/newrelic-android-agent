@@ -5,6 +5,10 @@
 
 package com.newrelic.agent.android.logging;
 
+import static com.newrelic.agent.android.logging.LogReporting.LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE;
+import static com.newrelic.agent.android.logging.LogReporting.LOG_PAYLOAD_COMMON_ATTRIBUTE;
+import static com.newrelic.agent.android.logging.LogReporting.LOG_PAYLOAD_LOGS_ATTRIBUTE;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -13,6 +17,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.ApplicationFramework;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -50,7 +55,8 @@ import javax.net.ssl.HttpsURLConnection;
 
 public class LogReporter extends PayloadReporter {
 
-    protected static final Type gtype = new TypeToken<Map<String, Object>>() {}.getType();
+    protected static final Type gtype = new TypeToken<Map<String, Object>>() {
+    }.getType();
     protected static final Gson gson = new GsonBuilder()
             .enableComplexMapKeySerialization()
             .create();
@@ -79,7 +85,7 @@ public class LogReporter extends PayloadReporter {
 
     static final long LOG_ENDPOINT_TIMEOUT = 10;    // FIXME This is a guess, check with Logging team
 
-    static final String LOG_REPORTS_DIR = "newrelic/logreporting";      // root dir for local data files
+    static final String LOG_REPORTS_DIR = "newrelic/logReporting";      // root dir for local data files
     static final String LOG_FILE_MASK = "logdata%s.%s";                 // log data file name. suffix will indicate working state
     static final Pattern LOG_FILE_REGEX = Pattern.compile("^(?<path>.*\\/" + LOG_REPORTS_DIR + ")\\/(?<file>logdata.*)\\.(?<extension>.*)$");
 
@@ -453,7 +459,8 @@ public class LogReporter extends PayloadReporter {
     }
 
     /**
-     * Create a new filename for the log dat artifact, based on the state of the report
+     * Create a new filename for the log data artifact, based on the state of the report
+     *
      * @param state State of log data file
      * @return Unique filename
      */
@@ -526,11 +533,11 @@ public class LogReporter extends PayloadReporter {
 
             switch (typeOfLogfile(logDataFile)) {
                 case CLOSED:
-                    jsonArray = logfileToJsonArray(logDataFile);
+                    jsonArray = logfileToJsonArray(logDataFile).get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray();
                     break;
 
                 case ROLLUP:
-                    jsonArray = LogReporter.gson.fromJson(Streams.slurpString(logDataFile, null), JsonArray.class);
+                    jsonArray = LogReporter.gson.fromJson(Streams.slurpString(logDataFile, null), JsonArray.class).get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray();
                     break;
             }
 
@@ -689,6 +696,20 @@ public class LogReporter extends PayloadReporter {
         return workingLogfileWriter.get();
     }
 
+    static Map<String, Object> getCommonBlockAttributes() {
+        Map<String, Object> attrs = new HashMap<>();
+
+        attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, AgentConfiguration.getInstance().getEntityGuid());
+        attrs.put(LogReporting.LOG_SESSION_ID, AgentConfiguration.getInstance().getSessionID());
+        attrs.put(LogReporting.LOG_INSTRUMENTATION_PROVIDER, LogReporting.LOG_INSTRUMENTATION_PROVIDER_ATTRIBUTE);
+        attrs.put(LogReporting.LOG_INSTRUMENTATION_NAME, AgentConfiguration.getInstance().getApplicationFramework().equals(ApplicationFramework.Native) ? LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME : AgentConfiguration.getInstance().getApplicationFramework().name());
+        attrs.put(LogReporting.LOG_INSTRUMENTATION_VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
+        attrs.put(LogReporting.LOG_INSTRUMENTATION_COLLECTOR_NAME, LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME);
+
+        return attrs;
+    }
+
+
     /**
      * Move validated log data from a logger into teh working log file.
      *
@@ -806,20 +827,30 @@ public class LogReporter extends PayloadReporter {
      * @return passed JsonArray
      * @throws IOException
      */
+
+
     static JsonArray logfileToJsonArray(File logfile, JsonArray jsonArray) throws IOException {
+        JsonArray logsJsonArray = new JsonArray();
+        JsonObject logsJson = new JsonObject();
+        //add Shared attributes
+        JsonObject sharedAttributes = LogReporter.gson.toJsonTree(getCommonBlockAttributes()).getAsJsonObject();
+        JsonObject attributes = new JsonObject();
+        attributes.add(LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE, sharedAttributes);
+        logsJson.add(LOG_PAYLOAD_COMMON_ATTRIBUTE, attributes);
         try (BufferedReader reader = Streams.newBufferedFileReader(logfile)) {
             reader.lines().forEach(s -> {
                 if (!(null == s || s.isEmpty())) {
                     try {
                         JsonObject messageAsJson = LogReporter.gson.fromJson(s, JsonObject.class);
-                        jsonArray.add(messageAsJson);
+                        logsJsonArray.add(messageAsJson);
                     } catch (JsonSyntaxException e) {
                         log.error("Invalid Json entry skipped [" + s + "]");
                     }
                 }
             });
         }
-
+        logsJson.add(LOG_PAYLOAD_LOGS_ATTRIBUTE, logsJsonArray);
+        jsonArray.add(logsJson);
         return jsonArray;
     }
 

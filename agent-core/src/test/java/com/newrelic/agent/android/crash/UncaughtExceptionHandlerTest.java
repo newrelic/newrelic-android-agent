@@ -17,25 +17,19 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 public class UncaughtExceptionHandlerTest {
     private CrashReporter crashReporter;
     private UncaughtExceptionHandler uncaughtExceptionHandler;
     private TestCrashStore crashStore;
     private AgentConfiguration agentConfiguration;
-    private Crash crash;
 
     @Before
     public void setUp() throws Exception {
-        uncaughtExceptionHandler = spy(new UncaughtExceptionHandler(crashReporter));
-        crashStore = spy(new TestCrashStore());
+        uncaughtExceptionHandler = Mockito.spy(new UncaughtExceptionHandler(crashReporter));
+        crashStore = Mockito.spy(new TestCrashStore());
         agentConfiguration = new AgentConfiguration();
 
         agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
@@ -45,7 +39,6 @@ public class UncaughtExceptionHandlerTest {
         agentConfiguration.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
 
         crashReporter = CrashReporter.initialize(agentConfiguration);
-        crash = new Crash(new RuntimeException("testStoreExistingCrashes"));
 
         Thread.setDefaultUncaughtExceptionHandler(new TestExceptionHandler());
         ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
@@ -58,7 +51,7 @@ public class UncaughtExceptionHandlerTest {
     }
 
     @Test
-    public void testInstallExceptionHandler() throws Exception {
+    public void testInstallExceptionHandler() {
         Assert.assertNull("Should start with no previous handler", uncaughtExceptionHandler.getPreviousExceptionHandler());
 
         uncaughtExceptionHandler.installExceptionHandler();
@@ -68,65 +61,65 @@ public class UncaughtExceptionHandlerTest {
     }
 
     @Test
-    public void testUncaughtException() throws Exception {
+    public void testUncaughtException() {
         Throwable throwable = new RuntimeException("Throwable");
 
-        crashReporter = spy(crashReporter);
+        crashReporter = Mockito.spy(crashReporter);
 
-        uncaughtExceptionHandler = spy(new UncaughtExceptionHandler(crashReporter));
+        uncaughtExceptionHandler = Mockito.spy(new UncaughtExceptionHandler(crashReporter));
         crashReporter.setEnabled(false);
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
-        verify(uncaughtExceptionHandler, atLeastOnce()).chainExceptionHandler(
-                Mockito.<Thread.UncaughtExceptionHandler>isNull(), any(Thread.class), any(Throwable.class));
+        Mockito.verify(uncaughtExceptionHandler, Mockito.atLeastOnce()).chainExceptionHandler(
+                Mockito.<Thread.UncaughtExceptionHandler>isNull(), ArgumentMatchers.any(Thread.class), ArgumentMatchers.any(Throwable.class));
 
-        uncaughtExceptionHandler = spy(new UncaughtExceptionHandler(crashReporter));
+        uncaughtExceptionHandler = Mockito.spy(new UncaughtExceptionHandler(crashReporter));
         crashReporter.setEnabled(true);
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
 
-        verify(crashReporter, times(1)).storeAndReportCrash(any(Crash.class));
-        verify(crashStore, times(1)).store(any(Crash.class));
+        Mockito.verify(crashReporter, Mockito.times(1)).storeAndReportCrash(ArgumentMatchers.any(Crash.class));
+        Mockito.verify(crashStore, Mockito.times(1)).store(ArgumentMatchers.any(Crash.class));
 
     }
 
     @Test
-    public void testUncaughtExceptionJIT() throws Exception {
+    public void testUncaughtExceptionJIT() {
         Throwable throwable = new RuntimeException("Throwable");
 
-        crashReporter = spy(CrashReporter.initialize(agentConfiguration));
+        crashReporter = Mockito.spy(CrashReporter.initialize(agentConfiguration));
         crashReporter.setEnabled(FeatureFlag.featureEnabled(FeatureFlag.CrashReporting));
 
         CrashReporter.setReportCrashes(true);      // sets JIT crash reporting
 
-        uncaughtExceptionHandler = spy(new UncaughtExceptionHandler(crashReporter));
+        uncaughtExceptionHandler = Mockito.spy(new UncaughtExceptionHandler(crashReporter));
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
 
-        verify(crashReporter, times(1)).storeAndReportCrash(any(Crash.class));
-        verify(crashStore, times(1)).store(any(Crash.class));
-        verify(crashReporter, times(1)).reportCrash(any(Crash.class));
+        Mockito.verify(crashReporter, Mockito.times(1)).storeAndReportCrash(ArgumentMatchers.any(Crash.class));
+        Mockito.verify(crashStore, Mockito.times(1)).store(ArgumentMatchers.any(Crash.class));
+        Mockito.verify(crashReporter, Mockito.times(1)).reportCrash(ArgumentMatchers.any(Crash.class));
         Assert.assertEquals(1, crashStore.count());
     }
 
     @Test
-    public void testUncaughtExceptionDeferred() throws Exception {
+    public void testUncaughtExceptionDeferred() {
         Throwable throwable = new RuntimeException("Throwable");
 
-        crashReporter = spy(CrashReporter.initialize(agentConfiguration));
+        crashReporter = Mockito.spy(CrashReporter.initialize(agentConfiguration));
         crashReporter.setEnabled(FeatureFlag.featureEnabled(FeatureFlag.CrashReporting));
 
         CrashReporter.setReportCrashes(false);      // sets crash reporting in nex launch (default)
 
-        uncaughtExceptionHandler = spy(new UncaughtExceptionHandler(crashReporter));
+        uncaughtExceptionHandler = Mockito.spy(new UncaughtExceptionHandler(crashReporter));
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
 
-        verify(crashReporter, times(1)).storeAndReportCrash(any(Crash.class));
-        verify(crashStore, times(1)).store(any(Crash.class));
-        verify(crashReporter, times(0)).reportCrash(any(Crash.class));
+        Mockito.verify(crashReporter, Mockito.times(1)).storeAndReportCrash(ArgumentMatchers.any(Crash.class));
+        Mockito.verify(crashStore, Mockito.times(1)).store(ArgumentMatchers.any(Crash.class));
+        Mockito.verify(crashReporter, Mockito.times(0)).reportCrash(ArgumentMatchers.any(Crash.class));
         Assert.assertEquals(1, crashStore.count());
 
     }
 
     @Test
-    public void testUncaughtIAException() throws Exception {
+    public void testUncaughtIAException() {
         Throwable throwable = new RuntimeException("Throwable");
         AgentImpl agentImpl = new StubAgentImpl() {
             @Override
@@ -136,23 +129,23 @@ public class UncaughtExceptionHandlerTest {
         };
 
         Agent.setImpl(agentImpl);
-        ApplicationStateMonitor asm = spy(new ApplicationStateMonitor());
+        ApplicationStateMonitor asm = Mockito.spy(new ApplicationStateMonitor());
 
         ApplicationStateMonitor.setInstance(asm);
-        crashReporter = spy(crashReporter);
+        crashReporter = Mockito.spy(crashReporter);
 
-        uncaughtExceptionHandler = spy(new UncaughtExceptionHandler(crashReporter));
+        uncaughtExceptionHandler = Mockito.spy(new UncaughtExceptionHandler(crashReporter));
         crashReporter.setEnabled(false);
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
 
-        verify(asm, atLeastOnce()).uiHidden();
-        verify(uncaughtExceptionHandler, atLeastOnce()).chainExceptionHandler(
-                Mockito.<Thread.UncaughtExceptionHandler>isNull(), any(Thread.class), any(Throwable.class));
+        Mockito.verify(asm, Mockito.atLeastOnce()).uiHidden();
+        Mockito.verify(uncaughtExceptionHandler, Mockito.atLeastOnce()).chainExceptionHandler(
+                Mockito.<Thread.UncaughtExceptionHandler>isNull(), ArgumentMatchers.any(Thread.class), ArgumentMatchers.any(Throwable.class));
 
     }
 
     @Test
-    public void testResetExceptionHandler() throws Exception {
+    public void testResetExceptionHandler() {
         uncaughtExceptionHandler.installExceptionHandler();
         Assert.assertNotNull("Should save previous handler", uncaughtExceptionHandler.getPreviousExceptionHandler());
 
@@ -161,7 +154,7 @@ public class UncaughtExceptionHandlerTest {
     }
 
     @Test
-    public void testPreExceptionHandler() throws Exception {
+    public void testPreExceptionHandler() {
         TestExceptionHandler preloadedHandler = new TestExceptionHandler();
 
         preloadedHandler.installHandler();
@@ -176,7 +169,7 @@ public class UncaughtExceptionHandlerTest {
     }
 
     @Test
-    public void testPostExceptionHandler() throws Exception {
+    public void testPostExceptionHandler() {
         TestExceptionHandler postloadedHandler = new TestExceptionHandler();
 
         uncaughtExceptionHandler.installExceptionHandler();

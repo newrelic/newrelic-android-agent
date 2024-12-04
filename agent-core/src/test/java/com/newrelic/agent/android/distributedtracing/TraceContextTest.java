@@ -90,7 +90,7 @@ public class TraceContextTest  {
 
     @Test
     public void testIsSampled() {
-        Assert.assertFalse(traceContext.traceConfiguration.isSampled());
+        Assert.assertTrue(traceContext.traceConfiguration.isSampled());
     }
 
     @Test

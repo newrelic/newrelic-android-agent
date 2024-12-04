@@ -85,6 +85,16 @@ public class LogInstrumentationTest {
     }
 
     @Test
+    public void textLogWithNulThrowable() {
+        final String msg = "debug log message";
+
+        Assert.assertNotEquals(0, LogInstrumentation.i("TAG", msg, null));
+        verify(remoteLogger, times(1)).logAll(any(), anyMap());
+        verify(localLogger, times(0)).logToAgent(any(LogLevel.class), anyString());
+        verify(agentLogger, never()).info(anyString());
+    }
+
+    @Test
     public void testWithLoggingDisabled() {
         final String msg = "info log message";
         final Throwable throwable = new RuntimeException(msg);

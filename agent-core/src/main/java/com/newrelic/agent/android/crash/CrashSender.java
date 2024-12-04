@@ -8,18 +8,20 @@ package com.newrelic.agent.android.crash;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 
 import javax.net.ssl.HttpsURLConnection;
 
 public class CrashSender extends PayloadSender {
-    public static final int CRASH_COLLECTOR_TIMEOUT = 5000; // 5 seconds
+    public static final int CRASH_COLLECTOR_TIMEOUT = PayloadController.PAYLOAD_COLLECTOR_TIMEOUT;
     private static final String CRASH_COLLECTOR_PATH = "/mobile_crash";
 
     private final Crash crash;
@@ -31,9 +33,7 @@ public class CrashSender extends PayloadSender {
 
     @Override
     protected HttpURLConnection getConnection() throws IOException {
-        final String urlString = getProtocol() + agentConfiguration.getCrashCollectorHost() + CRASH_COLLECTOR_PATH;
-        final URL url = new URL(urlString);
-        final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        final HttpURLConnection connection = (HttpURLConnection) getCollectorURI().toURL().openConnection();
 
         connection.setDoOutput(true);
         connection.setRequestProperty(Constants.Network.CONTENT_TYPE_HEADER, Constants.Network.ContentType.JSON);
@@ -114,4 +114,10 @@ public class CrashSender extends PayloadSender {
         // send the crash report immediately if there is net connectivity
         return Agent.hasReachableNetworkConnection(null);
     }
+
+    @Override
+    protected URI getCollectorURI() {
+        return URI.create(getProtocol() + agentConfiguration.getCrashCollectorHost() + CRASH_COLLECTOR_PATH);
+    }
+
 }
