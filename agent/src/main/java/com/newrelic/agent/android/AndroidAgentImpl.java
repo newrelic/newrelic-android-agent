@@ -864,6 +864,8 @@ public class AndroidAgentImpl implements
             if (agentConfiguration.getApplicationExitConfiguration().isEnabled()) {
                 new ApplicationExitMonitor(context).harvestApplicationExitInfo();
             } else {
+                // removing the session Map as the feature is disabled
+                new ApplicationExitMonitor(context).resetSessionMap();
                 log.debug("ApplicationExitReporting feature is enabled locally, but disabled in remote configuration.");
             }
         }

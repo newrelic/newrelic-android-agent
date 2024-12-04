@@ -198,14 +198,17 @@ public class ApplicationExitMonitor {
                 // try to map the AEI with the session it occurred in
                 AEISessionMapper.AEISessionMeta sessionMeta = sessionMapper.get(exitInfo.getPid());
 
-                if (sessionMeta == null || !sessionMeta.isValid() || sessionMeta.sessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
-                    // No previous session ID found in cache. Can't do anything with the event, so drop it
-                    recordsDropped.incrementAndGet();
-                    continue;
-                }
+                // we are not dropping it if the session is not found, we will still report it
+//                if (sessionMeta == null || !sessionMeta.isValid() || sessionMeta.sessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
+//                    // No previous session ID found in cache. Can't do anything with the event, so drop it
+//                    recordsDropped.incrementAndGet();
+//                    continue;
+//                }
 
                 // found a prior session ID
-                log.debug("ApplicationExitMonitor: Using session meta [" + sessionMeta.sessionId + ", " + sessionMeta.realAgentId + "] for AEI pid[" + exitInfo.getPid() + "]");
+                if(sessionMeta != null) {
+                    log.debug("ApplicationExitMonitor: Using session meta [" + sessionMeta.sessionId + ", " + sessionMeta.realAgentId + "] for AEI pid[" + exitInfo.getPid() + "]");
+                }
 
                 // finally, emit an event for the record
                 final HashMap<String, Object> eventAttributes;
@@ -220,7 +223,7 @@ public class ApplicationExitMonitor {
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_BY_IMPORTANCE + getImportanceAsString(exitInfo.getImportance()));
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_VISITED, recordsVisited.get());
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped.get());
-                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_DROPPED, recordsSkipped.get());
+//                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_DROPPED, recordsDropped.get());
 
                 final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
                 Error error = new Error(analyticsController.getSessionAttributes(),eventAttributes,sessionMeta);
@@ -259,7 +262,9 @@ public class ApplicationExitMonitor {
             eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
 
             // map the AEI with the session it occurred in (will be translated later)
-            eventAttributes.put(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, sessionMeta.sessionId);
+            if(sessionMeta != null) {
+                eventAttributes.put(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, sessionMeta.sessionId);
+            }
             eventAttributes.put(AnalyticsAttribute.APP_EXIT_ID_ATTRIBUTE, UUID.randomUUID().toString());
             eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_ID_ATTRIBUTE, exitInfo.getPid());
             eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
@@ -282,7 +287,7 @@ public class ApplicationExitMonitor {
             if (exitInfo.getReason() == ApplicationExitInfo.REASON_ANR) {
                 AEITrace aeiTrace = new AEITrace();
                 aeiTrace.decomposeFromSystemTrace(traceReport);
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_THREADS_ATTRIBUTE, URLEncoder.encode(traceReport, StandardCharsets.UTF_8.toString()));
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_THREADS_ATTRIBUTE, URLEncoder.encode(aeiTrace.toString(), StandardCharsets.UTF_8.toString()));
                 eventAttributes.put(AnalyticsAttribute.APP_EXIT_FINGERPRINT_ATTRIBUTE, Build.FINGERPRINT);
 
         }
@@ -321,6 +326,11 @@ public class ApplicationExitMonitor {
         });
 
         sessionMapper.flush();
+    }
+
+
+    public void resetSessionMap() {
+        sessionMapper.delete();
     }
 
     protected String toValidAttributeValue(String attributeValue) {

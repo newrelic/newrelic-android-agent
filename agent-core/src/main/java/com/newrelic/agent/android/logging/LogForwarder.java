@@ -27,9 +27,12 @@ import javax.net.ssl.HttpsURLConnection;
  */
 public class LogForwarder extends PayloadSender {
 
-    public LogForwarder(final File logDataFile, AgentConfiguration agentConfiguration) {
+    public LogForwarder(final File logDataFile, AgentConfiguration agentConfiguration) throws IOException {
         super(agentConfiguration);
-        this.payload = new FileBackedPayload(logDataFile);
+        //Compress File data before sending it to Log Collector
+        FileBackedPayload logFileBackedPayload = new FileBackedPayload(logDataFile);
+        logFileBackedPayload.compress(true);
+        this.payload =  logFileBackedPayload;
     }
 
     @Override
