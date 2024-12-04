@@ -119,20 +119,12 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         log.error(errorMsg);
     }
 
-    private byte[] gzipPayload(byte[] payloadBytes) throws IOException {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
-            gzipOutputStream.write(payloadBytes);
-        }
-        return byteArrayOutputStream.toByteArray();
-    }
 
     @Override
     @SuppressWarnings("NewApi")
     public PayloadSender call() throws Exception {
         try {
             byte[] payloadBytes = getPayload().getBytes();
-            byte[] gzippedPayloadBytes = gzipPayload(payloadBytes);
             final HttpURLConnection connection = getConnection();
 
             connection.setRequestProperty("Content-Encoding", "gzip");
@@ -141,7 +133,7 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
                 connection.connect();
                 if (connection.getDoOutput()) {
                     try (final OutputStream out = new BufferedOutputStream(connection.getOutputStream())) {
-                        out.write(gzippedPayloadBytes);
+                        out.write(payloadBytes);
                         out.flush();
                     }
                 }

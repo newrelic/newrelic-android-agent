@@ -38,7 +38,7 @@ public class AEISessionMapper {
 
     public AEISessionMapper put(int pid, AEISessionMeta model) {
         if (model != null && !(model.sessionId == null || model.sessionId.isEmpty())) {
-            mapper.putIfAbsent(pid, model);
+            mapper.put(pid, model);
         } else {
             AgentLogManager.getAgentLog().debug("Refusing to store null or empty session model for pid[" + pid + "]");
         }

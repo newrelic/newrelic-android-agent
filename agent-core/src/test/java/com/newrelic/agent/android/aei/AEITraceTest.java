@@ -29,4 +29,12 @@ public class AEITraceTest {
         Assert.assertEquals("2024-10-21 15:48:46.263477197-0700", aeiTrace.createTime);
         Assert.assertEquals(33, aeiTrace.threads.size());
     }
+
+    @Test
+    public void decomposeFromSystemTraceWithNull() {
+        sysTrace = "AplicationExitInfo(timestamp=16/08/24, 18:01 pid=22767 realUid=10246 packageUid=10246 definingUid=10246 user=0 process=com.newrelic.rpm reason=6 (ANR) subreason=0 (UNKNOWN) status=0 importance=100 pss=264MB rss=444MB description=user request after error: Input dispatching timed out (69322c3 Ventana emergente (server) is not responding. Waited 5000ms for MotionEvent anrTimeLine:2024-08-16 18:01:29.441 seq:377090 eventTime:20824301 deliveryTime:20824304 anrTime:20829304) state=empty trace=null";
+        aeiTrace.decomposeFromSystemTrace(sysTrace);
+        Assert.assertEquals(0, aeiTrace.threads.size());
+        Assert.assertEquals("", aeiTrace.toString());
+    }
 }
