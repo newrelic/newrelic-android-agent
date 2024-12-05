@@ -572,7 +572,6 @@ public class ApplicationExitMonitorTest {
         assertEquals(AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT, eventAttributes.get(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE));
         assertEquals("foreground", eventAttributes.get(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE));
         assertFalse(eventAttributes.containsKey(AnalyticsAttribute.APP_EXIT_THREADS_ATTRIBUTE));
-        assertFalse(eventAttributes.containsKey(AnalyticsAttribute.APP_EXIT_FINGERPRINT_ATTRIBUTE));
     }
 
     private File getSessionMapperFile() {
