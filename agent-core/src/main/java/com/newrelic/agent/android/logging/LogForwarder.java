@@ -52,6 +52,7 @@ public class LogForwarder extends PayloadSender {
 
         connection.setRequestMethod("POST");
         connection.setRequestProperty(Constants.Network.CONTENT_TYPE_HEADER, Constants.Network.ContentType.JSON);
+        connection.setRequestProperty("Content-Encoding", "gzip");
         connection.setRequestProperty(Constants.Network.APPLICATION_LICENSE_HEADER, agentConfiguration.getApplicationToken());
         connection.setConnectTimeout((int) TimeUnit.MILLISECONDS.convert(LogReporter.LOG_ENDPOINT_TIMEOUT, TimeUnit.SECONDS));
         connection.setReadTimeout((int) TimeUnit.MILLISECONDS.convert(LogReporter.LOG_ENDPOINT_TIMEOUT, TimeUnit.SECONDS));

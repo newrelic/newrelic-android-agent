@@ -127,7 +127,6 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
             byte[] payloadBytes = getPayload().getBytes();
             final HttpURLConnection connection = getConnection();
 
-            connection.setRequestProperty("Content-Encoding", "gzip");
             try {
                 timer.tic();
                 connection.connect();
