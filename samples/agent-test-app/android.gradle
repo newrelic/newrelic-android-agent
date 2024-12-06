@@ -112,6 +112,9 @@ if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
             // use a common buildId for all variants (default: true)
             variantMapsEnabled = true
 
+            // when variantMapsEnabled is false, set this for custom build id instead of UUID
+            buildId = "1234-5678-91011"
+
             // Tag and report Proguard/DexGuard maps for these build types:
             if (withProductFlavors && withProductFlavors.toBoolean()) {
                 uploadMapsForVariant 'googleQa', 'amazonQa'
