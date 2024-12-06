@@ -5,6 +5,11 @@
 
 package com.newrelic.agent.android.payload;
 
+import static com.newrelic.agent.android.payload.PayloadController.instance;
+import static com.newrelic.agent.android.payload.PayloadController.payloadReaperQueue;
+import static com.newrelic.agent.android.payload.PayloadController.payloadReaperRetryQueue;
+import static com.newrelic.agent.android.payload.PayloadController.queueExecutor;
+
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.agentdata.AgentDataReporter;
@@ -26,10 +31,13 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
@@ -37,19 +45,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import static com.newrelic.agent.android.payload.PayloadController.instance;
-import static com.newrelic.agent.android.payload.PayloadController.payloadReaperQueue;
-import static com.newrelic.agent.android.payload.PayloadController.payloadReaperRetryQueue;
-import static com.newrelic.agent.android.payload.PayloadController.queueExecutor;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doCallRealMethod;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import javax.net.ssl.HttpsURLConnection;
 
 @RunWith(Parameterized.class)
 public class PayloadControllerTest {
@@ -84,7 +80,7 @@ public class PayloadControllerTest {
 
     @Before
     public void setUp() throws Exception {
-        agentConfiguration = spy(new AgentConfiguration());
+        agentConfiguration = Mockito.spy(new AgentConfiguration());
         agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(false);
@@ -97,21 +93,21 @@ public class PayloadControllerTest {
             }
         });
 
-        payloadController = spy(PayloadController.initialize(agentConfiguration));
+        payloadController = Mockito.spy(PayloadController.initialize(agentConfiguration));
 
-        PayloadController.queueExecutor = spy(PayloadController.queueExecutor);
-        PayloadController.payloadReaperQueue = spy(PayloadController.payloadReaperQueue);
-        PayloadController.payloadReaperRetryQueue = spy(PayloadController.payloadReaperRetryQueue);
+        PayloadController.queueExecutor = Mockito.spy(PayloadController.queueExecutor);
+        PayloadController.payloadReaperQueue = Mockito.spy(PayloadController.payloadReaperQueue);
+        PayloadController.payloadReaperRetryQueue = Mockito.spy(PayloadController.payloadReaperRetryQueue);
 
-        doReturn(opportunisticUploads).when(payloadController).uploadOpportunistically();
-        doReturn(new TestFuture()).when(PayloadController.queueExecutor).submit(any(PayloadReaper.class));
+        Mockito.doReturn(opportunisticUploads).when(payloadController).uploadOpportunistically();
+        Mockito.doReturn(new TestFuture()).when(PayloadController.queueExecutor).submit(ArgumentMatchers.any(PayloadReaper.class));
 
         instance.set(payloadController);
 
         payload = new Payload("the tea's too hot".getBytes());
-        payloadSender = spy(providePayloadSender(payload));
+        payloadSender = Mockito.spy(providePayloadSender(payload));
 
-        doReturn(opportunisticUploads).when(payloadSender).shouldUploadOpportunistically();
+        Mockito.doReturn(opportunisticUploads).when(payloadSender).shouldUploadOpportunistically();
 
         StatsEngine.reset();
     }
@@ -139,7 +135,7 @@ public class PayloadControllerTest {
     public void shutdown() throws Exception {
         PayloadController.shutdown();
 
-        verify(queueExecutor, times(1)).shutdown();
+        Mockito.verify(queueExecutor, Mockito.times(1)).shutdown();
         Assert.assertNull(PayloadController.instance.get());
         Assert.assertNull(PayloadController.requeueFuture);
         Assert.assertNull(AgentDataReporter.getInstance());
@@ -151,26 +147,26 @@ public class PayloadControllerTest {
     public void submitPayload() throws Exception {
         PayloadController.submitPayload(payloadSender);
 
-        InOrder order = inOrder(PayloadController.queueExecutor, PayloadController.payloadReaperRetryQueue, PayloadController.payloadReaperQueue);
-        order.verify(PayloadController.payloadReaperRetryQueue).remove(any(PayloadReaper.class));
+        InOrder order = Mockito.inOrder(queueExecutor, payloadReaperRetryQueue, payloadReaperQueue);
+        order.verify(PayloadController.payloadReaperRetryQueue).remove(Mockito.any(PayloadReaper.class));
 
         if (payloadSender.shouldUploadOpportunistically()) {
-            order.verify(PayloadController.queueExecutor).submit(any(PayloadReaper.class));
-            verify(PayloadController.queueExecutor, times(1)).submit(any(PayloadReaper.class));
+            order.verify(PayloadController.queueExecutor).submit(Mockito.any(PayloadReaper.class));
+            Mockito.verify(PayloadController.queueExecutor, Mockito.times(1)).submit(Mockito.any(PayloadReaper.class));
         } else {
-            order.verify(PayloadController.payloadReaperQueue).offer(any(PayloadReaper.class));
-            verify(PayloadController.payloadReaperQueue, times(1)).offer(any(PayloadReaper.class));
+            order.verify(PayloadController.payloadReaperQueue).offer(Mockito.any(PayloadReaper.class));
+            Mockito.verify(PayloadController.payloadReaperQueue, Mockito.times(1)).offer(Mockito.any(PayloadReaper.class));
         }
 
-        verify(PayloadController.payloadReaperRetryQueue, times(1)).remove(any(PayloadReaper.class));
-        verify(PayloadController.payloadReaperQueue, times(1)).remove(any(PayloadReaper.class));
+        Mockito.verify(PayloadController.payloadReaperRetryQueue, Mockito.times(1)).remove(Mockito.any(PayloadReaper.class));
+        Mockito.verify(PayloadController.payloadReaperQueue, Mockito.times(1)).remove(Mockito.any(PayloadReaper.class));
     }
 
     @Test
     public void submitPayloadWithCompletionHandler() throws Exception {
-        doCallRealMethod().when(PayloadController.queueExecutor).submit(any(PayloadReaper.class));
+        Mockito.doCallRealMethod().when(PayloadController.queueExecutor).submit(ArgumentMatchers.any(PayloadReaper.class));
 
-        doReturn(200).when(payloadSender).getResponseCode();
+        Mockito.doReturn(200).when(payloadSender).getResponseCode();
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {
@@ -189,7 +185,7 @@ public class PayloadControllerTest {
             drainPayloadControllerQueue();
         }
 
-        doReturn(666).when(payloadSender).getResponseCode();
+        Mockito.doReturn(666).when(payloadSender).getResponseCode();
         future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {
@@ -216,35 +212,35 @@ public class PayloadControllerTest {
     public void uploadPayloadIfNetworkPresent() throws Exception {
         PayloadController.submitPayload(payloadSender);
         if (payloadSender.shouldUploadOpportunistically()) {
-            verify(PayloadController.queueExecutor).submit(any(Callable.class));
+            Mockito.verify(PayloadController.queueExecutor).submit(Mockito.any(Callable.class));
         } else {
-            verify(PayloadController.payloadReaperQueue).offer(any(PayloadReaper.class));
+            Mockito.verify(PayloadController.payloadReaperQueue).offer(Mockito.any(PayloadReaper.class));
         }
     }
 
     @Test
     public void cachePayloadIfNetworkUnavailable() throws Exception {
         setReachabilityEnabled(false);
-        doReturn(false).when(payloadSender).shouldUploadOpportunistically();
+        Mockito.doReturn(false).when(payloadSender).shouldUploadOpportunistically();
         PayloadController.submitPayload(payloadSender);
-        verify(payloadReaperQueue, atLeastOnce()).offer(any(PayloadReaper.class));
+        Mockito.verify(payloadReaperQueue, Mockito.atLeastOnce()).offer(Mockito.any(PayloadReaper.class));
     }
 
     @Test
     @SuppressWarnings("unchecked")
     public void uploadPayloadImmediately() throws Exception {
         setReachabilityEnabled(true);
-        doReturn(true).when(payloadSender).shouldUploadOpportunistically();
+        Mockito.doReturn(true).when(payloadSender).shouldUploadOpportunistically();
         PayloadController.submitPayload(payloadSender, null);
-        verify(PayloadController.queueExecutor).submit(any(Callable.class));
+        Mockito.verify(PayloadController.queueExecutor).submit(Mockito.any(Callable.class));
     }
 
     @Test
     public void testRequeueFailedUpload() throws Exception {
-        doReturn(true).when(payloadSender).shouldRetry();
-        doReturn(666).when(payloadSender).getResponseCode();
+        Mockito.doReturn(true).when(payloadSender).shouldRetry();
+        Mockito.doReturn(666).when(payloadSender).getResponseCode();
 
-        doCallRealMethod().when(PayloadController.queueExecutor).submit(any(PayloadReaper.class));
+        Mockito.doCallRealMethod().when(PayloadController.queueExecutor).submit(Mockito.any(PayloadReaper.class));
 
         PayloadReaper payloadReaper = new PayloadReaper(payloadSender, null);
 
@@ -258,26 +254,26 @@ public class PayloadControllerTest {
             drainPayloadControllerQueue();
         }
 
-        InOrder order = inOrder(PayloadController.queueExecutor, PayloadController.payloadReaperQueue, PayloadController.payloadReaperRetryQueue);
-        order.verify(PayloadController.payloadReaperQueue).remove(any(PayloadReaper.class));
-        order.verify(PayloadController.payloadReaperRetryQueue).remove(any(PayloadReaper.class));
+        InOrder order = Mockito.inOrder(PayloadController.queueExecutor, PayloadController.payloadReaperQueue, PayloadController.payloadReaperRetryQueue);
+        order.verify(PayloadController.payloadReaperQueue).remove(Mockito.any(PayloadReaper.class));
+        order.verify(PayloadController.payloadReaperRetryQueue).remove(Mockito.any(PayloadReaper.class));
 
         if (future != null && payloadSender.shouldUploadOpportunistically()) {
-            order.verify(PayloadController.queueExecutor).submit(any(PayloadReaper.class));
+            order.verify(PayloadController.queueExecutor).submit(Mockito.any(PayloadReaper.class));
         } else {
-            order.verify(PayloadController.payloadReaperQueue).offer(any(PayloadReaper.class));
+            order.verify(PayloadController.payloadReaperQueue).offer(Mockito.any(PayloadReaper.class));
         }
-        order.verify(PayloadController.payloadReaperRetryQueue).offer(any(PayloadReaper.class));
+        order.verify(PayloadController.payloadReaperRetryQueue).offer(Mockito.any(PayloadReaper.class));
 
-        verify(PayloadController.payloadReaperRetryQueue, atLeastOnce()).remove(any(PayloadReaper.class));
-        verify(PayloadController.payloadReaperQueue, atLeastOnce()).remove(any(PayloadReaper.class));
+        Mockito.verify(PayloadController.payloadReaperRetryQueue, Mockito.atLeastOnce()).remove(Mockito.any(PayloadReaper.class));
+        Mockito.verify(PayloadController.payloadReaperQueue, Mockito.atLeastOnce()).remove(Mockito.any(PayloadReaper.class));
 
         if (future != null && payloadSender.shouldUploadOpportunistically()) {
-            verify(PayloadController.queueExecutor, times(1)).submit(any(PayloadReaper.class));
+            Mockito.verify(PayloadController.queueExecutor, Mockito.times(1)).submit(Mockito.any(PayloadReaper.class));
         } else {
-            verify(PayloadController.payloadReaperQueue, times(1)).offer(any(PayloadReaper.class));
+            Mockito.verify(PayloadController.payloadReaperQueue, Mockito.times(1)).offer(Mockito.any(PayloadReaper.class));
         }
-        verify(PayloadController.payloadReaperRetryQueue, times(2)).offer(any(PayloadReaper.class));
+        Mockito.verify(PayloadController.payloadReaperRetryQueue, Mockito.times(2)).offer(Mockito.any(PayloadReaper.class));
     }
 
     @Test
@@ -291,7 +287,7 @@ public class PayloadControllerTest {
         };
 
         PayloadController.submitCallable(callable);
-        verify(PayloadController.queueExecutor, atLeastOnce()).submit(callable);
+        Mockito.verify(PayloadController.queueExecutor, Mockito.atLeastOnce()).submit(callable);
     }
 
     @Test
@@ -301,7 +297,7 @@ public class PayloadControllerTest {
         payloadReaperQueue.add(new PayloadReaper(providePayloadSender("Payload #3".getBytes()), null));
         Assert.assertEquals(payloadReaperQueue.size(), 3);
         PayloadController.dequeueRunnable.run();
-        verify(queueExecutor, times(3)).submit(any(PayloadReaper.class));
+        Mockito.verify(queueExecutor, Mockito.times(3)).submit(Mockito.any(PayloadReaper.class));
         Assert.assertEquals(payloadReaperQueue.size(), 0);
     }
 
@@ -312,7 +308,7 @@ public class PayloadControllerTest {
         payloadReaperRetryQueue.add(new PayloadReaper(providePayloadSender("Payload #3".getBytes()), null));
         Assert.assertEquals(payloadReaperRetryQueue.size(), 3);
         PayloadController.requeueRunnable.run();
-        verify(queueExecutor, atLeastOnce()).submit(any(PayloadReaper.class));
+        Mockito.verify(queueExecutor, Mockito.atLeastOnce()).submit(Mockito.any(PayloadReaper.class));
         Assert.assertEquals(payloadReaperRetryQueue.size(), 0);
     }
 
@@ -322,10 +318,10 @@ public class PayloadControllerTest {
         payloadReaperRetryQueue.add(new PayloadReaper(new AgentDataSender("Payload #2".getBytes(), agentConfiguration), null));
         payloadReaperRetryQueue.add(new PayloadReaper(new AgentDataSender("Payload #3".getBytes(), agentConfiguration), null));
         Assert.assertEquals(payloadReaperRetryQueue.size(), 3);
-        doReturn(1).when(agentConfiguration).getPayloadTTL();
+        Mockito.doReturn(1).when(agentConfiguration).getPayloadTTL();
         Thread.sleep(100);
         PayloadController.requeueRunnable.run();
-        verify(payloadReaperQueue, never()).offer(any(PayloadReaper.class));
+        Mockito.verify(payloadReaperQueue, Mockito.never()).offer(Mockito.any(PayloadReaper.class));
         Assert.assertEquals(payloadReaperQueue.size(), 0);
         Assert.assertEquals(payloadReaperRetryQueue.size(), 0);
     }
@@ -334,32 +330,32 @@ public class PayloadControllerTest {
     public void testPayloadInFlight() throws Exception {
         final int limit = 10;
 
-        doCallRealMethod().when(PayloadController.queueExecutor).submit(any(PayloadReaper.class));
+        Mockito.doCallRealMethod().when(PayloadController.queueExecutor).submit(Mockito.any(PayloadReaper.class));
 
         if (payloadSender.shouldUploadOpportunistically()) {
             for (int i = 0; i < limit; i++) {
                 Assert.assertNotNull(PayloadController.submitPayload(payloadSender));
                 Assert.assertTrue(PayloadController.payloadInFlight(payloadSender.getPayload()));
             }
-            verify(PayloadController.queueExecutor, times(1)).submit(any(PayloadReaper.class));
-            verify(PayloadController.payloadReaperQueue, times(0)).offer(any(PayloadReaper.class));
+            Mockito.verify(PayloadController.queueExecutor, Mockito.times(1)).submit(Mockito.any(PayloadReaper.class));
+            Mockito.verify(PayloadController.payloadReaperQueue, Mockito.times(0)).offer(Mockito.any(PayloadReaper.class));
         } else {
             for (int i = 0; i < limit; i++) {
                 PayloadController.submitPayload(payloadSender);
                 Assert.assertEquals(PayloadController.payloadReaperQueue.size(), 1);
             }
 
-            verify(PayloadController.queueExecutor, times(0)).submit(any(PayloadReaper.class));
-            verify(PayloadController.payloadReaperQueue, times(limit)).offer(any(PayloadReaper.class));
+            Mockito.verify(PayloadController.queueExecutor, Mockito.times(0)).submit(Mockito.any(PayloadReaper.class));
+            Mockito.verify(PayloadController.payloadReaperQueue, Mockito.times(limit)).offer(Mockito.any(PayloadReaper.class));
         }
 
-        verify(PayloadController.payloadReaperQueue, times(limit)).remove(any(PayloadReaper.class));
-        verify(PayloadController.payloadReaperRetryQueue, times(limit)).remove(any(PayloadReaper.class));
+        Mockito.verify(PayloadController.payloadReaperQueue, Mockito.times(limit)).remove(Mockito.any(PayloadReaper.class));
+        Mockito.verify(PayloadController.payloadReaperRetryQueue, Mockito.times(limit)).remove(Mockito.any(PayloadReaper.class));
     }
 
     @Test
     public void testDuplicatePayloads() throws Exception {
-        doCallRealMethod().when(PayloadController.queueExecutor).submit(any(PayloadReaper.class));
+        Mockito.doCallRealMethod().when(PayloadController.queueExecutor).submit(Mockito.any(PayloadReaper.class));
 
         int limit = 10;
         for (int i = 0; i < limit; i++) {
@@ -367,15 +363,15 @@ public class PayloadControllerTest {
         }
 
         if (payloadSender.shouldUploadOpportunistically()) {
-            verify(PayloadController.queueExecutor, times(limit)).submit(any(PayloadReaper.class));
+            Mockito.verify(PayloadController.queueExecutor, Mockito.times(limit)).submit(Mockito.any(PayloadReaper.class));
         } else {
-            verify(PayloadController.payloadReaperQueue, times(limit)).offer(any(PayloadReaper.class));
+            Mockito.verify(PayloadController.payloadReaperQueue, Mockito.times(limit)).offer(Mockito.any(PayloadReaper.class));
         }
     }
 
     @Test
     public void testThrottledExecutor() throws Exception {
-        doCallRealMethod().when(PayloadController.queueExecutor).submit(any(PayloadReaper.class));
+        Mockito.doCallRealMethod().when(PayloadController.queueExecutor).submit(Mockito.any(PayloadReaper.class));
 
         int limit = PayloadController.ThrottledScheduledThreadPoolExecutor.THROTTLE_LIMIT * 2;
         for (int i = 0; i < limit; i++) {
@@ -383,9 +379,9 @@ public class PayloadControllerTest {
         }
 
         if (payloadSender.shouldUploadOpportunistically()) {
-            verify(PayloadController.queueExecutor, times(limit)).submit(any(PayloadReaper.class));
+            Mockito.verify(PayloadController.queueExecutor, Mockito.times(limit)).submit(ArgumentMatchers.any(PayloadReaper.class));
         } else {
-            verify(PayloadController.payloadReaperQueue, times(limit)).offer(any(PayloadReaper.class));
+            Mockito.verify(PayloadController.payloadReaperQueue, Mockito.times(limit)).offer(ArgumentMatchers.any(PayloadReaper.class));
             drainPayloadControllerQueue();
         }
 
@@ -411,7 +407,12 @@ public class PayloadControllerTest {
         return new PayloadSender(payload, agentConfiguration) {
             @Override
             protected HttpURLConnection getConnection() throws IOException {
-                return null;
+                HttpURLConnection connection = Mockito.spy((HttpURLConnection) new URL("http://www.newrelic.com").openConnection());
+                Mockito.doReturn(false).when(connection).getDoOutput();
+                Mockito.doReturn(false).when(connection).getDoInput();
+                Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+                Mockito.doNothing().when(connection).connect();
+                return connection;
             }
 
             @Override

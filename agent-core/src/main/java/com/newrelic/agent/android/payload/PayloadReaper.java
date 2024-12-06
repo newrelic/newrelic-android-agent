@@ -22,9 +22,8 @@ class PayloadReaper implements Callable<PayloadSender> {
 
     @Override
     public PayloadSender call() throws Exception {
-        PayloadSender payloadSender = null;
         try {
-            payloadSender = sender.call();
+            PayloadSender payloadSender = sender.call();
 
             if (handler != null) {
                 handler.onResponse(payloadSender);

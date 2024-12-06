@@ -6,9 +6,7 @@
 package com.newrelic.agent.android.logging;
 
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
 
 import com.newrelic.agent.android.AgentConfiguration;
@@ -49,9 +47,9 @@ public class LogForwarderTest extends LoggingTests {
         LogReporter.initialize(reportsDir, AgentConfiguration.getInstance());
 
         logDataReport = seedLogData(1, 12).iterator().next();
-        logForwarder = Mockito.spy(new LogForwarder(logDataReport, AgentConfiguration.getInstance()));
+        logDataReport.setWritable(true);
 
-        doReturn(Mockito.spy(logForwarder.getConnection())).when(logForwarder).getConnection();
+        logForwarder = Mockito.spy(new LogForwarder(logDataReport, AgentConfiguration.getInstance()));
     }
 
     @Test
@@ -67,15 +65,15 @@ public class LogForwarderTest extends LoggingTests {
     @Test
     public void shouldUploadOpportunistically() throws Exception {
         Assert.assertTrue(logForwarder.shouldUploadOpportunistically());
-        doReturn(false).when(logForwarder).shouldUploadOpportunistically();
+        Mockito.doReturn(false).when(logForwarder).shouldUploadOpportunistically();
         Assert.assertFalse(logForwarder.shouldUploadOpportunistically());
         Assert.assertFalse("Should not make upload request", logForwarder.call().isSuccessfulResponse());
     }
 
     @Test
     public void setPayload() {
-        String payloadData = "The load carried"; // by an aircraft or spacecraft consisting of people or " +
-        // "things (such as passengers or instruments) necessary to the purpose of the flight.";
+        String payloadData = "The load carried by an aircraft or spacecraft consisting of people or " +
+                "things (such as passengers or instruments) necessary to the purpose of the flight.";
 
         logForwarder.setPayload(payloadData.getBytes(StandardCharsets.UTF_8));
         Assert.assertTrue(Arrays.equals(payloadData.getBytes(StandardCharsets.UTF_8), logForwarder.getPayload().getBytes()));
@@ -93,8 +91,9 @@ public class LogForwarderTest extends LoggingTests {
 
     @Test
     public void onRequestResponse() throws IOException {
-        HttpURLConnection connection = logForwarder.getConnection();
-        doReturn(429).when(connection).getResponseCode();
+        HttpURLConnection connection = getMockedConnection(logForwarder);
+
+        Mockito.doReturn(429).when(connection).getResponseCode();
 
         logForwarder.onRequestResponse(connection);
         Assert.assertTrue("Should contain 429 supportability metric",
@@ -105,8 +104,9 @@ public class LogForwarderTest extends LoggingTests {
 
     @Test
     public void onFailedUpload() throws IOException {
-        HttpURLConnection connection = logForwarder.getConnection();
-        doReturn(503).when(connection).getResponseCode();
+        HttpURLConnection connection = getMockedConnection(logForwarder);
+
+        Mockito.doReturn(503).when(connection).getResponseCode();
 
         logForwarder.onRequestResponse(connection);
         Assert.assertTrue("Should contain filed upload supportability metric",
@@ -123,23 +123,23 @@ public class LogForwarderTest extends LoggingTests {
 
     @Test
     public void uploadRequest() throws Exception {
-        HttpURLConnection connection = logForwarder.getConnection();
+        HttpURLConnection connection = getMockedConnection(logForwarder);
 
-        doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
         logForwarder.onRequestResponse(connection);
         Assert.assertTrue("Should contain 200 supportability metric",
                 StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
-        doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
         logForwarder.onRequestResponse(connection);
         Assert.assertTrue("Should contain 202 supportability metric",
                 StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
-        doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         logForwarder.onRequestResponse(connection);
         Assert.assertFalse("Should not contain 202 supportability metric",
                 StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME));
@@ -149,9 +149,9 @@ public class LogForwarderTest extends LoggingTests {
 
     @Test
     public void failedUploadRequest() throws Exception {
-        HttpURLConnection connection = logForwarder.getConnection();
+        HttpURLConnection connection = getMockedConnection(logForwarder);
 
-        doReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR).when(connection).getResponseCode();
         logForwarder.onRequestResponse(connection);
         Assert.assertTrue("Should contain 500 supportability metric",
                 StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_REMOVED_REJECTED));
@@ -159,9 +159,9 @@ public class LogForwarderTest extends LoggingTests {
 
     @Test
     public void timedOutUploadRequest() throws Exception {
-        HttpURLConnection connection = logForwarder.getConnection();
+        HttpURLConnection connection = getMockedConnection(logForwarder);
 
-        doReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT).when(connection).getResponseCode();
+        Mockito.doReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT).when(connection).getResponseCode();
         logForwarder.onRequestResponse(connection);
         Assert.assertTrue("Should contain 408 supportability metric",
                 StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIMEOUT));
@@ -169,9 +169,9 @@ public class LogForwarderTest extends LoggingTests {
 
     @Test
     public void throttledUploadRequest() throws Exception {
-        HttpURLConnection connection = logForwarder.getConnection();
+        HttpURLConnection connection = getMockedConnection(logForwarder);
 
-        doReturn(429).when(connection).getResponseCode();
+        Mockito.doReturn(429).when(connection).getResponseCode();
         logForwarder.onRequestResponse(connection);
         Assert.assertTrue("Should contain 429 supportability metric",
                 StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_THROTTLED));
@@ -179,25 +179,38 @@ public class LogForwarderTest extends LoggingTests {
 
     @Test
     public void recordSupportabilityMetrics() throws Exception {
-        HttpURLConnection connection = logForwarder.getConnection();
+        HttpURLConnection connection = getMockedConnection(logForwarder);
 
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_OK);
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
         logForwarder.onRequestResponse(connection);
         Assert.assertTrue("Should contain 200 supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_ACCEPTED);
+        Mockito.doReturn(HttpsURLConnection.HTTP_ACCEPTED).when(connection).getResponseCode();
         logForwarder.onRequestResponse(connection);
         Assert.assertTrue("Should contain 202 supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME));
 
         Mockito.reset();
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
-        when(connection.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_CREATED);
+        Mockito.doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         logForwarder.onRequestResponse(connection);
         Assert.assertFalse("Should not contain 201 success supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_UPLOAD_TIME));
 
         logForwarder.onFailedUpload("boo");
         Assert.assertTrue("Should contain 500 supportability metric", StatsEngine.SUPPORTABILITY.getStatsMap().containsKey(MetricNames.SUPPORTABILITY_LOG_FAILED_UPLOAD));
     }
+
+
+    private HttpURLConnection getMockedConnection(LogForwarder logForwarder) throws IOException {
+        HttpURLConnection connection = Mockito.spy(logForwarder.getConnection());
+
+        Mockito.doReturn(false).when(connection).getDoOutput();
+        Mockito.doReturn(false).when(connection).getDoInput();
+        Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
+        Mockito.doNothing().when(connection).connect();
+
+        return connection;
+    }
+
 }

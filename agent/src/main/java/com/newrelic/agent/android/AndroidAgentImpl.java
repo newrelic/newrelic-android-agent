@@ -20,6 +20,7 @@ import android.os.Looper;
 import android.os.StatFs;
 import android.text.TextUtils;
 
+import com.newrelic.agent.android.aei.ApplicationExitMonitor;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
@@ -863,6 +864,8 @@ public class AndroidAgentImpl implements
             if (agentConfiguration.getApplicationExitConfiguration().isEnabled()) {
                 new ApplicationExitMonitor(context).harvestApplicationExitInfo();
             } else {
+                // removing the session Map as the feature is disabled
+                new ApplicationExitMonitor(context).resetSessionMap();
                 log.debug("ApplicationExitReporting feature is enabled locally, but disabled in remote configuration.");
             }
         }

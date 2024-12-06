@@ -6,9 +6,8 @@
 package com.newrelic.agent.android;
 
 import com.google.gson.annotations.SerializedName;
-import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.aei.ApplicationExitConfiguration;
 import com.newrelic.agent.android.harvest.HarvestConfigurable;
-import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
