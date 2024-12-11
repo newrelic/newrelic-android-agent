@@ -206,7 +206,7 @@ public class ApplicationExitMonitor {
 //                }
 
                 // found a prior session ID
-                if(sessionMeta != null) {
+                if (sessionMeta != null) {
                     log.debug("ApplicationExitMonitor: Using session meta [" + sessionMeta.sessionId + ", " + sessionMeta.realAgentId + "] for AEI pid[" + exitInfo.getPid() + "]");
                 }
 
@@ -226,9 +226,9 @@ public class ApplicationExitMonitor {
 //                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_DROPPED, recordsDropped.get());
 
                 final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-                Error error = new Error(analyticsController.getSessionAttributes(),eventAttributes,sessionMeta);
+                Error error = new Error(analyticsController.getSessionAttributes(), eventAttributes, sessionMeta);
 
-                traceReporter.reportAEITrace(error.asJsonObject().toString(),exitInfo.getPid());
+                traceReporter.reportAEITrace(error.asJsonObject().toString(), exitInfo.getPid());
             }
             log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited.get() + "] existing [" + recordsSkipped.get() + "] dropped[" + recordsDropped.get() + "]");
 
@@ -253,43 +253,41 @@ public class ApplicationExitMonitor {
     protected HashMap<String, Object> getEventAttributesForAEI(ApplicationExitInfo exitInfo, AEISessionMapper.AEISessionMeta sessionMeta, String traceReport) throws UnsupportedEncodingException {
         final HashMap<String, Object> eventAttributes = new HashMap<>();
 
-            eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_TIMESTAMP_ATTRIBUTE, exitInfo.getTimestamp());
 
-            eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
-            eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
-            eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, getImportanceAsString(exitInfo.getImportance()));
-            eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
-            eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_REASON_ATTRIBUTE, exitInfo.getReason());
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_ATTRIBUTE, exitInfo.getImportance());
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE, getImportanceAsString(exitInfo.getImportance()));
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_DESCRIPTION_ATTRIBUTE, toValidAttributeValue(exitInfo.getDescription()));
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_NAME_ATTRIBUTE, toValidAttributeValue(exitInfo.getProcessName()));
 
-            // map the AEI with the session it occurred in (will be translated later)
-            if(sessionMeta != null) {
-                eventAttributes.put(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, sessionMeta.sessionId);
-            }
-            eventAttributes.put(AnalyticsAttribute.APP_EXIT_ID_ATTRIBUTE, UUID.randomUUID().toString());
-            eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_ID_ATTRIBUTE, exitInfo.getPid());
-            eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
+        // map the AEI with the session it occurred in (will be translated later)
+        if (sessionMeta != null) {
+            eventAttributes.put(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, sessionMeta.sessionId);
+        }
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_ID_ATTRIBUTE, UUID.randomUUID().toString());
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_ID_ATTRIBUTE, exitInfo.getPid());
+        eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
 
-            // Add fg/bg flag based on inferred importance:
-            switch (exitInfo.getImportance()) {
-                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
-                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
-                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
-                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
-                case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
-                    break;
-                default:
-                    eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
-                    break;
-            }
+        // Add fg/bg flag based on inferred importance:
+        switch (exitInfo.getImportance()) {
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
+                break;
+            default:
+                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
+                break;
+        }
 
             // Add the reason for the exit
             if (exitInfo.getReason() == ApplicationExitInfo.REASON_ANR) {
                 AEITrace aeiTrace = new AEITrace();
                 aeiTrace.decomposeFromSystemTrace(traceReport);
                 eventAttributes.put(AnalyticsAttribute.APP_EXIT_THREADS_ATTRIBUTE, URLEncoder.encode(aeiTrace.toString(), StandardCharsets.UTF_8.toString()));
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_FINGERPRINT_ATTRIBUTE, Build.FINGERPRINT);
-
         }
         return eventAttributes;
     }
