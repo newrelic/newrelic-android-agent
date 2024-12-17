@@ -35,7 +35,7 @@ public class TestContext {
     static {
         try {
             InstrumentationAgent.withAgentArgs("loglevel=TRACE");
-            config = Mockito.spy(new ClassRemapperConfig(InstrumentationAgent.LOGGER));
+            config = Mockito.spy(new ClassRemapperConfig(InstrumentationAgent.LOGGER,true));
 
         } catch (ClassNotFoundException e) {
             e.printStackTrace();

@@ -15,6 +15,8 @@ import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.Logger
 import org.gradle.api.plugins.UnknownPluginException
 import org.slf4j.LoggerFactory
+import org.gradle.api.provider.Property
+
 
 class NewRelicGradlePlugin implements Plugin<Project> {
     public static Logger LOGGER = LoggerFactory.getLogger(PLUGIN_EXTENSION_NAME)
@@ -45,13 +47,13 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         buildHelper = BuildHelper.register(project)
 
         project.configure(project) {
-            def agentArgs = parseLegacyAgentArgs(project)
-
             // Gradle now has a complete task execution graph for the requested tasks
             if (pluginExtension.getEnabled()) {
 
                 project.afterEvaluate {
                     // set global enable flag
+                    parseLegacyAgentArgs(project, pluginExtension.logInstrumentationEnabled)
+
                     BuildId.setVariantMapsEnabled(pluginExtension.variantMapsEnabled.get())
 
                     logBuildMetrics()
@@ -121,19 +123,22 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
     }
 
-    private def parseLegacyAgentArgs(Project project) {
+    private def parseLegacyAgentArgs(Project project,Property<Boolean> logInstrumentationEnabled) {
         def agentArgs = ""
+        def logInstrumentationEnabledStr = logInstrumentationEnabled.get().toString()
+
+        LOGGER.debug("logInstrumentationEnabled: " + logInstrumentationEnabledStr)
 
         if (project.logger.isDebugEnabled()) {
-            agentArgs = "loglevel=DEBUG"
+            agentArgs = "loglevel=DEBUG;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
         } else if (project.logger.isInfoEnabled()) {
-            agentArgs = "loglevel=INFO"
+            agentArgs = "loglevel=INFO;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
         } else if (project.logger.isWarnEnabled()) {
-            agentArgs = "loglevel=WARN"
+            agentArgs = "loglevel=WARN;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
         } else if (project.logger.isErrorEnabled()) {
-            agentArgs = "loglevel=ERROR"
+            agentArgs = "loglevel=ERROR;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
         } else {
-            agentArgs = "loglevel=TRACE"
+            agentArgs = "loglevel=TRACE;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
         }
 
         Throwable argsError = InstrumentationAgent.withAgentArgs(agentArgs)

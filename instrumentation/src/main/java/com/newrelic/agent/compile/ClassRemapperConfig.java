@@ -27,12 +27,24 @@ public class ClassRemapperConfig {
     private final Map<ClassMethod, ClassMethod> methodWrappers;
     private final Map<String, Collection<ClassMethod>> callSiteReplacements;
     private final Map<String, Collection<ClassMethod>> shadowMethods;
+    private boolean logInstrumentationEnabled = true;
 
-    public ClassRemapperConfig(final Logger log) throws ClassNotFoundException {
+    public ClassRemapperConfig(final Logger log,boolean logInstrumentationEnabled) throws ClassNotFoundException {
+        this.logInstrumentationEnabled = logInstrumentationEnabled;
         @SuppressWarnings("unchecked") final Map<String, String> remappings = getRemappings(log);
+        // remove log mappings if log instrumentation is disabled
+        removeLogCallMappings(logInstrumentationEnabled, remappings);
         methodWrappers = getMethodWrappers(remappings, log);
         callSiteReplacements = getCallSiteReplacements(remappings, log);
         shadowMethods = getShadowMethods(remappings, log);
+
+        log.info("[ClassRemapperConfig] Initialized with logInstrumentationEnabled[{}]", logInstrumentationEnabled);
+    }
+
+    private static void removeLogCallMappings(boolean logInstrumentationEnabled, Map<String, String> remappings) {
+        if (!logInstrumentationEnabled) {
+            remappings.entrySet().removeIf(entry -> entry.getKey().contains("android/util/Log"));
+        }
     }
 
     public ClassMethod getMethodWrapper(final ClassMethod method) {
