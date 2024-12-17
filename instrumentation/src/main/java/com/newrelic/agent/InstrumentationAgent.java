@@ -157,7 +157,8 @@ public final class InstrumentationAgent extends Constants {
         if (field.get(null) instanceof InvocationDispatcher) {
             log.info("Detected cached instrumentation.");
         } else {
-            field.set(null, new InvocationDispatcher(log));
+            boolean logInstrumentationEnabled = agentOptions.get("logInstrumentationEnabled") != null && agentOptions.get("logInstrumentationEnabled").equals("true");
+            field.set(null, new InvocationDispatcher(log,logInstrumentationEnabled));
         }
     }
 
