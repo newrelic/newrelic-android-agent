@@ -10,7 +10,6 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.Harvest;
-import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
@@ -107,16 +106,18 @@ public class AgentDataReporter extends PayloadReporter {
 
     // upload any cached agent data posts
     protected void reportCachedAgentData() {
-        if (isInitialized()) {
-            if (payloadStore != null) {
-                for (Payload payload : payloadStore.fetchAll()) {
-                    if (!isPayloadStale(payload)) {
-                        reportAgentData(payload);
+        if(Agent.hasReachableNetworkConnection(null)) {
+            if (isInitialized()) {
+                if (payloadStore != null) {
+                    for (Payload payload : payloadStore.fetchAll()) {
+                        if (!isPayloadStale(payload)) {
+                            reportAgentData(payload);
+                        }
                     }
                 }
+            } else {
+                log.error("AgentDataReporter not initialized");
             }
-        } else {
-            log.error("AgentDataReporter not initialized");
         }
     }
 
