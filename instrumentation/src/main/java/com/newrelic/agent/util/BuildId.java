@@ -22,6 +22,7 @@ public class BuildId {
     private static AtomicReference<Map<String, String>> variantBuildIds = new AtomicReference<>(null);
     private static Logger log = InstrumentationAgent.LOGGER;
     private static boolean variantMapsEnabled = true;
+    private static String customBuildId = "";
 
     static {
         invalidate();
@@ -51,7 +52,11 @@ public class BuildId {
         String buildId = variantBuildIds.get().get(DEFAULT_VARIANT);
         if (Strings.isNullOrEmpty(buildId)) {
             // cache the value for later use, such as uploading maps after Dexguard
-            buildId = autoBuildId();
+            if (Strings.isNullOrEmpty(customBuildId)) {
+                buildId = autoBuildId();
+            } else {
+                buildId = customBuildId;
+            }
             variantBuildIds.get().put(DEFAULT_VARIANT, buildId);
         }
 
@@ -104,4 +109,10 @@ public class BuildId {
         log.debug("Variant buildIds have been " + (BuildId.variantMapsEnabled ? "enabled" : "disabled"));
     }
 
+    public static void setCustomBuildId(String customBuildId) {
+        if (!Strings.isNullOrEmpty(customBuildId) && !variantMapsEnabled) {
+            BuildId.customBuildId = customBuildId;
+            log.debug("Project's buildId has been set to " + BuildId.customBuildId);
+        }
+    }
 }

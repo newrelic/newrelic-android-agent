@@ -54,6 +54,9 @@ class NewRelicGradlePlugin implements Plugin<Project> {
                     // set global enable flag
                     BuildId.setVariantMapsEnabled(pluginExtension.variantMapsEnabled.get())
 
+                    // set global build id
+                    BuildId.setCustomBuildId(pluginExtension.buildId.get())
+
                     logBuildMetrics()
 
                     try {
