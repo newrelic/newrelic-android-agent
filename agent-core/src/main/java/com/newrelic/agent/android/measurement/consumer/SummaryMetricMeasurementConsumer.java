@@ -119,20 +119,19 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
 
         if (activityTrace.networkCountMetric.getCount() > 0) {
             final String name = activityTrace.networkCountMetric.getName();
-            activityTrace.networkCountMetric.setName(name.replace("<activity>", activityName))
-                    .setCount(1)
-                    .setMinFieldValue(activityTrace.networkCountMetric.getTotal())
-                    .setMaxFieldValue(activityTrace.networkCountMetric.getTotal());
+            activityTrace.networkCountMetric.setName(name.replace("<activity>", activityName));
+            activityTrace.networkCountMetric.setCount(1);
+            activityTrace.networkCountMetric.setMinFieldValue(activityTrace.networkCountMetric.getTotal());
+            activityTrace.networkCountMetric.setMaxFieldValue(activityTrace.networkCountMetric.getTotal());
             Harvest.addMetric(activityTrace.networkCountMetric);
         }
 
         if (activityTrace.networkTimeMetric.getCount() > 0) {
             final String name = activityTrace.networkTimeMetric.getName();
-            activityTrace.networkTimeMetric.setName(name.replace("<activity>", activityName))
-                    .setCount(1)
-                    .setMinFieldValue(activityTrace.networkTimeMetric.getTotal())
-                    .setMaxFieldValue(activityTrace.networkTimeMetric.getTotal());
-
+            activityTrace.networkTimeMetric.setName(name.replace("<activity>", activityName));
+            activityTrace.networkTimeMetric.setCount(1);
+            activityTrace.networkTimeMetric.setMinFieldValue(activityTrace.networkTimeMetric.getTotal());
+            activityTrace.networkTimeMetric.setMaxFieldValue(activityTrace.networkTimeMetric.getTotal());
             Harvest.addMetric(activityTrace.networkTimeMetric);
         }
     }
@@ -181,12 +180,13 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
 
             final double scaledTime = normalizedTime * traceTime;
 
-            metric.setTotal(scaledTime)
-                    .setExclusive(scaledTime)
-                    .setMinFieldValue(Double.NaN)
-                    .setMaxFieldValue(Double.NaN)
-                    .setSumOfSquares(0.0)
-                    .setScope(ACTIVITY_METRIC_PREFIX + trace.displayName);
+            metric.setTotal(scaledTime);
+            metric.setExclusive(scaledTime);
+            metric.setMinFieldValue(0.0);
+            metric.setMaxFieldValue(0.0);
+            metric.setSumOfSquares(0.0);
+            metric.setScope(ACTIVITY_METRIC_PREFIX + trace.displayName);
+
 
             // Send scoped and un-scoped metrics to the Harvester.
             Harvest.addMetric(metric);
