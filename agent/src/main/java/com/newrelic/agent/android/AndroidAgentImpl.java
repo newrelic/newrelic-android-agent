@@ -312,13 +312,8 @@ public class AndroidAgentImpl implements
             final StatFs rootStatFs = new StatFs(Environment.getRootDirectory().getAbsolutePath());
             final StatFs externalStatFs = new StatFs(Environment.getExternalStorageDirectory().getAbsolutePath());
 
-            if (Build.VERSION.SDK_INT >= 18) {
-                free[0] = rootStatFs.getAvailableBlocksLong() * rootStatFs.getBlockSizeLong();
-                free[1] = externalStatFs.getAvailableBlocksLong() * rootStatFs.getBlockSizeLong();
-            } else {
-                free[0] = rootStatFs.getAvailableBlocks() * rootStatFs.getBlockSize();
-                free[1] = externalStatFs.getAvailableBlocks() * externalStatFs.getBlockSize();
-            }
+            free[0] = rootStatFs.getAvailableBlocksLong() * rootStatFs.getBlockSizeLong();
+            free[1] = externalStatFs.getAvailableBlocksLong() * rootStatFs.getBlockSizeLong();
         } catch (Exception e) {
             AgentHealth.noticeException(e);
         } finally {
@@ -523,6 +518,7 @@ public class AndroidAgentImpl implements
     }
 
     void stop(boolean finalSendData) {
+
         if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
             // assume some user action caused the agent to go to background
             UserActionFacade.getInstance().recordUserAction(UserActionType.AppBackground);
@@ -667,19 +663,27 @@ public class AndroidAgentImpl implements
     @Override
     public void applicationForegrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application foregrounded");
-        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (!NewRelic.isShutdown) {
-                start();
+
+        // BackgroundReporting
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if(NewRelic.isStarted()) {
+                stop();
             }
+        }
+        if (!NewRelic.isShutdown) {
+            start();
+            AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME);
         }
     }
 
     @Override
     public void applicationBackgrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application backgrounded");
-        //BackgroundReporting
-        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
             stop();
+        // BackgroundReporting
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            start();
+            AnalyticsControllerImpl.getInstance().addAttributeUnchecked(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME,true), false);
         }
     }
 
