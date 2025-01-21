@@ -18,6 +18,8 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.ApplicationFramework;
+import com.newrelic.agent.android.analytics.AnalyticsAttribute;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -705,6 +707,15 @@ public class LogReporter extends PayloadReporter {
         attrs.put(LogReporting.LOG_INSTRUMENTATION_NAME, AgentConfiguration.getInstance().getApplicationFramework().equals(ApplicationFramework.Native) ? LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME : AgentConfiguration.getInstance().getApplicationFramework().name());
         attrs.put(LogReporting.LOG_INSTRUMENTATION_VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
         attrs.put(LogReporting.LOG_INSTRUMENTATION_COLLECTOR_NAME, LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME);
+
+        // adding session attributes
+        final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+
+        Map<String, Object> sessionAttributes = new HashMap<>();
+        for (AnalyticsAttribute analyticsAttribute : analyticsController.getSessionAttributes()) {
+            sessionAttributes.put(analyticsAttribute.getName(), analyticsAttribute.asJsonElement());
+        }
+        attrs.putAll(sessionAttributes);
 
         return attrs;
     }

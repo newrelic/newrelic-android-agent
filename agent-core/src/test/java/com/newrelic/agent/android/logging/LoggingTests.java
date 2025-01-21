@@ -9,6 +9,9 @@ import static com.newrelic.agent.android.logging.LogReporting.LOG_PAYLOAD_LOGS_A
 
 import com.google.gson.JsonArray;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.test.stub.StubAgentImpl;
+import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -34,6 +37,8 @@ public class LoggingTests {
         AgentLogManager.getAgentLog().setLevel(AgentLog.DEBUG);
         AgentConfiguration.getInstance().setApplicationToken("<APP-TOKEN>>");
         AgentConfiguration.getInstance().setEntityGuid("<ENTITY-GUID>");
+        AgentConfiguration.getInstance().setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
+        AnalyticsControllerImpl.initialize(AgentConfiguration.getInstance(), new StubAgentImpl());
     }
 
     public LoggingTests() {
