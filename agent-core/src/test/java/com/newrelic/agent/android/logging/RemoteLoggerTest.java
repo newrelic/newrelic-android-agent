@@ -183,6 +183,36 @@ public class RemoteLoggerTest extends LoggingTests {
         Assert.assertTrue(attributes.has(LogReporting.LOG_INSTRUMENTATION_NAME));
         Assert.assertTrue(attributes.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
         Assert.assertEquals(attributes.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
+        Assert.assertTrue(attributes.has("osBuild"));
+        Assert.assertTrue(attributes.has("osVersion"));
+        Assert.assertTrue(attributes.has("osName"));
+        Assert.assertTrue(attributes.has("platformVersion"));
+        Assert.assertTrue(attributes.has("newRelicVersion"));
+        Assert.assertTrue(attributes.has("deviceModel"));
+        Assert.assertTrue(attributes.has("deviceModel"));
+        Assert.assertTrue(attributes.has("deviceManufacturer"));
+    }
+
+    @Test
+    public void checkSessionAttributesFromCommonAttributes() throws Exception {
+        final String msg = "appendLog: " + getRandomMsg(24);
+
+        logger.appendToWorkingLogfile(LogLevel.INFO, msg, null, null);
+        logger.flush();
+        verify(logger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, null, null);
+
+        JsonArray jsonArray = verifyWorkingLogfile(2);
+        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+        JsonObject attributes = jsonObject.get(LogReporting.LOG_PAYLOAD_COMMON_ATTRIBUTE).getAsJsonObject().get(LogReporting.LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE).getAsJsonObject();
+        Assert.assertTrue(attributes.has(LogReporting.LOG_SESSION_ID));
+        Assert.assertTrue(attributes.has("osBuild"));
+        Assert.assertTrue(attributes.has("osVersion"));
+        Assert.assertTrue(attributes.has("osName"));
+        Assert.assertTrue(attributes.has("platformVersion"));
+        Assert.assertTrue(attributes.has("newRelicVersion"));
+        Assert.assertTrue(attributes.has("deviceModel"));
+        Assert.assertTrue(attributes.has("deviceModel"));
+        Assert.assertTrue(attributes.has("deviceManufacturer"));
     }
 
     // @Test  FIXME flakey test

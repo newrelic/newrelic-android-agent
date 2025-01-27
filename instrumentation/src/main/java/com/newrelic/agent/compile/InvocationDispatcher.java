@@ -46,12 +46,13 @@ public class InvocationDispatcher {
 
     final Map<String, InvocationHandler> invocationHandlers;
 
-    public InvocationDispatcher(final Logger log) throws ClassNotFoundException {
-        ClassRemapperConfig config = new ClassRemapperConfig(log);
+    public InvocationDispatcher(final Logger log,boolean logInstrumentationEnabled) throws ClassNotFoundException {
+        ClassRemapperConfig config = new ClassRemapperConfig(log,logInstrumentationEnabled);
 
         this.log = log;
         this.instrumentationContext = new InstrumentationContext(config, log);
         this.invocationHandlers = ImmutableMap.of();
+        log.debug("[InvocationDispatcher] Initialized with logInstrumentationEnabled[{}]", logInstrumentationEnabled);
     }
 
     boolean isInstrumentationDisabled() {

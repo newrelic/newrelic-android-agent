@@ -103,23 +103,27 @@ public class PayloadController implements HarvestLifecycleAware {
                 }
 
                 // Don't accept any more payloads
-                queueExecutor.shutdown();
+                if (queueExecutor != null) {
+                    queueExecutor.shutdown();
 
-                // Make sure all blocked threads are cancelled.
-                // Threads started during startup could still be running (unlikely)
-                try {
-                    if (false == queueExecutor.awaitTermination(PAYLOAD_COLLECTOR_TIMEOUT, TimeUnit.MILLISECONDS)) {
-                        log.warn("PayloadController: upload thread(s) timed-out before handler");
-                        queueExecutor.shutdownNow();
+                    // Make sure all blocked threads are cancelled.
+                    // Threads started during startup could still be running (unlikely)
+                    try {
+                        if (!queueExecutor.awaitTermination(PAYLOAD_COLLECTOR_TIMEOUT, TimeUnit.MILLISECONDS)) {
+                            log.warn("PayloadController: upload thread(s) timed-out before handler");
+                            queueExecutor.shutdownNow();
+                        }
+                        AgentDataReporter.shutdown();
+                        CrashReporter.shutdown();
+
+                    } catch (InterruptedException e) {
+                        log.error("PayloadController.shutdown(): " + e);
                     }
-                    AgentDataReporter.shutdown();
-                    CrashReporter.shutdown();
-
-                } catch (InterruptedException e) {
                 }
-
-            } finally {
                 instance.set(null);
+
+            } catch (Exception e) {
+                log.error("PayloadController.shutdown(): " + e);
             }
         }
     }
@@ -128,7 +132,8 @@ public class PayloadController implements HarvestLifecycleAware {
         return submitPayload(payloadSender, null);
     }
 
-    public static Future submitPayload(final PayloadSender payloadSender, final PayloadSender.CompletionHandler completionHandler) {
+    public static Future submitPayload(final PayloadSender payloadSender,
+                                       final PayloadSender.CompletionHandler completionHandler) {
         Future future = null;
         final TicToc timer = new TicToc();
 
@@ -165,7 +170,7 @@ public class PayloadController implements HarvestLifecycleAware {
                     // queue the node and let the dequeue runnable process the upload
                     payloadReaperQueue.offer(payloadReaper);
                 }
-                log.debug("PayloadController: " + String.valueOf(timer.toc()) + "ms. waiting to submit payload [" + payloadReaper.getUuid() + "].");
+                log.debug("PayloadController: " + timer.toc() + "ms. waiting to submit payload [" + payloadReaper.getUuid() + "].");
             }
         }
 
