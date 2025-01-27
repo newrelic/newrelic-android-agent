@@ -352,6 +352,66 @@ public class AndroidAgentImplTest {
         Assert.assertNull("Should contain app background event", getEventByActionType(queuedEvents, UserActionType.AppBackground));
     }
 
+
+//    @Test
+//    public void testCombinedAgentLifecycleGesturesWithBackGroundReporting() throws Exception {
+//        eventStore = agentConfig.getEventStore();
+//        ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
+//
+//        final ApplicationStateEvent e = new ApplicationStateEvent(ApplicationStateMonitor.getInstance());
+//        final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+//
+//        agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
+//        Agent.setImpl(agentImpl);
+//
+//        Harvest.setInstance(new Harvest() {
+//            @Override
+//            protected HarvestTimer getHarvestTimer() {
+//                return new HarvestTimer(new Harvester()) {
+//                    @Override
+//                    public void start() {
+//                        super.start();
+//                    }
+//                };
+//            }
+//        });
+//
+//        Collection<AnalyticsEvent> queuedEvents;
+//        EventManager eventManager = analyticsController.getEventManager();
+//
+//        // turn the flag on
+//        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+//        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+//
+//        agentImpl.start();
+//        assertEquals("Should contain app launch user action event", eventManager.getEventsRecorded(), 1);
+//        queuedEvents = analyticsController.getEventManager().getQueuedEvents();
+//        Assert.assertNotNull("Should contain app launch event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
+//
+//        // When the agent is backgrounded, a session event is created
+//        agentImpl.applicationBackgrounded(e);
+//        eventStore.clear();
+//        assertEquals("Should contain lifecycle user action events", eventManager.getEventsRecorded(), 1);
+//        queuedEvents = analyticsController.getEventManager().getQueuedEvents();
+//        Assert.assertNotNull("Should contain app AppLaunch event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
+//
+//        agentImpl.applicationForegrounded(e);
+//        assertEquals("Should contain foreground user action events", eventManager.getEventsRecorded(), 2);
+//        queuedEvents = analyticsController.getEventManager().getQueuedEvents();
+//        Assert.assertNotNull("Should contain foreground (app launch) event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
+//
+//        agentImpl.stop();
+//        assertEquals("Should contain lifecycle user action events", eventManager.getEventsRecorded(), 4);
+//        queuedEvents = analyticsController.getEventManager().getQueuedEvents();
+//        Assert.assertNotNull("Should contain app AppLaunch event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
+//
+//
+//        // turn the flag back off
+//        FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
+//        eventManager.empty();
+//        eventStore.clear();
+//    }
+
     @Test
     public void getUUID() throws Exception {
         agentImpl.deviceInformation = null;

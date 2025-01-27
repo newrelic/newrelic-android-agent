@@ -17,7 +17,7 @@ public class ClassRemapperConfigTest {
 
     @Before
     public void setUp() throws Exception {
-        classRemapper = new ClassRemapperConfig(InstrumentationAgent.LOGGER);
+        classRemapper = new ClassRemapperConfig(InstrumentationAgent.LOGGER,true);
     }
 
     @Test
@@ -33,5 +33,18 @@ public class ClassRemapperConfigTest {
     public void getCallSiteReplacements() {
         Assert.assertNotNull(classRemapper.getCallSiteReplacements("",
                 "execute", "([Ljava/lang/Object;)Landroid/os/AsyncTask;"));
+    }
+
+    @Test
+    public void getCallSiteReplaceForLogs() throws ClassNotFoundException {
+        Assert.assertNotNull(classRemapper.getCallSiteReplacements("com/newrelic/agent/android/instrumentation/LogInstrumentation",
+                "v", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I"));
+    }
+
+    @Test
+    public void getCallSiteReplaceForLogsWhenInstrumentationDisabled() throws ClassNotFoundException {
+        classRemapper = new ClassRemapperConfig(InstrumentationAgent.LOGGER,false);
+        Assert.assertEquals(classRemapper.getCallSiteReplacements("com/newrelic/agent/android/instrumentation/LogInstrumentation",
+                "v", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I").size(),0);
     }
 }
