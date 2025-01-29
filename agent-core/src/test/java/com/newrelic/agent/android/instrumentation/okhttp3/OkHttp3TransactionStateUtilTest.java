@@ -53,6 +53,7 @@ public class OkHttp3TransactionStateUtilTest {
         client = new OkHttpClient();
         headers = new ArrayList<>();
         headers.add("X-Custom-Header-1");
+        headers.add("X-CUSTOM-HEADER-2");
         HttpHeaders.getInstance().addHttpHeadersAsAttributes(headers);
     }
 
@@ -124,6 +125,7 @@ public class OkHttp3TransactionStateUtilTest {
 
         Request interceptedRequest = request.newBuilder()
                 .url(request.url().newBuilder().host("httpbin.org").build())
+                .addHeader("X-CUSTOM-HEADER-2", "test-value")
                 .removeHeader(Constants.Network.APPLICATION_ID_HEADER)
                 .build();
 
@@ -140,6 +142,7 @@ public class OkHttp3TransactionStateUtilTest {
         OkHttp3TransactionStateUtil.inspectAndInstrumentResponse(transactionState, response);
         Assert.assertNotEquals(request.url().toString(), transactionState.getUrl());
         Assert.assertEquals(interceptedRequest.url().toString(), transactionState.getUrl());
+        Assert.assertTrue(transactionState.getParams().containsKey("X-CUSTOM-HEADER-2"));
     }
 
     @Test
