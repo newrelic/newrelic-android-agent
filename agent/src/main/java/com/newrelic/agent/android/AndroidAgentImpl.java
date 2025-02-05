@@ -126,6 +126,45 @@ public class AndroidAgentImpl implements
         // update with cached settings
         agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
 
+        initApplicationInformation();
+
+        // Register ourselves with the TraceMachine
+        TraceMachine.setTraceMachineInterface(this);
+
+        agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
+        agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
+        agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
+        agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
+
+        ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
+
+        // used to determine when app backgrounds
+        final UiBackgroundListener backgroundListener;
+        if (Agent.getMonoInstrumentationFlag().equals("YES")) {
+            backgroundListener = new ActivityLifecycleBackgroundListener();
+            if (backgroundListener instanceof Application.ActivityLifecycleCallbacks) {
+                try {
+                    if (context.getApplicationContext() instanceof Application) {
+                        Application application = (Application) context.getApplicationContext();
+                        application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
+                        if (agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin || agentConfiguration.getApplicationFramework() == ApplicationFramework.MAUI) {
+                            ApplicationStateMonitor.getInstance().activityStarted();
+                        }
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+        } else {
+            backgroundListener = new UiBackgroundListener();
+        }
+
+        context.registerComponentCallbacks(backgroundListener);
+
+        setupSession();
+    }
+
+    private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
         if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
             LogReportingConfiguration.reseed();
 
@@ -151,45 +190,6 @@ public class AndroidAgentImpl implements
                 }
             }
         }
-
-        initApplicationInformation();
-
-        // Register ourselves with the TraceMachine
-        TraceMachine.setTraceMachineInterface(this);
-
-        agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
-        agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
-        agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
-        agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
-
-        ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            // used to determine when app backgrounds
-            final UiBackgroundListener backgroundListener;
-            if (Agent.getMonoInstrumentationFlag().equals("YES")) {
-                backgroundListener = new ActivityLifecycleBackgroundListener();
-                if (backgroundListener instanceof Application.ActivityLifecycleCallbacks) {
-                    try {
-                        if (context.getApplicationContext() instanceof Application) {
-                            Application application = (Application) context.getApplicationContext();
-                            application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
-                            if (agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin || agentConfiguration.getApplicationFramework() == ApplicationFramework.MAUI) {
-                                ApplicationStateMonitor.getInstance().activityStarted();
-                            }
-                        }
-                    } catch (Exception e) {
-                        // ignore
-                    }
-                }
-            } else {
-                backgroundListener = new UiBackgroundListener();
-            }
-
-            context.registerComponentCallbacks(backgroundListener);
-        }
-
-        setupSession();
     }
 
     protected void initialize() {
@@ -205,6 +205,8 @@ public class AndroidAgentImpl implements
         Harvest.setHarvestConfiguration(savedState.getHarvestConfiguration());
         Harvest.setHarvestConnectInformation(savedState.getConnectInformation());
         Harvest.addHarvestListener(this);
+
+        startLogReporter(context, agentConfiguration);
 
         Measurements.initialize();
         log.info(MessageFormat.format("New Relic Agent v{0}", Agent.getVersion()));
@@ -632,6 +634,7 @@ public class AndroidAgentImpl implements
         try {
             Agent.setImpl(new AndroidAgentImpl(context, agentConfiguration));
             Agent.start();
+            startLogReporter(context, agentConfiguration);
         } catch (AgentInitializationException e) {
             log.error("Failed to initialize the agent: " + e.toString());
         }
@@ -672,6 +675,7 @@ public class AndroidAgentImpl implements
         }
         if (!NewRelic.isShutdown) {
             start();
+            startLogReporter(context, agentConfiguration);
             AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME);
         }
     }
@@ -683,6 +687,7 @@ public class AndroidAgentImpl implements
         // BackgroundReporting
         if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
             start();
+            startLogReporter(context, agentConfiguration);
             AnalyticsControllerImpl.getInstance().addAttributeUnchecked(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME,true), false);
         }
     }
