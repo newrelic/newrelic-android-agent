@@ -20,6 +20,7 @@ public interface AgentImpl {
     void mergeTransactionData(List<TransactionData> transactionDataList);
 
     String getCrossProcessId();
+    int getCurrentProcessId();
     int getStackTraceLimit();
     int getResponseBodyLimit();
 	

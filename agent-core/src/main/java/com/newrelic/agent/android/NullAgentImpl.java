@@ -49,6 +49,11 @@ public class NullAgentImpl implements AgentImpl {
     }
 
     @Override
+    public int getCurrentProcessId() {
+        return 0;
+    }
+
+    @Override
     public int getStackTraceLimit() {
         return 0;
     }
