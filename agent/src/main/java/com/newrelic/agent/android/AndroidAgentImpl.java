@@ -17,6 +17,7 @@ import android.location.Location;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Looper;
+import android.os.Process;
 import android.os.StatFs;
 import android.text.TextUtils;
 
@@ -137,7 +138,7 @@ public class AndroidAgentImpl implements
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
-
+        startLogReporter(context, agentConfiguration);
         // used to determine when app backgrounds
         final UiBackgroundListener backgroundListener;
         if (Agent.getMonoInstrumentationFlag().equals("YES")) {
@@ -465,6 +466,11 @@ public class AndroidAgentImpl implements
         } finally {
             lock.unlock();
         }
+    }
+
+    @Override
+    public int getCurrentProcessId() {
+        return Process.myPid();
     }
 
     @Override

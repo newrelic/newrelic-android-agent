@@ -56,7 +56,7 @@ public class AnalyticsAttribute {
     public static final String UNHANDLED_NATIVE_EXCEPTION = "unhandledNativeException";
     public static final String NATIVE_CRASH = "nativeCrash";
     public static final String ANR = "ANR";
-
+    public static final String PROCESS_ID_ATTRIBUTE = "processId";
     public static final String EVENT_CATEGORY_ATTRIBUTE = "category";
     public static final String EVENT_NAME_ATTRIBUTE = "name";
     public static final String EVENT_TIMESTAMP_ATTRIBUTE = "timestamp";
