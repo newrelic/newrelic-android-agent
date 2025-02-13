@@ -86,6 +86,11 @@ public class StubAgentImpl implements AgentImpl {
     }
 
     @Override
+    public int getCurrentProcessId() {
+        return 123;
+    }
+
+    @Override
     public int getStackTraceLimit() {
         return stackTraceLimit;
     }
