@@ -1,9 +1,20 @@
 package com.newrelic.agent.android.sessionReplay.models;
 
+import java.util.Map;
+
 public class Attributes{
     public String id;
     public String type;
     public String value;
+    public Map<String, String> metadata;
+
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(Map<String, String> metadata) {
+        this.metadata = metadata;
+    }
 
     public Attributes(String id) {
         this.id = id;
