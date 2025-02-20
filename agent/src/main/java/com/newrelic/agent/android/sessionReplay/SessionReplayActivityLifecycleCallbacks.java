@@ -1,7 +1,11 @@
 package com.newrelic.agent.android.sessionReplay;
 
+import static android.util.Log.println;
+
 import android.app.Activity;
 import android.app.Application;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
@@ -22,14 +26,20 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.CheckedTextView;
+import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.NumberPicker;
+import android.widget.RadioButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.google.gson.Gson;
+import com.newrelic.agent.android.sessionReplay.internal.Curtains;
+import com.newrelic.agent.android.sessionReplay.internal.OnRootViewsChangedListener;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.ChildNode;
 import com.newrelic.agent.android.sessionReplay.models.Data;
@@ -40,6 +50,9 @@ import com.newrelic.agent.android.sessionReplay.models.SessionReplayRoot;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
 
 public class SessionReplayActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
 
@@ -55,6 +68,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
     @Override
     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle bundle) {
+
 
     }
 
@@ -76,7 +90,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     public void onActivityResumed(@NonNull Activity activity) {
         Log.d(TAG, "onActivityResumed: " + activity.getClass().getSimpleName());
 
-        View rootView = activity.getWindow().getDecorView();
+        View rootView = activity.getWindow().getDecorView().getRootView();
         mrootView = new WeakReference(rootView);
 //        if (rootView instanceof ViewGroup) {
 //            logChildViews((ViewGroup) rootView);
@@ -143,6 +157,10 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
                         Log.d(TAG, "jsonPayloadForRRWEB: " + json);
 
+                        SharedPreferences sharedPreferences = activity.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE);
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putString("SessionRepalyFrame", json);
+                        editor.apply();
                     }
                 }
 
@@ -200,6 +218,22 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                         styleContent += "background-color: #" + Integer.toHexString(child.getBackgroundTintList().getColorForState(new int[] {android.R.attr.state_enabled},0)).substring(2) + ";";
                     }
 
+                    if(child instanceof DatePicker) {
+                        ChildNode datePickerElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                        Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                        attributes.setType("date");
+                        datePickerElement.setAttributes(attributes);
+                        childViewNode.getChildNodes().add(datePickerElement);
+                    }
+
+                    if(child instanceof NumberPicker) {
+                        ChildNode numberPickerElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                        Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                        attributes.setType("number");
+                        numberPickerElement.setAttributes(attributes);
+                        childViewNode.getChildNodes().add(numberPickerElement);
+                    }
+
                     if(child instanceof CheckBox){
                        ChildNode checkBoxElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
                        Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
@@ -207,6 +241,27 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                        checkBoxElement.setAttributes(attributes);
                        childViewNode.getChildNodes().add(checkBoxElement);
 
+                    }
+
+
+                    if (child instanceof CheckedTextView) {
+                        ChildNode checkBoxElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                        Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                        attributes.setType("checkbox");
+                        checkBoxElement.setAttributes(attributes);
+                        childViewNode.getChildNodes().add(checkBoxElement);
+                    }
+
+                    if(child instanceof RadioButton){
+                        ChildNode radioButtonElement = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"input",2,null,null,false);
+                        Attributes attributes = new Attributes(String.valueOf(NewRelicIdGenerator.generateId()));
+                        attributes.setType("radio");
+                        //TODO: Add checked attribute
+                        Map<String, String> metadata = new HashMap<>();
+                        metadata.put("checked", String.valueOf(((RadioButton) child).isChecked()));
+                        attributes.setMetadata(metadata);
+                        radioButtonElement.setAttributes(attributes);
+                        childViewNode.getChildNodes().add(radioButtonElement);
                     }
 
                     if (child instanceof TextView) {
@@ -231,7 +286,11 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                     if (child instanceof EditText) {
                         ChildNode textNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"",3,null,null,false);
                         textNode.setType(3);
-                        textNode.setTextContent(((EditText) child).getHint().toString());
+                        if(((EditText) child).getText().toString().isEmpty()) {
+                            if(((EditText) child).getHint() != null) {
+                                textNode.setTextContent(((EditText) child).getHint().toString());
+                            }
+                        }
                         Typeface typeface = ((EditText) child).getTypeface();
                         styleContent += "font-size: " + getPixel(((EditText) child).getTextSize()) + "px; color: #" + Integer.toHexString(((EditText) child).getCurrentTextColor()).substring(2) + ";"+"font-family: "+getFrontFamily(typeface)+";";
                     }
