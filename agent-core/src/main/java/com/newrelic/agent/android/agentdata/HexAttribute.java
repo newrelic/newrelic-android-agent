@@ -52,7 +52,8 @@ public class HexAttribute {
             AnalyticsAttribute.APPLICATION_PLATFORM_VERSION_ATTRIBUTE,
             AnalyticsAttribute.RUNTIME_ATTRIBUTE,
             AnalyticsAttribute.ARCHITECTURE_ATTRIBUTE,
-            AnalyticsAttribute.APP_BUILD_ATTRIBUTE
+            AnalyticsAttribute.APP_BUILD_ATTRIBUTE,
+            AnalyticsAttribute.PROCESS_ID_ATTRIBUTE
     ));
 
     public static final Set<String> HEX_REQUIRED_ATTRIBUTES = new HashSet<String>(Arrays.asList(
