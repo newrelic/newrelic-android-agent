@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.instrumentation.okhttp3;
 
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
@@ -18,6 +19,7 @@ import com.newrelic.agent.android.util.Constants;
 import org.apache.http.HttpStatus;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -56,6 +58,8 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
         } else {
             // update the request state from response (perhaps changed by interceptor)
             Request request = response.request();
+            // add request headers as custom attributes
+            addHeadersAsCustomAttribute(transactionState, request);
             if (request != null && request.url() != null) {
                 String url = request.url().toString();
                 if (!url.isEmpty()) {
@@ -221,6 +225,17 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
         }
 
         return response;
+    }
+
+    public static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
+
+        Map<String, String> headers = new HashMap<>();
+        for (String s : HttpHeaders.getInstance().getHttpHeaders()) {
+            if (request.headers().get(s) != null) {
+                headers.put(HttpHeaders.translateApolloHeader(s), request.headers().get(s));
+            }
+        }
+        transactionState.setParams(headers);
     }
 
 

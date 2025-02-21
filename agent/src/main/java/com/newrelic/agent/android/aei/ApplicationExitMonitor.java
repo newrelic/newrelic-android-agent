@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -264,6 +265,8 @@ public class ApplicationExitMonitor {
         // map the AEI with the session it occurred in (will be translated later)
         if (sessionMeta != null) {
             eventAttributes.put(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, sessionMeta.sessionId);
+        } else {
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_EXIT_STATUS);
         }
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_ID_ATTRIBUTE, UUID.randomUUID().toString());
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_ID_ATTRIBUTE, exitInfo.getPid());
@@ -295,7 +298,7 @@ public class ApplicationExitMonitor {
     @RequiresApi(api = Build.VERSION_CODES.R)
     public Set<Integer> currentPidSet(List<ApplicationExitInfo> applicationExitInfoList) {
         return applicationExitInfoList.stream()
-                .mapToInt(applicationExitInfo -> applicationExitInfo.getPid())
+                .mapToInt(ApplicationExitInfo::getPid)
                 .boxed()
                 .collect(Collectors.toSet());
     }
@@ -315,7 +318,7 @@ public class ApplicationExitMonitor {
         artifacts.forEach(aeiArtifact -> {
             Matcher matcher = regexp.matcher(aeiArtifact.getName());
             if (matcher.matches()) {
-                int pid = Integer.valueOf(matcher.group(1));
+                int pid = Integer.parseInt(Objects.requireNonNull(matcher.group(1)));
                 if (!currentPids.contains(pid)) {
                     aeiArtifact.delete();
                     sessionMapper.erase(pid);

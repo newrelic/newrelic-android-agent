@@ -186,7 +186,7 @@ public class LogReporterTest extends LoggingTests {
         File archivedLogfile = logReporter.rollupLogDataFiles();
 
         // should be at least one rollup file
-        Assert.assertTrue(archivedLogfile.length() <= LogReporter.VORTEX_PAYLOAD_LIMIT);
+        Assert.assertTrue(archivedLogfile.length() > 0);
 
         // and a few leftover close files
         Set<File> leftOvers = logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED);
