@@ -21,9 +21,12 @@ import android.graphics.drawable.VectorDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewSpyInternal;
 import android.view.ViewTreeObserver;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CheckedTextView;
@@ -39,7 +42,13 @@ import androidx.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.newrelic.agent.android.sessionReplay.internal.Curtains;
+import com.newrelic.agent.android.sessionReplay.internal.DispatchFunction;
+import com.newrelic.agent.android.sessionReplay.internal.DispatchState;
 import com.newrelic.agent.android.sessionReplay.internal.OnRootViewsChangedListener;
+import com.newrelic.agent.android.sessionReplay.internal.OnTouchEventListener;
+import com.newrelic.agent.android.sessionReplay.internal.TouchEventInterceptor;
+import com.newrelic.agent.android.sessionReplay.internal.WindowCallbackWrapper;
+import com.newrelic.agent.android.sessionReplay.internal.WindowSpy;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.ChildNode;
 import com.newrelic.agent.android.sessionReplay.models.Data;
@@ -89,6 +98,22 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
         Log.d(TAG, "onActivityResumed: " + activity.getClass().getSimpleName());
+
+        Curtains.getOnRootViewsChangedListeners().add(new OnRootViewsChangedListener() {
+            @Override
+            public void onRootViewsChanged(View view, boolean added) {
+                Log.d(TAG, "Root View Changed in Listener");
+                Window window = Windows.getPhoneWindowForView(view);
+                WindowCallbackWrapper.getListeners(window).getTouchEventInterceptors().add(new OnTouchEventListener() {
+                                                                                               @Override
+                                                                                               public void onTouchEvent(MotionEvent motionEvent) {
+                                                                                                   Log.d(TAG, "Received Motion Event");
+                                                                                               }
+                                                                                           }
+                );
+
+            }
+        });
 
         View rootView = activity.getWindow().getDecorView().getRootView();
         mrootView = new WeakReference(rootView);

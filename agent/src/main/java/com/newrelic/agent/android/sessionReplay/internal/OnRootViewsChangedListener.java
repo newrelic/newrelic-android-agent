@@ -16,12 +16,3 @@ public interface OnRootViewsChangedListener {
     void onRootViewsChanged(View view, boolean added);
 }
 
-@FunctionalInterface
-interface DispatchFunction<T> {
-    DispatchState dispatch(T event);
-}
-
-enum DispatchState {
-    Consumed,
-    NotConsumed
-}
