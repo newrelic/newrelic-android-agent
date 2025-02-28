@@ -55,6 +55,10 @@ import com.newrelic.agent.android.sessionReplay.models.Data;
 import com.newrelic.agent.android.sessionReplay.models.InitialOffset;
 import com.newrelic.agent.android.sessionReplay.models.Node;
 import com.newrelic.agent.android.sessionReplay.models.SessionReplayRoot;
+import com.newrelic.agent.android.sessionReplay.models.Touch;
+import com.newrelic.agent.android.sessionReplay.models.TouchData;
+import com.newrelic.agent.android.sessionReplay.models.TouchMoveData;
+import com.newrelic.agent.android.sessionReplay.models.TouchUpDownData;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
@@ -67,13 +71,15 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
 
     ArrayList<SessionReplayRoot> sessionReplayRoots = new ArrayList<>();
-
+    ArrayList<Touch> touches = new ArrayList<>();
 
 
     WeakReference mrootView;
     private static final String TAG = "SessionReplayActivityLifecycleCallbacks";
     int i  = 0 ;
     private float density;
+    private long firstTimestamp = 0;
+    private int currentTouchId = -1;
 
     @Override
     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle bundle) {
@@ -98,6 +104,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
         Log.d(TAG, "onActivityResumed: " + activity.getClass().getSimpleName());
+        firstTimestamp = System.currentTimeMillis();
 
         Curtains.getOnRootViewsChangedListeners().add(new OnRootViewsChangedListener() {
             @Override
@@ -105,11 +112,33 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 Log.d(TAG, "Root View Changed in Listener");
                 Window window = Windows.getPhoneWindowForView(view);
                 WindowCallbackWrapper.getListeners(window).getTouchEventInterceptors().add(new OnTouchEventListener() {
-                                                                                               @Override
-                                                                                               public void onTouchEvent(MotionEvent motionEvent) {
-                                                                                                   Log.d(TAG, "Received Motion Event");
-                                                                                               }
-                                                                                           }
+                       @Override
+                       public void onTouchEvent(MotionEvent motionEvent) {
+//                           Log.d(TAG, "Received Motion Event: " + motionEvent.toString());
+                           long timestamp = System.currentTimeMillis();
+                           MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
+                           motionEvent.getPointerCoords(0, pointerCoords);
+
+                           if(currentTouchId == -1) {
+                               currentTouchId = NewRelicIdGenerator.generateId();
+                           }
+
+                           if(motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                               TouchData touchData = new TouchUpDownData(2, 7, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
+                               Touch touch = new Touch(timestamp, 3, touchData);
+                               touches.add(touch);
+                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
+                               TouchData touchData = new TouchMoveData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
+                               Touch touch = new Touch(timestamp, 3, touchData);
+                               touches.add(touch);
+                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP) {
+                               TouchData touchData= new TouchUpDownData(2, 9, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
+                               Touch touch = new Touch(timestamp, 3, touchData);
+                               touches.add(touch);
+                               currentTouchId = -1;
+                           }
+                       }
+                   }
                 );
 
             }
@@ -169,6 +198,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
                     i++;
                     Log.d(TAG, "OnDrawListener: " + "onDraw");
+//                    sessionReplayRoots.add(sessionReplayRoot);
                     if (rootView instanceof ViewGroup) {
                         logChildViews((ViewGroup) rootView,htmlChildNode,styleChildNode);
 
@@ -178,20 +208,19 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
                         sessionReplayRoots.add(sessionReplayRoot);
 
-                        String json = new Gson().toJson(sessionReplayRoot);
+                        String json = new Gson().toJson(sessionReplayRoots);
+                        String touchJson = new Gson().toJson(touches);
 
+                        Log.d(TAG, "first timestamp: " + firstTimestamp);
                         Log.d(TAG, "jsonPayloadForRRWEB: " + json);
+                        Log.d(TAG, "touchJsonPayloadForRRWEB: " + touchJson);
 
                         SharedPreferences sharedPreferences = activity.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE);
                         SharedPreferences.Editor editor = sharedPreferences.edit();
-                        editor.putString("SessionRepalyFrame", json);
+                        editor.putString("SessionReplayFrame", json);
                         editor.apply();
                     }
                 }
-
-
-
-
         });
     }
 
