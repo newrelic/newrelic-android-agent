@@ -65,6 +65,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_HEX_FAILED_UPLOAD = SUPPORTABILITY_HEX + "FailedUpload";
 
     public static final String SUPPORTABILITY_MOBILE_ANDROID = "Supportability/Mobile/Android/";
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_JETPACK_COMPOSE = SUPPORTABILITY_MOBILE_ANDROID + "JetPackCompose";
     public static final String SUPPORTABILITY_NDK = SUPPORTABILITY_MOBILE_ANDROID + "NDK/";
     public static final String SUPPORTABILITY_NDK_INIT = SUPPORTABILITY_NDK + "Init";
     public static final String SUPPORTABILITY_NDK_START = SUPPORTABILITY_NDK + "Start";
