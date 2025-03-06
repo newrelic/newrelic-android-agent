@@ -1,27 +1,35 @@
 package com.newrelic.agent.android.sessionReplay;
 
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.CheckedTextView;
+import android.widget.DatePicker;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.NumberPicker;
+import android.widget.RadioButton;
+import android.widget.TextView;
+
+import com.newrelic.agent.android.sessionReplay.models.Attributes;
+import com.newrelic.agent.android.sessionReplay.models.ChildNode;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SessionReplayCapture {
-    private SessionReplayThingyRecorder recorder;
 
-    public SessionReplayThingy capture(View rootView) {
-        recorder = new SessionReplayThingyRecorder(rootView.getResources().getDisplayMetrics().density);
-        return recursivelyCapture(rootView);
+    public SessionReplayFrame capture(View rootView) {
+        recursivelyCapture(rootView);
     }
 
-    private SessionReplayThingy recursivelyCapture(View rootView) {
-        ArrayList<SessionReplayThingy> childThingies = new ArrayList<>();
+    private void recursivelyCapture(View rootView) {
 
-        if(rootView instanceof ViewGroup) {
-            for(int i = 0; i < ((ViewGroup) rootView).getChildCount(); i++) {
-                childThingies.add(recursivelyCapture(((ViewGroup) rootView).getChildAt(i)));
-            }
-        }
-        return recorder.recordView(rootView, childThingies);
     }
 }
 
