@@ -1,7 +1,5 @@
 package com.newrelic.agent.android.sessionReplay;
 
-import static android.util.Log.println;
-
 import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
@@ -11,23 +9,20 @@ import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.Typeface;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.RippleDrawable;
-import android.graphics.drawable.VectorDrawable;
 import android.os.Bundle;
+import android.text.method.Touch;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewSpyInternal;
 import android.view.ViewTreeObserver;
 import android.view.Window;
-import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CheckedTextView;
 import android.widget.DatePicker;
@@ -42,25 +37,23 @@ import androidx.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.newrelic.agent.android.sessionReplay.internal.Curtains;
-import com.newrelic.agent.android.sessionReplay.internal.DispatchFunction;
-import com.newrelic.agent.android.sessionReplay.internal.DispatchState;
 import com.newrelic.agent.android.sessionReplay.internal.OnRootViewsChangedListener;
 import com.newrelic.agent.android.sessionReplay.internal.OnTouchEventListener;
-import com.newrelic.agent.android.sessionReplay.internal.TouchEventInterceptor;
 import com.newrelic.agent.android.sessionReplay.internal.WindowCallbackWrapper;
-import com.newrelic.agent.android.sessionReplay.internal.WindowSpy;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.ChildNode;
 import com.newrelic.agent.android.sessionReplay.models.Data;
 import com.newrelic.agent.android.sessionReplay.models.InitialOffset;
 import com.newrelic.agent.android.sessionReplay.models.Node;
+import com.newrelic.agent.android.sessionReplay.models.RecordedTouchData;
 import com.newrelic.agent.android.sessionReplay.models.SessionReplayRoot;
-import com.newrelic.agent.android.sessionReplay.models.Touch;
-import com.newrelic.agent.android.sessionReplay.models.TouchData;
-import com.newrelic.agent.android.sessionReplay.models.TouchMoveData;
-import com.newrelic.agent.android.sessionReplay.models.TouchUpDownData;
+import com.newrelic.agent.android.sessionReplay.models.RRWebTouch;
+import com.newrelic.agent.android.sessionReplay.models.RRWebTouchData;
+import com.newrelic.agent.android.sessionReplay.models.RRWebTouchMoveData;
+import com.newrelic.agent.android.sessionReplay.models.RRWebRRWebTouchUpDownData;
 
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,7 +64,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
 
     ArrayList<SessionReplayRoot> sessionReplayRoots = new ArrayList<>();
-    ArrayList<Touch> touches = new ArrayList<>();
+    ArrayList<RRWebTouch> RRWebTouches = new ArrayList<>();
 
 
     WeakReference mrootView;
@@ -80,6 +73,8 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     private float density;
     private long firstTimestamp = 0;
     private int currentTouchId = -1;
+    private ArrayList<TouchTracker> touchTrackers = new ArrayList<>();
+    private TouchTracker currentTouchTracker = null;
 
     @Override
     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle bundle) {
@@ -123,20 +118,39 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                                currentTouchId = NewRelicIdGenerator.generateId();
                            }
 
-                           if(motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                               TouchData touchData = new TouchUpDownData(2, 7, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
-                               Touch touch = new Touch(timestamp, 3, touchData);
-                               touches.add(touch);
+                           RecordedTouchData moveTouch;
+                           if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                               if (currentTouchTracker == null) {
+                                   moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
+                                   currentTouchTracker = new TouchTracker(moveTouch);
+                               }
                            } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
-                               TouchData touchData = new TouchMoveData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
-                               Touch touch = new Touch(timestamp, 3, touchData);
-                               touches.add(touch);
-                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP) {
-                               TouchData touchData= new TouchUpDownData(2, 9, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
-                               Touch touch = new Touch(timestamp, 3, touchData);
-                               touches.add(touch);
+                               if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
+                                   moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
+                                   SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
+                               }
+                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
+                               moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
+                               currentTouchTracker.addEndTouch(moveTouch);
+                               touchTrackers.add(SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker);
+                               currentTouchTracker = null;
                                currentTouchId = -1;
                            }
+
+//                           if(motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
+//                               RRWebTouchData touchData = new RRWebRRWebTouchUpDownData(2, 7, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
+//                               RRWebTouch RRWebTouch = new RRWebTouch(timestamp, 3, touchData);
+//                               RRWebTouches.add(RRWebTouch);
+//                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
+//                               RRWebTouchData touchData = new RRWebTouchMoveData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
+//                               RRWebTouch RRWebTouch = new RRWebTouch(timestamp, 3, touchData);
+//                               RRWebTouches.add(RRWebTouch);
+//                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP) {
+//                               RRWebTouchData touchData= new RRWebRRWebTouchUpDownData(2, 9, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
+//                               RRWebTouch RRWebTouch = new RRWebTouch(timestamp, 3, touchData);
+//                               RRWebTouches.add(RRWebTouch);
+//                               currentTouchId = -1;
+//                           }
                        }
                    }
                 );
@@ -209,7 +223,13 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                         sessionReplayRoots.add(sessionReplayRoot);
 
                         String json = new Gson().toJson(sessionReplayRoots);
-                        String touchJson = new Gson().toJson(touches);
+//                        String touchJson = new Gson().toJson(RRWebTouches);
+
+                        ArrayList<RRWebTouch> totalTouches = new ArrayList<>();
+                        for(TouchTracker touchTracker : touchTrackers) {
+                            totalTouches.addAll(touchTracker.processTouchData());
+                        }
+                        String touchJson = new Gson().toJson(totalTouches);
 
                         Log.d(TAG, "first timestamp: " + firstTimestamp);
                         Log.d(TAG, "jsonPayloadForRRWEB: " + json);
