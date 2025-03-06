@@ -4,19 +4,11 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewTreeObserver;
 
-import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
-
 import java.util.Map;
 import java.util.WeakHashMap;
 
 public class ViewDrawInterceptor {
     private WeakHashMap<View, ViewTreeObserver.OnDrawListener> decorViewListeners = new WeakHashMap<>();
-    SessionReplayCapture capture = new SessionReplayCapture();
-    private OnFrameTakenListener listener;
-
-    public ViewDrawInterceptor(OnFrameTakenListener listener) {
-        this.listener = listener;
-    }
 
     public void Intercept(View[] decorViews) {
         stopInterceptAndRemove(decorViews);
@@ -24,11 +16,8 @@ public class ViewDrawInterceptor {
             @Override
             public void onDraw() {
                 // Start walking the view tree
-                SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[0]), System.currentTimeMillis() * 1000);
-
-                // Create a SessionReplayFrame, then add it to a thing to wait for processing
-                ViewDrawInterceptor.this.listener.onFrameTaken(frame);
             }
+
         };
 
         for(View decorView : decorViews) {
