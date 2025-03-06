@@ -1,12 +1,12 @@
 package com.newrelic.agent.android.sessionReplay.models;
 
-public class Touch {
+public class RRWebTouch {
 
     public long timestamp;
     public int type = 3;
-    public TouchData data;
+    public RRWebTouchData data;
 
-    public Touch(long timestamp, int type, TouchData data) {
+    public RRWebTouch(long timestamp, int type, RRWebTouchData data) {
         this.timestamp = timestamp;
         this.type = type;
         this.data = data;
