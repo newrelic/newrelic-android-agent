@@ -121,15 +121,18 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                            RecordedTouchData moveTouch;
                            if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
                                if (currentTouchTracker == null) {
+                                   Log.d(TAG, "Adding Start Event");
                                    moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                                    currentTouchTracker = new TouchTracker(moveTouch);
                                }
                            } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
                                if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
+                                   Log.d(TAG, "Adding Move Event");
                                    moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
                                    SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
                                }
                            } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
+                               Log.d(TAG, "Adding End Event");
                                moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                                currentTouchTracker.addEndTouch(moveTouch);
                                touchTrackers.add(SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker);
@@ -249,7 +252,16 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
             View child = viewGroup.getChildAt(i);
                 if(shouldPrintView(child)) {
 
-                    int id = NewRelicIdGenerator.generateId();
+//                    int id = NewRelicIdGenerator.generateId();
+                    int keyCode = "NewRelicSessionReplay".hashCode();
+                    Integer idValue = null;
+                    idValue = (Integer) child.getTag(keyCode);
+                    if(idValue == null) {
+                        idValue = Integer.valueOf(NewRelicIdGenerator.generateId());
+                        child.setTag(keyCode, idValue);
+                    }
+                    int id = idValue.intValue();
+
                     String attributeId =   child.getClass().getSimpleName()+"-"+id;
 
                     int[] location = new int[2];
