@@ -4,6 +4,8 @@ import android.app.Application;
 import android.os.Handler;
 import android.view.View;
 
+import com.newrelic.agent.android.sessionReplay.internal.Curtains;
+import com.newrelic.agent.android.sessionReplay.internal.RootViewsSpy;
 import com.newrelic.agent.android.sessionReplay.internal.WindowManagerSpy;
 
 public class SessionReplay {
@@ -11,11 +13,13 @@ public class SessionReplay {
     private Handler uiThreadHandler;
     private SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
     private ViewDrawInterceptor viewDrawInterceptor = new ViewDrawInterceptor();
+    private RootViewsSpy spy;
 
     public SessionReplay(Application application, Handler uiThreadHandler) {
         this.application = application;
         this.uiThreadHandler = uiThreadHandler;
 
+        this.spy = RootViewsSpy.install();
 
         this.sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
     }
@@ -41,7 +45,7 @@ public class SessionReplay {
         uiThreadHandler.post(new Runnable() {
             @Override
             public void run() {
-                View[] decorViews = WindowManagerSpy.windowManagerMViewsArray();
+                View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
                 viewDrawInterceptor.Intercept(decorViews);
             }
         });
@@ -53,6 +57,6 @@ public class SessionReplay {
             public void run() {
                 viewDrawInterceptor.stopIntercept();
             }
-        })
+        });
     }
 }
