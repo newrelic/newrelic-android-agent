@@ -9,6 +9,7 @@ import java.util.WeakHashMap;
 
 public class ViewDrawInterceptor {
     private WeakHashMap<View, ViewTreeObserver.OnDrawListener> decorViewListeners = new WeakHashMap<>();
+    SessionReplayCapture capture = new SessionReplayCapture();
 
     public void Intercept(View[] decorViews) {
         stopInterceptAndRemove(decorViews);
@@ -16,6 +17,7 @@ public class ViewDrawInterceptor {
             @Override
             public void onDraw() {
                 // Start walking the view tree
+                capture.capture(decorViews[0]);
             }
 
         };
