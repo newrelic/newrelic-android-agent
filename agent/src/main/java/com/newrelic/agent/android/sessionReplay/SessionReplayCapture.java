@@ -23,13 +23,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SessionReplayCapture {
+    private SessionReplayThingyRecorder recorder;
 
-    public SessionReplayFrame capture(View rootView) {
-        recursivelyCapture(rootView);
+    public SessionReplayThingy capture(View rootView) {
+        recorder = new SessionReplayThingyRecorder(rootView.getResources().getDisplayMetrics().density);
+        return recursivelyCapture(rootView);
     }
 
-    private void recursivelyCapture(View rootView) {
+    private SessionReplayThingy recursivelyCapture(View rootView) {
+        SessionReplayThingy viewThingy = recorder.recordView(rootView);
 
+        return viewThingy;
     }
 }
 
