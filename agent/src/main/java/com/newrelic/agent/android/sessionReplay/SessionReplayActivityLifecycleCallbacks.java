@@ -13,7 +13,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.Bundle;
-import android.text.method.Touch;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -47,6 +46,7 @@ import com.newrelic.agent.android.sessionReplay.models.Node;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTouch;
 import com.newrelic.agent.android.sessionReplay.models.RecordedTouchData;
 import com.newrelic.agent.android.sessionReplay.models.SessionReplayRoot;
+import com.newrelic.agent.android.sessionReplay.models.RRWebTouch;
 import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 
 import java.lang.ref.WeakReference;
@@ -54,11 +54,11 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
 
 
 public class SessionReplayActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
     ArrayList<SessionReplayRoot> sessionReplayRoots = new ArrayList<>();
+
     ArrayList<RRWebTouch> RRWebTouches = new ArrayList<>();
     ArrayList<Touch> touches = new ArrayList<>();
     private static AgentConfiguration agentConfiguration = new AgentConfiguration();
@@ -142,20 +142,6 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                                currentTouchId = -1;
                            }
 
-//                           if(motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
-//                               RRWebTouchData touchData = new RRWebRRWebTouchUpDownData(2, 7, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
-//                               RRWebTouch RRWebTouch = new RRWebTouch(timestamp, 3, touchData);
-//                               RRWebTouches.add(RRWebTouch);
-//                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
-//                               RRWebTouchData touchData = new RRWebTouchMoveData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
-//                               RRWebTouch RRWebTouch = new RRWebTouch(timestamp, 3, touchData);
-//                               RRWebTouches.add(RRWebTouch);
-//                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP) {
-//                               RRWebTouchData touchData= new RRWebRRWebTouchUpDownData(2, 9, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y));
-//                               RRWebTouch RRWebTouch = new RRWebTouch(timestamp, 3, touchData);
-//                               RRWebTouches.add(RRWebTouch);
-//                               currentTouchId = -1;
-//                           }
                        }
                    }
                 );
@@ -169,82 +155,83 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 //            logChildViews((ViewGroup) rootView);
 //        }
 
-        density = activity.getResources().getDisplayMetrics().density;
+//        density = activity.getResources().getDisplayMetrics().density;
 
-        int heightPixels = activity.getResources().getDisplayMetrics().heightPixels;
-
-        int widthPixels = activity.getResources().getDisplayMetrics().widthPixels;
-
-        Log.d(TAG, "onActivityResumed: " + "Height: " + heightPixels + " Width: " + widthPixels + " Density: " + density);
-
-
-        Log.d(TAG, "OnDrawListener: " + rootView.getClass().getSimpleName());
-        rootView.getViewTreeObserver().addOnDrawListener(new ViewTreeObserver.OnDrawListener() {
-            @Override
-            public void onDraw() {
-
-
-                    SessionReplayRoot sessionReplayRoot = new SessionReplayRoot(2,null,System.currentTimeMillis());
-
-                    Node node = new Node(0,NewRelicIdGenerator.generateId(),new ArrayList<>());
-
-                    InitialOffset initialOffset = new InitialOffset(0,0);
-
-                    ChildNode htmlChildNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"html",2,null,null,false);
-
-                    ChildNode bodyHeaderNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"head",2,null,null,false);
-
-                    ChildNode styleNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"style",2,null,null,false);
-
-                    ChildNode bodyNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"body",2,null,null,false);
-
-                    bodyHeaderNode.getChildNodes().add(styleNode);
-
-                    bodyNode.getChildNodes().add(bodyHeaderNode);
-
-                    htmlChildNode.getChildNodes().add(bodyNode);
-
-                    node.getChildNodes().add(htmlChildNode);
-
-                    Data data = new Data(initialOffset,node);
-
-                    sessionReplayRoot.setData(data);
-
-                    ChildNode styleChildNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"",3,null,"",true);
-
-
-
-
-                    i++;
-                    Log.d(TAG, "OnDrawListener: " + "onDraw");
-//                    sessionReplayRoots.add(sessionReplayRoot);
-                    if (rootView instanceof ViewGroup) {
-                        logChildViews((ViewGroup) rootView,htmlChildNode,styleChildNode);
-
-
-                        styleNode.getChildNodes().add(styleChildNode);
-
-
-                        sessionReplayRoots.add(sessionReplayRoot);
-
-                        String json = new Gson().toJson(sessionReplayRoots);
-//                        String touchJson = new Gson().toJson(RRWebTouches);
-
-                        ArrayList<RRWebTouch> totalTouches = new ArrayList<>();
-                        for(TouchTracker touchTracker : touchTrackers) {
-                            totalTouches.addAll(touchTracker.processTouchData());
-                        }
-                        String touchJson = new Gson().toJson(totalTouches);
-
-                        Log.d(TAG, "first timestamp: " + firstTimestamp);
-                        Log.d(TAG, "jsonPayloadForRRWEB: " + json);
-                        Log.d(TAG, "touchJsonPayloadForRRWEB: " + touchJson);
-
-                        SessionReplayStore sessionReplayStore = new SharedPrefsSessionReplayStore(activity);
-                        sessionReplayStore.store(json);
-                    }
-                }
-        });
+//        int heightPixels = activity.getResources().getDisplayMetrics().heightPixels;
+//
+//        int widthPixels = activity.getResources().getDisplayMetrics().widthPixels;
+//
+//        Log.d(TAG, "onActivityResumed: " + "Height: " + heightPixels + " Width: " + widthPixels + " Density: " + density);
+//
+//
+//        Log.d(TAG, "OnDrawListener: " + rootView.getClass().getSimpleName());
+//        rootView.getViewTreeObserver().addOnDrawListener(new ViewTreeObserver.OnDrawListener() {
+//            @Override
+//            public void onDraw() {
+//
+//
+//                    SessionReplayRoot sessionReplayRoot = new SessionReplayRoot(2,null,System.currentTimeMillis());
+//
+//                    Node node = new Node(0,NewRelicIdGenerator.generateId(),new ArrayList<>());
+//
+//                    InitialOffset initialOffset = new InitialOffset(0,0);
+//
+//                    ChildNode htmlChildNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"html",2,null,null,false);
+//
+//                    ChildNode bodyHeaderNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"head",2,null,null,false);
+//
+//                    ChildNode styleNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"style",2,null,null,false);
+//
+//                    ChildNode bodyNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"body",2,null,null,false);
+//
+//                    bodyHeaderNode.getChildNodes().add(styleNode);
+//
+//                    bodyNode.getChildNodes().add(bodyHeaderNode);
+//
+//                    htmlChildNode.getChildNodes().add(bodyNode);
+//
+//                    node.getChildNodes().add(htmlChildNode);
+//
+//                    Data data = new Data(initialOffset,node);
+//
+//                    sessionReplayRoot.setData(data);
+//
+//                    ChildNode styleChildNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"",3,null,"",true);
+//
+//
+//
+//
+//                    i++;
+//                    Log.d(TAG, "OnDrawListener: " + "onDraw");
+////                    sessionReplayRoots.add(sessionReplayRoot);
+//                    if (rootView instanceof ViewGroup) {
+//                        logChildViews((ViewGroup) rootView,htmlChildNode,styleChildNode);
+//
+//
+//                        styleNode.getChildNodes().add(styleChildNode);
+//
+//
+//                        sessionReplayRoots.add(sessionReplayRoot);
+//
+//                        String json = new Gson().toJson(sessionReplayRoots);
+//
+//                        ArrayList<RRWebTouch> totalTouches = new ArrayList<>();
+//                        for(TouchTracker touchTracker : touchTrackers) {
+//                            totalTouches.addAll(touchTracker.processTouchData());
+//                        }
+//                        String touchJson = new Gson().toJson(totalTouches);
+//
+//                        Log.d(TAG, "first timestamp: " + firstTimestamp);
+//                        Log.d(TAG, "jsonPayloadForRRWEB: " + json);
+//                        Log.d(TAG, "touchJsonPayloadForRRWEB: " + touchJson);
+//
+//                        SharedPreferences sharedPreferences = activity.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE);
+//                        SharedPreferences.Editor editor = sharedPreferences.edit();
+//                        editor.putString("SessionReplayFrame", json);
+//                        editor.apply();
+//                    }
+//                }
+//        });
     }
 
     private void logChildViews(ViewGroup viewGroup,ChildNode htmlChildNode,ChildNode styleNode) {
