@@ -17,9 +17,11 @@ import android.location.Location;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Looper;
+import android.os.Process;
 import android.os.StatFs;
 import android.text.TextUtils;
 
+import com.newrelic.agent.android.aei.ApplicationExitMonitor;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
@@ -69,6 +71,7 @@ import com.newrelic.agent.android.stores.SharedPrefsStore;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
+import com.newrelic.agent.android.util.ComposeChecker;
 import com.newrelic.agent.android.util.Connectivity;
 import com.newrelic.agent.android.util.Encoder;
 import com.newrelic.agent.android.util.OfflineStorage;
@@ -127,6 +130,46 @@ public class AndroidAgentImpl implements
         // update with cached settings
         agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
 
+        initApplicationInformation();
+
+        // Register ourselves with the TraceMachine
+        TraceMachine.setTraceMachineInterface(this);
+
+        agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
+        agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
+        agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
+        agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
+        agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
+
+        ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
+        startLogReporter(context, agentConfiguration);
+        // used to determine when app backgrounds
+        final UiBackgroundListener backgroundListener;
+        if (Agent.getMonoInstrumentationFlag().equals("YES")) {
+            backgroundListener = new ActivityLifecycleBackgroundListener();
+            if (backgroundListener instanceof Application.ActivityLifecycleCallbacks) {
+                try {
+                    if (context.getApplicationContext() instanceof Application) {
+                        Application application = (Application) context.getApplicationContext();
+                        application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
+                        if (agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin || agentConfiguration.getApplicationFramework() == ApplicationFramework.MAUI) {
+                            ApplicationStateMonitor.getInstance().activityStarted();
+                        }
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+        } else {
+            backgroundListener = new UiBackgroundListener();
+        }
+
+        context.registerComponentCallbacks(backgroundListener);
+
+        setupSession();
+    }
+
+    private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
         if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
             LogReportingConfiguration.reseed();
 
@@ -152,46 +195,6 @@ public class AndroidAgentImpl implements
                 }
             }
         }
-
-        initApplicationInformation();
-
-        // Register ourselves with the TraceMachine
-        TraceMachine.setTraceMachineInterface(this);
-
-        agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
-        agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
-        agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
-        agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
-        agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
-
-        ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            // used to determine when app backgrounds
-            final UiBackgroundListener backgroundListener;
-            if (Agent.getMonoInstrumentationFlag().equals("YES")) {
-                backgroundListener = new ActivityLifecycleBackgroundListener();
-                if (backgroundListener instanceof Application.ActivityLifecycleCallbacks) {
-                    try {
-                        if (context.getApplicationContext() instanceof Application) {
-                            Application application = (Application) context.getApplicationContext();
-                            application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
-                            if (agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin || agentConfiguration.getApplicationFramework() == ApplicationFramework.MAUI) {
-                                ApplicationStateMonitor.getInstance().activityStarted();
-                            }
-                        }
-                    } catch (Exception e) {
-                        // ignore
-                    }
-                }
-            } else {
-                backgroundListener = new UiBackgroundListener();
-            }
-
-            context.registerComponentCallbacks(backgroundListener);
-        }
-
-        setupSession();
     }
 
     protected void initialize() {
@@ -207,6 +210,8 @@ public class AndroidAgentImpl implements
         Harvest.setHarvestConfiguration(savedState.getHarvestConfiguration());
         Harvest.setHarvestConnectInformation(savedState.getConnectInformation());
         Harvest.addHarvestListener(this);
+
+        startLogReporter(context, agentConfiguration);
 
         Measurements.initialize();
         log.info(MessageFormat.format("New Relic Agent v{0}", Agent.getVersion()));
@@ -314,13 +319,8 @@ public class AndroidAgentImpl implements
             final StatFs rootStatFs = new StatFs(Environment.getRootDirectory().getAbsolutePath());
             final StatFs externalStatFs = new StatFs(Environment.getExternalStorageDirectory().getAbsolutePath());
 
-            if (Build.VERSION.SDK_INT >= 18) {
-                free[0] = rootStatFs.getAvailableBlocksLong() * rootStatFs.getBlockSizeLong();
-                free[1] = externalStatFs.getAvailableBlocksLong() * rootStatFs.getBlockSizeLong();
-            } else {
-                free[0] = rootStatFs.getAvailableBlocks() * rootStatFs.getBlockSize();
-                free[1] = externalStatFs.getAvailableBlocks() * externalStatFs.getBlockSize();
-            }
+            free[0] = rootStatFs.getAvailableBlocksLong() * rootStatFs.getBlockSizeLong();
+            free[1] = externalStatFs.getAvailableBlocksLong() * rootStatFs.getBlockSizeLong();
         } catch (Exception e) {
             AgentHealth.noticeException(e);
         } finally {
@@ -473,6 +473,11 @@ public class AndroidAgentImpl implements
     }
 
     @Override
+    public int getCurrentProcessId() {
+        return Process.myPid();
+    }
+
+    @Override
     public int getStackTraceLimit() {
         lock.lock();
         try {
@@ -513,6 +518,10 @@ public class AndroidAgentImpl implements
                 UserActionFacade.getInstance().recordUserAction(UserActionType.AppLaunch);
             }
 
+            //check if Compose is used for app or not
+            if(ComposeChecker.isComposeUsed(context)) {
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_JETPACK_COMPOSE);
+            }
 
         } else {
             stop(false);
@@ -525,6 +534,7 @@ public class AndroidAgentImpl implements
     }
 
     void stop(boolean finalSendData) {
+
         if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
             // assume some user action caused the agent to go to background
             UserActionFacade.getInstance().recordUserAction(UserActionType.AppBackground);
@@ -638,6 +648,7 @@ public class AndroidAgentImpl implements
         try {
             Agent.setImpl(new AndroidAgentImpl(context, agentConfiguration));
             Agent.start();
+            startLogReporter(context, agentConfiguration);
         } catch (AgentInitializationException e) {
             log.error("Failed to initialize the agent: " + e.toString());
         }
@@ -669,19 +680,29 @@ public class AndroidAgentImpl implements
     @Override
     public void applicationForegrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application foregrounded");
-        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (!NewRelic.isShutdown) {
-                start();
+
+        // BackgroundReporting
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if(NewRelic.isStarted()) {
+                stop();
             }
+        }
+        if (!NewRelic.isShutdown) {
+            start();
+            startLogReporter(context, agentConfiguration);
+            AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME);
         }
     }
 
     @Override
     public void applicationBackgrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application backgrounded");
-        //BackgroundReporting
-        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
             stop();
+        // BackgroundReporting
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            start();
+            startLogReporter(context, agentConfiguration);
+            AnalyticsControllerImpl.getInstance().addAttributeUnchecked(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME,true), false);
         }
     }
 
@@ -866,6 +887,8 @@ public class AndroidAgentImpl implements
             if (agentConfiguration.getApplicationExitConfiguration().isEnabled()) {
                 new ApplicationExitMonitor(context).harvestApplicationExitInfo();
             } else {
+                // removing the session Map as the feature is disabled
+                new ApplicationExitMonitor(context).resetSessionMap();
                 log.debug("ApplicationExitReporting feature is enabled locally, but disabled in remote configuration.");
             }
         }

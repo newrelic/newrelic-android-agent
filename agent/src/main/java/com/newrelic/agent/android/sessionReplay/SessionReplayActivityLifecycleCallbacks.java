@@ -2,8 +2,6 @@ package com.newrelic.agent.android.sessionReplay;
 
 import android.app.Activity;
 import android.app.Application;
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
@@ -36,6 +34,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.google.gson.Gson;
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.internal.Curtains;
 import com.newrelic.agent.android.sessionReplay.internal.OnRootViewsChangedListener;
 import com.newrelic.agent.android.sessionReplay.internal.OnTouchEventListener;
@@ -45,15 +44,12 @@ import com.newrelic.agent.android.sessionReplay.models.ChildNode;
 import com.newrelic.agent.android.sessionReplay.models.Data;
 import com.newrelic.agent.android.sessionReplay.models.InitialOffset;
 import com.newrelic.agent.android.sessionReplay.models.Node;
+import com.newrelic.agent.android.sessionReplay.models.RRWebTouch;
 import com.newrelic.agent.android.sessionReplay.models.RecordedTouchData;
 import com.newrelic.agent.android.sessionReplay.models.SessionReplayRoot;
-import com.newrelic.agent.android.sessionReplay.models.RRWebTouch;
-import com.newrelic.agent.android.sessionReplay.models.RRWebTouchData;
-import com.newrelic.agent.android.sessionReplay.models.RRWebTouchMoveData;
-import com.newrelic.agent.android.sessionReplay.models.RRWebRRWebTouchUpDownData;
+import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,12 +57,10 @@ import java.util.Map;
 
 
 public class SessionReplayActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
-
-
     ArrayList<SessionReplayRoot> sessionReplayRoots = new ArrayList<>();
     ArrayList<RRWebTouch> RRWebTouches = new ArrayList<>();
-
-
+    ArrayList<Touch> touches = new ArrayList<>();
+    private static AgentConfiguration agentConfiguration = new AgentConfiguration();
     WeakReference mrootView;
     private static final String TAG = "SessionReplayActivityLifecycleCallbacks";
     int i  = 0 ;
@@ -238,10 +232,8 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                         Log.d(TAG, "jsonPayloadForRRWEB: " + json);
                         Log.d(TAG, "touchJsonPayloadForRRWEB: " + touchJson);
 
-                        SharedPreferences sharedPreferences = activity.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE);
-                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                        editor.putString("SessionReplayFrame", json);
-                        editor.apply();
+                        SessionReplayStore sessionReplayStore = new SharedPrefsSessionReplayStore(activity);
+                        sessionReplayStore.store(json);
                     }
                 }
         });
