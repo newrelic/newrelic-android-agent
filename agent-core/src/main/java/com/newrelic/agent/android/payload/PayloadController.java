@@ -36,8 +36,8 @@ public class PayloadController implements HarvestLifecycleAware {
 
     protected static final AgentLog log = AgentLogManager.getAgentLog();
 
-    public static final int PAYLOAD_COLLECTOR_TIMEOUT = 5000;               // 5 seconds
-    public static final long PAYLOAD_REQUEUE_PERIOD_MS = 2 * 60 * 1000;     // requeue failed uploads every 2 minutes
+    public static final long PAYLOAD_COLLECTOR_TIMEOUT = 5000;             // 5 seconds
+    public static final long PAYLOAD_REQUEUE_PERIOD_MS = 2 * 60 * 1000;    // requeue failed uploads every 2 minutes
 
     protected static Lock payloadQueueLock = new ReentrantLock(false);
     protected static AtomicReference<PayloadController> instance = new AtomicReference<>(null);
@@ -48,15 +48,21 @@ public class PayloadController implements HarvestLifecycleAware {
     protected static Map<String, Future> reapersInFlight = null;
     protected static boolean opportunisticUploads = false;
 
-    protected static final Runnable dequeueRunnable = () -> {
-        if (isInitialized()) {
-            instance.get().dequeuePayloadSenders();
+    protected static final Runnable dequeueRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isInitialized()) {
+                instance.get().dequeuePayloadSenders();
+            }
         }
     };
 
-    protected static final Runnable requeueRunnable = () -> {
-        if (isInitialized()) {
-            instance.get().requeuePayloadSenders();
+    protected static final Runnable requeueRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isInitialized()) {
+                instance.get().requeuePayloadSenders();
+            }
         }
     };
 
@@ -69,7 +75,7 @@ public class PayloadController implements HarvestLifecycleAware {
             payloadReaperQueue = new ConcurrentLinkedQueue<PayloadReaper>();
             payloadReaperRetryQueue = new ConcurrentLinkedQueue<PayloadReaper>();
             queueExecutor = new ThrottledScheduledThreadPoolExecutor(agentConfiguration.getIOThreadSize(), new NamedThreadFactory("PayloadWorker"));
-            requeueFuture = queueExecutor.scheduleWithFixedDelay(requeueRunnable, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, TimeUnit.MILLISECONDS);
+            requeueFuture = queueExecutor.scheduleAtFixedRate(requeueRunnable, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, TimeUnit.MILLISECONDS);
             reapersInFlight = new ConcurrentHashMap<String, Future>();
             opportunisticUploads = false;
 
@@ -111,28 +117,24 @@ public class PayloadController implements HarvestLifecycleAware {
                 }
 
                 // Don't accept any more payloads
-                if (queueExecutor != null) {
-                    queueExecutor.shutdown();
+                queueExecutor.shutdown();
 
-                    // Make sure all blocked threads are cancelled.
-                    // Threads started during startup could still be running (unlikely)
-                    try {
-                        if (!queueExecutor.awaitTermination(PAYLOAD_COLLECTOR_TIMEOUT, TimeUnit.MILLISECONDS)) {
-                            log.warn("PayloadController: upload thread(s) timed-out before handler");
-                            queueExecutor.shutdownNow();
-                        }
-                        AgentDataReporter.shutdown();
-                        CrashReporter.shutdown();
-                        SessionReplayReporter.shutdown();
-
-                    } catch (InterruptedException e) {
-                        log.error("PayloadController.shutdown(): " + e);
+                // Make sure all blocked threads are cancelled.
+                // Threads started during startup could still be running (unlikely)
+                try {
+                    if (false == queueExecutor.awaitTermination(PAYLOAD_COLLECTOR_TIMEOUT, TimeUnit.MILLISECONDS)) {
+                        log.warn("PayloadController: upload thread(s) timed-out before handler");
+                        queueExecutor.shutdownNow();
                     }
-                }
-                instance.set(null);
+                    AgentDataReporter.shutdown();
+                    CrashReporter.shutdown();
+                    SessionReplayReporter.shutdown();
 
-            } catch (Exception e) {
-                log.error("PayloadController.shutdown(): " + e);
+                } catch (InterruptedException e) {
+                }
+
+            } finally {
+                instance.set(null);
             }
         }
     }
@@ -141,8 +143,7 @@ public class PayloadController implements HarvestLifecycleAware {
         return submitPayload(payloadSender, null);
     }
 
-    public static Future submitPayload(final PayloadSender payloadSender,
-                                       final PayloadSender.CompletionHandler completionHandler) {
+    public static Future submitPayload(final PayloadSender payloadSender, final PayloadSender.CompletionHandler completionHandler) {
         Future future = null;
         final TicToc timer = new TicToc();
 
@@ -179,7 +180,7 @@ public class PayloadController implements HarvestLifecycleAware {
                     // queue the node and let the dequeue runnable process the upload
                     payloadReaperQueue.offer(payloadReaper);
                 }
-                log.debug("PayloadController: " + timer.toc() + "ms. waiting to submit payload [" + payloadReaper.getUuid() + "].");
+                log.debug("PayloadController: " + String.valueOf(timer.toc()) + "ms. waiting to submit payload [" + payloadReaper.getUuid() + "].");
             }
         }
 
