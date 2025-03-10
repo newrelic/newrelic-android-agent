@@ -19,6 +19,7 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadStore;
+import com.newrelic.agent.android.sessionReplay.SessionReplayStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
@@ -66,6 +67,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private AnalyticsAttributeStore analyticsAttributeStore;
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
     private AnalyticsEventStore eventStore;
+    private SessionReplayStore sessionReplayStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
@@ -145,6 +147,14 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setEventStore(AnalyticsEventStore eventStore) {
         this.eventStore = eventStore;
+    }
+
+    public SessionReplayStore getSessionReplayStore() {
+        return sessionReplayStore;
+    }
+
+    public void setSessionReplayStore(SessionReplayStore sessionReplayStore) {
+        this.sessionReplayStore = sessionReplayStore;
     }
 
     public boolean getReportHandledExceptions() {
