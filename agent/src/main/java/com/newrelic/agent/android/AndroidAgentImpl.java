@@ -66,6 +66,8 @@ import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsEventStore;
 import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
+import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
+import com.newrelic.agent.android.stores.SharedPrefsStore;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
@@ -137,6 +139,7 @@ public class AndroidAgentImpl implements
         agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
+        agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         startLogReporter(context, agentConfiguration);
