@@ -1,0 +1,149 @@
+/*
+ * Copyright (c) 2022-present New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package com.newrelic.agent.android.sessionReplay;
+
+import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.payload.Payload;
+import com.newrelic.agent.android.payload.PayloadController;
+import com.newrelic.agent.android.payload.PayloadReporter;
+import com.newrelic.agent.android.payload.PayloadSender;
+import com.newrelic.agent.android.util.Constants;
+
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
+
+public class SessionReplayReporter extends PayloadReporter {
+    protected static final AtomicReference<SessionReplayReporter> instance = new AtomicReference<>(null);
+    protected final SessionReplayStore sessionReplayStore;
+
+    protected final Callable reportCachedSessionReplayDataCallable = new Callable() {
+        @Override
+        public Object call() throws Exception {
+            reportCachedSessionReplayData();
+            return null;
+        }
+    };
+
+    public static SessionReplayReporter getInstance() {
+        return instance.get();
+    }
+
+    public static SessionReplayReporter initialize(AgentConfiguration agentConfiguration) {
+        instance.compareAndSet(null, new SessionReplayReporter(agentConfiguration));
+
+        return instance.get();
+    }
+
+    public static void shutdown() {
+        if (isInitialized()) {
+            try {
+                instance.get().stop();
+            } finally {
+                instance.set(null);
+            }
+        }
+    }
+
+    public static boolean reportSessionReplayData(byte[] bytes) {
+        boolean reported = false;
+
+        if (isInitialized()) {
+            Payload payload = new Payload(bytes);
+            instance.get().storeAndReportSessionReplayData(payload);
+            reported = true;
+        } else {
+            log.error("SessionReplayDataReporter not initialized");
+        }
+
+        return reported;
+    }
+
+    protected static boolean isInitialized() {
+        return instance.get() != null;
+    }
+
+    protected SessionReplayReporter(AgentConfiguration agentConfiguration) {
+        super(agentConfiguration);
+        this.sessionReplayStore = agentConfiguration.getSessionReplayStore();
+        this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.HandledExceptions));
+    }
+
+    @Override
+    public void start() {
+        if (PayloadController.isInitialized()) {
+            if (isEnabled()) {
+                if (isStarted.compareAndSet(false, true)) {
+                    PayloadController.submitCallable(reportCachedSessionReplayDataCallable);
+                    Harvest.addHarvestListener(this);
+                }
+            }
+        } else {
+            log.error("SessionReplayDataReporter.start(): Must initialize PayloadController first.");
+        }
+    }
+
+    @Override
+    public void stop() {
+        Harvest.removeHarvestListener(this);
+    }
+
+    // upload any cached agent data posts
+    protected void reportCachedSessionReplayData() {
+        if (isInitialized()) {
+            SessionReplayStore sessionStore = agentConfiguration.getSessionReplayStore();
+            List<String> data = sessionStore.fetchAll();
+            String sessionReplayData = data.get(0);
+            reportSessionReplayData(sessionReplayData.getBytes());
+        } else {
+            log.error("SessionReplayDataReporter not initialized");
+        }
+    }
+
+    public Future reportSessionReplayData(Payload payload) {
+        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration());
+
+        if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
+            log.error("Unable to upload because payload is larger than 1 MB, handled exceptions are discarded.");
+            return null;
+        }
+
+        Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
+            @Override
+            public void onResponse(PayloadSender payloadSender) {
+                if (payloadSender.isSuccessfulResponse()) {
+                    //add supportability metrics
+                } else {
+                    // sender will remain in store and retry every harvest cycle
+                    //Offline storage: No network at all, don't send back data
+                    if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                        log.warn("SessionReplayReporter didn't send due to lack of network connection");
+                    }
+                }
+            }
+
+            @Override
+            public void onException(PayloadSender payloadSender, Exception e) {
+                log.error("SessionReplayReporter.reportSessionReplayData(Payload): " + e);
+            }
+        });
+
+        return future;
+    }
+
+    public Future storeAndReportSessionReplayData(Payload payload) {
+        return reportSessionReplayData(payload);
+    }
+
+    @Override
+    public void onHarvest() {
+        PayloadController.submitCallable(reportCachedSessionReplayDataCallable);
+    }
+
+}
