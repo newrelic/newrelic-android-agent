@@ -60,7 +60,6 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     ArrayList<SessionReplayRoot> sessionReplayRoots = new ArrayList<>();
 
     ArrayList<RRWebTouch> RRWebTouches = new ArrayList<>();
-    ArrayList<Touch> touches = new ArrayList<>();
     private static AgentConfiguration agentConfiguration = new AgentConfiguration();
     WeakReference mrootView;
     private static final String TAG = "SessionReplayActivityLifecycleCallbacks";
