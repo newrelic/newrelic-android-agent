@@ -4,24 +4,28 @@ import android.app.Application;
 import android.os.Handler;
 import android.view.View;
 
-import com.newrelic.agent.android.sessionReplay.internal.Curtains;
-import com.newrelic.agent.android.sessionReplay.internal.RootViewsSpy;
-import com.newrelic.agent.android.sessionReplay.internal.WindowManagerSpy;
+import androidx.annotation.NonNull;
 
-public class SessionReplay {
+import com.newrelic.agent.android.sessionReplay.internal.Curtains;
+import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
+import com.newrelic.agent.android.sessionReplay.internal.RootViewsSpy;
+
+import java.util.ArrayList;
+
+public class SessionReplay implements OnFrameTakenListener {
     private Application application;
     private Handler uiThreadHandler;
     private SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
-    private ViewDrawInterceptor viewDrawInterceptor = new ViewDrawInterceptor();
-    private RootViewsSpy spy;
+    private ViewDrawInterceptor viewDrawInterceptor;
+
+    private ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
 
     public SessionReplay(Application application, Handler uiThreadHandler) {
         this.application = application;
         this.uiThreadHandler = uiThreadHandler;
 
-        this.spy = RootViewsSpy.install();
-
         this.sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
+        this.viewDrawInterceptor = new ViewDrawInterceptor(this);
     }
 
     public void Initialize() {
@@ -58,5 +62,10 @@ public class SessionReplay {
                 viewDrawInterceptor.stopIntercept();
             }
         });
+    }
+
+    @Override
+    public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
+        rawFrames.add(newFrame);
     }
 }
