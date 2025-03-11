@@ -109,7 +109,15 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                            motionEvent.getPointerCoords(0, pointerCoords);
 
                            if(currentTouchId == -1) {
-                               currentTouchId = NewRelicIdGenerator.generateId();
+//                               currentTouchId = NewRelicIdGenerator.generateId();
+                               View containingView = findViewAtCoords(view, (int)pointerCoords.x, (int)pointerCoords.y);
+                               if(containingView != null) {
+                                   currentTouchId = getStableId(containingView);
+                                   Log.d(TAG, "Found originating View. Id is " + currentTouchId);
+                               } else {
+                                   Log.d(TAG, "Unable to find originating View. Generating ID");
+                                   currentTouchId = NewRelicIdGenerator.generateId();
+                               }
                            }
 
                            RecordedTouchData moveTouch;
@@ -244,15 +252,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
             View child = viewGroup.getChildAt(i);
                 if(shouldPrintView(child)) {
 
-//                    int id = NewRelicIdGenerator.generateId();
-                    int keyCode = "NewRelicSessionReplay".hashCode();
-                    Integer idValue = null;
-                    idValue = (Integer) child.getTag(keyCode);
-                    if(idValue == null) {
-                        idValue = Integer.valueOf(NewRelicIdGenerator.generateId());
-                        child.setTag(keyCode, idValue);
-                    }
-                    int id = idValue.intValue();
+                    int id = getStableId(child);
 
                     String attributeId =   child.getClass().getSimpleName()+"-"+id;
 
@@ -389,6 +389,45 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 logChildViews((ViewGroup) child,htmlChildNode,styleNode);
             }
         }
+    }
+
+    private int getStableId(View child) {
+        int keyCode = "NewRelicSessionReplay".hashCode();
+        Integer idValue = null;
+        idValue = (Integer) child.getTag(keyCode);
+        if(idValue == null) {
+            idValue = NewRelicIdGenerator.generateId();
+            child.setTag(keyCode, idValue);
+        }
+        int id = idValue;
+        return id;
+    }
+
+    private View findViewAtCoords(View parent, int x, int y) {
+        Rect hitRect = new Rect();
+        parent.getHitRect(hitRect);
+
+        if(!hitRect.contains(x, y)) {
+            return null;
+        } else if (parent instanceof ViewGroup) {
+            for(int i = 0; i < ((ViewGroup) parent).getChildCount(); i++) {
+                View childView = ((ViewGroup) parent).getChildAt(i);
+                Rect bounds = new Rect();
+                childView.getHitRect(bounds);
+                if(bounds.contains(x, y)) {
+                    if(childView instanceof ViewGroup) {
+                        View foundView = findViewAtCoords(childView, x, y);
+                        if(foundView != null && foundView.isShown()) {
+                            return foundView;
+                        }
+                    } else {
+                        return childView;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private float getPixel(float pixel){
@@ -545,4 +584,6 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
         }
         return null;
     }
+
 }
+
