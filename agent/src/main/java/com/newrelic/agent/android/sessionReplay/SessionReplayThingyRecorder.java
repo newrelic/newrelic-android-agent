@@ -2,6 +2,8 @@ package com.newrelic.agent.android.sessionReplay;
 
 import android.view.View;
 
+import java.util.List;
+
 public class SessionReplayThingyRecorder {
     private static String SessionReplayKey = "NewRelicSessionReplayKey";
     private float density;
@@ -10,7 +12,7 @@ public class SessionReplayThingyRecorder {
         this.density = density;
     }
 
-    public SessionReplayThingy recordView(View view) {
+    public SessionReplayThingy recordView(View view, List<SessionReplayThingy> childThingies) {
         int[] location = new int[2];
         view.getLocationOnScreen(location);
         float x = location[0] / density;
@@ -19,7 +21,7 @@ public class SessionReplayThingyRecorder {
         float height = view.getHeight() / density;
 
         int keyCode = SessionReplayKey.hashCode();
-        Integer id = null;
+        Integer id;
         id = (Integer) view.getTag(keyCode);
         if(id == null) {
             id = Integer.valueOf(NewRelicIdGenerator.generateId());
@@ -29,7 +31,6 @@ public class SessionReplayThingyRecorder {
         String name = view.getClass().getSimpleName()+"-"+ id;
 
         SessionReplayThingy.Rect position = new SessionReplayThingy.Rect((int) x, (int) y, (int) width, (int) height);
-        return new SessionReplayThingy(position, name, id);
+        return new SessionReplayThingy(position, name, id, childThingies);
     }
-
 }
