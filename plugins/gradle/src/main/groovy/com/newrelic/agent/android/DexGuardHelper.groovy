@@ -105,13 +105,13 @@ class DexGuardHelper {
             // caller must replace target with [apk, bundle]
             return objectFactory.fileProperty().value(buildHelper.project.layout
                     .getBuildDirectory()
-                    .file("outputs/dexguard/mapping/<target>/${variant.dirName}/mapping.txt"))
+                    .file("outputs/dexguard/mapping/<target>/${variant.name}/mapping.txt"))
         }
 
         // Legacy DG report through AGP to this location (unless overridden in dexguard.project settings)
         return objectFactory.fileProperty().value(buildHelper.project.layout
                 .getBuildDirectory()
-                .file("outputs/mapping/${variant.dirName}/mapping.txt"))
+                .file("outputs/mapping/${variant.name}/mapping.txt"))
     }
 
     protected wireDexGuardMapProviders(String variantName) {
