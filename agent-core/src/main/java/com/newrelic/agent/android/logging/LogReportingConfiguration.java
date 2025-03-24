@@ -14,7 +14,7 @@ public class LogReportingConfiguration extends LoggingConfiguration {
      * The sample seed is the coin flip that determines whether logging is enabled during
      * this app lifetime. It should only be set once. Range is [1...100];
      */
-    static int sampleSeed = 100;
+    static Double sampleSeed = 100.000000;
 
     static final long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.convert(30, TimeUnit.SECONDS);
     static final long DEFAULT_EXPIRATION_PERIOD = TimeUnit.SECONDS.convert(2, TimeUnit.DAYS);
@@ -26,7 +26,7 @@ public class LogReportingConfiguration extends LoggingConfiguration {
     Long expirationPeriod;
 
     @SerializedName("sampling_rate")
-    int sampleRate;
+    double sampleRate;
 
     public LogReportingConfiguration() {
         this(false, LogLevel.NONE);
@@ -36,7 +36,7 @@ public class LogReportingConfiguration extends LoggingConfiguration {
         this(enabled, level, DEFAULT_HARVEST_PERIOD, DEFAULT_EXPIRATION_PERIOD, sampleSeed);
     }
 
-    public LogReportingConfiguration(boolean enabled, LogLevel level, long harvestPeriod, long expirationPeriod, int sampleRate) {
+    public LogReportingConfiguration(boolean enabled, LogLevel level, long harvestPeriod, long expirationPeriod, double sampleRate) {
         super(enabled, level);
         this.harvestPeriod = harvestPeriod;
         this.expirationPeriod = expirationPeriod;
@@ -98,8 +98,8 @@ public class LogReportingConfiguration extends LoggingConfiguration {
     /**
      * Generate a suitable seed. Range is [1...100];
      */
-    public static int reseed() {
-        sampleSeed = (int) (Math.random() * 100.0) + 1;
+    public static Double reseed() {
+        sampleSeed = Math.round((Math.random()*100*1000000))/1000000.0;
         return sampleSeed;
     }
 }

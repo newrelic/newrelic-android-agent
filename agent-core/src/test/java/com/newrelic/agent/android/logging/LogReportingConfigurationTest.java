@@ -94,10 +94,10 @@ public class LogReportingConfigurationTest {
     public void testSampleRate() {
         LogReportingConfiguration config = new LogReportingConfiguration(true, LogLevel.VERBOSE, 15, 3600, 33);
 
-        LogReportingConfiguration.sampleSeed = 10;
+        LogReportingConfiguration.sampleSeed = 10.0;
         Assert.assertTrue(config.getLoggingEnabled());
 
-        LogReportingConfiguration.sampleSeed = 100;
+        LogReportingConfiguration.sampleSeed = 100.0;
         Assert.assertFalse(config.getLoggingEnabled());
 
         config.enabled = false;
@@ -108,8 +108,8 @@ public class LogReportingConfigurationTest {
     public void testSampleRateValues() {
         Assert.assertTrue(LogReportingConfiguration.sampleSeed >= 0 && LogReportingConfiguration.sampleSeed <= 100);
 
-        Assert.assertEquals(0, new LogReportingConfiguration(true, LogLevel.VERBOSE, 15, 3600, -330).sampleRate);
-        Assert.assertEquals(100, new LogReportingConfiguration(true, LogLevel.VERBOSE, 15, 3600, 330).sampleRate);
+        Assert.assertEquals(0.0, new LogReportingConfiguration(true, LogLevel.VERBOSE, 15, 3600, -330).sampleRate, 0.0);
+        Assert.assertEquals(100.0, new LogReportingConfiguration(true, LogLevel.VERBOSE, 15, 3600, 330).sampleRate, 0.0);
     }
 
     /**
@@ -155,8 +155,8 @@ public class LogReportingConfigurationTest {
     @Ignore("For analysis")
     @Test
     public void testReseed() {
-        int sampleRate = LogReportingConfiguration.sampleSeed;
-        int newRate = LogReportingConfiguration.reseed();
+        double sampleRate = LogReportingConfiguration.sampleSeed;
+        double newRate = LogReportingConfiguration.reseed();
         Assert.assertNotEquals(newRate, sampleRate);
 
         int timesUntilDuplicate = 1;
