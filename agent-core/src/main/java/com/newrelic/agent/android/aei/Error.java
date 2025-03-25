@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Set;
 
 
-
 public class Error extends HarvestableObject {
     public static final int PROTOCOL_VERSION = 1;
     public static final int MAX_UPLOAD_COUNT = 3;
@@ -47,7 +46,7 @@ public class Error extends HarvestableObject {
     private DeviceInfo deviceInfo;
     private ApplicationInfo applicationInfo;
     private Set<AnalyticsAttribute> sessionAttributes;
-    private HashMap<String,Object> event;
+    private HashMap<String, Object> event;
     private DataToken dataToken;
     private static final Gson gson = new GsonBuilder().create();
 
@@ -61,14 +60,14 @@ public class Error extends HarvestableObject {
         this.deviceInfo = new DeviceInfo(agentImpl.getDeviceInformation(), agentImpl.getEnvironmentInformation());
         this.applicationInfo = new ApplicationInfo(agentImpl.getApplicationInformation());
         this.sessionAttributes = new HashSet<>();
-        this.event = new  HashMap<>();
+        this.event = new HashMap<>();
         this.agentName = agentImpl.getDeviceInformation().getAgentName();
         this.dataToken = Harvest.getHarvestConfiguration().getDataToken();
     }
 
 
-    public Error(Set<AnalyticsAttribute> sessionAttributes, HashMap<String,Object> events) {
-        this (sessionAttributes,events,null);
+    public Error(Set<AnalyticsAttribute> sessionAttributes, HashMap<String, Object> events) {
+        this(sessionAttributes, events, null);
     }
 
     public Error(Set<AnalyticsAttribute> sessionAttributes, HashMap<String, Object> event, AEISessionMapper.AEISessionMeta sessionMeta) {
@@ -84,7 +83,7 @@ public class Error extends HarvestableObject {
         this.event = event;
         this.dataToken = Harvest.getHarvestConfiguration().getDataToken();
 
-        if(sessionMeta != null) {
+        if (sessionMeta != null) {
             this.dataToken.setAgentId(sessionMeta.realAgentId);
         }
     }
@@ -132,8 +131,6 @@ public class Error extends HarvestableObject {
     }
 
 
-
-
     public void setSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
         this.sessionAttributes = getErrorSessionAttributes(sessionAttributes);
     }
@@ -142,7 +139,7 @@ public class Error extends HarvestableObject {
         return sessionAttributes;
     }
 
-    public void setAnalyticsEvents(HashMap<String,Object> event) {
+    public void setAnalyticsEvents(HashMap<String, Object> event) {
         this.event = event;
     }
 
@@ -170,6 +167,9 @@ public class Error extends HarvestableObject {
                 StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
             }
         }
+
+        //add AccountId as Session Attribute for Debug Purpose
+        attrs.add(new AnalyticsAttribute(AnalyticsAttribute.HARVEST_ACCOUNT_ID_ATTRIBUTE, Harvest.getHarvestConfiguration().getAccount_id()));
 
         return Collections.unmodifiableSet(attrs);
     }
@@ -225,7 +225,7 @@ public class Error extends HarvestableObject {
 
         if (errorObject.has("analyticsEvents")) {
 
-            List<HashMap<String,Object>> events = new ArrayList<>();
+            List<HashMap<String, Object>> events = new ArrayList<>();
             Iterator<JsonElement> entry = errorObject.get("analyticsEvents").getAsJsonArray().iterator();
             while (entry.hasNext()) {
                 JsonElement e = entry.next();

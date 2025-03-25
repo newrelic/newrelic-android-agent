@@ -5,7 +5,11 @@
 
 package com.newrelic.agent.android.stats;
 
+import static com.newrelic.agent.android.metric.MetricNames.SESSION_START;
+import static com.newrelic.agent.android.metric.MetricNames.SUPPORTABILITY_SESSION_START_COUNT_VALUE_OVERFLOW;
+
 import com.newrelic.agent.android.Agent;
+import com.newrelic.agent.android.ApplicationFramework;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.HarvestAdapter;
@@ -14,6 +18,7 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -129,12 +134,25 @@ public class StatsEngine extends HarvestAdapter {
     public static void populateMetrics() {
         for (ConcurrentHashMap.Entry<String, Metric> entry : INSTANCE.getStatsMap().entrySet()) {
             Metric metric = entry.getValue();
+            sanitizeSessionStartMetric(metric);
             TaskQueue.queue(metric);
         }
 
         for (ConcurrentHashMap.Entry<String, Metric> entry : SUPPORTABILITY.getStatsMap().entrySet()) {
             Metric metric = entry.getValue();
             TaskQueue.queue(metric);
+        }
+    }
+
+    private static void sanitizeSessionStartMetric(Metric metric) {
+        //sanitize the metrics values for Session/Start
+        if (metric.getCount() > 2 && (metric.getName().contains(SESSION_START))) {
+            StatsEngine.SUPPORTABILITY.inc(SUPPORTABILITY_SESSION_START_COUNT_VALUE_OVERFLOW);
+            metric.setTotal(1.0);
+            metric.setCount(1);
+            metric.setMin(1.0);
+            metric.setMax(1.0);
+            metric.setSumOfSquares(1.0);
         }
     }
 
@@ -260,20 +278,16 @@ public class StatsEngine extends HarvestAdapter {
             String a = emptyIfNull(deviceInformation.getAgentVersion());
 
             if (deviceInformation.getApplicationFramework() != null) {
-                switch (deviceInformation.getApplicationFramework()) {
-                    case Native:
-                        if (!(f.isEmpty() || f.equals(a))) {
-                            framework = emptyIfNull(deviceInformation.getApplicationFramework().name());
-                            frameworkVersion = emptyIfNull(deviceInformation.getApplicationFrameworkVersion());
-                        }
-                        break;
-
-                    default:
+                if (Objects.requireNonNull(deviceInformation.getApplicationFramework()) == ApplicationFramework.Native) {
+                    if (!(f.isEmpty() || f.equals(a))) {
                         framework = emptyIfNull(deviceInformation.getApplicationFramework().name());
-                        if (!f.equals(a)) {
-                            frameworkVersion = emptyIfNull(deviceInformation.getApplicationFrameworkVersion());
-                        }
-                        break;
+                        frameworkVersion = emptyIfNull(deviceInformation.getApplicationFrameworkVersion());
+                    }
+                } else {
+                    framework = emptyIfNull(deviceInformation.getApplicationFramework().name());
+                    if (!f.equals(a)) {
+                        frameworkVersion = emptyIfNull(deviceInformation.getApplicationFrameworkVersion());
+                    }
                 }
             }
 
