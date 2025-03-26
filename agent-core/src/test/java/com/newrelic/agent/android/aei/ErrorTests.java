@@ -86,7 +86,7 @@ public class ErrorTests {
         error = new Error(sessionAttributes, event);
         JsonObject json = error.asJsonObject();
         Assert.assertTrue("Should contain analytics struct", json.has("sessionAttributes") && json.has("analyticsEvents"));
-        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size() );
+        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size()+1 );
         Assert.assertEquals("Should contain analytics events", json.getAsJsonArray("analyticsEvents").size(), 1);
 
         error = new Error(null, null);
@@ -95,7 +95,7 @@ public class ErrorTests {
         json = error.asJsonObject();
         Assert.assertTrue("Should contain analytics structs", json.has("sessionAttributes") && json.has("analyticsEvents"));
         // We add 1 to the sessionAttributes size since 'OBFUSCATED' is only added as a session attribute on crash
-        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size());
+        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size()+1);
         Assert.assertEquals("Should contain analytics events", json.getAsJsonArray("analyticsEvents").size(), 1);
     }
 
@@ -115,7 +115,7 @@ public class ErrorTests {
         JsonObject json = errorFromJson.asJsonObject();
         Assert.assertTrue("Should contain analytics structs", json.has("sessionAttributes") && json.has("analyticsEvents"));
         // We add 1 to the sessionAttributes size since 'OBFUSCATED' is only added as a session attribute on crash
-        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size());
+        Assert.assertEquals("Should contain session attributes", json.getAsJsonObject("sessionAttributes").entrySet().size(), sessionAttributes.size()+1);
         Assert.assertEquals("Should contain analytics events", json.getAsJsonArray("analyticsEvents").size(), 1);
     }
 

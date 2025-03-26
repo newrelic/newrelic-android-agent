@@ -65,6 +65,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_HEX_FAILED_UPLOAD = SUPPORTABILITY_HEX + "FailedUpload";
 
     public static final String SUPPORTABILITY_MOBILE_ANDROID = "Supportability/Mobile/Android/";
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_JETPACK_COMPOSE = SUPPORTABILITY_MOBILE_ANDROID + "JetPackCompose";
     public static final String SUPPORTABILITY_NDK = SUPPORTABILITY_MOBILE_ANDROID + "NDK/";
     public static final String SUPPORTABILITY_NDK_INIT = SUPPORTABILITY_NDK + "Init";
     public static final String SUPPORTABILITY_NDK_START = SUPPORTABILITY_NDK + "Start";
@@ -120,6 +121,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_DESTINATION_OUTPUT_BYTES = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/" + SUPPORTABILITY_OUTPUT_BYTES;
     public static final String SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/<subdestination>/" + SUPPORTABILITY_OUTPUT_BYTES;
     public static final String SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/MaxPayloadSizeLimit/<subdestination>";
+
+    public static final String SUPPORTABILITY_SESSION_START_COUNT_VALUE_OVERFLOW = SUPPORTABILITY_AGENT + "Session/Start/Count/ValueOverflow";
 
     public static final String METRIC_APP_LAUNCH = "AppLaunch/";
     public static final String APP_LAUNCH_COLD = METRIC_APP_LAUNCH + "Cold";
