@@ -146,7 +146,7 @@ public class StatsEngine extends HarvestAdapter {
 
     private static void sanitizeSessionStartMetric(Metric metric) {
         //sanitize the metrics values for Session/Start
-        if (metric.getCount() > 2 && (metric.getName().contains(SESSION_START))) {
+        if (metric.getCount() > 1 && (metric.getName().contains(SESSION_START))) {
             StatsEngine.SUPPORTABILITY.inc(SUPPORTABILITY_SESSION_START_COUNT_VALUE_OVERFLOW);
             metric.setTotal(1.0);
             metric.setCount(1);
