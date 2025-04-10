@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.instrumentation;
 
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.api.common.CarrierType;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.api.common.WanType;
@@ -61,7 +62,9 @@ public class TransactionState {
     public TransactionState() {
         this.startTime = System.currentTimeMillis();
         this.params = new HashMap<>();
-        TraceMachine.enterNetworkSegment("External/unknownhost");
+        if(FeatureFlag.featureEnabled(FeatureFlag.DefaultInteractions)) {
+            TraceMachine.enterNetworkSegment("External/unknownhost");
+        }
     }
 
     public TraceContext getTrace() {
@@ -112,11 +115,15 @@ public class TransactionState {
             this.url = url;
 
             try {
-                TraceMachine.setCurrentDisplayName("External/" + new URL(url).getHost());
+                if(FeatureFlag.featureEnabled(FeatureFlag.DefaultInteractions)) {
+                    TraceMachine.setCurrentDisplayName("External/" + new URL(url).getHost());
+                }
             } catch (MalformedURLException e) {
                 log.error("unable to parse host name from " + url);
             }
-            TraceMachine.setCurrentTraceParam("uri", url);
+            if(FeatureFlag.featureEnabled(FeatureFlag.DefaultInteractions)) {
+                TraceMachine.setCurrentTraceParam("uri", url);
+            }
         } else {
             log.debug("setUrl(...) called on TransactionState in " + state.toString() + " state");
         }

@@ -43,16 +43,19 @@ public class InvocationDispatcher {
     private final InstrumentationContext instrumentationContext;
     private final Pattern androidPackagePattern = Pattern.compile(Constants.ANDROID_PACKAGE_RE);
     private final Pattern kotlinPackagePattern = Pattern.compile(Constants.ANDROID_KOTLIN_PACKAGE_RE);
+    private Boolean defaultInteractionsEnabled;
 
     final Map<String, InvocationHandler> invocationHandlers;
 
-    public InvocationDispatcher(final Logger log,boolean logInstrumentationEnabled) throws ClassNotFoundException {
+    public InvocationDispatcher(final Logger log,boolean logInstrumentationEnabled,boolean defaultInteractionsEnabled) throws ClassNotFoundException {
         ClassRemapperConfig config = new ClassRemapperConfig(log,logInstrumentationEnabled);
 
         this.log = log;
         this.instrumentationContext = new InstrumentationContext(config, log);
         this.invocationHandlers = ImmutableMap.of();
         log.debug("[InvocationDispatcher] Initialized with logInstrumentationEnabled[{}]", logInstrumentationEnabled);
+        log.debug("[InvocationDispatcher] Initialized with defaultInteractionsEnabled[{}]", defaultInteractionsEnabled);
+        this.defaultInteractionsEnabled = defaultInteractionsEnabled;
     }
 
     boolean isInstrumentationDisabled() {
@@ -143,14 +146,18 @@ public class InvocationDispatcher {
                     // cv = new ComposeNavigatorClassVisitor(cv, instrumentationContext, log);
                     // cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidSDKPackage(className)) {
-                    cv = new ActivityClassVisitor(cv, instrumentationContext, log);
+                    if(defaultInteractionsEnabled) {
+                        cv = new ActivityClassVisitor(cv, instrumentationContext, log);
+                    }
                 } else if (isExcludedPackage(className)) {
                     // log.debug("[InvocationDispatcher] Excluding class [" + className + "]");
                     return null;
                 } else {
                     cv = new AnnotatingClassVisitor(cv, instrumentationContext, log);
-                    cv = new ActivityClassVisitor(cv, instrumentationContext, log);
-                    cv = new FragmentClassVisitor(cv, instrumentationContext, log);
+                    if(defaultInteractionsEnabled) {
+                        cv = new ActivityClassVisitor(cv, instrumentationContext, log);
+                        cv = new FragmentClassVisitor(cv, instrumentationContext, log);
+                    }
                     cv = new AsyncTaskClassVisitor(cv, instrumentationContext, log);
                     cv = new TraceAnnotationClassVisitor(cv, instrumentationContext, log);
                     cv = new AgentMethodDelegateClassVisitor(cv, instrumentationContext, log);

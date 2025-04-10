@@ -32,6 +32,8 @@ abstract class NewRelicExtension {
     Property<Boolean> instrumentTests
     Property<Boolean> variantMapsEnabled
     Property<Boolean> logInstrumentationEnabled
+    Property<Boolean> defaultInteractionsEnabled
+
 
     NamedDomainObjectContainer<VariantConfiguration> variantConfigurations
 
@@ -51,6 +53,7 @@ abstract class NewRelicExtension {
         this.instrumentTests = objectFactory.property(Boolean.class).convention(false)
         this.variantMapsEnabled = objectFactory.property(Boolean.class).convention(true)
         this.logInstrumentationEnabled = objectFactory.property(Boolean.class).convention(true)
+        this.defaultInteractionsEnabled = objectFactory.property(Boolean.class).convention(true)
         this.variantConfigurations = objectFactory.domainObjectContainer(VariantConfiguration, { name ->
             objectFactory.newInstance(VariantConfiguration.class, name)
         })
