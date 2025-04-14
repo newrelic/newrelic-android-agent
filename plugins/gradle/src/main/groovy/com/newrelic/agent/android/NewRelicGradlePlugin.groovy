@@ -52,7 +52,7 @@ class NewRelicGradlePlugin implements Plugin<Project> {
 
                 project.afterEvaluate {
                     // set global enable flag
-                    parseLegacyAgentArgs(project, pluginExtension.logInstrumentationEnabled)
+                    parseLegacyAgentArgs(project, pluginExtension.logInstrumentationEnabled, pluginExtension.defaultInteractionsEnabled)
 
                     BuildId.setVariantMapsEnabled(pluginExtension.variantMapsEnabled.get())
 
@@ -123,22 +123,26 @@ class NewRelicGradlePlugin implements Plugin<Project> {
         }
     }
 
-    private def parseLegacyAgentArgs(Project project,Property<Boolean> logInstrumentationEnabled) {
+    private def parseLegacyAgentArgs(Project project,Property<Boolean> logInstrumentationEnabled ,Property<Boolean> defaultInteractionsEnabled) {
         def agentArgs = ""
         def logInstrumentationEnabledStr = logInstrumentationEnabled.get().toString()
+        def defaultInteractionsEnabledStr = defaultInteractionsEnabled.get().toString()
+
 
         LOGGER.debug("logInstrumentationEnabled: " + logInstrumentationEnabledStr)
+        LOGGER.debug("defaultInteractionsEnabled: " + defaultInteractionsEnabledStr)
+
 
         if (project.logger.isDebugEnabled()) {
-            agentArgs = "loglevel=DEBUG;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
+            agentArgs = "loglevel=DEBUG;logInstrumentationEnabled=${logInstrumentationEnabledStr};defaultInteractionsEnabled=${defaultInteractionsEnabledStr}"
         } else if (project.logger.isInfoEnabled()) {
-            agentArgs = "loglevel=INFO;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
+            agentArgs = "loglevel=INFO;logInstrumentationEnabled=${logInstrumentationEnabledStr};defaultInteractionsEnabled=${defaultInteractionsEnabledStr}"
         } else if (project.logger.isWarnEnabled()) {
-            agentArgs = "loglevel=WARN;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
+            agentArgs = "loglevel=WARN;logInstrumentationEnabled=${logInstrumentationEnabledStr};defaultInteractionsEnabled=${defaultInteractionsEnabledStr}"
         } else if (project.logger.isErrorEnabled()) {
-            agentArgs = "loglevel=ERROR;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
+            agentArgs = "loglevel=ERROR;logInstrumentationEnabled=${logInstrumentationEnabledStr};defaultInteractionsEnabled=${defaultInteractionsEnabledStr}"
         } else {
-            agentArgs = "loglevel=TRACE;logInstrumentationEnabled=${logInstrumentationEnabledStr}"
+            agentArgs = "loglevel=TRACE;logInstrumentationEnabled=${logInstrumentationEnabledStr};defaultInteractionsEnabled=${defaultInteractionsEnabledStr}"
         }
 
         Throwable argsError = InstrumentationAgent.withAgentArgs(agentArgs)

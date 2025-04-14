@@ -29,6 +29,7 @@ public final class InstrumentationAgent extends Constants {
     public static final String VERSION = "replaceme";
 
     public static final String LOG_INSTRUMENTATION_ENABLED = "logInstrumentationEnabled";
+    public static final String DEFAULT_INTERACTION_ENABLED = "defaultInteractionsEnabled";
 
     public static org.slf4j.Logger LOGGER = new Logger() {};
     private static Map<String, String> agentOptions = new HashMap<String, String>();
@@ -160,7 +161,8 @@ public final class InstrumentationAgent extends Constants {
             log.info("Detected cached instrumentation.");
         } else {
             boolean logInstrumentationEnabled = agentOptions.get(LOG_INSTRUMENTATION_ENABLED) != null && agentOptions.get(LOG_INSTRUMENTATION_ENABLED).equals("true");
-            field.set(null, new InvocationDispatcher(log,logInstrumentationEnabled));
+            boolean defaultInteractionsEnabled = agentOptions.get(DEFAULT_INTERACTION_ENABLED) != null && agentOptions.get(DEFAULT_INTERACTION_ENABLED).equals("true");
+            field.set(null, new InvocationDispatcher(log,logInstrumentationEnabled,defaultInteractionsEnabled));
         }
     }
 
