@@ -89,7 +89,7 @@ public class LogReporter extends PayloadReporter {
 
     static final String LOG_REPORTS_DIR = "newrelic/logReporting";      // root dir for local data files
     static final String LOG_FILE_MASK = "logdata%s.%s";                 // log data file name. suffix will indicate working state
-    static final Pattern LOG_FILE_REGEX = Pattern.compile("^(?<path>.*\\/" + LOG_REPORTS_DIR + ")\\/(?<file>logdata.*)\\.(?<extension>.*)$");
+    static final Pattern LOG_FILE_REGEX = Pattern.compile("^(.*\\/" + LOG_REPORTS_DIR + ")\\/(logdata.*)\\.(.*)$");
 
     static final AtomicReference<LogReporter> instance = new AtomicReference<>(null);
     static final ReentrantLock workingFileLock = new ReentrantLock();
