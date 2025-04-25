@@ -193,43 +193,14 @@ public class LogReporter extends PayloadReporter {
     }
 
     @Override
+    public void onHarvestConnected() {
+        //submit what left when the app was terminated last time
+        processLogs();
+    }
+
+    @Override
     public void onHarvest() {
-        try {
-            final Logger logger = LogReporting.getLogger();
-            if (logger instanceof HarvestLifecycleAware) {
-                ((HarvestLifecycleAware) logger).onHarvest();
-            }
-
-            workingFileLock.lock();
-
-            // roll the log only if data has been added to the working file
-            workingLogfileWriter.get().flush();
-            if (workingLogfile.length() > LogReporter.MIN_PAYLOAD_THRESHOLD) {
-                finalizeWorkingLogfile();
-                rollWorkingLogfile();
-            }
-
-        } catch (IOException e) {
-            log.error("LogReporter: " + e);
-
-        } finally {
-            workingFileLock.unlock();
-
-        }
-
-        if (isEnabled()) {
-            // create a single log archive from all available closed files, up to 1Mb in size
-            File logReport = rollupLogDataFiles();
-
-            if (null != logReport && logReport.isFile()) {
-                if (postLogReport(logReport)) {
-                    log.info("LogReporter: Uploaded remote log data [" + logReport.getName() + "]");
-                    safeDelete(logReport);
-                } else {
-                    log.error("LogReporter: Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
-                }
-            }
-        }
+        processLogs();
     }
 
     @Override
@@ -368,6 +339,45 @@ public class LogReporter extends PayloadReporter {
         }
 
         return null;
+    }
+
+    void processLogs() {
+        try {
+            final Logger logger = LogReporting.getLogger();
+            if (logger instanceof HarvestLifecycleAware) {
+                ((HarvestLifecycleAware) logger).onHarvest();
+            }
+
+            workingFileLock.lock();
+
+            // roll the log only if data has been added to the working file
+            workingLogfileWriter.get().flush();
+            if (workingLogfile.length() > LogReporter.MIN_PAYLOAD_THRESHOLD) {
+                finalizeWorkingLogfile();
+                rollWorkingLogfile();
+            }
+
+        } catch (IOException e) {
+            log.error("LogReporter: " + e);
+
+        } finally {
+            workingFileLock.unlock();
+
+        }
+
+        if (isEnabled()) {
+            // create a single log archive from all available closed files, up to 1Mb in size
+            File logReport = rollupLogDataFiles();
+
+            if (null != logReport && logReport.isFile()) {
+                if (postLogReport(logReport)) {
+                    log.info("LogReporter: Uploaded remote log data [" + logReport.getName() + "]");
+                    safeDelete(logReport);
+                } else {
+                    log.error("LogReporter: Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
+                }
+            }
+        }
     }
 
     /**
