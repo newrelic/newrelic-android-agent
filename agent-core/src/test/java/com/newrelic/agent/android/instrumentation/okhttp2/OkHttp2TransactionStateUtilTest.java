@@ -10,6 +10,7 @@ import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.distributedtracing.TraceParent;
 import com.newrelic.agent.android.distributedtracing.TracePayload;
 import com.newrelic.agent.android.distributedtracing.TraceState;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.mock.TestHarvest;
@@ -37,6 +38,7 @@ import java.util.List;
 import static com.newrelic.agent.android.harvest.type.HarvestErrorCodes.NSURLErrorDNSLookupFailed;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 
 public class OkHttp2TransactionStateUtilTest {
@@ -74,8 +76,8 @@ public class OkHttp2TransactionStateUtilTest {
     public void testInspectAndInstrumentNullRequest() {
         transactionState = new TransactionState();
         OkHttp2TransactionStateUtil.inspectAndInstrument(transactionState, (Request) null);
-        Assert.assertNull("Should have no status URL", transactionState.getUrl());
-        Assert.assertNull("Should have no request method", transactionState.getHttpMethod());
+        assertNull("Should have no status URL", transactionState.getUrl());
+        assertNull("Should have no request method", transactionState.getHttpMethod());
     }
 
     @Test
@@ -89,7 +91,7 @@ public class OkHttp2TransactionStateUtilTest {
     public void testInspectAndInstrumentNullResponse() {
         OkHttp2TransactionStateUtil.inspectAndInstrumentResponse(transactionState, (Response) null);
         Assert.assertEquals("Should have server error status code", transactionState.getStatusCode(), HttpStatus.SC_INTERNAL_SERVER_ERROR);
-        Assert.assertNull("Should have no content or content type", transactionState.getContentType());
+        assertNull("Should have no content or content type", transactionState.getContentType());
     }
 
     @Test
@@ -175,7 +177,7 @@ public class OkHttp2TransactionStateUtilTest {
     @Test
     public void testSetDistributedTracePayload() {
         FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
-        Assert.assertNull(transactionState.getTrace());
+        assertNull(transactionState.getTrace());
         CallExtension call = (CallExtension) OkHttp2Instrumentation.newCall(client, provideRequest());
         Assert.assertNotNull(call.getTransactionState().getTrace());
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
@@ -213,6 +215,43 @@ public class OkHttp2TransactionStateUtilTest {
         Assert.assertNotNull(transactionState.getTrace());
 
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
+    }
+
+    @Test
+    public void testSetDistributedTraceHeadersWhenHarvestConfigurationAccountIdEmpty() {
+        final String requestUrl = "http://www.foo.com/";
+        final String appId = "some-app-id";
+
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+        HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("");
+
+        final StubAgentImpl agent = StubAgentImpl.install();
+
+        assertEquals(0, agent.getTransactionData().size());
+
+        final Request.Builder builder = new Request.Builder().
+                url(requestUrl).
+                header(Constants.Network.APPLICATION_ID_HEADER, appId).
+                get();
+
+        final Request request = OkHttp2Instrumentation.build(builder);
+
+        assertEquals(request.urlString(), requestUrl);
+        assertEquals(request.header(Constants.Network.APPLICATION_ID_HEADER), appId);
+        assertNotNull("Cross-Process ID should not be NULL", request.header(Constants.Network.CROSS_PROCESS_ID_HEADER));
+
+        CallExtension call = (CallExtension) OkHttp2Instrumentation.newCall(client, request);
+
+        assertNull("Trace payload should  be null", call.request.header(TracePayload.TRACE_PAYLOAD_HEADER));
+        assertNull("Trace context parent should  be null", call.request.header(TraceParent.TRACE_PARENT_HEADER));
+        assertNull("Trace context state should  be null", call.request.header(TraceState.TRACE_STATE_HEADER));
+
+        transactionState = call.getTransactionState();
+        Assert.assertNotNull(transactionState.getTrace());
+
+        FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
+        HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("2");
+
     }
 
     @Test
