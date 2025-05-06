@@ -89,7 +89,7 @@ public class LogReporter extends PayloadReporter {
 
     static final String LOG_REPORTS_DIR = "newrelic/logReporting";      // root dir for local data files
     static final String LOG_FILE_MASK = "logdata%s.%s";                 // log data file name. suffix will indicate working state
-    static final Pattern LOG_FILE_REGEX = Pattern.compile("^(?<path>.*\\/" + LOG_REPORTS_DIR + ")\\/(?<file>logdata.*)\\.(?<extension>.*)$");
+    static final Pattern LOG_FILE_REGEX = Pattern.compile("^(.*\\/" + LOG_REPORTS_DIR + ")\\/(logdata.*)\\.(.*)$");
 
     static final AtomicReference<LogReporter> instance = new AtomicReference<>(null);
     static final ReentrantLock workingFileLock = new ReentrantLock();
@@ -193,43 +193,14 @@ public class LogReporter extends PayloadReporter {
     }
 
     @Override
+    public void onHarvestConnected() {
+        //submit what left when the app was terminated last time
+        processLogs();
+    }
+
+    @Override
     public void onHarvest() {
-        try {
-            final Logger logger = LogReporting.getLogger();
-            if (logger instanceof HarvestLifecycleAware) {
-                ((HarvestLifecycleAware) logger).onHarvest();
-            }
-
-            workingFileLock.lock();
-
-            // roll the log only if data has been added to the working file
-            workingLogfileWriter.get().flush();
-            if (workingLogfile.length() > LogReporter.MIN_PAYLOAD_THRESHOLD) {
-                finalizeWorkingLogfile();
-                rollWorkingLogfile();
-            }
-
-        } catch (IOException e) {
-            log.error("LogReporter: " + e);
-
-        } finally {
-            workingFileLock.unlock();
-
-        }
-
-        if (isEnabled()) {
-            // create a single log archive from all available closed files, up to 1Mb in size
-            File logReport = rollupLogDataFiles();
-
-            if (null != logReport && logReport.isFile()) {
-                if (postLogReport(logReport)) {
-                    log.info("LogReporter: Uploaded remote log data [" + logReport.getName() + "]");
-                    safeDelete(logReport);
-                } else {
-                    log.error("LogReporter: Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
-                }
-            }
-        }
+        processLogs();
     }
 
     @Override
@@ -368,6 +339,45 @@ public class LogReporter extends PayloadReporter {
         }
 
         return null;
+    }
+
+    void processLogs() {
+        try {
+            final Logger logger = LogReporting.getLogger();
+            if (logger instanceof HarvestLifecycleAware) {
+                ((HarvestLifecycleAware) logger).onHarvest();
+            }
+
+            workingFileLock.lock();
+
+            // roll the log only if data has been added to the working file
+            workingLogfileWriter.get().flush();
+            if (workingLogfile.length() > LogReporter.MIN_PAYLOAD_THRESHOLD) {
+                finalizeWorkingLogfile();
+                rollWorkingLogfile();
+            }
+
+        } catch (IOException e) {
+            log.error("LogReporter: " + e);
+
+        } finally {
+            workingFileLock.unlock();
+
+        }
+
+        if (isEnabled()) {
+            // create a single log archive from all available closed files, up to 1Mb in size
+            File logReport = rollupLogDataFiles();
+
+            if (null != logReport && logReport.isFile()) {
+                if (postLogReport(logReport)) {
+                    log.info("LogReporter: Uploaded remote log data [" + logReport.getName() + "]");
+                    safeDelete(logReport);
+                } else {
+                    log.error("LogReporter: Upload failed for remote log data [" + logReport.getAbsoluteFile() + "]");
+                }
+            }
+        }
     }
 
     /**
