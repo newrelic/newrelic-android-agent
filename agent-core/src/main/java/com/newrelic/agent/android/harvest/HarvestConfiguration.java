@@ -329,7 +329,7 @@ public class HarvestConfiguration implements HarvestConfigurable {
 
     public void setEntity_guid(String entityGuid) {
         if (entityGuid == null || entityGuid.isEmpty()) {
-            AgentLogManager.getAgentLog().error("setEntity_guid: invalid entity guid value!");
+            AgentLogManager.getAgentLog().info("setEntity_guid: invalid entity guid value!");
         } else {
             this.entity_guid = entityGuid;
         }

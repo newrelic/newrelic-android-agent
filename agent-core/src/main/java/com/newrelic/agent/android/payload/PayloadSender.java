@@ -5,23 +5,29 @@
 
 package com.newrelic.agent.android.payload;
 
+import static com.newrelic.agent.android.util.Constants.Network.CONTENT_LENGTH_HEADER;
+
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stats.TicToc;
+import com.newrelic.agent.android.util.Streams;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
+import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.HttpsURLConnection;
-
-import static com.newrelic.agent.android.util.Constants.Network.CONTENT_LENGTH_HEADER;
 
 public abstract class PayloadSender implements Callable<PayloadSender> {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
@@ -67,10 +73,12 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         switch (responseCode) {
             case HttpsURLConnection.HTTP_OK:
             case HttpsURLConnection.HTTP_ACCEPTED:
-                InputStream responseInputStream = connection.getInputStream();
-                if (responseInputStream != null) {
-                    String responseString = readStream(responseInputStream, responseInputStream.available());
-                    onRequestContent(responseString);
+                if (connection.getDoInput()) {
+                    InputStream responseInputStream = connection.getInputStream();
+                    if (responseInputStream != null) {
+                        String responseString = readStream(responseInputStream, responseInputStream.available());
+                        onRequestContent(responseString);
+                    }
                 }
                 break;
 
@@ -81,6 +89,10 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
 
             case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] has timed out (will try again later) - Response code [" + responseCode + "]");
+                break;
+
+            case HttpURLConnection.HTTP_ENTITY_TOO_LARGE:
+                onFailedUpload("The request was rejected due to payload size limits - Response code [" + responseCode + "]");
                 break;
 
             case 429: // 'Too Many Requests' not defined by HttpURLConnection
@@ -107,20 +119,22 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         log.error(errorMsg);
     }
 
+
     @Override
     @SuppressWarnings("NewApi")
     public PayloadSender call() throws Exception {
         try {
             byte[] payloadBytes = getPayload().getBytes();
             final HttpURLConnection connection = getConnection();
-            connection.setFixedLengthStreamingMode(payloadBytes.length);
-            connection.setRequestProperty(CONTENT_LENGTH_HEADER, Integer.toString(payloadBytes.length));
+
             try {
                 timer.tic();
                 connection.connect();
-                try (final OutputStream out = new BufferedOutputStream(connection.getOutputStream())) {
-                    out.write(payloadBytes);
-                    out.flush();
+                if (connection.getDoOutput()) {
+                    try (final OutputStream out = new BufferedOutputStream(connection.getOutputStream())) {
+                        out.write(payloadBytes);
+                        out.flush();
+                    }
                 }
 
                 responseCode = connection.getResponseCode();
@@ -142,7 +156,7 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
     }
 
     protected String getProtocol() {
-        // unencryped http no longer supported as of 09/24/2021
+        // unencrypted http no longer supported as of 09/24/2021
         return "https://";
     }
 
@@ -155,29 +169,11 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
      */
     @SuppressWarnings("NewApi")
     protected String readStream(InputStream stream, int maxLength) throws IOException {
-        String result = null;
-
         // Read InputStream using the UTF-8 charset.
-        try (InputStreamReader reader = new InputStreamReader(stream, "UTF-8")) {
-            // Create temporary buffer to hold Stream data with specified max length.
-            char[] buffer = new char[maxLength];
+        String result = Streams.slurpString(stream, StandardCharsets.UTF_8.toString());
 
-            // Populate temporary buffer with Stream data.
-            int numChars = 0;
-            int readSize = 0;
-
-            while (numChars < maxLength && readSize != -1) {
-                numChars += readSize;
-                readSize = reader.read(buffer, numChars, buffer.length - numChars);
-            }
-
-            if (numChars != -1) {
-                // The stream was not empty.
-                // Create String that is actual length of response body if actual length was less than
-                // max length.
-                numChars = Math.min(numChars, maxLength);
-                result = new String(buffer, 0, numChars);
-            }
+        if (maxLength < result.length()) {
+            result.substring(0, maxLength);
         }
 
         return result;
@@ -214,10 +210,16 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         return false;
     }
 
-    public interface CompletionHandler {
-        void onResponse(PayloadSender payloadSender);
+    protected URI getCollectorURI() {
+        return URI.create(getProtocol() + agentConfiguration.getCollectorHost());
+    }
 
-        void onException(PayloadSender payloadSender, Exception e);
+    public interface CompletionHandler {
+        default void onResponse(PayloadSender payloadSender) {
+        }
+
+        default void onException(PayloadSender payloadSender, Exception e) {
+        }
     }
 
 }

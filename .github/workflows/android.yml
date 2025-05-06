@@ -17,6 +17,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
       - name: set up JDK 11
@@ -36,7 +37,7 @@ jobs:
         run: ./gradlew build
       - name: Upload build reports
         if: failure() && steps.build-step.outcome != 'success'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-reports
           path: |

@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.logging;
 
+import static com.newrelic.agent.android.logging.LogReporting.LOG_PAYLOAD_LOGS_ATTRIBUTE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -85,8 +86,9 @@ public class RemoteLoggerTest extends LoggingTests {
         verify(logger, times(5)).log(any(LogLevel.class), anyString());
         verify(logger, times(0)).appendToWorkingLogfile(any(LogLevel.class), anyString(), any(), any());
 
-        JsonArray jsonArray = verifyWorkingLogfile(0);
-        Assert.assertEquals(0, jsonArray.size());
+        JsonArray jsonArray = verifyWorkingLogfile(1);
+        JsonArray logsJsonArray = jsonArray.get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray();
+        Assert.assertEquals(0, logsJsonArray.size());
     }
 
     @Test
@@ -103,12 +105,11 @@ public class RemoteLoggerTest extends LoggingTests {
         verify(logger, times(5)).log(any(LogLevel.class), anyString());
         verify(logger, times(3)).appendToWorkingLogfile(any(LogLevel.class), anyString(), any(), any());
 
-        JsonArray jsonArray = verifyWorkingLogfile(3);
-        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+        JsonArray jsonArray = verifyWorkingLogfile(4);
+        JsonArray logsJsonArray = jsonArray.get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray();
+        JsonObject jsonObject = logsJsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_SESSION_ID));
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     @Test
@@ -120,15 +121,12 @@ public class RemoteLoggerTest extends LoggingTests {
 
         verify(logger, times(1)).appendToWorkingLogfile(LogLevel.WARN, throwable.getMessage(), throwable, null);
 
-        JsonArray jsonArray = verifyWorkingLogfile(1);
-        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+        JsonArray jsonArray = verifyWorkingLogfile(2);
+        JsonArray logsJsonArray = jsonArray.get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray();
+        JsonObject jsonObject = logsJsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), throwable.getLocalizedMessage());
         Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_SESSION_ID));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_NAME));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     @Test
@@ -143,14 +141,11 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.flush();
         verify(logger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, null, attrs);
 
-        JsonArray jsonArray = verifyWorkingLogfile(1);
-        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+        JsonArray jsonArray = verifyWorkingLogfile(2);
+        JsonArray logsJsonArray = jsonArray.get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray();
+        JsonObject jsonObject = logsJsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_SESSION_ID));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_NAME));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     @Test
@@ -165,33 +160,59 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.logAll(throwable, attrs);
         verify(logger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, throwable, attrs);
 
-        JsonArray jsonArray = verifyWorkingLogfile(1);
-        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+        JsonArray jsonArray = verifyWorkingLogfile(2);
+        JsonArray logsJsonArray = jsonArray.get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray();
+        JsonObject jsonObject = logsJsonArray.get(0).getAsJsonObject();
         Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
         Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_SESSION_ID));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_NAME));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     @Test
-    public void appendLog() throws Exception {
+    public void checkCommonAttributes() throws Exception {
         final String msg = "appendLog: " + getRandomMsg(24);
 
         logger.appendToWorkingLogfile(LogLevel.INFO, msg, null, null);
         logger.flush();
         verify(logger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, null, null);
 
-        JsonArray jsonArray = verifyWorkingLogfile(1);
+        JsonArray jsonArray = verifyWorkingLogfile(2);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
-        Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString(), msg);
-        Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_SESSION_ID));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_NAME));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
+        JsonObject attributes = jsonObject.get(LogReporting.LOG_PAYLOAD_COMMON_ATTRIBUTE).getAsJsonObject().get(LogReporting.LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE).getAsJsonObject();
+        Assert.assertFalse(attributes.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+        Assert.assertTrue(attributes.has(LogReporting.LOG_SESSION_ID));
+        Assert.assertTrue(attributes.has(LogReporting.LOG_INSTRUMENTATION_NAME));
+        Assert.assertTrue(attributes.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
+        Assert.assertEquals(attributes.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
+        Assert.assertTrue(attributes.has("osBuild"));
+        Assert.assertTrue(attributes.has("osVersion"));
+        Assert.assertTrue(attributes.has("osName"));
+        Assert.assertTrue(attributes.has("platformVersion"));
+        Assert.assertTrue(attributes.has("newRelicVersion"));
+        Assert.assertTrue(attributes.has("deviceModel"));
+        Assert.assertTrue(attributes.has("deviceModel"));
+        Assert.assertTrue(attributes.has("deviceManufacturer"));
+    }
+
+    @Test
+    public void checkSessionAttributesFromCommonAttributes() throws Exception {
+        final String msg = "appendLog: " + getRandomMsg(24);
+
+        logger.appendToWorkingLogfile(LogLevel.INFO, msg, null, null);
+        logger.flush();
+        verify(logger, times(1)).appendToWorkingLogfile(LogLevel.INFO, msg, null, null);
+
+        JsonArray jsonArray = verifyWorkingLogfile(2);
+        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+        JsonObject attributes = jsonObject.get(LogReporting.LOG_PAYLOAD_COMMON_ATTRIBUTE).getAsJsonObject().get(LogReporting.LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE).getAsJsonObject();
+        Assert.assertTrue(attributes.has(LogReporting.LOG_SESSION_ID));
+        Assert.assertTrue(attributes.has("osBuild"));
+        Assert.assertTrue(attributes.has("osVersion"));
+        Assert.assertTrue(attributes.has("osName"));
+        Assert.assertTrue(attributes.has("platformVersion"));
+        Assert.assertTrue(attributes.has("newRelicVersion"));
+        Assert.assertTrue(attributes.has("deviceModel"));
+        Assert.assertTrue(attributes.has("deviceModel"));
+        Assert.assertTrue(attributes.has("deviceManufacturer"));
     }
 
     // @Test  FIXME flakey test
@@ -284,12 +305,12 @@ public class RemoteLoggerTest extends LoggingTests {
         logger.log(LogLevel.ERROR, msg);
         logger.flush();
 
-        JsonArray jsonArray = verifyWorkingLogfile(1);
+        JsonArray jsonArray = verifyWorkingLogfile(2);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
-        Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_ENTITY_ATTRIBUTE).getAsString(), AgentConfiguration.getInstance().getEntityGuid());
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_SESSION_ID));
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
+        JsonObject attributes = jsonObject.get(LogReporting.LOG_PAYLOAD_COMMON_ATTRIBUTE).getAsJsonObject().get(LogReporting.LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE).getAsJsonObject();
+        Assert.assertEquals(attributes.get(LogReporting.LOG_ENTITY_ATTRIBUTE).getAsString(), AgentConfiguration.getInstance().getEntityGuid());
+        Assert.assertTrue(attributes.has(LogReporting.LOG_SESSION_ID));
+        Assert.assertEquals(attributes.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
     }
 
     /**
@@ -402,56 +423,14 @@ public class RemoteLoggerTest extends LoggingTests {
             Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
             Assert.assertTrue(jsonObject.has(LogReporting.LOG_MESSAGE_ATTRIBUTE));
             Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
-            Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_NAME));
-            Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
-            Assert.assertTrue(jsonObject.has(LogReporting.LOG_SESSION_ID));
-            Assert.assertEquals(jsonObject.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
         }
     }
 
-    @Test
-    public void checkLogInstrumentationInsightsForHybridApps() throws Exception {
-        final String msg = "Log: ";
-
-
-        agentConfig.setApplicationFramework(ApplicationFramework.Capacitor);
-        agentConfig.setApplicationFrameworkVersion("1.2.3");
-
-
-        logger.log(LogLevel.ERROR, msg + getRandomMsg(19));
-        logger.log(LogLevel.INFO, msg + getRandomMsg(7));
-        logger.log(LogLevel.WARN, msg + getRandomMsg(31));
-        logger.log(LogLevel.VERBOSE, msg + getRandomMsg(11));
-        logger.log(LogLevel.DEBUG, msg + getRandomMsg(23));
-        logger.flush();
-
-
-        verify(logger, times(5)).log(any(LogLevel.class), anyString());
-        verify(logger, times(3)).appendToWorkingLogfile(any(LogLevel.class), anyString(), any(), any());
-
-        JsonArray jsonArray = verifyWorkingLogfile(3);
-        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
-        Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
-        Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_SESSION_ID));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_NAME));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_VERSION));
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_INSTRUMENTATION_NAME).getAsString(), AgentConfiguration.getInstance().getApplicationFramework().toString());
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_INSTRUMENTATION_VERSION).getAsString(), AgentConfiguration.getInstance().getApplicationFrameworkVersion());
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_INSTRUMENTATION_PROVIDER).getAsString(), LogReporting.LOG_INSTRUMENTATION_PROVIDER_ATTRIBUTE);
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_INSTRUMENTATION_COLLECTOR_NAME).getAsString(), LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME);
-
-    }
 
     @Test
     public void checkLogInstrumentationInsightsForNativeApps() throws Exception {
         final String msg = "Log: ";
 
-        agentConfig.setApplicationFrameworkVersion("7.6.1");
-
-
         logger.log(LogLevel.ERROR, msg + getRandomMsg(19));
         logger.log(LogLevel.INFO, msg + getRandomMsg(7));
         logger.log(LogLevel.WARN, msg + getRandomMsg(31));
@@ -462,19 +441,18 @@ public class RemoteLoggerTest extends LoggingTests {
         verify(logger, times(5)).log(any(LogLevel.class), anyString());
         verify(logger, times(3)).appendToWorkingLogfile(any(LogLevel.class), anyString(), any(), any());
 
-        JsonArray jsonArray = verifyWorkingLogfile(3);
+        JsonArray jsonArray = verifyWorkingLogfile(4);
         JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
-        Assert.assertTrue(jsonObject.get(LogReporting.LOG_TIMESTAMP_ATTRIBUTE).getAsLong() >= tStart);
-        Assert.assertFalse(jsonObject.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_SESSION_ID));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_NAME));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
-        Assert.assertTrue(jsonObject.has(LogReporting.LOG_INSTRUMENTATION_VERSION));
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_INSTRUMENTATION_NAME).getAsString(), AgentConfiguration.getInstance().getApplicationFramework().toString());
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_INSTRUMENTATION_VERSION).getAsString(), AgentConfiguration.getInstance().getApplicationFrameworkVersion());
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_INSTRUMENTATION_PROVIDER).getAsString(), LogReporting.LOG_INSTRUMENTATION_PROVIDER_ATTRIBUTE);
-        Assert.assertEquals(jsonObject.get(LogReporting.LOG_INSTRUMENTATION_COLLECTOR_NAME).getAsString(), LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME);
+        JsonObject attributes = jsonObject.get(LogReporting.LOG_PAYLOAD_COMMON_ATTRIBUTE).getAsJsonObject().get(LogReporting.LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE).getAsJsonObject();
+        Assert.assertTrue(attributes.has(LogReporting.LOG_SESSION_ID));
+        Assert.assertTrue(attributes.has(LogReporting.LOG_INSTRUMENTATION_NAME));
+        Assert.assertTrue(attributes.has(LogReporting.LOG_INSTRUMENTATION_PROVIDER));
+        Assert.assertTrue(attributes.has(LogReporting.LOG_INSTRUMENTATION_VERSION));
+        Assert.assertEquals(attributes.get(LogReporting.LOG_SESSION_ID).getAsString(), AgentConfiguration.getInstance().getSessionID());
+        Assert.assertEquals(attributes.get(LogReporting.LOG_INSTRUMENTATION_NAME).getAsString(), LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME);
+        Assert.assertEquals(attributes.get(LogReporting.LOG_INSTRUMENTATION_VERSION).getAsString(), AgentConfiguration.getInstance().getApplicationFrameworkVersion());
+        Assert.assertEquals(attributes.get(LogReporting.LOG_INSTRUMENTATION_PROVIDER).getAsString(), LogReporting.LOG_INSTRUMENTATION_PROVIDER_ATTRIBUTE);
+        Assert.assertEquals(attributes.get(LogReporting.LOG_INSTRUMENTATION_COLLECTOR_NAME).getAsString(), LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME);
 
     }
 

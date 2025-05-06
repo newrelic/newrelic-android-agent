@@ -65,6 +65,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_HEX_FAILED_UPLOAD = SUPPORTABILITY_HEX + "FailedUpload";
 
     public static final String SUPPORTABILITY_MOBILE_ANDROID = "Supportability/Mobile/Android/";
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_JETPACK_COMPOSE = SUPPORTABILITY_MOBILE_ANDROID + "JetPackCompose";
     public static final String SUPPORTABILITY_NDK = SUPPORTABILITY_MOBILE_ANDROID + "NDK/";
     public static final String SUPPORTABILITY_NDK_INIT = SUPPORTABILITY_NDK + "Init";
     public static final String SUPPORTABILITY_NDK_START = SUPPORTABILITY_NDK + "Start";
@@ -95,6 +96,19 @@ public class MetricNames {
     public static final String SUPPORTABILITY_AEI_REMOTE_CONFIG = SUPPORTABILITY_AEI + "remoteConfiguration/";
     public static final String SUPPORTABILITY_AEI_VISITED = SUPPORTABILITY_AEI + "visited";
     public static final String SUPPORTABILITY_AEI_SKIPPED = SUPPORTABILITY_AEI + "skipped";
+    public static final String SUPPORTABILITY_AEI_DROPPED = SUPPORTABILITY_AEI + "dropped";
+    public static final String SUPPORTABILITY_AEI_UPLOAD_TIME = SUPPORTABILITY_AEI + "UploadTime";
+    public static final String SUPPORTABILITY_AEI_FAILED_UPLOAD = SUPPORTABILITY_AEI + "FailedUpload";
+
+    public static final String SUPPORTABILITY_OFFLINE_STORAGE = SUPPORTABILITY_AGENT + "OfflineStorage/";
+    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "HandledException/Count";
+    public static final String OFFLINE_STORAGE_CRASH_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "Crash/Count";
+    public static final String OFFLINE_STORAGE_EVENT_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "Event/Count";
+
+    public static final String SUPPORTABILITY_BACKGROUND = SUPPORTABILITY_AGENT + "Background/";
+    public static final String BACKGROUND_EVENT_COUNT = SUPPORTABILITY_BACKGROUND + "Event/Count";
+    public static final String BACKGROUND_HANDLED_EXCEPTION_COUNT = SUPPORTABILITY_BACKGROUND + "HandledException/Count";
+    public static final String BACKGROUND_CRASH_COUNT = SUPPORTABILITY_BACKGROUND + "Crash/Count";
 
     public static final String SUPPORTABILITY_DATA_TOKEN = SUPPORTABILITY_AGENT + "DataToken/";
     public static final String SUPPORTABILITY_INVALID_DATA_TOKEN = SUPPORTABILITY_DATA_TOKEN + "Invalid";
@@ -108,6 +122,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/<subdestination>/" + SUPPORTABILITY_OUTPUT_BYTES;
     public static final String SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/MaxPayloadSizeLimit/<subdestination>";
 
+    public static final String SUPPORTABILITY_SESSION_START_COUNT_VALUE_OVERFLOW = SUPPORTABILITY_AGENT + "Session/Start/Count/ValueOverflow";
+
     public static final String METRIC_APP_LAUNCH = "AppLaunch/";
     public static final String APP_LAUNCH_COLD = METRIC_APP_LAUNCH + "Cold";
     public static final String APP_LAUNCH_HOT = METRIC_APP_LAUNCH + "Hot";
@@ -118,10 +134,4 @@ public class MetricNames {
     public static final String TAG_FRAMEWORK_VERSION = "<frameworkVersion>";
     public static final String TAG_DESTINATION = "<destination>";
     public static final String TAG_SUBDESTINATION = "<subdestination>";
-    public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION_COUNT = "OfflineStorage/HandledException/Count";
-    public static final String OFFLINE_STORAGE_CRASH_COUNT = "OfflineStorage/Crash/Count";
-    public static final String OFFLINE_STORAGE_EVENT_COUNT = "OfflineStorage/Event/Count";
-    public static final String BACKGROUND_EVENT_COUNT = "Background/Event/Count";
-    public static final String BACKGROUND_HANDLED_EXCEPTION_COUNT = "Background/HandledException/Count";
-    public static final String BACKGROUND_CRASH_COUNT = "Background/Crash/Count";
 }

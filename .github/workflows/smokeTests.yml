@@ -27,7 +27,7 @@ jobs:
         run: ./gradlew :plugins:gradle:functionalTests --tests "com.newrelic.agent.android.PluginJDK11SmokeSpec"
       - name: Upload build reports
         if: ${{ !env.ACT }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: smoke-test-jdk11-reports
           path: |
@@ -56,7 +56,7 @@ jobs:
         run: ./gradlew :plugins:gradle:functionalTests --tests "com.newrelic.agent.android.PluginJDK17SmokeSpec"
       - name: Upload build reports
         if: ${{ !env.ACT }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: smoke-test-jdk17-reports
           path: |

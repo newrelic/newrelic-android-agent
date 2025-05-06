@@ -200,6 +200,7 @@ public class TraceMachine extends HarvestAdapter {
                 traceMachine.completeActivityTrace();
             }
         } catch (TracingInactiveException e) {
+            log.error("Tried to end trace with no trace machine!");
         }
     }
 

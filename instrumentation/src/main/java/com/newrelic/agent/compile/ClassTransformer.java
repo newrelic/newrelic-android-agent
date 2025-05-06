@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -45,6 +46,7 @@ public final class ClassTransformer {
     private ClassData classData;
     private boolean identityTransform;
     private WriteMode writeMode;
+    private Map<String, String> agentOptions = new HashMap<String, String>();
     final InvocationDispatcher invocationDispatcher;
 
     public enum WriteMode {
@@ -53,8 +55,13 @@ public final class ClassTransformer {
     }
 
     private InvocationDispatcher initDispatcher() {
+        log.debug("Initializing InvocationDispatcher from ClassTransformer");
+        log.debug("logInstrumentationEnabled: {}", agentOptions.get("logInstrumentationEnabled"));
+        log.debug("logInstrumentationEnabled Parsed Value: {}", Boolean.parseBoolean(agentOptions.get("logInstrumentationEnabled")));
+        log.debug("defaultInteractionsEnabled: {}", agentOptions.get("defaultInteractionsEnabled"));
+        log.debug("defaultInteractionsEnabled Parsed Value: {}", Boolean.parseBoolean(agentOptions.get("defaultInteractionsEnabled")));
         try {
-            return new InvocationDispatcher(log);
+            return new InvocationDispatcher(log,Boolean.parseBoolean(agentOptions.get("logInstrumentationEnabled")), Boolean.parseBoolean(agentOptions.get("defaultInteractionsEnabled")));
         } catch (Exception e) {
             log.error("ClassTransformer: could not allocate InvocationDispatcher! " + e);
         }
@@ -63,6 +70,7 @@ public final class ClassTransformer {
 
     public ClassTransformer() {
         this.log = InstrumentationAgent.LOGGER;
+        this.agentOptions = InstrumentationAgent.getAgentOptions();
         this.inputFile = new File(".").getAbsoluteFile();
         this.outputFile = new File(".").getAbsoluteFile();
         this.classData = null;

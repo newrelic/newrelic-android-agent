@@ -56,7 +56,7 @@ public class AnalyticsAttribute {
     public static final String UNHANDLED_NATIVE_EXCEPTION = "unhandledNativeException";
     public static final String NATIVE_CRASH = "nativeCrash";
     public static final String ANR = "ANR";
-
+    public static final String PROCESS_ID_ATTRIBUTE = "processId";
     public static final String EVENT_CATEGORY_ATTRIBUTE = "category";
     public static final String EVENT_NAME_ATTRIBUTE = "name";
     public static final String EVENT_TIMESTAMP_ATTRIBUTE = "timestamp";
@@ -107,6 +107,13 @@ public class AnalyticsAttribute {
     public static final String APP_EXIT_IMPORTANCE_STRING_ATTRIBUTE = "importanceAsString";
     public static final String APP_EXIT_PROCESS_NAME_ATTRIBUTE = "processName";
     public static final String APP_EXIT_APP_STATE_ATTRIBUTE = "appState";
+    public static final String APP_EXIT_SESSION_ID_ATTRIBUTE = "aeiSessionId";
+    public static final String APP_EXIT_THREADS_ATTRIBUTE = "threads";
+    public static final String APP_EXIT_ID_ATTRIBUTE = "appExitId";
+    public static final String APP_EXIT_FINGERPRINT_ATTRIBUTE = "fingerprint";
+    public static final String APP_EXIT_PROCESS_ID_ATTRIBUTE = "processId";
+    public static final String HARVEST_ACCOUNT_ID_ATTRIBUTE = "HarvestAccountId";
+
 
     public static final int ATTRIBUTE_NAME_MAX_LENGTH = 255;
 

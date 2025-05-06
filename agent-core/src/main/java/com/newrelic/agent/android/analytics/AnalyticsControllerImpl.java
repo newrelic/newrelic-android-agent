@@ -195,6 +195,7 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
         systemAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.NEW_RELIC_VERSION_ATTRIBUTE, deviceInformation.getAgentVersion()));
         systemAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.MEM_USAGE_MB_ATTRIBUTE, (float) environmentInformation.getMemoryUsage()));
         systemAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, agentConfiguration.getSessionID(), false));
+        systemAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.PROCESS_ID_ATTRIBUTE,agentImpl.getCurrentProcessId(), false));
         systemAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.APPLICATION_PLATFORM_ATTRIBUTE, agentConfiguration.getApplicationFramework().toString()));
         systemAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.APPLICATION_PLATFORM_VERSION_ATTRIBUTE, agentConfiguration.getApplicationFrameworkVersion()));
         systemAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.RUNTIME_ATTRIBUTE, deviceInformation.getRunTime()));
@@ -604,16 +605,21 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
      */
     @Override
     public boolean removeAllAttributes() {
-        log.audit("AnalyticsControllerImpl.removeAttributes(): " + attributeStore.count() + userAttributes.size());
+        if (attributeStore != null && userAttributes != null) {
+            log.audit("AnalyticsControllerImpl.removeAttributes(): " + attributeStore.count() + userAttributes.size());
 
-        if (!isInitializedAndEnabled()) {
+
+            if (!isInitializedAndEnabled()) {
+                return false;
+            }
+
+            attributeStore.clear();
+            userAttributes.clear();
+
+            return true;
+        } else{
             return false;
         }
-
-        attributeStore.clear();
-        userAttributes.clear();
-
-        return true;
     }
 
 
