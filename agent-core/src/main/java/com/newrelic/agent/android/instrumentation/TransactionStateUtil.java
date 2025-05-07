@@ -11,6 +11,7 @@ import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceHeader;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.util.Constants;
@@ -94,7 +95,7 @@ public class TransactionStateUtil {
      */
     static void setDistributedTraceHeaders(TransactionState transactionState, HttpURLConnection conn) {
 
-        if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
+        if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing) && !HarvestConfiguration.getDefaultHarvestConfiguration().getAccount_id().isEmpty()) {
             try {
                 TraceContext traceContext = transactionState.getTrace();
                 if (traceContext != null) {
