@@ -437,9 +437,9 @@ public class LogReporter extends PayloadReporter {
     boolean safeDelete(File fileToDelete) {
         // Potential race condition here so rename the file rather than deleting it.
         // Expired files will be removed during an expiration sweep.
+        // 5/8/25 Delete expired file due to memory issues
         if (!isLogfileTypeOf(fileToDelete, LogReportState.EXPIRED)) {
-            fileToDelete.setReadOnly();
-            fileToDelete.renameTo(new File(fileToDelete.getAbsolutePath() + LogReportState.EXPIRED.asExtension()));
+            fileToDelete.delete();
         }
 
         return !fileToDelete.exists();
@@ -625,23 +625,6 @@ public class LogReporter extends PayloadReporter {
         });
 
         return expiredFiles;
-    }
-
-    /**
-     * Restore closed log files. This is for testing at the moment and will unlikely be included
-     * in GA, unless early adoption testing exposes a need for it.
-     *
-     * @return Set contain the File instance af call recovered log files.
-     */
-    Set<File> recover() {
-        Set<File> recoveredFiles = getCachedLogReports(LogReportState.EXPIRED);
-        recoveredFiles.forEach(logReport -> {
-            logReport.setWritable(true);
-            logReport.renameTo(new File(logReport.getAbsolutePath().replace(LogReportState.EXPIRED.asExtension(), "")));
-        });
-
-        return recoveredFiles;
-
     }
 
     /**

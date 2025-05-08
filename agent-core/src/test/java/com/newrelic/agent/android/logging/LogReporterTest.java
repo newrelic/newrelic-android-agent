@@ -286,20 +286,6 @@ public class LogReporterTest extends LoggingTests {
     }
 
     @Test
-    public void recover() throws Exception {
-        seedLogData(3);
-
-        logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).forEach(file -> logReporter.safeDelete(file));
-        Assert.assertTrue(logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).isEmpty());
-
-        logReporter.getCachedLogReports(LogReporter.LogReportState.EXPIRED).forEach(file -> Assert.assertFalse(file.canWrite()));
-        Assert.assertEquals(3, logReporter.getCachedLogReports(LogReporter.LogReportState.EXPIRED).size());
-
-        logReporter.recover();
-        logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).forEach(file -> Assert.assertTrue(file.canWrite()));
-    }
-
-    @Test
     public void expire() {
         Set<File> allFiles = logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED);
         allFiles.forEach(file -> Assert.assertTrue(file.setLastModified(System.currentTimeMillis() - TimeUnit.MILLISECONDS.convert(4, TimeUnit.DAYS))));
