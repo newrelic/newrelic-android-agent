@@ -8,20 +8,24 @@ import java.util.ArrayList;
 public class SessionReplayCapture {
     private SessionReplayThingyRecorder recorder;
 
-    public SessionReplayThingy capture(View rootView) {
+    public SessionReplayViewThingyInterface capture(View rootView) {
         recorder = new SessionReplayThingyRecorder(rootView.getResources().getDisplayMetrics().density);
         return recursivelyCapture(rootView);
     }
 
-    private SessionReplayThingy recursivelyCapture(View rootView) {
-        ArrayList<SessionReplayThingy> childThingies = new ArrayList<>();
+    private SessionReplayViewThingyInterface recursivelyCapture(View rootView) {
+        ArrayList<SessionReplayViewThingyInterface> childThingies = new ArrayList<>();
 
         if(rootView instanceof ViewGroup) {
             for(int i = 0; i < ((ViewGroup) rootView).getChildCount(); i++) {
                 childThingies.add(recursivelyCapture(((ViewGroup) rootView).getChildAt(i)));
             }
         }
-        return recorder.recordView(rootView, childThingies);
+
+        SessionReplayViewThingyInterface thingy = recorder.recordView(rootView);
+        thingy.setSubviews(childThingies);
+
+        return thingy;
     }
 }
 
