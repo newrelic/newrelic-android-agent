@@ -32,7 +32,7 @@ public class SessionReplayProcessor {
         StringBuilder cssStyleBuilder = new StringBuilder();
 
         // Generate Body node
-        RRWebElementNode rootElement = recursivelyProcessThingy(frame.rootThingy, cssStyleBuilder);
+        RRWebNode rootElement = recursivelyProcessThingy(frame.rootThingy, cssStyleBuilder);
 
         // Generate boilerplate nodes
         // CSS node
@@ -54,17 +54,20 @@ public class SessionReplayProcessor {
         return fullSnapshotEvent;
     }
 
-    private RRWebElementNode recursivelyProcessThingy(SessionReplayThingy rootThingy, StringBuilder cssStyleBuilder) {
+    private RRWebNode recursivelyProcessThingy(SessionReplayViewThingyInterface rootThingy, StringBuilder cssStyleBuilder) {
         cssStyleBuilder.append(rootThingy.generateCssDescription());
 
-        Attributes attribues = new Attributes(rootThingy.generateCssSelector());
+//        Attributes attribues = new Attributes(rootThingy.getCSSSelector());
         ArrayList<RRWebNode> childNodes = new ArrayList<>();
-        for(SessionReplayThingy childNode : rootThingy.childNodes) {
-            RRWebElementNode childElement = recursivelyProcessThingy(childNode, cssStyleBuilder);
+        RRWebElementNode elementNode = rootThingy.generateRRWebNode();
+        for(SessionReplayViewThingyInterface childNode : rootThingy.getSubviews()) {
+            RRWebNode childElement = recursivelyProcessThingy(childNode, cssStyleBuilder);
             childNodes.add(childElement);
         }
 
-        return new RRWebElementNode(attribues, RRWebElementNode.TAG_TYPE_DIV, rootThingy.id, childNodes);
-    }
+//        elementNode.childNodes.addAll(childNodes);
+        elementNode.childNodes.addAll(childNodes);
 
+        return elementNode;
+    }
 }
