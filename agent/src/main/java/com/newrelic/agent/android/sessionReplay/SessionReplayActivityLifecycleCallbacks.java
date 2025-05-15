@@ -54,7 +54,6 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
 
 
 public class SessionReplayActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
@@ -101,49 +100,49 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 Log.d(TAG, "Root View Changed in Listener");
                 Window window = Windows.getPhoneWindowForView(view);
                 WindowCallbackWrapper.getListeners(window).getTouchEventInterceptors().add(new OnTouchEventListener() {
-                                                                                               @Override
-                                                                                               public void onTouchEvent(MotionEvent motionEvent) {
+                       @Override
+                       public void onTouchEvent(MotionEvent motionEvent) {
 //                           Log.d(TAG, "Received Motion Event: " + motionEvent.toString());
-                                                                                                   long timestamp = System.currentTimeMillis();
-                                                                                                   MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
-                                                                                                   motionEvent.getPointerCoords(0, pointerCoords);
+                           long timestamp = System.currentTimeMillis();
+                           MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
+                           motionEvent.getPointerCoords(0, pointerCoords);
 
-                                                                                                   if(currentTouchId == -1) {
+                           if(currentTouchId == -1) {
 //                               currentTouchId = NewRelicIdGenerator.generateId();
-                                                                                                       View containingView = findViewAtCoords(view, (int)pointerCoords.x, (int)pointerCoords.y);
-                                                                                                       if(containingView != null) {
-                                                                                                           currentTouchId = getStableId(containingView);
-                                                                                                           Log.d(TAG, "Found originating View. Id is " + currentTouchId);
-                                                                                                       } else {
-                                                                                                           Log.d(TAG, "Unable to find originating View. Generating ID");
-                                                                                                           currentTouchId = NewRelicIdGenerator.generateId();
-                                                                                                       }
-                                                                                                   }
+                               View containingView = findViewAtCoords(view, (int)pointerCoords.x, (int)pointerCoords.y);
+                               if(containingView != null) {
+                                   currentTouchId = getStableId(containingView);
+                                   Log.d(TAG, "Found originating View. Id is " + currentTouchId);
+                               } else {
+                                   Log.d(TAG, "Unable to find originating View. Generating ID");
+                                   currentTouchId = NewRelicIdGenerator.generateId();
+                               }
+                           }
 
-                                                                                                   RecordedTouchData moveTouch;
-                                                                                                   if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                                                                                                       if (currentTouchTracker == null) {
-                                                                                                           Log.d(TAG, "Adding Start Event");
-                                                                                                           moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
-                                                                                                           currentTouchTracker = new TouchTracker(moveTouch);
-                                                                                                       }
-                                                                                                   } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
-                                                                                                       if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
-                                                                                                           Log.d(TAG, "Adding Move Event");
-                                                                                                           moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
-                                                                                                           SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
-                                                                                                       }
-                                                                                                   } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
-                                                                                                       Log.d(TAG, "Adding End Event");
-                                                                                                       moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
-                                                                                                       currentTouchTracker.addEndTouch(moveTouch);
-                                                                                                       touchTrackers.add(SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker);
-                                                                                                       currentTouchTracker = null;
-                                                                                                       currentTouchId = -1;
-                                                                                                   }
+                           RecordedTouchData moveTouch;
+                           if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                               if (currentTouchTracker == null) {
+                                   Log.d(TAG, "Adding Start Event");
+                                   moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
+                                   currentTouchTracker = new TouchTracker(moveTouch);
+                               }
+                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
+                               if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
+                                   Log.d(TAG, "Adding Move Event");
+                                   moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
+                                   SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
+                               }
+                           } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
+                               Log.d(TAG, "Adding End Event");
+                               moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
+                               currentTouchTracker.addEndTouch(moveTouch);
+                               touchTrackers.add(SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker);
+                               currentTouchTracker = null;
+                               currentTouchId = -1;
+                           }
 
-                                                                                               }
-                                                                                           }
+                       }
+                   }
                 );
 
             }
