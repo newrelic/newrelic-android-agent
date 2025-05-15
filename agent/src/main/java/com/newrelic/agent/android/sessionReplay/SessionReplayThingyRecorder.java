@@ -1,6 +1,7 @@
 package com.newrelic.agent.android.sessionReplay;
 
 import android.view.View;
+import android.widget.TextView;
 
 import java.util.List;
 
@@ -12,25 +13,14 @@ public class SessionReplayThingyRecorder {
         this.density = density;
     }
 
-    public SessionReplayThingy recordView(View view, List<SessionReplayThingy> childThingies) {
-        int[] location = new int[2];
-        view.getLocationOnScreen(location);
-        float x = location[0] / density;
-        float y = location[1] / density;
-        float width = view.getWidth() / density;
-        float height = view.getHeight() / density;
+    public SessionReplayViewThingyInterface recordView(View view) {
+        ViewDetails viewDetails = new ViewDetails(view);
 
-        int keyCode = SessionReplayKey.hashCode();
-        Integer id;
-        id = (Integer) view.getTag(keyCode);
-        if(id == null) {
-            id = Integer.valueOf(NewRelicIdGenerator.generateId());
-            view.setTag(keyCode, id);
+        if (view instanceof TextView) {
+            return new SessionReplayTextViewThingy(viewDetails, (TextView) view);
+        } else {
+            // This is a plain old view
+            return new SessionReplayViewThingy(viewDetails);
         }
-
-        String name = view.getClass().getSimpleName()+"-"+ id;
-
-        SessionReplayThingy.Rect position = new SessionReplayThingy.Rect((int) x, (int) y, (int) width, (int) height);
-        return new SessionReplayThingy(position, name, id, childThingies);
     }
 }
