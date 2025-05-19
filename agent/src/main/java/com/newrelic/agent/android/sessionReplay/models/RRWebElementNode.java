@@ -14,12 +14,12 @@ public class RRWebElementNode implements RRWebNode {
     public String tagName;
     public Attributes attributes;
     public List<RRWebNode> childNodes;
-    public int ID;
+    public int id;
 
-    public RRWebElementNode(Attributes attributes, String tagName, int ID, List<RRWebNode> childNodes) {
+    public RRWebElementNode(Attributes attributes, String tagName, int id, List<RRWebNode> childNodes) {
         this.attributes = attributes;
         this.tagName = tagName;
-        this.ID = ID;
+        this.id = id;
         this.childNodes = childNodes;
     }
 }

@@ -31,6 +31,11 @@ public class ViewBackgroundHelper {
             return ""; // No background drawable
         }
 
+
+        // Check for background tint list
+        if (view.getBackgroundTintList() != null) {
+            return toRGBAHexString(view.getBackgroundTintList().getColorForState(new int[]{android.R.attr.state_enabled}, 0));
+        }
         // Delegate to a helper method to handle different drawable types
         return getDrawableColor(background);
     }
@@ -91,6 +96,8 @@ public class ViewBackgroundHelper {
             // Returning null indicates we can't get a meaningful single color.
             return "";
         }
+
+
 
         // Handle other drawable types as needed
         // You might encounter StateListDrawable, ShapeDrawable, etc.

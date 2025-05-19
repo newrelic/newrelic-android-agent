@@ -1,6 +1,6 @@
 package com.newrelic.agent.android.sessionReplay.models;
 
-public class RRWebTouch {
+public class RRWebTouch implements RRWebEvent {
 
     public long timestamp;
     public int type = 3;

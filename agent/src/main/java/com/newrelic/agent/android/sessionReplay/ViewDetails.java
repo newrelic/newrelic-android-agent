@@ -46,7 +46,9 @@ public class ViewDetails {
         float y = location[1] / density;
         float width = view.getWidth() / density;
         float height = view.getHeight() / density;
-        this.frame = new Rect((int) x, (int) y, (int) width, (int) height);
+        this.frame = new Rect((int) x, (int) y, (int) ((int)  x+width), (int) ((int) y+height));
+
+
 
         this.backgroundColor = ViewBackgroundHelper.getBackgroundColor(view);
 
@@ -106,9 +108,9 @@ public class ViewDetails {
         StringBuilder cssString = new StringBuilder();
         String cssSelector = getCSSSelector();
 
-        cssString.append("#")
+        cssString.append(" #")
                 .append(cssSelector)
-                .append("{")
+                .append(" {")
                 .append(" ")
                 .append(generatePositionCss())
                 .append(" ")
