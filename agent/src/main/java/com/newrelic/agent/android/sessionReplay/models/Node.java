@@ -2,13 +2,14 @@ package com.newrelic.agent.android.sessionReplay.models;
 
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class Node{
     public int type;
     public int id;
-    public ArrayList<ChildNode> childNodes;
+    public List<RRWebElementNode> childNodes;
 
-    public Node(int type, int id, ArrayList<ChildNode> childNodes) {
+    public Node(int type, int id, List<RRWebElementNode> childNodes) {
         this.type = type;
         this.id = id;
         this.childNodes = childNodes;
@@ -30,11 +31,11 @@ public class Node{
         this.id = id;
     }
 
-    public ArrayList<ChildNode> getChildNodes() {
+    public List<RRWebElementNode> getChildNodes() {
         return childNodes;
     }
 
-    public void setChildNodes(ArrayList<ChildNode> childNodes) {
+    public void setChildNodes(ArrayList<RRWebElementNode> childNodes) {
         this.childNodes = childNodes;
     }
 

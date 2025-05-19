@@ -1,6 +1,8 @@
 package com.newrelic.agent.android.sessionReplay;
 
 import android.view.View;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.List;
@@ -18,7 +20,11 @@ public class SessionReplayThingyRecorder {
 
         if (view instanceof TextView) {
             return new SessionReplayTextViewThingy(viewDetails, (TextView) view);
-        } else {
+        } if (view instanceof EditText) {
+            return new SessionReplayEditTextThingy(viewDetails, (EditText) view);
+        } if (view instanceof ImageView) {
+            return new SessionReplayImageViewThingy(viewDetails, (ImageView) view);
+        }else {
             // This is a plain old view
             return new SessionReplayViewThingy(viewDetails);
         }

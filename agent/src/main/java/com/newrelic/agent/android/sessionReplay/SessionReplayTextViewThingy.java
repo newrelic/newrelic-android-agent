@@ -36,7 +36,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         this.fontName = "default";
         this.fontFamily = getFontFamily(typeface);
-        this.textColor = Integer.toHexString(view.getCurrentTextColor());
+        this.textColor = Integer.toHexString(view.getCurrentTextColor()).substring(2);
     }
 
     @Override
