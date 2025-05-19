@@ -1,7 +1,9 @@
 package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
+import com.newrelic.agent.android.sessionReplay.models.Data;
 import com.newrelic.agent.android.sessionReplay.models.InitialOffset;
+import com.newrelic.agent.android.sessionReplay.models.Node;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 import com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent;
@@ -48,8 +50,12 @@ public class SessionReplayProcessor {
         // HTML node
         RRWebElementNode htmlNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_HTML,NewRelicIdGenerator.generateId(), Arrays.asList(headNode, bodyNode));
 
+        Node node = new Node(RRWebNode.RRWEB_NODE_TYPE_DOCUMENT, NewRelicIdGenerator.generateId(), Collections.singletonList(htmlNode));
+
+        Data data = new Data(new InitialOffset(0, 0), node);
+
         // Create Full Snapshot Root and add the above to it
-        RRWebFullSnapshotEvent fullSnapshotEvent = new RRWebFullSnapshotEvent(new InitialOffset(0, 0), frame.timestamp, Collections.singletonList(htmlNode));
+        RRWebFullSnapshotEvent fullSnapshotEvent = new RRWebFullSnapshotEvent(frame.timestamp, data);
 
         return fullSnapshotEvent;
     }

@@ -2,6 +2,7 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
+import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,7 +46,7 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
     public RRWebElementNode generateRRWebNode() {
         Attributes attribues = new Attributes(viewDetails.getCSSSelector());
         return new RRWebElementNode(attribues, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(),
-                Collections.emptyList());
+                new ArrayList<RRWebNode>());
     }
 
 }
