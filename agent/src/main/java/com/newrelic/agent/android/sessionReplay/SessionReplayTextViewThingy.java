@@ -86,7 +86,9 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         cssBuilder.append("");
         cssBuilder.append("white-space: pre-wrap;");
         cssBuilder.append("");
-        cssBuilder.append("font: ");
+        cssBuilder.append("word-wrap: break-word");
+        cssBuilder.append(" ");
+        cssBuilder.append("font-size: ");
         cssBuilder.append(String.format("%.2f", this.fontSize));
         cssBuilder.append("px ");
         cssBuilder.append(this.fontFamily);
@@ -111,84 +113,32 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.singletonList(textNode));
     }
 
-//    // This method corresponds to generateDifference in Swift
-//    // You will need a MutationRecord class and RRWebMutationData in your Java code.
-//    // This implementation is a simplified version based on the Swift code.
-//    // Assuming MutationRecord and RRWebMutationData are classes in your project
-//    public List<MutationRecord> generateDifferences(UILabelThingy other) {
-//        List<MutationRecord> mutations = new ArrayList<>();
-//
-//        // Assuming generateBaseDifferences in the Java interface returns a map of CSS attribute differences
-//        java.util.Map<String, String> frameDifferences = generateBaseDifferences(other);
-//
-//        // Get text color difference
-//        if (this.textColor != other.textColor) {
-//            String otherTextColorHex = String.format("#%06X", (0xFFFFFF & other.textColor));
-//            frameDifferences.put("color", otherTextColorHex);
-//        }
-//
-//        // Assuming you have a MutationRecord.AttributeRecord class in your project
-//        // This part needs to be adapted to your Java MutationRecord structure
-//        // mutations.add(new MutationRecord.AttributeRecord(viewDetails.getViewId(), frameDifferences));
-//
-//        if (!this.labelText.equals(other.labelText)) {
-//            // Assuming you have a MutationRecord.TextRecord class in your project
-//            // mutations.add(new MutationRecord.TextRecord(viewDetails.getViewId(), other.labelText));
-//        }
-//
-//        return mutations;
-//    }
-//
-//    // Equivalent of Swift's Equatable
-//    @Override
-//    public boolean equals(Object o) {
-//        if (this == o) return true;
-//        if (o == null || getClass() != o.getClass()) return false;
-//        UILabelThingy that = (UILabelThingy) o;
-//        return Float.compare(that.fontSize, fontSize) == 0 &&
-//                textColor == that.textColor &&
-//                Objects.equals(viewDetails, that.viewDetails) &&
-//                Objects.equals(labelText, that.labelText) &&
-//                Objects.equals(fontName, that.fontName) &&
-//                Objects.equals(fontFamily, that.fontFamily);
-//    }
-//
-//    // Equivalent of Swift's Hashable
-//    @Override
-//    public int hashCode() {
-//        return Objects.hash(viewDetails, labelText, fontSize, fontName, fontFamily, textColor);
-//    }
-//
-//    // Assuming generateBaseCSSStyle and generateBaseDifferences are part of SessionReplayViewThingy
-//    // You will need to implement these methods in your SessionReplayViewThingy interface/abstract class.
-//    // Example placeholder methods:
-//    private String generateBaseCSSStyle() {
-//        // Implement logic to generate base CSS styles (e.g., position, size)
-//        return "";
-//    }
-//
-//    private java.util.Map<String, String> generateBaseDifferences(SessionReplayViewThingy other) {
-//        // Implement logic to generate differences for base view properties
-//        return new java.util.HashMap<>();
-//    }
-
     private String getFontFamily(Typeface typeface) {
+        if (typeface == null) {
+            return "font-weight: normal; font-style: normal;";
+        }
 
-        if(typeface.equals(Typeface.DEFAULT)){
-            return "roboto, sans-serif";
+        StringBuilder style = new StringBuilder();
+
+        // Handle font family
+        if (typeface.equals(Typeface.MONOSPACE)) {
+            style.append("font-family: monospace;");
+        } else if (typeface.equals(Typeface.SERIF)) {
+            style.append("font-family: serif;");
+        } else {
+            // Default, SANS_SERIF, and custom typefaces
+            style.append("font-family: sans-serif;");
         }
-        if(typeface.equals(Typeface.DEFAULT_BOLD)){
-            return "sans-serif-bold";
+
+        // Handle font weight and style
+        int typefaceStyle = typeface.getStyle();
+        if ((typefaceStyle & Typeface.BOLD) != 0) {
+            style.append(" font-weight: bold;");
         }
-        if(typeface.equals(Typeface.MONOSPACE)){
-            return "monospace";
+        if ((typefaceStyle & Typeface.ITALIC) != 0) {
+            style.append(" font-style: italic;");
         }
-        if(typeface.equals(Typeface.SANS_SERIF)){
-            return "sans-serif";
-        }
-        if(typeface.equals(Typeface.SERIF)){
-            return "serif";
-        }
-        return "roboto, sans-serif";
+
+        return style.toString();
     }
 }

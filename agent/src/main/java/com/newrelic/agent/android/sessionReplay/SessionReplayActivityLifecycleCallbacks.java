@@ -18,7 +18,6 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.widget.CheckBox;
 import android.widget.CheckedTextView;
@@ -40,14 +39,9 @@ import com.newrelic.agent.android.sessionReplay.internal.OnTouchEventListener;
 import com.newrelic.agent.android.sessionReplay.internal.WindowCallbackWrapper;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.ChildNode;
-import com.newrelic.agent.android.sessionReplay.models.Data;
-import com.newrelic.agent.android.sessionReplay.models.InitialOffset;
-import com.newrelic.agent.android.sessionReplay.models.Node;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTouch;
 import com.newrelic.agent.android.sessionReplay.models.RecordedTouchData;
 import com.newrelic.agent.android.sessionReplay.models.SessionReplayRoot;
-import com.newrelic.agent.android.sessionReplay.models.RRWebTouch;
-import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
@@ -70,10 +64,10 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     private ArrayList<TouchTracker> touchTrackers = new ArrayList<>();
     private TouchTracker currentTouchTracker = null;
 
-    private OnTouchRecordeListener onTouchRecordeListener;
+    private OnTouchRecordedListener onTouchRecordedListener;
 
-    public SessionReplayActivityLifecycleCallbacks(OnTouchRecordeListener onTouchRecordeListener) {
-        this.onTouchRecordeListener = onTouchRecordeListener;
+    public SessionReplayActivityLifecycleCallbacks(OnTouchRecordedListener onTouchRecordedListener) {
+        this.onTouchRecordedListener = onTouchRecordedListener;
     }
 
 
@@ -105,6 +99,10 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
             @Override
             public void onRootViewsChanged(View view, boolean added) {
                 Log.d(TAG, "Root View Changed in Listener");
+                Windows.WindowType windowType = Windows.getWindowType(view);
+                if (windowType == Windows.WindowType.POPUP_WINDOW) {
+                    return;
+                }
                 Window window = Windows.getPhoneWindowForView(view);
                 WindowCallbackWrapper.getListeners(window).getTouchEventInterceptors().add(new OnTouchEventListener() {
                                                                                                @Override
@@ -137,7 +135,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                                                                                                        moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                                                                                                        currentTouchTracker.addEndTouch(moveTouch);
 //                               touchTrackers.add(SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker);
-                                                                                                       SessionReplayActivityLifecycleCallbacks.this.onTouchRecordeListener.onTouchRecorde(currentTouchTracker);
+                                                                                                       SessionReplayActivityLifecycleCallbacks.this.onTouchRecordedListener.onTouchRecorded(currentTouchTracker);
                                                                                                        currentTouchTracker = null;
                                                                                                        currentTouchId = -1;
                                                                                                    }

@@ -8,16 +8,20 @@ package com.newrelic.agent.android.sessionReplay;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.util.Constants;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.GZIPOutputStream;
 
 public class SessionReplayReporter extends PayloadReporter {
     protected static final AtomicReference<SessionReplayReporter> instance = new AtomicReference<>(null);
@@ -55,14 +59,30 @@ public class SessionReplayReporter extends PayloadReporter {
         boolean reported = false;
 
         if (isInitialized()) {
-            Payload payload = new Payload(bytes);
-            instance.get().storeAndReportSessionReplayData(payload);
-            reported = true;
+            try {
+                // Apply gzip compression
+                byte[] compressedBytes = gzipCompress(bytes);
+
+                Payload payload = new Payload(compressedBytes);
+                instance.get().storeAndReportSessionReplayData(payload);
+                reported = true;
+            } catch (IOException e) {
+                log.error("Failed to compress session replay data", e);
+            }
         } else {
             log.error("SessionReplayDataReporter not initialized");
         }
 
         return reported;
+    }
+
+    // Helper method to apply gzip compression
+    private static byte[] gzipCompress(byte[] uncompressedData) throws IOException {
+        ByteArrayOutputStream byteStream = new ByteArrayOutputStream(uncompressedData.length);
+        try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteStream)) {
+            gzipOutputStream.write(uncompressedData);
+        }
+        return byteStream.toByteArray();
     }
 
     protected static boolean isInitialized() {
@@ -81,7 +101,7 @@ public class SessionReplayReporter extends PayloadReporter {
             if (isEnabled()) {
                 if (isStarted.compareAndSet(false, true)) {
                     PayloadController.submitCallable(reportCachedSessionReplayDataCallable);
-                    Harvest.addHarvestListener(this);
+//                    Harvest.addHarvestListener(this);
                 }
             }
         } else {
@@ -91,7 +111,7 @@ public class SessionReplayReporter extends PayloadReporter {
 
     @Override
     public void stop() {
-        Harvest.removeHarvestListener(this);
+//        Harvest.removeHarvestListener(this);
     }
 
     // upload any cached agent data posts
@@ -107,12 +127,12 @@ public class SessionReplayReporter extends PayloadReporter {
     }
 
     public Future reportSessionReplayData(Payload payload) {
-        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration());
+        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration());
 
-        if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
-            log.error("Unable to upload because payload is larger than 1 MB, handled exceptions are discarded.");
-            return null;
-        }
+//        if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
+//            log.error("Unable to upload because payload is larger than 1 MB, handled exceptions are discarded.");
+//            return null;
+//        }
 
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
