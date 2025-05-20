@@ -37,7 +37,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         this.application = application;
         this.uiThreadHandler = uiThreadHandler;
 
-        this.sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
+        this.sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(this);
         this.viewDrawInterceptor = new ViewDrawInterceptor(this,this);
     }
 
@@ -121,7 +121,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         rawFrames.add(newFrame);
 
-        if(rawFrames.size() >= 30) {
+        if(rawFrames.size() >= 50) {
             WindowManager wm = (WindowManager) application.getApplicationContext().getSystemService(Context.WINDOW_SERVICE);
             float density = application.getApplicationContext().getResources().getDisplayMetrics().density;
 
