@@ -1,11 +1,15 @@
 package com.newrelic.agent.android.sessionReplay;
 
+import android.graphics.Paint;
 import android.graphics.Rect; // Equivalent to CGRect for basic representation
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.view.View; // Use Android's View class
 //import com.newrelic.agent.android.sessionReplay.gestures.SessionReplayIdentifier; // Assuming this class exists for managing view IDs
 import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
 //import com.newrelic.agent.android.sessionReplay.models.NewRelicIdGenerator; // Assuming this class exists for generating IDs
 
+import java.lang.reflect.Field;
 import java.util.Objects; // For hashCode and equals
 
 public class ViewDetails {
@@ -14,10 +18,13 @@ public class ViewDetails {
     private final String backgroundColor;
     private final float alpha;
     private final boolean isHidden;
+    private final Drawable backgroundDrawable; // Equivalent to UIImage in Swift
+//    private final SessionReplayIdentifier sessionReplayIdentifier; // Assuming this is a unique identifier for the view
 //    private final float cornerRadius; // Corresponds to cornerRadius
 //    private final float borderWidth; // Corresponds to borderWidth
 //    private final Integer borderColor; // Using Integer to allow for null (optional in Swift)
     private final String viewName;
+    private  float density;; // CSS selector for the view
 
     // Computed property: cssSelector
     public String getCssSelector() {
@@ -39,7 +46,7 @@ public class ViewDetails {
     // Equivalent of Swift's init(view: UIView)
     public ViewDetails(View view) {
         // Getting the global visible rectangle of the view
-        float density = view.getContext().getResources().getDisplayMetrics().density;
+        this.density = view.getContext().getResources().getDisplayMetrics().density;
         int[] location = new int[2];
         view.getLocationOnScreen(location);
         float x = location[0] / density;
@@ -51,6 +58,8 @@ public class ViewDetails {
 
 
         this.backgroundColor = ViewBackgroundHelper.getBackgroundColor(view);
+
+        this.backgroundDrawable = view.getBackground();
 
         this.alpha = view.getAlpha();
 
@@ -83,18 +92,6 @@ public class ViewDetails {
     public boolean isHidden() {
         return isHidden;
     }
-
-//    public float getCornerRadius() {
-//        return cornerRadius;
-//    }
-//
-//    public float getBorderWidth() {
-//        return borderWidth;
-//    }
-//
-//    public Integer getBorderColor() {
-//        return borderColor;
-//    }
 
     public String getViewName() {
         return viewName;
@@ -136,6 +133,7 @@ public class ViewDetails {
                 .append(frame.height())
                 .append("px;");
 
+
         return positionStringBuilder;
     }
 
@@ -145,6 +143,13 @@ public class ViewDetails {
             backgroundColorStringBuilder.append("background-color: ")
                     .append(backgroundColor)
                     .append(";");
+        }
+        // Assuming backgroundDrawable is a Drawable that can be converted to a color
+        if (backgroundDrawable != null) {
+            // Convert the drawable to a color string (this is a placeholder, actual implementation may vary)
+            if(backgroundDrawable instanceof GradientDrawable) {
+                ViewBackgroundHelper.getBackGroundFromDrawable(backgroundColorStringBuilder,(GradientDrawable) backgroundDrawable,density);
+            }
         }
         return backgroundColorStringBuilder.toString();
     }

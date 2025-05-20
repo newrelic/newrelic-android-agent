@@ -7,72 +7,96 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
-import com.newrelic.agent.android.util.Streams;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
+
+
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
 public class SessionReplaySender extends PayloadSender {
 
     protected Payload payload;
+    private HarvestConfiguration harvestConfiguration;
 
     public SessionReplaySender(byte[] bytes, AgentConfiguration agentConfiguration) {
         super(bytes, agentConfiguration);
     }
 
-    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration) {
+    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration) {
         super(payload, agentConfiguration);
         this.payload = payload;
+        this.harvestConfiguration = harvestConfiguration;
         setPayload(payload.getBytes());
     }
 
     @Override
     protected HttpURLConnection getConnection() throws IOException {
-        final String urlString = "https://staging-bam.nr-data.net/browser/blobs?" +
-                "browser_monitoring_key=NRJS-136db61998107c1947d" +
-                "&type=SessionReplay" +
-                "&app_id=213729589" +
+
+
+        Map<String, String> attributes = new HashMap<>();
+        attributes.put("entityGuid", AgentConfiguration.getInstance().getEntityGuid());
+//        attributes.put("replay.firstTimestamp", "1740776671411");
+//        attributes.put("replay.lastTimestamp", "1740776691411");
+//        attributes.put("replay.nodes", "311");
+//        attributes.put("session.durationMs", "32708");
+        attributes.put("agentVersion", Agent.getDeviceInformation().getAgentVersion());
+        attributes.put("session", AgentConfiguration.getInstance().getSessionID());
+        attributes.put("isFirstChunk", "true");
+        attributes.put("rrweb.version", "^2.0.0-alpha.17");
+        attributes.put("payload.type", "standard");
+
+        StringBuilder attributesString = new StringBuilder();
+        try {
+            attributes.forEach((key, value) -> {
+                if (attributesString.length() > 0) {
+                    attributesString.append("%26"); // URL-encoded '&'
+                }
+                attributesString.append(encodeValue(key))
+                        .append("%3D") // URL-encoded '='
+                        .append(encodeValue(value));
+            });
+        } catch (Exception e) {
+            log.error("Error encoding attributes: " + e.getMessage());
+        }
+
+         String urlString = "https://staging-mobile-collector.newrelic.com/mobile/blobs?" +
+                "type=SessionReplay" +
+                "&app_id="+harvestConfiguration.getApplication_id() +
                 "&protocol_version=0" +
                 "&timestamp=" + System.currentTimeMillis() +
-                "&attributes=" +
-                "entityGuid%MTA4MTY5OTR8QlJPV1NFUnxBUFBMSUNBVElPTnwyMTM3Mjk1ODk%26" +
-                "harvestId%3D852c55a391bf26cf_e511ee33802cb580_2%26" +
-                "replay.firstTimestamp%3D1740776671411%26" +
-                "replay.lastTimestamp%3D1740776691411%26" +
-                "replay.nodes%3D311%26" +
-                "session.durationMs%3D32708%26" +
-                "agentVersion%3D" + Agent.getDeviceInformation().getAgentVersion() + "%26" +
-                "session%3D" + agentConfiguration.getSessionID() + "%26" +
-                "hasMeta%3Dtrue%26" +
-                "hasSnapshot%3Dtrue%26" +
-                "hasError%3Dfalse%26" +
-                "isFirstChunk%3Dtrue%26" +
-                "invalidStylesheetsDetected%3Dfalse%26" +
-                "inlinedAllStylesheets%3Dtrue%26" +
-                "rrweb.version%3D%255E2.0.0-alpha.17%26" +
-                "payload.type%3Dstandard%26" +
-                "enduser.id%3Dywang%40newrelic.com%26" +
-                "currentUrl%3Dhttps%3A%2F%2Fstaging-one.newrelic.com%2F" +
-                "catalogs%2Fsoftware";
+                "&attributes=" + attributesString;
+
         final URL url = new URL(urlString);
         final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setDoOutput(true);
         connection.setRequestMethod("POST");
+        connection.setRequestProperty(agentConfiguration.getAppTokenHeader(), agentConfiguration.getApplicationToken());
         connection.setRequestProperty(Constants.Network.CONTENT_TYPE_HEADER, Constants.Network.ContentType.OCTET_STREAM);
+        connection.setRequestProperty("Content-Encoding", "gzip");
         return connection;
+    }
+
+    private String encodeValue(String value) {
+        try {
+            return URLEncoder.encode(value, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            log.error("Encoding error: " + e.getMessage());
+            return ""; // Return an empty string in case of an error
+        }
     }
 
     @Override
