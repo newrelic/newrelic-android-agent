@@ -18,12 +18,12 @@ public class SessionReplayThingyRecorder {
     public SessionReplayViewThingyInterface recordView(View view) {
         ViewDetails viewDetails = new ViewDetails(view);
 
-        if (view instanceof TextView) {
-            return new SessionReplayTextViewThingy(viewDetails, (TextView) view);
-        } if (view instanceof EditText) {
+        if (view instanceof EditText) {
             return new SessionReplayEditTextThingy(viewDetails, (EditText) view);
         } if (view instanceof ImageView) {
             return new SessionReplayImageViewThingy(viewDetails, (ImageView) view);
+        }else  if (view instanceof TextView) {
+            return new SessionReplayTextViewThingy(viewDetails, (TextView) view);
         }else {
             // This is a plain old view
             return new SessionReplayViewThingy(viewDetails);

@@ -1,6 +1,7 @@
 package com.newrelic.agent.android.sessionReplay;
 
 import android.annotation.SuppressLint;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
 
@@ -80,7 +81,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         if (background != null) {
             return "#FF474C"; // Placeholder color, you might want to implement a method to extract actual color
         }
-        return "transparent";
+        return " #FFC0CB";
     }
 
     private String getBackgroundSizeFromScaleType() {
