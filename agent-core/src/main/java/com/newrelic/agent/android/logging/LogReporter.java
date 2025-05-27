@@ -516,7 +516,7 @@ public class LogReporter extends PayloadReporter {
      * This sweep should only be run once in a while.
      */
     Set<File> cleanup() {
-        Set<File> expiredFiles = getCachedLogReports(LogReportState.CLOSED);
+        Set<File> expiredFiles = getCachedLogReports(LogReportState.EXPIRED);
         expiredFiles.forEach(logReport -> {
             if (logReport.delete()) {
                 log.debug("LogReporter: Log data [" + logReport.getName() + "] removed.");
