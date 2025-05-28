@@ -31,15 +31,17 @@ public class SessionReplaySender extends PayloadSender {
 
     protected Payload payload;
     private HarvestConfiguration harvestConfiguration;
+    private Boolean isFirstChunk;
 
     public SessionReplaySender(byte[] bytes, AgentConfiguration agentConfiguration) {
         super(bytes, agentConfiguration);
     }
 
-    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration) {
+    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration,Boolean isFirstChunk) {
         super(payload, agentConfiguration);
         this.payload = payload;
         this.harvestConfiguration = harvestConfiguration;
+        this.isFirstChunk = isFirstChunk;
         setPayload(payload.getBytes());
     }
 
@@ -49,13 +51,9 @@ public class SessionReplaySender extends PayloadSender {
 
         Map<String, String> attributes = new HashMap<>();
         attributes.put("entityGuid", AgentConfiguration.getInstance().getEntityGuid());
-//        attributes.put("replay.firstTimestamp", "1740776671411");
-//        attributes.put("replay.lastTimestamp", "1740776691411");
-//        attributes.put("replay.nodes", "311");
-//        attributes.put("session.durationMs", "32708");
         attributes.put("agentVersion", Agent.getDeviceInformation().getAgentVersion());
         attributes.put("session", AgentConfiguration.getInstance().getSessionID());
-        attributes.put("isFirstChunk", "true");
+        attributes.put("isFirstChunk", String.valueOf(isFirstChunk.booleanValue()));
         attributes.put("rrweb.version", "^2.0.0-alpha.17");
         attributes.put("payload.type", "standard");
 

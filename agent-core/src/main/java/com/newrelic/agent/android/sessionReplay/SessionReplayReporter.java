@@ -7,13 +7,11 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.payload.PayloadSender;
-import com.newrelic.agent.android.util.Constants;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,6 +24,7 @@ import java.util.zip.GZIPOutputStream;
 public class SessionReplayReporter extends PayloadReporter {
     protected static final AtomicReference<SessionReplayReporter> instance = new AtomicReference<>(null);
     protected final SessionReplayStore sessionReplayStore;
+    private Boolean isFirstChunk = true;
 
     protected final Callable reportCachedSessionReplayDataCallable = new Callable() {
         @Override
@@ -100,7 +99,7 @@ public class SessionReplayReporter extends PayloadReporter {
         if (PayloadController.isInitialized()) {
             if (isEnabled()) {
                 if (isStarted.compareAndSet(false, true)) {
-                    PayloadController.submitCallable(reportCachedSessionReplayDataCallable);
+                    //PayloadController.submitCallable(reportCachedSessionReplayDataCallable);
 //                    Harvest.addHarvestListener(this);
                 }
             }
@@ -127,7 +126,9 @@ public class SessionReplayReporter extends PayloadReporter {
     }
 
     public Future reportSessionReplayData(Payload payload) {
-        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration());
+        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),isFirstChunk);
+
+        isFirstChunk = false; // Set to false after the first chunk is sent
 
 //        if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
 //            log.error("Unable to upload because payload is larger than 1 MB, handled exceptions are discarded.");
@@ -157,13 +158,13 @@ public class SessionReplayReporter extends PayloadReporter {
         return future;
     }
 
-    public Future storeAndReportSessionReplayData(Payload payload) {
-        return reportSessionReplayData(payload);
+    public void storeAndReportSessionReplayData(Payload payload) {
+        reportSessionReplayData(payload);
     }
 
     @Override
     public void onHarvest() {
-        PayloadController.submitCallable(reportCachedSessionReplayDataCallable);
+
     }
 
 }

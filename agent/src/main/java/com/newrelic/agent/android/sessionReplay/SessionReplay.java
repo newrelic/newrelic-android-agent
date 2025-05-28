@@ -57,13 +57,16 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     @Override
     public void onHarvestStop() {
-        // No-op
-        onHarvest();
+
     }
 
     @Override
-
     public void onHarvest() {
+
+        if (rawFrames.isEmpty() && touchTrackers.isEmpty()) {
+            Log.d("SessionReplay", "No frames or touch data to process.");
+            return;
+        }
         // No-op
         WindowManager wm = (WindowManager) application.getApplicationContext().getSystemService(Context.WINDOW_SERVICE);
         float density = application.getApplicationContext().getResources().getDisplayMetrics().density;
@@ -98,9 +101,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         }
 
         rrWebEvents.addAll(totalTouches);
-        String json = new Gson().toJson(rrWebEvents);
 
+        String json = new Gson().toJson(rrWebEvents);
         SessionReplayReporter.reportSessionReplayData(json.getBytes());
+
 
         touchTrackersCopy.clear();
         rawFramesCopy.clear();
