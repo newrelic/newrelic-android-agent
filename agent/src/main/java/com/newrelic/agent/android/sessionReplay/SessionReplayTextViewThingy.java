@@ -25,6 +25,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String fontName;
     private String fontFamily;
     private String textColor;
+    private String textAlign;
 
     public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view) {
         this.viewDetails = viewDetails;
@@ -33,9 +34,26 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         this.fontSize = view.getTextSize() / view.getContext().getResources().getDisplayMetrics().density;
         Typeface typeface = view.getTypeface();
 
-
         this.fontName = "default";
         this.fontFamily = getFontFamily(typeface);
+
+        // Convert Android TextView alignment to CSS text-align
+        switch (view.getTextAlignment()) {
+            case TextView.TEXT_ALIGNMENT_CENTER:
+                this.textAlign = "center";
+                break;
+            case TextView.TEXT_ALIGNMENT_TEXT_END:
+            case TextView.TEXT_ALIGNMENT_VIEW_END:
+                this.textAlign = "right";
+                break;
+            case TextView.TEXT_ALIGNMENT_TEXT_START:
+            case TextView.TEXT_ALIGNMENT_VIEW_START:
+            case TextView.TEXT_ALIGNMENT_INHERIT:
+            default:
+                this.textAlign = "left";
+                break;
+        }
+
         this.textColor = Integer.toHexString(view.getCurrentTextColor()).substring(2);
     }
 
@@ -95,6 +113,9 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         cssBuilder.append("; ");
         cssBuilder.append("color: #");
         cssBuilder.append(this.textColor);
+        cssBuilder.append("; ");
+        cssBuilder.append("text-align: ");
+        cssBuilder.append(this.textAlign);
         cssBuilder.append("; ");
         cssBuilder.append("}");
 
