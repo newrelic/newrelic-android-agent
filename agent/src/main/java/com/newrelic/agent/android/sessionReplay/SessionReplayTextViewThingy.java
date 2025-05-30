@@ -4,9 +4,9 @@ import android.annotation.SuppressLint;
 import android.graphics.Typeface;
 import android.widget.TextView;
 
+import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
-import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
 import java.util.ArrayList;
@@ -27,10 +27,31 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String textColor;
     private String textAlign;
 
-    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view) {
+    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
+
+
         this.viewDetails = viewDetails;
 
         this.labelText = view.getText() != null ? view.getText().toString() : "";
+        if(sessionReplayConfiguration.isMaskApplicationText()){
+            // Replace all characters with asterisks (*) to mask the text
+            if (!this.labelText.isEmpty() && (!view.getTag().equals("nr-unmask") ||!view.getTag(R.id.newrelic_privacy).equals("nr-unmask"))) {
+                StringBuilder maskedText = new StringBuilder();
+                for (int i = 0; i < this.labelText.length(); i++) {
+                    maskedText.append('*');
+                }
+                this.labelText = maskedText.toString();
+            }
+        } else if(sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0) {
+            // Replace all characters with asterisks (*) to mask the text
+            if (!this.labelText.isEmpty() && (!view.getTag().equals("nr-unmask") ||!view.getTag(R.id.newrelic_privacy).equals("nr-unmask"))) {
+                StringBuilder maskedText = new StringBuilder();
+                for (int i = 0; i < this.labelText.length(); i++) {
+                    maskedText.append('*');
+                }
+                this.labelText = maskedText.toString();
+            }
+        }
         this.fontSize = view.getTextSize() / view.getContext().getResources().getDisplayMetrics().density;
         Typeface typeface = view.getTypeface();
 

@@ -14,6 +14,7 @@ import androidx.annotation.NonNull;
 import com.google.gson.Gson;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
+import com.newrelic.agent.android.logging.LogReporter;
 import com.newrelic.agent.android.sessionReplay.internal.Curtains;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 import com.newrelic.agent.android.sessionReplay.internal.OnRootViewsChangedListener;
@@ -22,6 +23,7 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAware, OnTouchRecordedListener {
     private Application application;
@@ -30,6 +32,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private SessionReplayProcessor processor = new SessionReplayProcessor();
     private ViewDrawInterceptor viewDrawInterceptor;
     private List<TouchTracker> touchTrackers = new ArrayList<>();
+    static final AtomicReference<LogReporter> instance = new AtomicReference<>(null);
 
     private ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
 

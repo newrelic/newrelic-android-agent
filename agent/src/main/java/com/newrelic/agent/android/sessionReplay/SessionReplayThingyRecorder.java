@@ -5,6 +5,9 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
+
 import java.util.List;
 
 public class SessionReplayThingyRecorder {
@@ -18,12 +21,16 @@ public class SessionReplayThingyRecorder {
     public SessionReplayViewThingyInterface recordView(View view) {
         ViewDetails viewDetails = new ViewDetails(view);
 
+
+        AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
+        MobileSessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getMobileSessionReplayConfiguration();
+
         if (view instanceof EditText) {
-            return new SessionReplayEditTextThingy(viewDetails, (EditText) view);
+            return new SessionReplayEditTextThingy(viewDetails, (EditText) view,sessionReplayConfiguration);
         } if (view instanceof ImageView) {
-            return new SessionReplayImageViewThingy(viewDetails, (ImageView) view);
+            return new SessionReplayImageViewThingy(viewDetails, (ImageView) view, sessionReplayConfiguration);
         }else  if (view instanceof TextView) {
-            return new SessionReplayTextViewThingy(viewDetails, (TextView) view);
+            return new SessionReplayTextViewThingy(viewDetails, (TextView) view,sessionReplayConfiguration);
         }else {
             // This is a plain old view
             return new SessionReplayViewThingy(viewDetails);

@@ -1,7 +1,6 @@
 package com.newrelic.agent.android.sessionReplay;
 
 import android.annotation.SuppressLint;
-import android.graphics.Typeface;
 import android.widget.EditText;
 
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
@@ -18,11 +17,22 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
 
     public boolean shouldRecordSubviews = false;
     private String hint;
-    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view) {
-        super(viewDetails, view);
+    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
+        super(viewDetails, view, sessionReplayConfiguration);
         this.viewDetails = viewDetails;
 
         this.hint = view.getHint() != null ? view.getHint().toString() : "";
+
+        if (sessionReplayConfiguration.isMaskApplicationText() || sessionReplayConfiguration.isMaskUserInputText()) {
+            // Replace all characters with asterisks (*) to mask the hint text
+            if (!this.hint.isEmpty()) {
+                StringBuilder maskedHint = new StringBuilder();
+                for (int i = 0; i < this.hint.length(); i++) {
+                    maskedHint.append('*');
+                }
+                this.hint = maskedHint.toString();
+            }
+        }
     }
 
     @Override
