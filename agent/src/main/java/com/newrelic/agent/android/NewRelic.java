@@ -67,7 +67,7 @@ public final class NewRelic {
     protected static boolean started = false;
     protected static boolean isShutdown = false;
     SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
-    SessionReplay sessionReplay;
+
 
     boolean loggingEnabled = true;
     int logLevel = AgentLog.INFO;
@@ -300,11 +300,6 @@ public final class NewRelic {
         }
 
         try {
-            Handler uiHandler = new Handler(Looper.getMainLooper());
-
-            sessionReplay = new SessionReplay(((Application) context.getApplicationContext()), uiHandler);
-            sessionReplay.Initialize();
-            sessionReplay.startRecording();
 //            sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
 //            ((Application) context.getApplicationContext()).registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());

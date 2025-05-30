@@ -11,6 +11,7 @@ import com.newrelic.agent.android.harvest.HarvestConfigurable;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
+import com.newrelic.agent.android.sessionReplay.MobileSessionReplayConfiguration;
 
 /**
  * Data model for agent configuration Json data returned in the Collector connect response.
@@ -18,6 +19,7 @@ import com.newrelic.agent.android.logging.LogReportingConfiguration;
  * Includes:
  * . FeatureFlag.ApplicationExitReporting
  * . FeatureFlag.LogReporting
+ * . FeatureFlag.MobileSessionReplay
  **/
 public class RemoteConfiguration implements HarvestLifecycleAware, HarvestConfigurable {
 
@@ -27,9 +29,13 @@ public class RemoteConfiguration implements HarvestLifecycleAware, HarvestConfig
     @SerializedName("logs")
     protected LogReportingConfiguration logReportingConfiguration;
 
+    @SerializedName("mobile_session_replay")
+    protected MobileSessionReplayConfiguration mobileSessionReplayConfiguration;
+
     public RemoteConfiguration() {
         this.applicationExitConfiguration = new ApplicationExitConfiguration(true);
         this.logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.INFO);
+        this.mobileSessionReplayConfiguration = new MobileSessionReplayConfiguration();
     }
 
     @Override
@@ -37,7 +43,8 @@ public class RemoteConfiguration implements HarvestLifecycleAware, HarvestConfig
         if (obj instanceof RemoteConfiguration) {
             RemoteConfiguration rhs = (RemoteConfiguration) obj;
             return (this.applicationExitConfiguration.equals(rhs.applicationExitConfiguration) &&
-                    this.logReportingConfiguration.equals(rhs.logReportingConfiguration));
+                    this.logReportingConfiguration.equals(rhs.logReportingConfiguration) &&
+                    this.mobileSessionReplayConfiguration.equals(rhs.mobileSessionReplayConfiguration));
         }
 
         return false;
@@ -57,6 +64,14 @@ public class RemoteConfiguration implements HarvestLifecycleAware, HarvestConfig
 
     public void setApplicationExitConfiguration(ApplicationExitConfiguration applicationExitConfiguration) {
         this.applicationExitConfiguration = applicationExitConfiguration;
+    }
+
+    public MobileSessionReplayConfiguration getMobileSessionReplayConfiguration() {
+        return mobileSessionReplayConfiguration;
+    }
+
+    public void setMobileSessionReplayConfiguration(MobileSessionReplayConfiguration mobileSessionReplayConfiguration) {
+        this.mobileSessionReplayConfiguration = mobileSessionReplayConfiguration;
     }
 
     @Override

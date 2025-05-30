@@ -19,6 +19,7 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadStore;
+import com.newrelic.agent.android.sessionReplay.MobileSessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
@@ -76,6 +77,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     // Support remote configuration for these features
     private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.INFO);
     private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
+    private MobileSessionReplayConfiguration mobileSessionReplayConfiguration = new MobileSessionReplayConfiguration();
 
     public String getApplicationToken() {
         return applicationToken;
@@ -384,6 +386,7 @@ public class AgentConfiguration implements HarvestConfigurable {
         return applicationExitConfiguration;
     }
 
+
     /**
      * Update agent config with any changes returned in the harvest response.
      *
@@ -394,6 +397,7 @@ public class AgentConfiguration implements HarvestConfigurable {
         // update the global agent config w/changes
         applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
         logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);
+        mobileSessionReplayConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().mobileSessionReplayConfiguration);
         entityGuid = harvestConfiguration.getEntity_guid();
 
         if (instance.get() != null) {
@@ -410,4 +414,11 @@ public class AgentConfiguration implements HarvestConfigurable {
         return instance.get();
     }
 
+    public MobileSessionReplayConfiguration getMobileSessionReplayConfiguration() {
+        return mobileSessionReplayConfiguration;
+    }
+
+    public void setMobileSessionReplayConfiguration(MobileSessionReplayConfiguration mobileSessionReplayConfiguration) {
+        this.mobileSessionReplayConfiguration = mobileSessionReplayConfiguration;
+    }
 }
