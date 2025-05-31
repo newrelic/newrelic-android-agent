@@ -63,6 +63,7 @@ import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.sample.MachineMeasurementConsumer;
 import com.newrelic.agent.android.sample.Sampler;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
+import com.newrelic.agent.android.sessionReplay.TextMaskingStrategy;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
@@ -662,8 +663,8 @@ public class AndroidAgentImpl implements
 
         // remove it later
         agentConfiguration.getMobileSessionReplayConfiguration().setSamplingRate(100.0);
-        agentConfiguration.getMobileSessionReplayConfiguration().setMaskUserInputText(false);
-        agentConfiguration.getMobileSessionReplayConfiguration().setMaskApplicationText(true);
+        agentConfiguration.getMobileSessionReplayConfiguration().setTextMaskingStrategy(TextMaskingStrategy.MASK_ALL_TEXT);
+
 
         if(agentConfiguration.getMobileSessionReplayConfiguration().isSessionReplayEnabled()) {
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);

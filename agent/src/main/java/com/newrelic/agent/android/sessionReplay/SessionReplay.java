@@ -3,10 +3,12 @@ package com.newrelic.agent.android.sessionReplay;
 import android.app.Application;
 import android.content.Context;
 import android.graphics.Point;
+import android.os.Build;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Display;
 import android.view.View;
+import android.view.WindowMetrics;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
@@ -65,22 +67,47 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     @Override
     public void onHarvest() {
-
         if (rawFrames.isEmpty() && touchTrackers.isEmpty()) {
             Log.d("SessionReplay", "No frames or touch data to process.");
             return;
         }
-        // No-op
-        WindowManager wm = (WindowManager) application.getApplicationContext().getSystemService(Context.WINDOW_SERVICE);
-        float density = application.getApplicationContext().getResources().getDisplayMetrics().density;
-
-        Display display = wm.getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
-
-        RRWebMetaEvent metaEvent = new RRWebMetaEvent(new RRWebMetaEvent.RRWebMetaEventData("https://newrelic.com", (int) (size.x/density), (int) (size.y/density)), System.currentTimeMillis());        ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
+        
+        Context context = application.getApplicationContext();
+        float density = context.getResources().getDisplayMetrics().density;
+        
+        // Get screen size using API level appropriate methods
+        int width, height;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // For API 30 (Android 11) and above
+            WindowMetrics windowMetrics = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE))
+                    .getCurrentWindowMetrics();
+            width = windowMetrics.getBounds().width();
+            height = windowMetrics.getBounds().height();
+        } else {
+            // For API 29 and below
+            WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+            @SuppressWarnings("deprecation")
+            Display display = wm.getDefaultDisplay();
+            
+            // Use getRealSize instead of getSize to get the actual full screen size including system decorations
+            Point size = new Point();
+            display.getRealSize(size);
+            
+            width = size.x;
+            height = size.y;
+        }
+        
+        RRWebMetaEvent metaEvent = new RRWebMetaEvent(
+                new RRWebMetaEvent.RRWebMetaEventData(
+                        "https://newrelic.com", 
+                        (int) (width / density), 
+                        (int) (height / density)
+                ), 
+                System.currentTimeMillis()
+        );
+        
+        ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
         rrWebEvents.add(metaEvent);
-
 
         // Create a copy of rawFrames
         List<SessionReplayFrame> rawFramesCopy;
@@ -107,7 +134,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         String json = new Gson().toJson(rrWebEvents);
         SessionReplayReporter.reportSessionReplayData(json.getBytes());
-
 
         touchTrackersCopy.clear();
         rawFramesCopy.clear();
