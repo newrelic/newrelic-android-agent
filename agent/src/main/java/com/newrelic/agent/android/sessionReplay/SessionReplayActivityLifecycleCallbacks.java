@@ -107,7 +107,6 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 WindowCallbackWrapper.getListeners(window).getTouchEventInterceptors().add(new OnTouchEventListener() {
                                                                                                @Override
                                                                                                public void onTouchEvent(MotionEvent motionEvent) {
-//                           Log.d(TAG, "Received Motion Event: " + motionEvent.toString());
                                                                                                    long timestamp = System.currentTimeMillis();
                                                                                                    MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
                                                                                                    motionEvent.getPointerCoords(0, pointerCoords);
@@ -160,90 +159,6 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
             }
         });
-
-        View rootView = activity.getWindow().getDecorView().getRootView();
-        mrootView = new WeakReference(rootView);
-//        if (rootView instanceof ViewGroup) {
-//            logChildViews((ViewGroup) rootView);
-//        }
-
-//        density = activity.getResources().getDisplayMetrics().density;
-
-//        int heightPixels = activity.getResources().getDisplayMetrics().heightPixels;
-//
-//        int widthPixels = activity.getResources().getDisplayMetrics().widthPixels;
-//
-//        Log.d(TAG, "onActivityResumed: " + "Height: " + heightPixels + " Width: " + widthPixels + " Density: " + density);
-//
-//
-//        Log.d(TAG, "OnDrawListener: " + rootView.getClass().getSimpleName());
-//        rootView.getViewTreeObserver().addOnDrawListener(new ViewTreeObserver.OnDrawListener() {
-//            @Override
-//            public void onDraw() {
-//
-//
-//                    SessionReplayRoot sessionReplayRoot = new SessionReplayRoot(2,null,System.currentTimeMillis());
-//
-//                    Node node = new Node(0,NewRelicIdGenerator.generateId(),new ArrayList<>());
-//
-//                    InitialOffset initialOffset = new InitialOffset(0,0);
-//
-//                    ChildNode htmlChildNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"html",2,null,null,false);
-//
-//                    ChildNode bodyHeaderNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"head",2,null,null,false);
-//
-//                    ChildNode styleNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"style",2,null,null,false);
-//
-//                    ChildNode bodyNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"body",2,null,null,false);
-//
-//                    bodyHeaderNode.getChildNodes().add(styleNode);
-//
-//                    bodyNode.getChildNodes().add(bodyHeaderNode);
-//
-//                    htmlChildNode.getChildNodes().add(bodyNode);
-//
-//                    node.getChildNodes().add(htmlChildNode);
-//
-//                    Data data = new Data(initialOffset,node);
-//
-//                    sessionReplayRoot.setData(data);
-//
-//                    ChildNode styleChildNode = new ChildNode(new ArrayList<>(),NewRelicIdGenerator.generateId(),"",3,null,"",true);
-//
-//
-//
-//
-//                    i++;
-//                    Log.d(TAG, "OnDrawListener: " + "onDraw");
-////                    sessionReplayRoots.add(sessionReplayRoot);
-//                    if (rootView instanceof ViewGroup) {
-//                        logChildViews((ViewGroup) rootView,htmlChildNode,styleChildNode);
-//
-//
-//                        styleNode.getChildNodes().add(styleChildNode);
-//
-//
-//                        sessionReplayRoots.add(sessionReplayRoot);
-//
-//                        String json = new Gson().toJson(sessionReplayRoots);
-//
-//                        ArrayList<RRWebTouch> totalTouches = new ArrayList<>();
-//                        for(TouchTracker touchTracker : touchTrackers) {
-//                            totalTouches.addAll(touchTracker.processTouchData());
-//                        }
-//                        String touchJson = new Gson().toJson(totalTouches);
-//
-//                        Log.d(TAG, "first timestamp: " + firstTimestamp);
-//                        Log.d(TAG, "jsonPayloadForRRWEB: " + json);
-//                        Log.d(TAG, "touchJsonPayloadForRRWEB: " + touchJson);
-//
-//                        SharedPreferences sharedPreferences = activity.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE);
-//                        SharedPreferences.Editor editor = sharedPreferences.edit();
-//                        editor.putString("SessionReplayFrame", json);
-//                        editor.apply();
-//                    }
-//                }
-//        });
     }
 
     private void logChildViews(ViewGroup viewGroup,ChildNode htmlChildNode,ChildNode styleNode) {

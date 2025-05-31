@@ -34,6 +34,7 @@ import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.SessionReplayActivityLifecycleCallbacks;
+import com.newrelic.agent.android.sessionReplay.TextMaskingStrategy;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
@@ -1272,4 +1273,139 @@ public final class NewRelic {
 
         OfflineStorage.setMaxOfflineStorageSize(maxSize);
     }
+
+    /**
+     * Sets the text masking strategy for session replay.
+     * <p>
+     * This controls how text is masked in captured screens:
+     * <ul>
+     *   <li>MASK_ALL_TEXT: Masks all text in the application, regardless of source or context</li>
+     *   <li>MASK_USER_INPUT_TEXT: Only masks text that was input by the user (e.g., text fields, search bars)</li>
+     *   <li>MASK_NO_TEXT: No masking is applied, all text is captured as-is</li>
+     * </ul>
+     *
+     * @param strategy The text masking strategy to apply
+     * @return true if the strategy was successfully set
+     */
+    public static boolean setSessionReplayTextMaskingStrategy(TextMaskingStrategy strategy) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setSessionReplayTextMaskingStrategy"));
+
+        if (strategy == null) {
+            log.error("setSessionReplayTextMaskingStrategy: strategy must not be null");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getMobileSessionReplayConfiguration().setTextMaskingStrategy(strategy);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Adds a view class to be masked during session replay.
+     * All instances of the specified class and its subclasses will have their text content masked.
+     * <p>
+     * Example: addSessionReplayMaskViewClass("android.widget.TextView")
+     *
+     * @param viewClassName The fully qualified class name of the view to mask
+     * @return true if the view class was successfully added to the mask list
+     */
+    public static boolean addSessionReplayMaskViewClass(String viewClassName) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "addSessionReplayMaskViewClass"));
+
+        if (viewClassName == null || viewClassName.isEmpty()) {
+            log.error("addSessionReplayMaskViewClass: viewClassName must not be null or empty");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getMobileSessionReplayConfiguration().addMaskViewClass(viewClassName);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Adds a view class to be explicitly unmasked during session replay.
+     * This is useful for excluding specific subclasses from a broader masking rule.
+     * <p>
+     * Example: addSessionReplayUnmaskViewClass("android.widget.RadioButton")
+     *
+     * @param viewClassName The fully qualified class name of the view to unmask
+     * @return true if the view class was successfully added to the unmask list
+     */
+    public static boolean addSessionReplayUnmaskViewClass(String viewClassName) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "addSessionReplayUnmaskViewClass"));
+
+        if (viewClassName == null || viewClassName.isEmpty()) {
+            log.error("addSessionReplayUnmaskViewClass: viewClassName must not be null or empty");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getMobileSessionReplayConfiguration().addUnmaskViewClass(viewClassName);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Adds a view tag to be masked during session replay.
+     * All views with the specified tag will have their text content masked.
+     * <p>
+     * Example: addSessionReplayMaskViewTag("sensitive_data")
+     *
+     * @param viewTag The tag value to mask
+     * @return true if the view tag was successfully added to the mask list
+     */
+    public static boolean addSessionReplayMaskViewTag(String viewTag) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "addSessionReplayMaskViewTag"));
+
+        if (viewTag == null || viewTag.isEmpty()) {
+            log.error("addSessionReplayMaskViewTag: viewTag must not be null or empty");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getMobileSessionReplayConfiguration().addMaskViewTag(viewTag);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Adds a view tag to be explicitly unmasked during session replay.
+     * This is useful for excluding specific views from a broader masking rule.
+     * <p>
+     * Example: addSessionReplayUnmaskViewTag("public_info")
+     *
+     * @param viewTag The tag value to unmask
+     * @return true if the view tag was successfully added to the unmask list
+     */
+    public static boolean addSessionReplayUnmaskViewTag(String viewTag) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "addSessionReplayUnmaskViewTag"));
+
+        if (viewTag == null || viewTag.isEmpty()) {
+            log.error("addSessionReplayUnmaskViewTag: viewTag must not be null or empty");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getMobileSessionReplayConfiguration().addUnmaskViewTag(viewTag);
+            return true;
+        }
+
+        return false;
+    }
+
 }

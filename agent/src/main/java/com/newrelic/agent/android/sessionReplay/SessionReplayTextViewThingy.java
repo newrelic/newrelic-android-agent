@@ -26,39 +26,32 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String fontFamily;
     private String textColor;
     private String textAlign;
+    private  MobileSessionReplayConfiguration sessionReplayConfiguration;
 
     public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
-
-
+        this.sessionReplayConfiguration = sessionReplayConfiguration;
         this.viewDetails = viewDetails;
 
-        this.labelText = view.getText() != null ? view.getText().toString() : "";
-        if(sessionReplayConfiguration.isMaskApplicationText()){
-            // Replace all characters with asterisks (*) to mask the text
-            if (!this.labelText.isEmpty() && (!view.getTag().equals("nr-unmask") ||!view.getTag(R.id.newrelic_privacy).equals("nr-unmask"))) {
-                StringBuilder maskedText = new StringBuilder();
-                for (int i = 0; i < this.labelText.length(); i++) {
-                    maskedText.append('*');
-                }
-                this.labelText = maskedText.toString();
-            }
-        } else if(sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0) {
-            // Replace all characters with asterisks (*) to mask the text
-            if (!this.labelText.isEmpty() && (!view.getTag().equals("nr-unmask") ||!view.getTag(R.id.newrelic_privacy).equals("nr-unmask"))) {
-                StringBuilder maskedText = new StringBuilder();
-                for (int i = 0; i < this.labelText.length(); i++) {
-                    maskedText.append('*');
-                }
-                this.labelText = maskedText.toString();
-            }
-        }
+        // Get the raw text from the TextView
+        String rawText = view.getText() != null ? view.getText().toString() : "";
+
+        // Determine if text should be masked based on configuration
+        boolean shouldMaskText = sessionReplayConfiguration.isMaskApplicationText() ||
+                                (sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0);
+
+        // Apply masking if needed
+        this.labelText = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
+
         this.fontSize = view.getTextSize() / view.getContext().getResources().getDisplayMetrics().density;
         Typeface typeface = view.getTypeface();
 
         this.fontName = "default";
         this.fontFamily = getFontFamily(typeface);
 
-        // Convert Android TextView alignment to CSS text-align
+        // First check if gravity is set to something that would affect alignment
+        this.textAlign = resolveAlignmentFromGravity(view);
+
+        // If textAlignment is explicitly set, it takes precedence over gravity
         switch (view.getTextAlignment()) {
             case TextView.TEXT_ALIGNMENT_CENTER:
                 this.textAlign = "center";
@@ -69,9 +62,11 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
                 break;
             case TextView.TEXT_ALIGNMENT_TEXT_START:
             case TextView.TEXT_ALIGNMENT_VIEW_START:
+                this.textAlign = "left";
+                break;
             case TextView.TEXT_ALIGNMENT_INHERIT:
             default:
-                this.textAlign = "left";
+                // Keep the alignment determined by gravity
                 break;
         }
 
@@ -182,5 +177,70 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         }
 
         return style.toString();
+    }
+
+    /**
+     * Resolves text alignment from the TextView's gravity property.
+     * This is needed because gravity can also affect text alignment in addition to textAlignment.
+     *
+     * @param view The TextView to extract gravity alignment from
+     * @return The CSS text-align value corresponding to the gravity
+     */
+    private String resolveAlignmentFromGravity(TextView view) {
+        int gravity = view.getGravity();
+
+        // Check horizontal gravity
+        int horizontalGravity = gravity & android.view.Gravity.HORIZONTAL_GRAVITY_MASK;
+
+        switch (horizontalGravity) {
+            case android.view.Gravity.START:
+            case android.view.Gravity.LEFT:
+                return "left";
+            case android.view.Gravity.END:
+            case android.view.Gravity.RIGHT:
+                return "right";
+            case android.view.Gravity.CENTER:
+            case android.view.Gravity.CENTER_HORIZONTAL:
+                return "center";
+            default:
+                return "left"; // Default to left alignment
+        }
+    }
+
+    /**
+     * Helper method to mask text with asterisks if needed based on tags and configuration
+     *
+     * @param view The TextView containing the text
+     * @param text The text to potentially mask
+     * @param shouldMask Whether masking should be applied based on configuration
+     * @return The original text or masked text depending on conditions
+     */
+    private String getMaskedTextIfNeeded(TextView view, String text, boolean shouldMask) {
+        // If text is empty, no need to mask
+        if (text.isEmpty()) {
+            return text;
+        }
+
+        // Check if view has tags that prevent masking
+        Object viewTag = view.getTag();
+        Object privacyTag = view.getTag(R.id.newrelic_privacy);
+        boolean hasUnmaskTag = ("nr-unmask".equals(viewTag)) ||
+              ("nr-unmask".equals(privacyTag)) || !(view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString()) )|| !(sessionReplayConfiguration.shouldMaskViewClass(view.getClass().getName()));
+
+        // Check if view has tag that forces masking
+        boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString())) || (sessionReplayConfiguration.shouldMaskViewClass(view.getClass().getName()));
+        // Apply masking if needed:
+        // - If general masking is enabled AND no unmask tag AND not in unmask class list, OR
+        // - If has explicit mask tag OR class is explicitly masked
+        if ((shouldMask && !hasUnmaskTag) || (!shouldMask && hasMaskTag)) {
+            StringBuilder maskedText = new StringBuilder();
+            for (int i = 0; i < text.length(); i++) {
+                maskedText.append('*');
+            }
+            return maskedText.toString();
+        }
+
+        // Return original text if no masking needed
+        return text;
     }
 }
