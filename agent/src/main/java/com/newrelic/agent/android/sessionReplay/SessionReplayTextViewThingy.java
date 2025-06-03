@@ -215,7 +215,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
      * @param shouldMask Whether masking should be applied based on configuration
      * @return The original text or masked text depending on conditions
      */
-    private String getMaskedTextIfNeeded(TextView view, String text, boolean shouldMask) {
+    protected String getMaskedTextIfNeeded(TextView view, String text, boolean shouldMask) {
         // If text is empty, no need to mask
         if (text.isEmpty()) {
             return text;

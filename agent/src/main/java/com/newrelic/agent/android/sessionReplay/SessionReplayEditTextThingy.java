@@ -21,18 +21,13 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
         super(viewDetails, view, sessionReplayConfiguration);
         this.viewDetails = viewDetails;
 
-        this.hint = view.getHint() != null ? view.getHint().toString() : "";
+        // Get the raw text from the TextView
+        String rawText = view.getHint() != null ? view.getHint().toString() : "";
+        boolean shouldMaskText = sessionReplayConfiguration.isMaskApplicationText() ||
+                (sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0);
 
-        if (sessionReplayConfiguration.isMaskApplicationText() || sessionReplayConfiguration.isMaskUserInputText()) {
-            // Replace all characters with asterisks (*) to mask the hint text
-            if (!this.hint.isEmpty()) {
-                StringBuilder maskedHint = new StringBuilder();
-                for (int i = 0; i < this.hint.length(); i++) {
-                    maskedHint.append('*');
-                }
-                this.hint = maskedHint.toString();
-            }
-        }
+        // Apply masking if needed
+        this.hint = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
     }
 
     @Override
