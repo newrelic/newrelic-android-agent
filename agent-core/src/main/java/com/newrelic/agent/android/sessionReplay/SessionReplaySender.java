@@ -7,6 +7,9 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.analytics.AnalyticsAttribute;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.Payload;
@@ -48,6 +51,8 @@ public class SessionReplaySender extends PayloadSender {
     @Override
     protected HttpURLConnection getConnection() throws IOException {
 
+        final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+        final AnalyticsAttribute userIdAttr = controller.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
 
         Map<String, String> attributes = new HashMap<>();
         attributes.put("entityGuid", AgentConfiguration.getInstance().getEntityGuid());
@@ -56,6 +61,11 @@ public class SessionReplaySender extends PayloadSender {
         attributes.put("isFirstChunk", String.valueOf(isFirstChunk.booleanValue()));
         attributes.put("rrweb.version", "^2.0.0-alpha.17");
         attributes.put("payload.type", "standard");
+        attributes.put("replay.firstTimestamp", (System.currentTimeMillis() - Harvest.getInstance().getHarvestTimer().timeSinceStart()) + "");
+        attributes.put("replay.lastTimestamp", System.currentTimeMillis() + "");
+        if(userIdAttr != null) {
+            attributes.put("enduser.id", userIdAttr.getStringValue());
+        }
 
         StringBuilder attributesString = new StringBuilder();
         try {

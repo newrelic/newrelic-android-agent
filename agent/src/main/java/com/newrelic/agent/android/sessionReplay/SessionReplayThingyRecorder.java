@@ -29,7 +29,7 @@ public class SessionReplayThingyRecorder {
             return new SessionReplayEditTextThingy(viewDetails, (EditText) view,sessionReplayConfiguration);
         } if (view instanceof ImageView) {
             return new SessionReplayImageViewThingy(viewDetails, (ImageView) view, sessionReplayConfiguration);
-        }else  if (view instanceof TextView) {
+        } else  if (view instanceof TextView) {
             return new SessionReplayTextViewThingy(viewDetails, (TextView) view,sessionReplayConfiguration);
         }else {
             // This is a plain old view

@@ -68,10 +68,6 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
-//        if (!contentDescription.isEmpty()) {
-//            attributes.setAlt(contentDescription);
-//        }
-
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.emptyList());
     }
 
