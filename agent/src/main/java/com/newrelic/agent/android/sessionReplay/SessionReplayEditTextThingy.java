@@ -88,6 +88,11 @@ public class SessionReplayEditTextThingy implements SessionReplayViewThingyInter
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.singletonList(textNode));
     }
 
+    @Override
+    public int getViewId() {
+        return viewDetails.getViewId();
+    }
+
     private String getFontFamily(Typeface typeface) {
         if(typeface.equals(Typeface.DEFAULT)){
             return "roboto, sans-serif";

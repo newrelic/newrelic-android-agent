@@ -111,6 +111,11 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.singletonList(textNode));
     }
 
+    @Override
+    public int getViewId() {
+        return viewDetails.getViewId();
+    }
+
 //    // This method corresponds to generateDifference in Swift
 //    // You will need a MutationRecord class and RRWebMutationData in your Java code.
 //    // This implementation is a simplified version based on the Swift code.

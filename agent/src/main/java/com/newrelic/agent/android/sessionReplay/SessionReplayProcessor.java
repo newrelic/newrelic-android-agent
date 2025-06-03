@@ -1,7 +1,7 @@
 package com.newrelic.agent.android.sessionReplay;
 
-import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.Data;
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent;
 import com.newrelic.agent.android.sessionReplay.models.InitialOffset;
 import com.newrelic.agent.android.sessionReplay.models.Node;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
@@ -23,13 +23,13 @@ public class SessionReplayProcessor {
         ArrayList<RRWebEvent> snapshot = new ArrayList<>();
 
         for(SessionReplayFrame rawFrame : rawFrames) {
-            snapshot.add(processFrame(rawFrame));
+            snapshot.add(processFullFrame(rawFrame));
         }
 
         return snapshot;
     }
 
-    private RRWebFullSnapshotEvent processFrame(SessionReplayFrame frame) {
+    private RRWebFullSnapshotEvent processFullFrame(SessionReplayFrame frame) {
         // Generate style string
         StringBuilder cssStyleBuilder = new StringBuilder();
 
@@ -76,4 +76,9 @@ public class SessionReplayProcessor {
 
         return elementNode;
     }
+
+//    private RRWebIncrementalEvent processIncrementalFrame(SessionReplayFrame frame) {
+//
+//
+//    }
 }

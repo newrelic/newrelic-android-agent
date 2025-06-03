@@ -49,4 +49,8 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
                 new ArrayList<RRWebNode>());
     }
 
+    @Override
+    public int getViewId() {
+        return viewDetails.getViewId();
+    }
 }

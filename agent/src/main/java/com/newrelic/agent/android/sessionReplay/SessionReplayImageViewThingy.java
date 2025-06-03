@@ -75,6 +75,11 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.emptyList());
     }
 
+    @Override
+    public int getViewId() {
+        return viewDetails.getViewId();
+    }
+
     private String getBackgroundColor(ImageView view) {
         Drawable background = view.getBackground();
         if (background != null) {
