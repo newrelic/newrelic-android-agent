@@ -5,6 +5,8 @@ import android.graphics.Typeface;
 import android.widget.EditText;
 
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
@@ -43,6 +45,11 @@ public class SessionReplayEditTextThingy implements SessionReplayViewThingyInter
     @Override
     public void setSubviews(List<? extends SessionReplayViewThingyInterface> subviews) {
         this.subviews = subviews;
+    }
+
+    @Override
+    public ViewDetails getViewDetails() {
+        return viewDetails;
     }
 
     @Override
@@ -86,6 +93,54 @@ public class SessionReplayEditTextThingy implements SessionReplayViewThingyInter
         attributes.setType("text"); // Set input type to "text" for EditText
 
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.singletonList(textNode));
+    }
+
+    @Override
+    public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
+        // Make sure this is not null and is of the same type
+        if (!(other instanceof SessionReplayEditTextThingy)) {
+            return null;
+        }
+
+        // Create a map to store style differences
+        java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
+
+        // Compare frames
+        if (!viewDetails.getFrame().equals(other.getViewDetails().getFrame())) {
+            styleDifferences.put("left", String.format("%.2fpx", other.getViewDetails().getFrame().left));
+            styleDifferences.put("top", String.format("%.2fpx", other.getViewDetails().getFrame().top));
+            styleDifferences.put("width", String.format("%.2fpx", other.getViewDetails().getFrame().width()));
+            styleDifferences.put("height", String.format("%.2fpx", other.getViewDetails().getFrame().height()));
+        }
+
+        // Compare background colors if available
+        if (viewDetails.getBackgroundColor() != null && other.getViewDetails().getBackgroundColor() != null) {
+            if (!viewDetails.getBackgroundColor().equals(other.getViewDetails().getBackgroundColor())) {
+                styleDifferences.put("background-color", other.getViewDetails().getBackgroundColor());
+            }
+        } else if (other.getViewDetails().getBackgroundColor() != null) {
+            styleDifferences.put("background-color", other.getViewDetails().getBackgroundColor());
+        }
+
+        // compare TextColor if available
+        if(this.textColor != null) {
+            String otherTextColor = ((SessionReplayTextViewThingy) other).getTextColor();
+            if (!this.textColor.equals(otherTextColor)) {
+                styleDifferences.put("color", otherTextColor);
+            }
+        }
+
+        // Create and return a MutationRecord with the style differences
+        Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+        attributes.setMetadata(styleDifferences);    List<MutationRecord> mutations = new ArrayList<>();
+        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.getViewId(), attributes));
+
+        // Check if label text has changed
+        if (!this.text.equals(((SessionReplayTextViewThingy) other).getLabelText())) {
+            mutations.add(new RRWebMutationData.TextRecord(viewDetails.getViewId(), ((SessionReplayTextViewThingy) other).getLabelText()));
+        }
+
+        return mutations;
     }
 
     @Override
