@@ -25,6 +25,7 @@ public class SessionReplayReporter extends PayloadReporter {
     protected static final AtomicReference<SessionReplayReporter> instance = new AtomicReference<>(null);
     protected final SessionReplayStore sessionReplayStore;
     private Boolean isFirstChunk = true;
+    private Boolean hasMeta = true;
 
     protected final Callable reportCachedSessionReplayDataCallable = new Callable() {
         @Override
@@ -58,16 +59,9 @@ public class SessionReplayReporter extends PayloadReporter {
         boolean reported = false;
 
         if (isInitialized()) {
-            try {
-                // Apply gzip compression
-                byte[] compressedBytes = gzipCompress(bytes);
-
-                Payload payload = new Payload(compressedBytes);
-                instance.get().storeAndReportSessionReplayData(payload);
-                reported = true;
-            } catch (IOException e) {
-                log.error("Failed to compress session replay data", e);
-            }
+            Payload payload = new Payload(bytes);
+            instance.get().storeAndReportSessionReplayData(payload);
+            reported = true;
         } else {
             log.error("SessionReplayDataReporter not initialized");
         }
@@ -125,8 +119,8 @@ public class SessionReplayReporter extends PayloadReporter {
         }
     }
 
-    public Future reportSessionReplayData(Payload payload) {
-        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),isFirstChunk);
+    public Future reportSessionReplayData(Payload payload) throws IOException {
+        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),isFirstChunk,hasMeta);
 
         isFirstChunk = false; // Set to false after the first chunk is sent
 
@@ -159,7 +153,12 @@ public class SessionReplayReporter extends PayloadReporter {
     }
 
     public void storeAndReportSessionReplayData(Payload payload) {
-        reportSessionReplayData(payload);
+        try {
+            reportSessionReplayData(payload);
+        } catch (IOException e) {
+            log.error("SessionReplayReporter.storeAndReportSessionReplayData(Payload): " + e);
+        }
+
     }
 
     @Override
