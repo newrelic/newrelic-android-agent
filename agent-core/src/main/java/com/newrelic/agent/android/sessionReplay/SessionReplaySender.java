@@ -18,7 +18,7 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
 
-
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
@@ -27,6 +27,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -35,17 +36,21 @@ public class SessionReplaySender extends PayloadSender {
     protected Payload payload;
     private HarvestConfiguration harvestConfiguration;
     private Boolean isFirstChunk;
+    private Boolean hasMeta;
+    private int payloadSize;
 
     public SessionReplaySender(byte[] bytes, AgentConfiguration agentConfiguration) {
         super(bytes, agentConfiguration);
     }
 
-    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration,Boolean isFirstChunk) {
+    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration,Boolean isFirstChunk,Boolean hasMeta) throws IOException {
         super(payload, agentConfiguration);
         this.payload = payload;
+        this.payloadSize = payload.getBytes().length;
         this.harvestConfiguration = harvestConfiguration;
         this.isFirstChunk = isFirstChunk;
-        setPayload(payload.getBytes());
+        this.hasMeta = hasMeta;
+        setPayload(gzipCompress(payload.getBytes()));
     }
 
     @Override
@@ -60,10 +65,12 @@ public class SessionReplaySender extends PayloadSender {
         attributes.put("sessionId", AgentConfiguration.getInstance().getSessionID());
         attributes.put("isFirstChunk", String.valueOf(isFirstChunk.booleanValue()));
         attributes.put("rrweb.version", "^2.0.0-alpha.17");
-        attributes.put("decompressedBytes",this.payload.getBytes().length + "");
+        attributes.put("decompressedBytes",this.payloadSize + "");
         attributes.put("payload.type", "standard");
         attributes.put("replay.firstTimestamp", (System.currentTimeMillis() - Harvest.getInstance().getHarvestTimer().timeSinceStart()) + "");
         attributes.put("replay.lastTimestamp", System.currentTimeMillis() + "");
+        attributes.put("content_encoding", "gzip");
+        attributes.put("hasMeta",hasMeta.booleanValue() + "");
         if(userIdAttr != null) {
             attributes.put("enduser.id", userIdAttr.getStringValue());
         }
@@ -89,6 +96,11 @@ public class SessionReplaySender extends PayloadSender {
                 "&timestamp=" + System.currentTimeMillis() +
                 "&attributes=" + attributesString;
 
+        final HttpURLConnection connection = getHttpURLConnection(urlString);
+        return connection;
+    }
+
+    private HttpURLConnection getHttpURLConnection(String urlString) throws IOException {
         final URL url = new URL(urlString);
         final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setDoOutput(true);
@@ -145,5 +157,13 @@ public class SessionReplaySender extends PayloadSender {
     protected void onFailedUpload(String errorMsg) {
         log.error(errorMsg);
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_HEX_FAILED_UPLOAD);
+    }
+    // Helper method to apply gzip compression
+    private static byte[] gzipCompress(byte[] uncompressedData) throws IOException {
+        ByteArrayOutputStream byteStream = new ByteArrayOutputStream(uncompressedData.length);
+        try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteStream)) {
+            gzipOutputStream.write(uncompressedData);
+        }
+        return byteStream.toByteArray();
     }
 }
