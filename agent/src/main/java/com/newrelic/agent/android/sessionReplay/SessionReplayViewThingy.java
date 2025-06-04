@@ -7,6 +7,7 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class SessionReplayViewThingy implements SessionReplayViewThingyInterface {

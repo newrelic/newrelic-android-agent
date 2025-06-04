@@ -1,5 +1,6 @@
 package com.newrelic.agent.android.sessionReplay;
 
+import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.Data;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent;
@@ -101,10 +102,12 @@ public class SessionReplayProcessor {
         for (IncrementalDiffGenerator.Operation operation : operations) {
             switch (operation.getType()) {
                 case ADD:
+                    RRWebElementNode node = operation.getAddChange().getNode().generateRRWebNode();
+                    node.attributes.metadata.put("style", operation.getAddChange().getNode().generateCssDescription());
                     RRWebMutationData.AddRecord addRecord = new RRWebMutationData.AddRecord(
                             operation.getAddChange().getParentId(),
                             operation.getAddChange().getId(),
-                            operation.getAddChange().getNode().generateRRWebNode()
+                            node
                     );
                     adds.add(addRecord);
                     break;

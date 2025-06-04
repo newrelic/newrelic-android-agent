@@ -22,7 +22,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     private ImageView.ScaleType scaleType;
     private String backgroundColor;
 
-    public SessionReplayImageViewThingy(ViewDetails viewDetails, ImageView view) {
+    public SessionReplayImageViewThingy(ViewDetails viewDetails, ImageView view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
         this.viewDetails = viewDetails;
 
         this.contentDescription = view.getContentDescription() != null ? view.getContentDescription().toString() : "";
@@ -75,10 +75,6 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
-//        if (!contentDescription.isEmpty()) {
-//            attributes.setAlt(contentDescription);
-//        }
-
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.emptyList());
     }
 
@@ -127,7 +123,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         if (background != null) {
             return "#FF474C"; // Placeholder color, you might want to implement a method to extract actual color
         }
-        return "transparent";
+        return " #FFC0CB";
     }
 
     private String getBackgroundSizeFromScaleType() {

@@ -2,9 +2,10 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode; // Assuming ElementNodeData maps to this
-//import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord; // Assuming MutationRecord exists in your models
+//import com.newrelic.agent.android.sessionReplay.models.MutationRecord; // Assuming MutationRecord exists in your models
 
 import java.util.List;
+import java.util.Objects; // For hashCode and equals equivalence
 
 // Equivalent to Swift's SessionReplayViewThingy protocol
 // Implements Hashable equivalent via hashCode and equals
@@ -12,6 +13,7 @@ public interface SessionReplayViewThingyInterface {
 
     ViewDetails getViewDetails();
 
+    // Equivalent to var shouldRecordSubviews: Bool { get }
     boolean shouldRecordSubviews();
 
     List<? extends SessionReplayViewThingyInterface> getSubviews();
@@ -21,6 +23,7 @@ public interface SessionReplayViewThingyInterface {
     String generateCssDescription();
 
     String getCSSSelector();
+
 
     RRWebElementNode generateRRWebNode();
 

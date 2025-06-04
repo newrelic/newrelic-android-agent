@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.Typeface;
 import android.widget.TextView;
 
+import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
@@ -26,17 +27,51 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String fontName;
     private String fontFamily;
     private String textColor;
+    private String textAlign;
+    private  MobileSessionReplayConfiguration sessionReplayConfiguration;
 
-    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view) {
+    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
+        this.sessionReplayConfiguration = sessionReplayConfiguration;
         this.viewDetails = viewDetails;
 
-        this.labelText = view.getText() != null ? view.getText().toString() : "";
+        // Get the raw text from the TextView
+        String rawText = view.getText() != null ? view.getText().toString() : "";
+
+        // Determine if text should be masked based on configuration
+        boolean shouldMaskText = sessionReplayConfiguration.isMaskApplicationText() ||
+                                (sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0);
+
+        // Apply masking if needed
+        this.labelText = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
+
         this.fontSize = view.getTextSize() / view.getContext().getResources().getDisplayMetrics().density;
         Typeface typeface = view.getTypeface();
 
-
         this.fontName = "default";
         this.fontFamily = getFontFamily(typeface);
+
+        // First check if gravity is set to something that would affect alignment
+        this.textAlign = resolveAlignmentFromGravity(view);
+
+        // If textAlignment is explicitly set, it takes precedence over gravity
+        switch (view.getTextAlignment()) {
+            case TextView.TEXT_ALIGNMENT_CENTER:
+                this.textAlign = "center";
+                break;
+            case TextView.TEXT_ALIGNMENT_TEXT_END:
+            case TextView.TEXT_ALIGNMENT_VIEW_END:
+                this.textAlign = "right";
+                break;
+            case TextView.TEXT_ALIGNMENT_TEXT_START:
+            case TextView.TEXT_ALIGNMENT_VIEW_START:
+                this.textAlign = "left";
+                break;
+            case TextView.TEXT_ALIGNMENT_INHERIT:
+            default:
+                // Keep the alignment determined by gravity
+                break;
+        }
+
         this.textColor = Integer.toHexString(view.getCurrentTextColor()).substring(2);
     }
 
@@ -92,13 +127,18 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         cssBuilder.append("");
         cssBuilder.append("white-space: pre-wrap;");
         cssBuilder.append("");
-        cssBuilder.append("font: ");
+        cssBuilder.append("word-wrap: break-word");
+        cssBuilder.append(" ");
+        cssBuilder.append("font-size: ");
         cssBuilder.append(String.format("%.2f", this.fontSize));
         cssBuilder.append("px ");
         cssBuilder.append(this.fontFamily);
         cssBuilder.append("; ");
         cssBuilder.append("color: #");
         cssBuilder.append(this.textColor);
+        cssBuilder.append("; ");
+        cssBuilder.append("text-align: ");
+        cssBuilder.append(this.textAlign);
         cssBuilder.append("; ");
         cssBuilder.append("}");
 
@@ -170,84 +210,97 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         return viewDetails.getViewId();
     }
 
-//    // This method corresponds to generateDifference in Swift
-//    // You will need a MutationRecord class and RRWebMutationData in your Java code.
-//    // This implementation is a simplified version based on the Swift code.
-//    // Assuming MutationRecord and RRWebMutationData are classes in your project
-//    public List<MutationRecord> generateDifferences(UILabelThingy other) {
-//        List<MutationRecord> mutations = new ArrayList<>();
-//
-//        // Assuming generateBaseDifferences in the Java interface returns a map of CSS attribute differences
-//        java.util.Map<String, String> frameDifferences = generateBaseDifferences(other);
-//
-//        // Get text color difference
-//        if (this.textColor != other.textColor) {
-//            String otherTextColorHex = String.format("#%06X", (0xFFFFFF & other.textColor));
-//            frameDifferences.put("color", otherTextColorHex);
-//        }
-//
-//        // Assuming you have a MutationRecord.AttributeRecord class in your project
-//        // This part needs to be adapted to your Java MutationRecord structure
-//        // mutations.add(new MutationRecord.AttributeRecord(viewDetails.getViewId(), frameDifferences));
-//
-//        if (!this.labelText.equals(other.labelText)) {
-//            // Assuming you have a MutationRecord.TextRecord class in your project
-//            // mutations.add(new MutationRecord.TextRecord(viewDetails.getViewId(), other.labelText));
-//        }
-//
-//        return mutations;
-//    }
-//
-//    // Equivalent of Swift's Equatable
-//    @Override
-//    public boolean equals(Object o) {
-//        if (this == o) return true;
-//        if (o == null || getClass() != o.getClass()) return false;
-//        UILabelThingy that = (UILabelThingy) o;
-//        return Float.compare(that.fontSize, fontSize) == 0 &&
-//                textColor == that.textColor &&
-//                Objects.equals(viewDetails, that.viewDetails) &&
-//                Objects.equals(labelText, that.labelText) &&
-//                Objects.equals(fontName, that.fontName) &&
-//                Objects.equals(fontFamily, that.fontFamily);
-//    }
-//
-//    // Equivalent of Swift's Hashable
-//    @Override
-//    public int hashCode() {
-//        return Objects.hash(viewDetails, labelText, fontSize, fontName, fontFamily, textColor);
-//    }
-//
-//    // Assuming generateBaseCSSStyle and generateBaseDifferences are part of SessionReplayViewThingy
-//    // You will need to implement these methods in your SessionReplayViewThingy interface/abstract class.
-//    // Example placeholder methods:
-//    private String generateBaseCSSStyle() {
-//        // Implement logic to generate base CSS styles (e.g., position, size)
-//        return "";
-//    }
-//
-//    private java.util.Map<String, String> generateBaseDifferences(SessionReplayViewThingy other) {
-//        // Implement logic to generate differences for base view properties
-//        return new java.util.HashMap<>();
-//    }
-
     private String getFontFamily(Typeface typeface) {
+        if (typeface == null) {
+            return "font-weight: normal; font-style: normal;";
+        }
 
-        if(typeface.equals(Typeface.DEFAULT)){
-            return "roboto, sans-serif";
+        StringBuilder style = new StringBuilder();
+
+        // Handle font family
+        if (typeface.equals(Typeface.MONOSPACE)) {
+            style.append("font-family: monospace;");
+        } else if (typeface.equals(Typeface.SERIF)) {
+            style.append("font-family: serif;");
+        } else {
+            // Default, SANS_SERIF, and custom typefaces
+            style.append("font-family: sans-serif;");
         }
-        if(typeface.equals(Typeface.DEFAULT_BOLD)){
-            return "sans-serif-bold";
+
+        // Handle font weight and style
+        int typefaceStyle = typeface.getStyle();
+        if ((typefaceStyle & Typeface.BOLD) != 0) {
+            style.append(" font-weight: bold;");
         }
-        if(typeface.equals(Typeface.MONOSPACE)){
-            return "monospace";
+        if ((typefaceStyle & Typeface.ITALIC) != 0) {
+            style.append(" font-style: italic;");
         }
-        if(typeface.equals(Typeface.SANS_SERIF)){
-            return "sans-serif";
+
+        return style.toString();
+    }
+
+    /**
+     * Resolves text alignment from the TextView's gravity property.
+     * This is needed because gravity can also affect text alignment in addition to textAlignment.
+     *
+     * @param view The TextView to extract gravity alignment from
+     * @return The CSS text-align value corresponding to the gravity
+     */
+    private String resolveAlignmentFromGravity(TextView view) {
+        int gravity = view.getGravity();
+
+        // Check horizontal gravity
+        int horizontalGravity = gravity & android.view.Gravity.HORIZONTAL_GRAVITY_MASK;
+
+        switch (horizontalGravity) {
+            case android.view.Gravity.START:
+            case android.view.Gravity.LEFT:
+                return "left";
+            case android.view.Gravity.END:
+            case android.view.Gravity.RIGHT:
+                return "right";
+            case android.view.Gravity.CENTER:
+            case android.view.Gravity.CENTER_HORIZONTAL:
+                return "center";
+            default:
+                return "left"; // Default to left alignment
         }
-        if(typeface.equals(Typeface.SERIF)){
-            return "serif";
+    }
+
+    /**
+     * Helper method to mask text with asterisks if needed based on tags and configuration
+     *
+     * @param view The TextView containing the text
+     * @param text The text to potentially mask
+     * @param shouldMask Whether masking should be applied based on configuration
+     * @return The original text or masked text depending on conditions
+     */
+    protected String getMaskedTextIfNeeded(TextView view, String text, boolean shouldMask) {
+        // If text is empty, no need to mask
+        if (text.isEmpty()) {
+            return text;
         }
-        return "roboto, sans-serif";
+
+        // Check if view has tags that prevent masking
+        Object viewTag = view.getTag();
+        Object privacyTag = view.getTag(R.id.newrelic_privacy);
+        boolean hasUnmaskTag = ("nr-unmask".equals(viewTag)) ||
+              ("nr-unmask".equals(privacyTag)) || !(view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString()) )|| !(sessionReplayConfiguration.shouldMaskViewClass(view.getClass().getName()));
+
+        // Check if view has tag that forces masking
+        boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString())) || (sessionReplayConfiguration.shouldMaskViewClass(view.getClass().getName()));
+        // Apply masking if needed:
+        // - If general masking is enabled AND no unmask tag AND not in unmask class list, OR
+        // - If has explicit mask tag OR class is explicitly masked
+        if ((shouldMask && !hasUnmaskTag) || (!shouldMask && hasMaskTag)) {
+            StringBuilder maskedText = new StringBuilder();
+            for (int i = 0; i < text.length(); i++) {
+                maskedText.append('*');
+            }
+            return maskedText.toString();
+        }
+
+        // Return original text if no masking needed
+        return text;
     }
 }

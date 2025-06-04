@@ -1,12 +1,13 @@
 package com.newrelic.agent.android.sessionReplay.models;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class Attributes{
     public String id;
     public String type;
     public String value;
-    public Map<String, String> metadata;
+    public Map<String, String> metadata = new HashMap<>();
 
     public Map<String, String> getMetadata() {
         return metadata;

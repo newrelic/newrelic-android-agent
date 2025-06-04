@@ -14,27 +14,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class SessionReplayEditTextThingy implements SessionReplayViewThingyInterface {
+public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy implements SessionReplayViewThingyInterface {
     private List<? extends SessionReplayViewThingyInterface> subviews = new ArrayList<>();
     private ViewDetails viewDetails;
 
     public boolean shouldRecordSubviews = false;
-    private String text;
     private String hint;
-    private float fontSize;
-    private String fontFamily;
-    private String textColor;
-
-    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view) {
+    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
+        super(viewDetails, view, sessionReplayConfiguration);
         this.viewDetails = viewDetails;
 
-        this.text = view.getText() != null ? view.getText().toString() : "";
-        this.hint = view.getHint() != null ? view.getHint().toString() : "";
-        this.fontSize = view.getTextSize() / view.getContext().getResources().getDisplayMetrics().density;
-        Typeface typeface = view.getTypeface();
+        // Get the raw text from the TextView
+        String rawText = view.getHint() != null ? view.getHint().toString() : "";
+        boolean shouldMaskText = sessionReplayConfiguration.isMaskApplicationText() ||
+                (sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0);
 
-        this.fontFamily = getFontFamily(typeface);
-        this.textColor = Integer.toHexString(view.getCurrentTextColor()).substring(2);
+        // Apply masking if needed
+        this.hint = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
     }
 
     @Override
@@ -65,28 +61,18 @@ public class SessionReplayEditTextThingy implements SessionReplayViewThingyInter
     @SuppressLint("DefaultLocale")
     @Override
     public String generateCssDescription() {
-        StringBuilder cssBuilder = new StringBuilder(viewDetails.generateCssDescription());
-        cssBuilder.append("white-space: pre-wrap;");
-        cssBuilder.append("font: ");
-        cssBuilder.append(String.format("%.2f", this.fontSize));
-        cssBuilder.append("px ");
-        cssBuilder.append(this.fontFamily);
-        cssBuilder.append("; ");
-        cssBuilder.append("color: #");
-        cssBuilder.append(this.textColor);
-        cssBuilder.append("; ");
-        cssBuilder.append("}");
 
+        StringBuilder cssBuilder = new StringBuilder(super.generateCssDescription());
         return cssBuilder.toString();
     }
 
     @Override
     public RRWebElementNode generateRRWebNode() {
         RRWebTextNode textNode;
-        if (text.isEmpty() && !hint.isEmpty()) {
+        if (super.getLabelText().isEmpty() && !hint.isEmpty()) {
             textNode = new RRWebTextNode(hint, false, NewRelicIdGenerator.generateId());
         } else {
-            textNode = new RRWebTextNode(text, false, NewRelicIdGenerator.generateId());
+            textNode = new RRWebTextNode(super.getLabelText(), false, NewRelicIdGenerator.generateId());
         }
 
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
@@ -123,9 +109,9 @@ public class SessionReplayEditTextThingy implements SessionReplayViewThingyInter
         }
 
         // compare TextColor if available
-        if(this.textColor != null) {
+        if(super.getTextColor() != null && ((SessionReplayTextViewThingy) other).getTextColor() != null) {
             String otherTextColor = ((SessionReplayTextViewThingy) other).getTextColor();
-            if (!this.textColor.equals(otherTextColor)) {
+            if (!super.getTextColor().equals(otherTextColor)) {
                 styleDifferences.put("color", otherTextColor);
             }
         }
@@ -136,7 +122,7 @@ public class SessionReplayEditTextThingy implements SessionReplayViewThingyInter
         mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.getViewId(), attributes));
 
         // Check if label text has changed
-        if (!this.text.equals(((SessionReplayTextViewThingy) other).getLabelText())) {
+        if (!super.getLabelText().equals(((SessionReplayTextViewThingy) other).getLabelText())) {
             mutations.add(new RRWebMutationData.TextRecord(viewDetails.getViewId(), ((SessionReplayTextViewThingy) other).getLabelText()));
         }
 

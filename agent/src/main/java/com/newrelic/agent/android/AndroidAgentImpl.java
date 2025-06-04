@@ -16,6 +16,7 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.os.StatFs;
@@ -61,6 +62,8 @@ import com.newrelic.agent.android.ndk.NativeReporting;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.sample.MachineMeasurementConsumer;
 import com.newrelic.agent.android.sample.Sampler;
+import com.newrelic.agent.android.sessionReplay.SessionReplay;
+import com.newrelic.agent.android.sessionReplay.TextMaskingStrategy;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
@@ -115,7 +118,6 @@ public class AndroidAgentImpl implements
     // Producers and consumers that are tightly coupled to Android implementations
     private MachineMeasurementConsumer machineMeasurementConsumer;
     private OfflineStorage offlineStorageInstance;
-
     public AndroidAgentImpl(final Context context, final AgentConfiguration agentConfiguration) throws AgentInitializationException {
         // We want an Application context, not an Activity context.
         this.context = appContext(context);
@@ -649,9 +651,31 @@ public class AndroidAgentImpl implements
             Agent.setImpl(new AndroidAgentImpl(context, agentConfiguration));
             Agent.start();
             startLogReporter(context, agentConfiguration);
+            startSessionReplayRecorder(context, agentConfiguration);
         } catch (AgentInitializationException e) {
             log.error("Failed to initialize the agent: " + e.toString());
         }
+    }
+
+    private static void startSessionReplayRecorder(Context context, AgentConfiguration agentConfiguration) {
+
+        agentConfiguration.getMobileSessionReplayConfiguration().reseed();
+
+        // remove it later
+        agentConfiguration.getMobileSessionReplayConfiguration().setSamplingRate(100.0);
+        agentConfiguration.getMobileSessionReplayConfiguration().setTextMaskingStrategy(TextMaskingStrategy.MASK_ALL_TEXT);
+
+
+        if(agentConfiguration.getMobileSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
+            Handler uiHandler = new Handler(Looper.getMainLooper());
+            SessionReplay sessionReplay = new SessionReplay(((Application) context.getApplicationContext()), uiHandler);
+            sessionReplay.Initialize();
+            sessionReplay.startRecording();
+        } else
+            // if the session replay is not enabled, remove the attribute from the previous session
+            AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED);
+
     }
 
     /*
@@ -690,6 +714,7 @@ public class AndroidAgentImpl implements
         if (!NewRelic.isShutdown) {
             start();
             startLogReporter(context, agentConfiguration);
+            startSessionReplayRecorder(context, agentConfiguration);
             AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME);
         }
     }

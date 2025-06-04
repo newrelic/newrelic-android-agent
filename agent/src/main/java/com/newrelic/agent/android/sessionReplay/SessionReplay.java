@@ -3,33 +3,38 @@ package com.newrelic.agent.android.sessionReplay;
 import android.app.Application;
 import android.content.Context;
 import android.graphics.Point;
+import android.os.Build;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Display;
 import android.view.View;
+import android.view.WindowMetrics;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
+import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
+import com.newrelic.agent.android.logging.LogReporter;
 import com.newrelic.agent.android.sessionReplay.internal.Curtains;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
-import com.newrelic.agent.android.sessionReplay.internal.RootViewsSpy;
+import com.newrelic.agent.android.sessionReplay.internal.OnRootViewsChangedListener;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 import com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent;
-import com.newrelic.agent.android.sessionReplay.models.RRWebTouch;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
-public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAware,OnTouchRecordeListener {
+public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAware, OnTouchRecordedListener {
     private Application application;
     private Handler uiThreadHandler;
     private SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
     private SessionReplayProcessor processor = new SessionReplayProcessor();
     private ViewDrawInterceptor viewDrawInterceptor;
     private List<TouchTracker> touchTrackers = new ArrayList<>();
+    static final AtomicReference<LogReporter> instance = new AtomicReference<>(null);
 
     private ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
 
@@ -37,8 +42,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         this.application = application;
         this.uiThreadHandler = uiThreadHandler;
 
-        this.sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
+        this.sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(this);
         this.viewDrawInterceptor = new ViewDrawInterceptor(this,this);
+
     }
 
     public void Initialize() {
@@ -56,37 +62,81 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     @Override
     public void onHarvestStop() {
-        // No-op
-        onHarvest();
+
     }
 
     @Override
-
     public void onHarvest() {
-        // No-op
-        WindowManager wm = (WindowManager) application.getApplicationContext().getSystemService(Context.WINDOW_SERVICE);
-        Display display = wm.getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
+        if (rawFrames.isEmpty() && touchTrackers.isEmpty()) {
+            Log.d("SessionReplay", "No frames or touch data to process.");
+            return;
+        }
 
-        RRWebMetaEvent metaEvent = new RRWebMetaEvent(new RRWebMetaEvent.RRWebMetaEventData("https://newrelic.com", size.x, size.y), System.currentTimeMillis());
+        Context context = application.getApplicationContext();
+        float density = context.getResources().getDisplayMetrics().density;
+
+        // Get screen size using API level appropriate methods
+        int width, height;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // For API 30 (Android 11) and above
+            WindowMetrics windowMetrics = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE))
+                    .getCurrentWindowMetrics();
+            width = windowMetrics.getBounds().width();
+            height = windowMetrics.getBounds().height();
+        } else {
+            // For API 29 and below
+            WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+            @SuppressWarnings("deprecation")
+            Display display = wm.getDefaultDisplay();
+
+            // Use getRealSize instead of getSize to get the actual full screen size including system decorations
+            Point size = new Point();
+            display.getRealSize(size);
+
+            width = size.x;
+            height = size.y;
+        }
+
+        RRWebMetaEvent metaEvent = new RRWebMetaEvent(
+                new RRWebMetaEvent.RRWebMetaEventData(
+                        "https://newrelic.com",
+                        (int) (width / density),
+                        (int) (height / density)
+                ),
+                System.currentTimeMillis()
+        );
+
         ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
         rrWebEvents.add(metaEvent);
 
+        // Create a copy of rawFrames
+        List<SessionReplayFrame> rawFramesCopy;
+        synchronized (rawFrames) {
+            rawFramesCopy = new ArrayList<>(rawFrames);
+            rawFrames.clear();
+        }
 
-        rrWebEvents.addAll(processor.processFrames(rawFrames));
+        rrWebEvents.addAll(processor.processFrames(rawFramesCopy));
+
+        // Create a copy of touchTrackers and clear the original
+        List<TouchTracker> touchTrackersCopy;
+        synchronized (touchTrackers) {
+            touchTrackersCopy = new ArrayList<>(touchTrackers);
+            touchTrackers.clear();
+        }
+
         ArrayList<RRWebEvent> totalTouches = new ArrayList<>();
-        for(TouchTracker touchTracker : touchTrackers) {
+        for(TouchTracker touchTracker : touchTrackersCopy) {
             totalTouches.addAll(touchTracker.processTouchData());
         }
 
         rrWebEvents.addAll(totalTouches);
 
         String json = new Gson().toJson(rrWebEvents);
-
         SessionReplayReporter.reportSessionReplayData(json.getBytes());
 
-        rawFrames.clear();
+        touchTrackersCopy.clear();
+        rawFramesCopy.clear();
     }
 
 
@@ -99,6 +149,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     public void startRecording() {
+        Harvest.addHarvestListener(this);
         uiThreadHandler.post(new Runnable() {
             @Override
             public void run() {
@@ -106,9 +157,23 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
                 viewDrawInterceptor.Intercept(decorViews);
             }
         });
+
+        Curtains.getOnRootViewsChangedListeners().add(new OnRootViewsChangedListener() {
+            @Override
+            public void onRootViewsChanged(View view, boolean added) {
+                if (added) {
+                    viewDrawInterceptor.Intercept(new View[]{view});
+                } else {
+                    viewDrawInterceptor.removeIntercept(new View[]{view});
+                }
+            }
+        });
     }
 
+
+
     public void stopRecording() {
+        Harvest.removeHarvestListener(this);
         uiThreadHandler.post(new Runnable() {
             @Override
             public void run() {
@@ -120,39 +185,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         rawFrames.add(newFrame);
-
-        if(rawFrames.size() >= 30) {
-            WindowManager wm = (WindowManager) application.getApplicationContext().getSystemService(Context.WINDOW_SERVICE);
-            float density = application.getApplicationContext().getResources().getDisplayMetrics().density;
-
-            Display display = wm.getDefaultDisplay();
-            Point size = new Point();
-            display.getSize(size);
-
-            RRWebMetaEvent metaEvent = new RRWebMetaEvent(new RRWebMetaEvent.RRWebMetaEventData("https://newrelic.com", (int) (size.x/density), (int) (size.y/density)), System.currentTimeMillis());
-            ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
-            rrWebEvents.add(metaEvent);
-
-
-            rrWebEvents.addAll(processor.processFrames(rawFrames));
-            ArrayList<RRWebEvent> totalTouches = new ArrayList<>();
-            for (TouchTracker touchTracker : touchTrackers) {
-                totalTouches.addAll(touchTracker.processTouchData());
-            }
-
-            rrWebEvents.addAll(totalTouches);
-
-            String json = new Gson().toJson(rrWebEvents);
-            Log.d("SessionReplay", "onFrameTaken: " + json);
-        }
-
-
-//        SessionReplayReporter.reportSessionReplayData(json.getBytes());
-
     }
 
     @Override
-    public void onTouchRecorde(TouchTracker touchTracker) {
+    public void onTouchRecorded(TouchTracker touchTracker) {
         touchTrackers.add(touchTracker);
     }
 }
