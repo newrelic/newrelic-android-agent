@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.Display;
 import android.view.View;
+import android.view.Window;
 import android.view.WindowMetrics;
 import android.view.WindowManager;
 
@@ -18,8 +19,10 @@ import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.logging.LogReporter;
 import com.newrelic.agent.android.sessionReplay.internal.Curtains;
+import com.newrelic.agent.android.sessionReplay.internal.OnContentChangedListener;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 import com.newrelic.agent.android.sessionReplay.internal.OnRootViewsChangedListener;
+import com.newrelic.agent.android.sessionReplay.internal.WindowCallbackWrapper;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 import com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent;
 
@@ -161,6 +164,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         Curtains.getOnRootViewsChangedListeners().add(new OnRootViewsChangedListener() {
             @Override
             public void onRootViewsChanged(View view, boolean added) {
+                processor.onNewScreen();
                 if (added) {
                     viewDrawInterceptor.Intercept(new View[]{view});
                 } else {
