@@ -40,4 +40,6 @@ public interface SessionReplayViewThingyInterface {
 
     @Override
     boolean equals(Object obj);
+
+
 }

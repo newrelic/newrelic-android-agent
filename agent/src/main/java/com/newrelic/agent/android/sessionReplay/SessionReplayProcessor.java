@@ -32,7 +32,11 @@ public class SessionReplayProcessor {
             if(lastFrame == null)  {
                 snapshot.add(processFullFrame(rawFrame));
             } else {
-                snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
+                if(rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
+                    snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
+                } else {
+                    snapshot.add(processFullFrame(rawFrame));
+                }
             }
             lastFrame = rawFrame;
         }
@@ -106,7 +110,7 @@ public class SessionReplayProcessor {
                     node.attributes.metadata.put("style", operation.getAddChange().getNode().generateCssDescription());
                     RRWebMutationData.AddRecord addRecord = new RRWebMutationData.AddRecord(
                             operation.getAddChange().getParentId(),
-                            operation.getAddChange().getId(),
+                            operation.getAddChange().getId()+1,
                             node
                     );
                     adds.add(addRecord);
@@ -166,5 +170,10 @@ public class SessionReplayProcessor {
         }
 
         return thingies;
+    }
+
+    public void onNewScreen() {
+        // Reset the last frame when a new screen is detected
+        lastFrame = null;
     }
 }

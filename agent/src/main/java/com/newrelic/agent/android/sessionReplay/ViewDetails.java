@@ -5,6 +5,7 @@ import android.graphics.Rect; // Equivalent to CGRect for basic representation
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.View; // Use Android's View class
+import android.view.ViewGroup;
 //import com.newrelic.agent.android.sessionReplay.gestures.SessionReplayIdentifier; // Assuming this class exists for managing view IDs
 import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
 //import com.newrelic.agent.android.sessionReplay.models.NewRelicIdGenerator; // Assuming this class exists for generating IDs
@@ -18,11 +19,8 @@ public class ViewDetails {
     private final String backgroundColor;
     private final float alpha;
     private final boolean isHidden;
-    private final Drawable backgroundDrawable; // Equivalent to UIImage in Swift
-//    private final SessionReplayIdentifier sessionReplayIdentifier; // Assuming this is a unique identifier for the view
-//    private final float cornerRadius; // Corresponds to cornerRadius
-//    private final float borderWidth; // Corresponds to borderWidth
-//    private final Integer borderColor; // Using Integer to allow for null (optional in Swift)
+    private final Drawable backgroundDrawable;
+    private final int parentId;
     private final String viewName;
     private  float density;; // CSS selector for the view
 
@@ -53,8 +51,7 @@ public class ViewDetails {
         float y = location[1] / density;
         float width = view.getWidth() / density;
         float height = view.getHeight() / density;
-        this.frame = new Rect((int) x, (int) y, (int) ((int)  x+width), (int) ((int) y+height));
-
+        this.frame = new Rect((int) x, (int) y, (int) ((int) x + width), (int) ((int) y + height));
 
 
         this.backgroundColor = ViewBackgroundHelper.getBackgroundColor(view);
@@ -66,12 +63,23 @@ public class ViewDetails {
         // View.GONE and View.INVISIBLE are considered hidden in a session replay context
         this.isHidden = view.getVisibility() == View.GONE || view.getVisibility() == View.INVISIBLE;
 
-        // Equivalent of Swift's String(describing: type(of: view))
         this.viewName = view.getClass().getSimpleName(); // Gets the simple class name
 
         viewId = getStableId(view);
+
+        if (view.getParent() instanceof ViewGroup) {
+            // If the parent is a ViewGroup, we can get its ID
+            ViewGroup parent = (ViewGroup) view.getParent();
+            parentId = getStableId(parent);
+        } else {
+            // If the parent is not a ViewGroup, we can still get its ID
+            parentId = 0;
+        }
     }
 
+    public int getParentId() {
+        return parentId;
+    }
     // Getters for the final properties
     public int getViewId() {
         return viewId;

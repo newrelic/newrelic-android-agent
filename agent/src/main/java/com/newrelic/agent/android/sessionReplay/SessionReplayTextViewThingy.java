@@ -169,10 +169,10 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         // Compare frames
         if (!viewDetails.getFrame().equals(other.getViewDetails().getFrame())) {
-            styleDifferences.put("left", String.format("%.2fpx", other.getViewDetails().getFrame().left));
-            styleDifferences.put("top", String.format("%.2fpx", other.getViewDetails().getFrame().top));
-            styleDifferences.put("width", String.format("%.2fpx", other.getViewDetails().getFrame().width()));
-            styleDifferences.put("height", String.format("%.2fpx", other.getViewDetails().getFrame().height()));
+            styleDifferences.put("left", other.getViewDetails().getFrame().left + "px");
+            styleDifferences.put("top", other.getViewDetails().getFrame().top + "px");
+            styleDifferences.put("width", other.getViewDetails().getFrame().width() + "px");
+            styleDifferences.put("height", other.getViewDetails().getFrame().height() + "px");
         }
 
         // Compare background colors if available
