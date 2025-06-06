@@ -623,10 +623,8 @@ public class LogReporter extends PayloadReporter {
      */
     public void appendToWorkingLogfile(Map<String, Object> logDataMap) throws IOException {
         try {
-            String logJsonData = gson.toJson(logDataMap, gtype);
-
             workingFileLock.lock();
-
+            String logJsonData = gson.toJson(logDataMap, gtype);
             if (null != workingLogfileWriter.get()) {
                 workingLogfileWriter.get().append(logJsonData);
                 workingLogfileWriter.get().newLine();

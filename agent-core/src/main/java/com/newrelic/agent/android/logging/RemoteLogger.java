@@ -20,12 +20,14 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 public class RemoteLogger implements HarvestLifecycleAware, Logger {
     static int POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors() / 4); // Buffer up this this number of requests
     static long QUEUE_THREAD_TTL = 1000;
     static MessageValidator validator = LogReporting.validator;
+    static final ReentrantLock workingFileLock = new ReentrantLock();
 
     // TODO enforce log message constraints
     static int MAX_ATTRIBUTES_PER_EVENT = 255;
@@ -126,6 +128,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                  *
                  * @link reserved attributes: https://source.datanerd.us/agents/agent-specs/blob/main/Application-Logging.md#log-record-attributes
                  */
+                workingFileLock.lock();
                 logDataMap.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, String.valueOf(System.currentTimeMillis()));
                 logDataMap.put(LogReporting.LOG_LEVEL_ATTRIBUTE, logLevel.name().toUpperCase());
 
@@ -157,10 +160,10 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                     logDataMap.put(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE, attributes);
                 }
 
+                workingFileLock.unlock();
                 if (null == logReporter) {
                     return false;
                 }
-
                 // pass data map to the reporter
                 logReporter.appendToWorkingLogfile(logDataMap);
 

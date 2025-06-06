@@ -128,7 +128,6 @@ public class LogReporterTest extends LoggingTests {
     public void onHarvestStart() {
         logReporter.onHarvestStart();
         verify(logReporter, never()).onHarvest();
-        verify(logReporter, atMostOnce()).expire(anyLong());
         verify(logReporter, atMostOnce()).cleanup();
     }
 
@@ -276,27 +275,6 @@ public class LogReporterTest extends LoggingTests {
     }
 
     @Test
-    public void safeDeleteExpired() throws Exception {
-        seedLogData(3);
-        logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).forEach(file -> logReporter.safeDelete(file));
-        logReporter.getCachedLogReports(LogReporter.LogReportState.EXPIRED).forEach(file -> {
-            logReporter.safeDelete(file);
-            Assert.assertTrue(file.exists());
-        });
-    }
-
-    @Test
-    public void expire() {
-        Set<File> allFiles = logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED);
-        allFiles.forEach(file -> Assert.assertTrue(file.setLastModified(System.currentTimeMillis() - TimeUnit.MILLISECONDS.convert(4, TimeUnit.DAYS))));
-        logReporter.expire(logReporter.reportTTL);
-        allFiles.forEach(file -> {
-            Assert.assertFalse(file.exists());
-            Assert.assertTrue(new File(file.getAbsolutePath() + "." + LogReporter.LogReportState.EXPIRED.extension).exists());
-        });
-    }
-
-    @Test
     public void cleanup() {
         Set<File> closedFiles = logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED);
         closedFiles.forEach(file -> logReporter.safeDelete(file));
@@ -438,33 +416,6 @@ public class LogReporterTest extends LoggingTests {
         logger.shutdown();
 
         Assert.assertTrue(logger.executor.isShutdown());
-    }
-
-    @Test
-    public void decomposeRollup() throws Exception {
-        final File logDataFile = LogReporter.generateUniqueLogfile(LogReporter.LogReportState.ROLLUP);
-
-        try (OutputStream os = new FileOutputStream(logDataFile)) {
-            LogReporter.class.getResourceAsStream("/logReporting/logdata-vortex-413.rollup").transferTo(os);
-        }
-
-        logReporter.decompose(logDataFile);
-        Assert.assertNull(logReporter.rollupLogDataFiles());
-        Assert.assertEquals(2, logReporter.getCachedLogReports(LogReporter.LogReportState.ROLLUP).size());
-    }
-
-    @Test
-    public void decomposeClosed() throws Exception {
-        final File logDataFile = LogReporter.generateUniqueLogfile(LogReporter.LogReportState.CLOSED);
-
-        try (OutputStream os = new FileOutputStream(logDataFile)) {
-            LogReporter.class.getResourceAsStream("/logReporting/logdata-vortex-413.dat").transferTo(os);
-        }
-
-        logReporter.decompose(logDataFile);
-        Assert.assertNull(logReporter.rollupLogDataFiles());
-        Assert.assertEquals(2, logReporter.getCachedLogReports(LogReporter.LogReportState.ROLLUP).size());
-        Assert.assertEquals(0, logReporter.getCachedLogReports(LogReporter.LogReportState.CLOSED).size());
     }
 
     @Test
