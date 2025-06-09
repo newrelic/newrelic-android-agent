@@ -70,6 +70,7 @@ public class SessionReplaySender extends PayloadSender {
         attributes.put("replay.firstTimestamp", (System.currentTimeMillis() - Harvest.getInstance().getHarvestTimer().timeSinceStart()) + "");
         attributes.put("replay.lastTimestamp", System.currentTimeMillis() + "");
         attributes.put("content_encoding", "gzip");
+        attributes.put("appVersion", Agent.getApplicationInformation().getAppVersion());
 
         for (AnalyticsAttribute analyticsAttribute : controller.getSessionAttributes()) {
             attributes.put(analyticsAttribute.getName(), analyticsAttribute.asJsonElement().getAsString());
