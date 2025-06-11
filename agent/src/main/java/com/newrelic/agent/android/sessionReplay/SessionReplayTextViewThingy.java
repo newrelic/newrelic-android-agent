@@ -225,7 +225,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         Object viewTag = view.getTag();
         Object privacyTag = view.getTag(R.id.newrelic_privacy);
         boolean hasUnmaskTag = ("nr-unmask".equals(viewTag)) ||
-              ("nr-unmask".equals(privacyTag)) || !(view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString()) )|| !(sessionReplayConfiguration.shouldMaskViewClass(view.getClass().getName()));
+              ("nr-unmask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString()) )|| sessionReplayConfiguration.shouldUnmaskViewClass(view.getClass().getName());
 
         // Check if view has tag that forces masking
         boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString())) || (sessionReplayConfiguration.shouldMaskViewClass(view.getClass().getName()));

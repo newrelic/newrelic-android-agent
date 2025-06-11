@@ -663,7 +663,6 @@ public class AndroidAgentImpl implements
 
         // remove it later
         agentConfiguration.getMobileSessionReplayConfiguration().setSamplingRate(100.0);
-        agentConfiguration.getMobileSessionReplayConfiguration().setTextMaskingStrategy(TextMaskingStrategy.MASK_ALL_TEXT);
 
 
         if(agentConfiguration.getMobileSessionReplayConfiguration().isSessionReplayEnabled()) {
