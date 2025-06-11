@@ -1,12 +1,12 @@
 package com.newrelic.agent.android.sessionReplay;
 
-import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.Data;
 import com.newrelic.agent.android.sessionReplay.models.InitialOffset;
 import com.newrelic.agent.android.sessionReplay.models.Node;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 import com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent;
+import com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent;
 import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
@@ -18,12 +18,26 @@ import java.util.List;
 public class SessionReplayProcessor {
     public static int RRWEB_TYPE_FULL_SNAPSHOT = 2;
     public static int RRWEB_TYPE_INCREMENTAL_SNAPSHOT = 3;
+    private SessionReplayFrame lastFrame;
 
     public List<RRWebEvent> processFrames(List<SessionReplayFrame> rawFrames) {
         ArrayList<RRWebEvent> snapshot = new ArrayList<>();
 
-        for(SessionReplayFrame rawFrame : rawFrames) {
+
+        for (SessionReplayFrame rawFrame : rawFrames) {
+            if (lastFrame == null || (lastFrame.width != rawFrame.width || lastFrame.height != rawFrame.height)) {
+                RRWebMetaEvent metaEvent = new RRWebMetaEvent(
+                        new RRWebMetaEvent.RRWebMetaEventData(
+                                "https://newrelic.com",
+                                rawFrame.width,
+                                rawFrame.height
+                        ),
+                        rawFrame.timestamp
+                );
+                snapshot.add(metaEvent);
+            }
             snapshot.add(processFrame(rawFrame));
+            lastFrame = rawFrame;
         }
 
         return snapshot;
@@ -48,7 +62,7 @@ public class SessionReplayProcessor {
         RRWebElementNode bodyNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_BODY, NewRelicIdGenerator.generateId(), Collections.singletonList(rootElement));
 
         // HTML node
-        RRWebElementNode htmlNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_HTML,NewRelicIdGenerator.generateId(), Arrays.asList(headNode, bodyNode));
+        RRWebElementNode htmlNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_HTML, NewRelicIdGenerator.generateId(), Arrays.asList(headNode, bodyNode));
 
         Node node = new Node(RRWebNode.RRWEB_NODE_TYPE_DOCUMENT, NewRelicIdGenerator.generateId(), Collections.singletonList(htmlNode));
 
@@ -66,7 +80,7 @@ public class SessionReplayProcessor {
 //        Attributes attribues = new Attributes(rootThingy.getCSSSelector());
         ArrayList<RRWebNode> childNodes = new ArrayList<>();
         RRWebElementNode elementNode = rootThingy.generateRRWebNode();
-        for(SessionReplayViewThingyInterface childNode : rootThingy.getSubviews()) {
+        for (SessionReplayViewThingyInterface childNode : rootThingy.getSubviews()) {
             RRWebNode childElement = recursivelyProcessThingy(childNode, cssStyleBuilder);
             childNodes.add(childElement);
         }
