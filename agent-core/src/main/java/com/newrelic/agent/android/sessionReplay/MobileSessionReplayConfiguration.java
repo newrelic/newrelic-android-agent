@@ -42,7 +42,7 @@ public class MobileSessionReplayConfiguration {
 
     static Double sampleSeed = 100.000000;
 
-    private TextMaskingStrategy textMaskingStrategy = TextMaskingStrategy.MASK_USER_INPUT_TEXT;
+    private TextMaskingStrategy textMaskingStrategy;
 
 
     /**
@@ -76,6 +76,7 @@ public class MobileSessionReplayConfiguration {
         this.maskAllUserTouches = true;
         this.maskAllImages = true;
         this.customMaskingRules = new ArrayList<>();
+        this.textMaskingStrategy = TextMaskingStrategy.MASK_ALL_TEXT;
     }
 
     public boolean isEnabled() {
@@ -248,13 +249,13 @@ public class MobileSessionReplayConfiguration {
      * @return true if the view should be masked, false otherwise
      */
     public boolean shouldMaskViewClass(String viewClassName) {
-        // If explicitly unmasked, don't mask
-        if (unmaskedViewClasses != null && unmaskedViewClasses.contains(viewClassName)) {
-            return false;
-        }
-
         // If explicitly masked, do mask
         return maskedViewClasses != null && maskedViewClasses.contains(viewClassName);
+    }
+
+    public boolean shouldUnmaskViewClass(String viewClassName) {
+        // If explicitly unmasked, do not mask
+        return unmaskedViewClasses != null && unmaskedViewClasses.contains(viewClassName);
     }
 
     /**
@@ -305,15 +306,19 @@ public class MobileSessionReplayConfiguration {
      * @return true if the view should be masked, false otherwise
      */
     public boolean shouldMaskViewTag(String viewTag) {
-        getUnMaskedViewTags();
         getMaskedViewTags();
-        if (unmaskedViewTags != null && unmaskedViewTags.contains(viewTag)) {
-            return false;
-        }
         
         // If explicitly masked, do mask
         return maskedViewTags != null && maskedViewTags.contains(viewTag);
     }
+
+    public boolean shouldUnmaskViewTag(String viewTag) {
+        getUnMaskedViewTags();
+
+        // If explicitly unmasked, do not mask
+        return unmaskedViewTags != null && unmaskedViewTags.contains(viewTag);
+    }
+
 
     /**
      * Generate a suitable seed. Range is [1...100];
