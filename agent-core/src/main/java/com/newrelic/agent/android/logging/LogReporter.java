@@ -517,6 +517,8 @@ public class LogReporter extends PayloadReporter {
      */
     Set<File> cleanup() {
         Set<File> expiredFiles = getCachedLogReports(LogReportState.EXPIRED);
+        Set<File> closedFiles = getCachedLogReports(LogReportState.CLOSED);
+        expiredFiles.addAll(closedFiles);
         expiredFiles.forEach(logReport -> {
             if (logReport.delete()) {
                 log.debug("LogReporter: Log data [" + logReport.getName() + "] removed.");
@@ -625,6 +627,13 @@ public class LogReporter extends PayloadReporter {
         try {
             workingFileLock.lock();
             String logJsonData = gson.toJson(logDataMap, gtype);
+
+            try {
+                JsonObject messageAsJson = LogReporter.gson.fromJson(logJsonData, JsonObject.class);
+            } catch (JsonSyntaxException e) {
+                log.error("Invalid Json entry skipped [" + logJsonData + "]");
+            }
+
             if (null != workingLogfileWriter.get()) {
                 workingLogfileWriter.get().append(logJsonData);
                 workingLogfileWriter.get().newLine();
@@ -633,6 +642,8 @@ public class LogReporter extends PayloadReporter {
                 // the writer has closed, usually a result of the agent stopping
             }
 
+        } catch(Exception ex) {
+          ex.printStackTrace();
         } finally {
             workingFileLock.unlock();
         }

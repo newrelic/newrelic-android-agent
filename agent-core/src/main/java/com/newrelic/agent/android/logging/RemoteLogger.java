@@ -112,8 +112,6 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
         final LogReporter logReporter = LogReporter.getInstance();
 
         Callable<Boolean> callable = () -> {
-            final Map<String, Object> logDataMap = new HashMap<>();
-
             try {
                 /**
                  * Some specific attributes have additional restrictions:
@@ -128,7 +126,9 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                  *
                  * @link reserved attributes: https://source.datanerd.us/agents/agent-specs/blob/main/Application-Logging.md#log-record-attributes
                  */
-                workingFileLock.lock();
+
+                LogReporter.workingFileLock.lock();
+                final Map<String, Object> logDataMap = new HashMap<>();
                 logDataMap.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, String.valueOf(System.currentTimeMillis()));
                 logDataMap.put(LogReporting.LOG_LEVEL_ATTRIBUTE, logLevel.name().toUpperCase());
 
@@ -160,7 +160,7 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                     logDataMap.put(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE, attributes);
                 }
 
-                workingFileLock.unlock();
+                LogReporter.workingFileLock.unlock();
                 if (null == logReporter) {
                     return false;
                 }
