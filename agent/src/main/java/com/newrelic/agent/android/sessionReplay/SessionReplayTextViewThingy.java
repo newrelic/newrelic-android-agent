@@ -12,6 +12,7 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 // Assuming SessionReplayViewThingy is an interface or abstract class in Java
 // and ViewDetails is a separate class in your project.
@@ -225,10 +226,10 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         Object viewTag = view.getTag();
         Object privacyTag = view.getTag(R.id.newrelic_privacy);
         boolean hasUnmaskTag = ("nr-unmask".equals(viewTag)) ||
-              ("nr-unmask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString()) )|| sessionReplayConfiguration.shouldUnmaskViewClass(view.getClass().getName());
+              ("nr-unmask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString()) )|| checkMaskUnMaskViewClass(sessionReplayConfiguration.getUnmaskedViewClasses(),view);
 
         // Check if view has tag that forces masking
-        boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString())) || (sessionReplayConfiguration.shouldMaskViewClass(view.getClass().getName()));
+        boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString())) || checkMaskUnMaskViewClass(sessionReplayConfiguration.getMaskedViewClasses(),view);
         // Apply masking if needed:
         // - If general masking is enabled AND no unmask tag AND not in unmask class list, OR
         // - If has explicit mask tag OR class is explicitly masked
@@ -243,4 +244,18 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         // Return original text if no masking needed
         return text;
     }
+
+    private boolean checkMaskUnMaskViewClass(Set<String> viewClasses, TextView view) {
+
+        Class clazz = view.getClass();
+
+        while (clazz!= null) {
+            if (viewClasses.contains(clazz.getName())) {
+                return true;
+            }
+            clazz = clazz.getSuperclass();
+        }
+        return false;
+    }
+
 }

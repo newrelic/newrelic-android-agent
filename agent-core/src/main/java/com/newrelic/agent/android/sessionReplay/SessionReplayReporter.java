@@ -123,12 +123,6 @@ public class SessionReplayReporter extends PayloadReporter {
         PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),isFirstChunk,hasMeta);
 
         isFirstChunk = false; // Set to false after the first chunk is sent
-
-//        if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
-//            log.error("Unable to upload because payload is larger than 1 MB, handled exceptions are discarded.");
-//            return null;
-//        }
-
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {

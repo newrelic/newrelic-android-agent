@@ -8,8 +8,10 @@ package com.newrelic.agent.android.sessionReplay;
 import com.google.gson.annotations.SerializedName;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 public class MobileSessionReplayConfiguration {
 
@@ -46,24 +48,24 @@ public class MobileSessionReplayConfiguration {
 
 
     /**
-     * List of view class names that should be masked during session replay
+     * Set of view class names that should be masked during session replay
      */
-    private List<String> maskedViewClasses;
+    private Set<String> maskedViewClasses;
 
     /**
-     * List of view class names that should be explicitly unmasked during session replay
+     * Set of view class names that should be explicitly unmasked during session replay
      */
-    private List<String> unmaskedViewClasses;
+    private Set<String> unmaskedViewClasses;
 
     /**
-     * List of view tags that should be masked during session replay
+     * Set of view tags that should be masked during session replay
      */
-    private List<String> maskedViewTags;
+    private Set<String> maskedViewTags;
 
     /**
-     * List of view tags that should be explicitly unmasked during session replay
+     * Set of view tags that should be explicitly unmasked during session replay
      */
-    private List<String> unmaskedViewTags;
+    private Set<String> unmaskedViewTags;
 
     public MobileSessionReplayConfiguration() {
         // Default values
@@ -176,26 +178,26 @@ public class MobileSessionReplayConfiguration {
         return sampleSeed <= samplingRate;
     }
 
-    public List<String> getMaskedViewTags() {
-
+    public Set<String> getMaskedViewTags() {
+        if (maskedViewTags == null) {
+            maskedViewTags = new HashSet<>();
+        }
+        
         customMaskingRules.forEach(rule -> {
             if (rule.getOperator().equals("equals") && rule.getType().equals("mask")) {
-                if (maskedViewTags == null) {
-                    maskedViewTags = new ArrayList<>();
-                }
                 maskedViewTags.addAll(rule.getName());
             }
         });
         return maskedViewTags;
     }
 
-    public List<String> getUnMaskedViewTags() {
-
+    public Set<String> getUnMaskedViewTags() {
+        if (unmaskedViewTags == null) {
+            unmaskedViewTags = new HashSet<>();
+        }
+        
         customMaskingRules.forEach(rule -> {
             if (rule.getOperator().equals("equals") && rule.getType().equals("un-mask")) {
-                if (unmaskedViewTags == null) {
-                    unmaskedViewTags = new ArrayList<>();
-                }
                 unmaskedViewTags.addAll(rule.getName());
             }
         });
@@ -210,15 +212,8 @@ public class MobileSessionReplayConfiguration {
      */
     public void addMaskViewClass(String viewClassName) {
         if (maskedViewClasses == null) {
-            maskedViewClasses = new ArrayList<>();
+            maskedViewClasses = new HashSet<>();
         }
-
-        // Remove any existing entry to avoid duplicates
-        while (maskedViewClasses.remove(viewClassName)) {
-            // Keep removing until all instances are gone
-        }
-
-        // Add the view class to the mask list
         maskedViewClasses.add(viewClassName);
     }
 
@@ -230,15 +225,8 @@ public class MobileSessionReplayConfiguration {
      */
     public void addUnmaskViewClass(String viewClassName) {
         if (unmaskedViewClasses == null) {
-            unmaskedViewClasses = new ArrayList<>();
+            unmaskedViewClasses = new HashSet<>();
         }
-
-        // Remove any existing entry to avoid duplicates
-        while (unmaskedViewClasses.remove(viewClassName)) {
-            // Keep removing until all instances are gone
-        }
-
-        // Add the view class to the unmask list
         unmaskedViewClasses.add(viewClassName);
     }
 
@@ -266,15 +254,8 @@ public class MobileSessionReplayConfiguration {
      */
     public void addMaskViewTag(String viewTag) {
         if (maskedViewTags == null) {
-            maskedViewTags = new ArrayList<>();
+            maskedViewTags = new HashSet<>();
         }
-        
-        // Remove any existing entry to avoid duplicates
-        while (maskedViewTags.remove(viewTag)) {
-            // Keep removing until all instances are gone
-        }
-        
-        // Add the view tag to the mask list
         maskedViewTags.add(viewTag);
     }
 
@@ -286,15 +267,8 @@ public class MobileSessionReplayConfiguration {
      */
     public void addUnmaskViewTag(String viewTag) {
         if (unmaskedViewTags == null) {
-            unmaskedViewTags = new ArrayList<>();
+            unmaskedViewTags = new HashSet<>();
         }
-        
-        // Remove any existing entry to avoid duplicates
-        while (unmaskedViewTags.remove(viewTag)) {
-            // Keep removing until all instances are gone
-        }
-        
-        // Add the view tag to the unmask list
         unmaskedViewTags.add(viewTag);
     }
 
@@ -383,6 +357,30 @@ public class MobileSessionReplayConfiguration {
      */
     public void setTextMaskingStrategy(TextMaskingStrategy strategy) {
         this.textMaskingStrategy = strategy;
+    }
+
+    /**
+     * Gets the set of view class names that should be masked during session replay.
+     *
+     * @return The set of view class names to mask, or an empty set if none are defined
+     */
+    public Set<String> getMaskedViewClasses() {
+        if (maskedViewClasses == null) {
+            maskedViewClasses = new HashSet<>();
+        }
+        return maskedViewClasses;
+    }
+
+    /**
+     * Gets the set of view class names that should be explicitly unmasked during session replay.
+     *
+     * @return The set of view class names to unmask, or an empty set if none are defined
+     */
+    public Set<String> getUnmaskedViewClasses() {
+        if (unmaskedViewClasses == null) {
+            unmaskedViewClasses = new HashSet<>();
+        }
+        return unmaskedViewClasses;
     }
 
     public static class CustomMaskingRule {
