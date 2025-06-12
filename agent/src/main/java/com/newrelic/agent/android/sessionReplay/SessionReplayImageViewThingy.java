@@ -76,7 +76,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         if (background != null) {
             return "#FF474C"; // Placeholder color, you might want to implement a method to extract actual color
         }
-        return " #FFC0CB";
+        return "#CCCCCC";
     }
 
     private String getBackgroundSizeFromScaleType() {

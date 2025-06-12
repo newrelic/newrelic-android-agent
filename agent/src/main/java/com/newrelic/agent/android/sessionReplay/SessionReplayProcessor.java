@@ -25,7 +25,6 @@ public class SessionReplayProcessor {
 
 
         for (SessionReplayFrame rawFrame : rawFrames) {
-            if (lastFrame == null || (lastFrame.width != rawFrame.width || lastFrame.height != rawFrame.height)) {
                 RRWebMetaEvent metaEvent = new RRWebMetaEvent(
                         new RRWebMetaEvent.RRWebMetaEventData(
                                 "https://newrelic.com",
@@ -35,7 +34,7 @@ public class SessionReplayProcessor {
                         rawFrame.timestamp
                 );
                 snapshot.add(metaEvent);
-            }
+
             snapshot.add(processFrame(rawFrame));
             lastFrame = rawFrame;
         }
