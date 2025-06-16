@@ -628,12 +628,6 @@ public class LogReporter extends PayloadReporter {
             workingFileLock.lock();
             String logJsonData = gson.toJson(logDataMap, gtype);
 
-            try {
-                JsonObject messageAsJson = LogReporter.gson.fromJson(logJsonData, JsonObject.class);
-            } catch (JsonSyntaxException e) {
-                log.error("Invalid Json entry skipped [" + logJsonData + "]");
-            }
-
             if (null != workingLogfileWriter.get()) {
                 workingLogfileWriter.get().append(logJsonData);
                 workingLogfileWriter.get().newLine();

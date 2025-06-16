@@ -6,10 +6,7 @@
 package com.newrelic.agent.android.logging;
 
 
-import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.ApplicationFramework;
-import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.util.NamedThreadFactory;
 
@@ -20,14 +17,12 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 
 
 public class RemoteLogger implements HarvestLifecycleAware, Logger {
     static int POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors() / 4); // Buffer up this this number of requests
     static long QUEUE_THREAD_TTL = 1000;
     static MessageValidator validator = LogReporting.validator;
-    static final ReentrantLock workingFileLock = new ReentrantLock();
 
     // TODO enforce log message constraints
     static int MAX_ATTRIBUTES_PER_EVENT = 255;
