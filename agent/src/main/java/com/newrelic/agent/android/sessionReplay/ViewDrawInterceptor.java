@@ -2,56 +2,50 @@ package com.newrelic.agent.android.sessionReplay;
 
 import android.content.Context;
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.os.Build;
 import android.util.Log;
 import android.view.Display;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.WindowMetrics;
 
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
-import com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent;
 
 import java.util.Map;
 import java.util.WeakHashMap;
 
 public class ViewDrawInterceptor {
-    private WeakHashMap<View, ViewTreeObserver.OnDrawListener> decorViewListeners = new WeakHashMap<>();
+    private final WeakHashMap<View, ViewTreeObserver.OnDrawListener> decorViewListeners = new WeakHashMap<>();
     SessionReplayCapture capture = new SessionReplayCapture();
-    private OnFrameTakenListener listener;
+    private final OnFrameTakenListener listener;
     private static final long CAPTURE_INTERVAL = 1000;
     private long lastCaptureTime = 0;
-    public ViewDrawInterceptor(OnFrameTakenListener listener, OnTouchRecordedListener onTouchRecordedListener) {
+    public ViewDrawInterceptor(OnFrameTakenListener listener) {
         this.listener = listener;
     }
 
 
     public void Intercept(View[] decorViews) {
         stopInterceptAndRemove(decorViews);
-        ViewTreeObserver.OnDrawListener listener = new ViewTreeObserver.OnDrawListener() {
-            @Override
-            public void onDraw() {
-                long currentTime = System.currentTimeMillis();
-                if (currentTime - lastCaptureTime >= CAPTURE_INTERVAL) {
-                    Context context = decorViews[0].getContext().getApplicationContext();
-                    float density = context.getResources().getDisplayMetrics().density;
+        ViewTreeObserver.OnDrawListener listener = () -> {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastCaptureTime >= CAPTURE_INTERVAL) {
+                Context context = decorViews[0].getContext().getApplicationContext();
+                float density = context.getResources().getDisplayMetrics().density;
 
-                    // Get screen dimensions
-                    Point screenSize = getScreenDimensions(context);
-                    int width = (int) (screenSize.x/density);
-                    int height = (int) (screenSize.y/density);
-                    
-                // Start walking the view tree
-                SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[0]), System.currentTimeMillis(), width, height);
+                // Get screen dimensions
+                Point screenSize = getScreenDimensions(context);
+                int width = (int) (screenSize.x/density);
+                int height = (int) (screenSize.y/density);
 
-                // Create a SessionReplayFrame, then add it to a thing to wait for processing
-                ViewDrawInterceptor.this.listener.onFrameTaken(frame);
-                    // Update the last capture time
-                    lastCaptureTime = currentTime;
-                }
+            // Start walking the view tree
+            SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length -1]), System.currentTimeMillis(), width, height);
+
+            // Create a SessionReplayFrame, then add it to a thing to wait for processing
+            ViewDrawInterceptor.this.listener.onFrameTaken(frame);
+                // Update the last capture time
+                lastCaptureTime = currentTime;
             }
         };
 

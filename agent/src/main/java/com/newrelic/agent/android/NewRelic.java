@@ -5,10 +5,8 @@
 
 package com.newrelic.agent.android;
 
-import android.app.Application;
+
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.TextUtils;
 
 import com.newrelic.agent.android.agentdata.AgentDataController;
@@ -32,7 +30,6 @@ import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
-import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.SessionReplayActivityLifecycleCallbacks;
 import com.newrelic.agent.android.sessionReplay.TextMaskingStrategy;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -42,7 +39,6 @@ import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 import com.newrelic.agent.android.util.OfflineStorage;
 
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -55,7 +51,6 @@ import java.util.Objects;
 /**
  * To bootstrap the New Relic Android agent, add the following line to your
  * application's initialization (usually your main activity's onCreate callback):
- *
  * <code>
  * NewRelic.withApplicationToken("{your mobile app token}").start(this.getApplication());
  * </code>
@@ -461,7 +456,6 @@ public final class NewRelic {
      * Note that slashes will be converted to periods in the name.
      *
      * @param actionName The name for this custom method interaction trace.
-     * @return The id of the interaction.
      */
     public static void startMethodTrace(String actionName) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -521,7 +515,7 @@ public final class NewRelic {
     /**
      * Record HTTP transaction passing arguments as a map of attributes
      *
-     * @param attributes
+     * @param attributes Map of attributes
      */
     @SuppressWarnings("unchecked")
     public static void noticeHttpTransaction(Map<String, Object> attributes) {
@@ -706,10 +700,6 @@ public final class NewRelic {
     }
 
     /**
-     * Distributed Tracing
-     */
-
-    /**
      * Create a trace context in preparation for un-instrumented network transactions and errors.
      * Clients should use the headers provided by the trace context:
      * <p>
@@ -747,7 +737,7 @@ public final class NewRelic {
     private static void checkEmpty(String string, String message) {
         checkNull(string, message);
 
-        if (string.length() == 0) {
+        if (string.isEmpty()) {
             throw new IllegalArgumentException(message);
         }
     }
@@ -762,10 +752,6 @@ public final class NewRelic {
         }
         return false;
     }
-
-    /**
-     *  Crash reporting related methods
-     */
 
     /**
      * Crashes the currently running app for crash reporting demonstration purposes.
@@ -789,10 +775,6 @@ public final class NewRelic {
         throw new RuntimeException(message);
     }
 
-
-    /**
-     * Custom Event and Attribute methods
-     */
 
     /**
      * Sets a string attribute value.
@@ -1067,7 +1049,7 @@ public final class NewRelic {
      * Set the maximum size of the event buffer.  When the limit is reached, the agent will transmit
      * the queue contents on the next harvest cycle.
      *
-     * @param maxSize
+     * @param maxSize Maximum event buffer size
      */
     public static void setMaxEventPoolSize(int maxSize) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -1081,7 +1063,7 @@ public final class NewRelic {
      * Once the oldest event in the queue exceeds this age, the entire queue will be transmitted
      * on the following harvest cycle.
      *
-     * @param maxBufferTimeInSec
+     * @param maxBufferTimeInSec Maximum Buffer time in seconds
      */
     public static void setMaxEventBufferTime(int maxBufferTimeInSec) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -1117,7 +1099,7 @@ public final class NewRelic {
     /**
      * Records a JSError exception.
      *
-     * @param stackTrace
+     * @param stackTrace Stack trace of the exception
      */
     public static boolean recordJSErrorException(StackTrace stackTrace) {
         return DataController.sendAgentData(stackTrace);
@@ -1265,7 +1247,7 @@ public final class NewRelic {
     /**
      * Set the maximum size of the offline storage.  When the limit is reached, the agent will stop collecting offline data
      *
-     * @param maxSize
+     * @param maxSize The maximum size of the offline storage
      */
     public static void setMaxOfflineStorageSize(int maxSize) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -1303,6 +1285,36 @@ public final class NewRelic {
 
         return false;
     }
+
+
+    /**
+     * Sets whether user touches should be masked during session replay.
+     * <p>
+     * When enabled, touch locations will be obscured in the session replay to protect
+     * user privacy, especially when interacting with sensitive UI elements.
+     * <p>
+     * Example: setSessionReplayMaskUserTouches(true)
+     *
+     * @param maskTouches true to mask user touches, false to show them
+     * @return true if the setting was successfully applied
+     */
+    public static boolean setSessionReplayMaskUserTouches(boolean maskTouches) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setSessionReplayMaskUserTouches"));
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getMobileSessionReplayConfiguration().setMaskAllUserTouches(maskTouches);
+            return true;
+        }
+
+        return false;
+    }
+
+
+    /**
+     * Adds a view class to be masked during session replay.
+
+
 
     /**
      * Adds a view class to be masked during session replay.
