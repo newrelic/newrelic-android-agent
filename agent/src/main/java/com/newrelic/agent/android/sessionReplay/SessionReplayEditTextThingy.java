@@ -62,7 +62,8 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
     @Override
     public String generateCssDescription() {
 
-        StringBuilder cssBuilder = new StringBuilder(super.generateCssDescription());
+        StringBuilder cssBuilder = new StringBuilder(super.generateCssDescription())
+                .append(" }");
         return cssBuilder.toString();
     }
 
@@ -78,7 +79,7 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
         attributes.setType("text"); // Set input type to "text" for EditText
 
-        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.singletonList(textNode));
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, Collections.singletonList(textNode));
     }
 
     @Override
@@ -92,20 +93,20 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
         java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
 
         // Compare frames
-        if (!viewDetails.getFrame().equals(other.getViewDetails().getFrame())) {
-            styleDifferences.put("left", other.getViewDetails().getFrame().left + "px");
-            styleDifferences.put("top", other.getViewDetails().getFrame().top + "px");
-            styleDifferences.put("width", other.getViewDetails().getFrame().width() + "px");
-            styleDifferences.put("height", other.getViewDetails().getFrame().height() + "px");
+        if (!viewDetails.frame.equals(other.getViewDetails().frame)) {
+            styleDifferences.put("left", other.getViewDetails().frame.left + "px");
+            styleDifferences.put("top", other.getViewDetails().frame.top + "px");
+            styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
+            styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
         }
 
         // Compare background colors if available
-        if (viewDetails.getBackgroundColor() != null && other.getViewDetails().getBackgroundColor() != null) {
-            if (!viewDetails.getBackgroundColor().equals(other.getViewDetails().getBackgroundColor())) {
-                styleDifferences.put("background-color", other.getViewDetails().getBackgroundColor());
+        if (viewDetails.backgroundColor != null && other.getViewDetails().backgroundColor != null) {
+            if (!viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
+                styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
             }
-        } else if (other.getViewDetails().getBackgroundColor() != null) {
-            styleDifferences.put("background-color", other.getViewDetails().getBackgroundColor());
+        } else if (other.getViewDetails().backgroundColor != null) {
+            styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
         }
 
         // compare TextColor if available
@@ -119,11 +120,11 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
         // Create and return a MutationRecord with the style differences
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
         attributes.setMetadata(styleDifferences);    List<MutationRecord> mutations = new ArrayList<>();
-        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.getViewId(), attributes));
+        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
 
         // Check if label text has changed
         if (!super.getLabelText().equals(((SessionReplayTextViewThingy) other).getLabelText())) {
-            mutations.add(new RRWebMutationData.TextRecord(viewDetails.getViewId(), ((SessionReplayTextViewThingy) other).getLabelText()));
+            mutations.add(new RRWebMutationData.TextRecord(viewDetails.viewId, ((SessionReplayTextViewThingy) other).getLabelText()));
         }
 
         return mutations;
@@ -131,7 +132,7 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
 
     @Override
     public int getViewId() {
-        return viewDetails.getViewId();
+        return viewDetails.viewId;
     }
 
     private String getFontFamily(Typeface typeface) {

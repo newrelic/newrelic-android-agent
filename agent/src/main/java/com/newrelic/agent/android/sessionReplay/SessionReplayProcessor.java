@@ -76,7 +76,8 @@ public class SessionReplayProcessor {
     }
 
     private RRWebNode recursivelyProcessThingy(SessionReplayViewThingyInterface rootThingy, StringBuilder cssStyleBuilder) {
-        cssStyleBuilder.append(rootThingy.generateCssDescription());
+        cssStyleBuilder.append(rootThingy.generateCssDescription())
+                .append(" }");
 
 //        Attributes attribues = new Attributes(rootThingy.getCSSSelector());
         ArrayList<RRWebNode> childNodes = new ArrayList<>();

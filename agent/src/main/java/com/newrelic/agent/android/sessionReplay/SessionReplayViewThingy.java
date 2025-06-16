@@ -46,13 +46,13 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
 
     @Override
     public String generateCssDescription() {
-        return viewDetails.generateCssDescription() + "}";
+        return viewDetails.generateCssDescription();
     }
 
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attribues = new Attributes(viewDetails.getCSSSelector());
-        return new RRWebElementNode(attribues, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(),
+        return new RRWebElementNode(attribues, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId,
                 new ArrayList<RRWebNode>());
     }
 
@@ -67,32 +67,28 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
         java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
 
         // Compare frames
-        if (!viewDetails.getFrame().equals(other.getViewDetails().getFrame())) {
-            styleDifferences.put("left", other.getViewDetails().getFrame().left + "px");
-            styleDifferences.put("top", other.getViewDetails().getFrame().top + "px");
-            styleDifferences.put("width", other.getViewDetails().getFrame().width() + "px");
-            styleDifferences.put("height", other.getViewDetails().getFrame().height() + "px");
+        if (!viewDetails.frame.equals(other.getViewDetails().frame)) {
+            styleDifferences.put("left", other.getViewDetails().frame.left + "px");
+            styleDifferences.put("top", other.getViewDetails().frame.top + "px");
+            styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
+            styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
         }
 
         // Compare background colors if available
-        if (viewDetails.getBackgroundColor() != null && other.getViewDetails().getBackgroundColor() != null) {
-            if (!viewDetails.getBackgroundColor().equals(other.getViewDetails().getBackgroundColor())) {
-                styleDifferences.put("background-color", other.getViewDetails().getBackgroundColor());
-            }
-        } else if (other.getViewDetails().getBackgroundColor() != null) {
-            styleDifferences.put("background-color", other.getViewDetails().getBackgroundColor());
+        if (!viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
+            styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
         }
 
         // Create and return a MutationRecord with the style differences
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
         attributes.setMetadata(styleDifferences);
         List<MutationRecord> mutations = new ArrayList<>();
-        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.getViewId(), attributes));
+        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
         return mutations;
     }
 
     @Override
     public int getViewId() {
-        return viewDetails.getViewId();
+        return viewDetails.viewId;
     }
 }
