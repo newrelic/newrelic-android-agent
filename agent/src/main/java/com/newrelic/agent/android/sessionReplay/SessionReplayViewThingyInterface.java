@@ -1,10 +1,8 @@
 package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode; // Assuming ElementNodeData maps to this
-//import com.newrelic.agent.android.sessionReplay.models.MutationRecord; // Assuming MutationRecord exists in your models
 
 import java.util.List;
-import java.util.Objects; // For hashCode and equals equivalence
 
 // Equivalent to Swift's SessionReplayViewThingy protocol
 // Implements Hashable equivalent via hashCode and equals
@@ -28,9 +26,6 @@ public interface SessionReplayViewThingyInterface {
     // Assuming ElementNodeData maps to RRWebElementNode in your project
     RRWebElementNode generateRRWebNode();
 
-//    List<MutationRecord> generateDifferences(SessionReplayViewThingy other);
-
-    // Equivalent to Swift's Hashable
     // Classes implementing this interface must override hashCode() and equals()
     @Override
     int hashCode();

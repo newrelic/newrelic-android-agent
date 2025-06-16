@@ -10,53 +10,77 @@ import androidx.annotation.NonNull;
 import com.google.gson.Gson;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
-import com.newrelic.agent.android.logging.LogReporter;
 import com.newrelic.agent.android.sessionReplay.internal.Curtains;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 import com.newrelic.agent.android.sessionReplay.internal.OnRootViewsChangedListener;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
-import com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAware, OnTouchRecordedListener {
-    private Application application;
-    private final Handler uiThreadHandler;
-    private SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
-    private SessionReplayProcessor processor = new SessionReplayProcessor();
-    private ViewDrawInterceptor viewDrawInterceptor;
+    private static Application application;
+    private static Handler uiThreadHandler;
+    private static SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
+    private final SessionReplayProcessor processor = new SessionReplayProcessor();
+    private static ViewDrawInterceptor viewDrawInterceptor;
     private List<TouchTracker> touchTrackers = new ArrayList<>();
-    static final AtomicReference<LogReporter> instance = new AtomicReference<>(null);
+    private static final SessionReplay instance = new SessionReplay();
 
     private ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
     private ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
-    public SessionReplay(Application application, Handler uiThreadHandler) {
-        this.application = application;
-        this.uiThreadHandler = uiThreadHandler;
 
-        this.sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(this);
-        this.viewDrawInterceptor = new ViewDrawInterceptor(this,this);
+    /**
+     * Initializes the SessionReplay system.
+     * This method sets up the necessary callbacks, handlers, and starts recording.
+     * Should be called from the application's onCreate method.
+     *
+     * @param application The application instance
+     * @param uiThreadHandler Handler for the UI thread
+     */
+    public static void initialize(Application application, Handler uiThreadHandler) {
+        if (application == null) {
+            Log.e("SessionReplay", "Cannot initialize with null application");
+            return;
+        }
+        
+        if (uiThreadHandler == null) {
+            Log.e("SessionReplay", "Cannot initialize with null UI thread handler");
+            return;
+        }
+        
+        SessionReplay.application = application;
+        SessionReplay.uiThreadHandler = uiThreadHandler;
 
-    }
-
-    public void Initialize() {
+        sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance);
+        viewDrawInterceptor = new ViewDrawInterceptor(instance);
         registerCallbacks();
+        startRecording();
+        
+        Log.d("SessionReplay", "Session replay initialized successfully");
     }
 
-    public void deInitialize() {
+    /**
+     * Deinitializes the SessionReplay system.
+     * This method cleans up resources, unregisters callbacks, and stops recording.
+     * Should be called when the application is being terminated or when session replay
+     * functionality needs to be disabled.
+     */
+    public static void deInitialize() {
         unregisterCallbacks();
+        stopRecording();
+        
+        // Clear any pending data
+        instance.rawFrames.clear();
+        instance.rrWebEvents.clear();
+        instance.touchTrackers.clear();
+        
+        Log.d("SessionReplay", "Session replay deinitialized");
     }
 
     @Override
     public void onHarvestStart() {
         // No-op
-    }
-
-    @Override
-    public void onHarvestStop() {
-
     }
 
     @Override
@@ -66,24 +90,24 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return;
         }
 
-        // Create a copy of rawFrames
-        List<SessionReplayFrame> rawFramesCopy;
-        synchronized (rawFrames) {
-            rawFramesCopy = new ArrayList<>(rawFrames);
-            rawFrames.clear();
-        }
+//        // Create a copy of rawFrames
+//        List<SessionReplayFrame> rawFramesCopy;
+//        synchronized (rawFrames) {
+//            rawFramesCopy = new ArrayList<>(rawFrames);
+//            rawFrames.clear();
+//        }
 
-        rrWebEvents.addAll(processor.processFrames(rawFramesCopy));
+        rrWebEvents.addAll(processor.processFrames(rawFrames));
 
         // Create a copy of touchTrackers and clear the original
-        List<TouchTracker> touchTrackersCopy;
-        synchronized (touchTrackers) {
-            touchTrackersCopy = new ArrayList<>(touchTrackers);
-            touchTrackers.clear();
-        }
+//        List<TouchTracker> touchTrackersCopy;
+//        synchronized (touchTrackers) {
+//            touchTrackersCopy = new ArrayList<>(touchTrackers);
+//            touchTrackers.clear();
+//        }
 
         ArrayList<RRWebEvent> totalTouches = new ArrayList<>();
-        for(TouchTracker touchTracker : touchTrackersCopy) {
+        for(TouchTracker touchTracker : touchTrackers) {
             totalTouches.addAll(touchTracker.processTouchData());
         }
 
@@ -92,52 +116,39 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         String json = new Gson().toJson(rrWebEvents);
         SessionReplayReporter.reportSessionReplayData(json.getBytes());
 
-        touchTrackersCopy.clear();
-        rawFramesCopy.clear();
         rrWebEvents.clear();
+        rawFrames.clear();
+        touchTrackers.clear();
     }
 
 
-    private void registerCallbacks() {
+    private static void registerCallbacks() {
         application.registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
     }
 
-    private void unregisterCallbacks() {
+    private static void unregisterCallbacks() {
         application.unregisterActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
     }
 
-    public void startRecording() {
-        Harvest.addHarvestListener(this);
-        uiThreadHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
-                viewDrawInterceptor.Intercept(decorViews);
-            }
+    public static void startRecording() {
+        Harvest.addHarvestListener(instance);
+        uiThreadHandler.post(() -> {
+            View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
+            viewDrawInterceptor.Intercept(decorViews);
         });
 
-        Curtains.getOnRootViewsChangedListeners().add(new OnRootViewsChangedListener() {
-            @Override
-            public void onRootViewsChanged(View view, boolean added) {
-                if (added) {
-                    viewDrawInterceptor.Intercept(new View[]{view});
-                } else {
-                    viewDrawInterceptor.removeIntercept(new View[]{view});
-                }
+        Curtains.getOnRootViewsChangedListeners().add((view, added) -> {
+            if (added) {
+                viewDrawInterceptor.Intercept(new View[]{view});
+            } else {
+                viewDrawInterceptor.removeIntercept(new View[]{view});
             }
         });
     }
 
-
-
-    public void stopRecording() {
-        Harvest.removeHarvestListener(this);
-        uiThreadHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                viewDrawInterceptor.stopIntercept();
-            }
-        });
+    public static void stopRecording() {
+        Harvest.removeHarvestListener(instance);
+        uiThreadHandler.post(() -> viewDrawInterceptor.stopIntercept());
     }
 
     @Override
