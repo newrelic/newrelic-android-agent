@@ -222,10 +222,15 @@ public class PersistentUUID {
     protected void putUUIDToFileStore(final String uuid) {
         JSONObject jsonObject = new JSONObject();
 
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(UUID_FILE))) {
+
+        try {
+            FileWriter fw = new FileWriter(UUID_FILE);
+            BufferedWriter out = new BufferedWriter(fw);
             jsonObject.put(UUID_KEY, uuid);
             out.write(jsonObject.toString());
             out.flush();
+            out.close();
+            fw.close();
         } catch (Exception e) {
             log.error(e.getMessage());
         }

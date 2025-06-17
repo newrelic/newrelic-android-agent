@@ -892,6 +892,7 @@ public class AndroidAgentImpl implements
 
         if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
             if (LogReporting.isRemoteLoggingEnabled()) {
+                startLogReporter(context, agentConfiguration);
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_SAMPLED + agentConfiguration.getLogReportingConfiguration().isSampled());
             }
         }

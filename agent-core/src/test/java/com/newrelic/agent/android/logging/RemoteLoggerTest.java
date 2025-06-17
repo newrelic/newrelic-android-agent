@@ -366,7 +366,6 @@ public class RemoteLoggerTest extends LoggingTests {
             logReporter.resetWorkingLogfile();
             agentLog.warn("Run[" + testRun + "] File finalization[" + fileIOTimer.peek() + "] ms");
 
-            logReporter.expire(0);
             logReporter.cleanup();
             agentLog.warn("Run[" + testRun + "] File cleanup[" + fileIOTimer.toc() + "] ms");
 
