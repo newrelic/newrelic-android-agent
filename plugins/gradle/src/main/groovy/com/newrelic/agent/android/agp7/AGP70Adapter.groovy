@@ -104,7 +104,7 @@ class AGP70Adapter extends VariantAdapter {
         if (variantConfiguration && variantConfiguration.mappingFile) {
             def variantMappingFilePath = variantConfiguration.mappingFile.getAbsolutePath()
                     .replace("<name>", variant.name)
-                    .replace("<dirName>", variant.dirName)
+                    .replace("<dirName>", variant.name)
 
             return objectFactory.fileProperty().fileValue(buildHelper.project.file(variantMappingFilePath))
         }

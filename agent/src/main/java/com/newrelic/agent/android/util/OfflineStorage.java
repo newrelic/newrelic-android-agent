@@ -50,9 +50,11 @@ public class OfflineStorage {
                 setOfflineFilePath(offlineFile.getAbsolutePath());
             }
 
-            BufferedWriter buf = new BufferedWriter(new FileWriter(offlineFile, true));
+            FileWriter fw = new FileWriter(offlineFile, true);
+            BufferedWriter buf = new BufferedWriter(fw);
             buf.write(data);
             buf.close();
+            fw.close();
             isSaved = true;
         } catch (Exception e) {
             log.error("OfflineStorage: ", e);

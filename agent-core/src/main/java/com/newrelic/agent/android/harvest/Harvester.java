@@ -14,7 +14,6 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfigurationDeserializer;
-import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -470,10 +469,10 @@ public class Harvester implements HarvestConfigurable {
 
     private void configureHarvester(final HarvestConfiguration newConfiguration) {
         harvestConfiguration.updateConfiguration(newConfiguration);
-        agentConfiguration.updateConfiguration(harvestConfiguration);
-        harvestData.updateConfiguration(harvestConfiguration);
+        agentConfiguration.updateConfiguration(newConfiguration);
+        harvestData.updateConfiguration(newConfiguration);
 
-        Harvest.setHarvestConfiguration(harvestConfiguration);
+        Harvest.setHarvestConfiguration(newConfiguration);
     }
 
     // Change states and mark that the state has been changed.
