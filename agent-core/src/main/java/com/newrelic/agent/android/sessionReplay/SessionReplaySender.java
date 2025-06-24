@@ -24,6 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -37,21 +38,21 @@ public class SessionReplaySender extends PayloadSender {
 
     protected Payload payload;
     private HarvestConfiguration harvestConfiguration;
-    private Boolean isFirstChunk;
-    private Boolean hasMeta;
     private int payloadSize;
+    private Map<String,Object> replayDataMap;
 
     public SessionReplaySender(byte[] bytes, AgentConfiguration agentConfiguration) {
         super(bytes, agentConfiguration);
     }
 
-    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration,Boolean isFirstChunk,Boolean hasMeta) throws IOException {
+    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration,Map<String, Object> replayDataMap) throws IOException {
         super(payload, agentConfiguration);
         this.payload = payload;
         this.payloadSize = payload.getBytes().length;
+
+
         this.harvestConfiguration = harvestConfiguration;
-        this.isFirstChunk = isFirstChunk;
-        this.hasMeta = hasMeta;
+        this.replayDataMap = replayDataMap;
         setPayload(gzipCompress(payload.getBytes()));
     }
 
@@ -59,23 +60,22 @@ public class SessionReplaySender extends PayloadSender {
     protected HttpURLConnection getConnection() throws IOException {
 
         final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
-        final AnalyticsAttribute userIdAttr = controller.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
 
         Map<String, String> attributes = new HashMap<>();
         attributes.put("entityGuid", AgentConfiguration.getInstance().getEntityGuid());
-        attributes.put("isFirstChunk", String.valueOf(isFirstChunk.booleanValue()));
+        attributes.put("isFirstChunk", replayDataMap.get("isFirstChunk") + "");
         attributes.put("rrweb.version", "^2.0.0-alpha.17");
         attributes.put("decompressedBytes",this.payloadSize + "");
         attributes.put("payload.type", "standard");
-        attributes.put("replay.firstTimestamp", (System.currentTimeMillis() - Harvest.getInstance().getHarvestTimer().timeSinceStart()) + "");
-        attributes.put("replay.lastTimestamp", System.currentTimeMillis() + "");
+        attributes.put("replay.firstTimestamp", replayDataMap.get("firstTimestamp") + "");
+        attributes.put("replay.lastTimestamp", replayDataMap.get("lastTimestamp") + "");
         attributes.put("content_encoding", "gzip");
         attributes.put("appVersion", Agent.getApplicationInformation().getAppVersion());
 
         for (AnalyticsAttribute analyticsAttribute : controller.getSessionAttributes()) {
             attributes.put(analyticsAttribute.getName(), analyticsAttribute.asJsonElement().getAsString());
         }
-        attributes.put("hasMeta",hasMeta.booleanValue() + "");
+        attributes.put("hasMeta", replayDataMap.get("hasMeta") + "");
 
         StringBuilder attributesString = new StringBuilder();
         try {
@@ -91,7 +91,7 @@ public class SessionReplaySender extends PayloadSender {
             log.error("Error encoding attributes: " + e.getMessage());
         }
 
-         String urlString = "https://staging-mobile-collector.newrelic.com/mobile/blobs?" +
+         String urlString = getCollectorURI() +
                 "type=SessionReplay" +
                 "&app_id="+harvestConfiguration.getApplication_id() +
                 "&protocol_version=0" +
@@ -167,5 +167,9 @@ public class SessionReplaySender extends PayloadSender {
             gzipOutputStream.write(uncompressedData);
         }
         return byteStream.toByteArray();
+    }
+
+    protected URI getCollectorURI() {
+        return URI.create(getProtocol() + agentConfiguration.getCollectorHost() + "/mobile/blobs?");
     }
 }

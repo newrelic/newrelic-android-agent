@@ -16,6 +16,7 @@ import com.newrelic.agent.android.payload.PayloadSender;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,12 +56,12 @@ public class SessionReplayReporter extends PayloadReporter {
         }
     }
 
-    public static boolean reportSessionReplayData(byte[] bytes) {
+    public static boolean reportSessionReplayData(byte[] bytes, Map<String, Object> attributes) {
         boolean reported = false;
 
         if (isInitialized()) {
             Payload payload = new Payload(bytes);
-            instance.get().storeAndReportSessionReplayData(payload);
+            instance.get().storeAndReportSessionReplayData(payload, attributes);
             reported = true;
         } else {
             log.error("SessionReplayDataReporter not initialized");
@@ -113,14 +114,18 @@ public class SessionReplayReporter extends PayloadReporter {
             SessionReplayStore sessionStore = agentConfiguration.getSessionReplayStore();
             List<String> data = sessionStore.fetchAll();
             String sessionReplayData = data.get(0);
-            reportSessionReplayData(sessionReplayData.getBytes());
+            reportSessionReplayData(sessionReplayData.getBytes(),null);
         } else {
             log.error("SessionReplayDataReporter not initialized");
         }
     }
 
-    public Future reportSessionReplayData(Payload payload) throws IOException {
-        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),isFirstChunk,hasMeta);
+    public Future reportSessionReplayData(Payload payload, Map<String, Object> attributes) throws IOException {
+
+        attributes.put("isFirstChunk", isFirstChunk);
+        attributes.put("hasMeta", hasMeta);
+
+        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),attributes);
 
         isFirstChunk = false; // Set to false after the first chunk is sent
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
@@ -146,9 +151,9 @@ public class SessionReplayReporter extends PayloadReporter {
         return future;
     }
 
-    public void storeAndReportSessionReplayData(Payload payload) {
+public void storeAndReportSessionReplayData(Payload payload, Map<String, Object> attributes) {
         try {
-            reportSessionReplayData(payload);
+            reportSessionReplayData(payload,attributes);
         } catch (IOException e) {
             log.error("SessionReplayReporter.storeAndReportSessionReplayData(Payload): " + e);
         }
