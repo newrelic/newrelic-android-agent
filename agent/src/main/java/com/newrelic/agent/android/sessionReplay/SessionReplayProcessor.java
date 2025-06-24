@@ -108,10 +108,10 @@ public class SessionReplayProcessor {
             switch (operation.getType()) {
                 case ADD:
                     RRWebElementNode node = operation.getAddChange().getNode().generateRRWebNode();
-                    node.attributes.metadata.put("style", operation.getAddChange().getNode().generateCssDescription());
+                    node.attributes.metadata.put("style", operation.getAddChange().getNode().generateInlineCss());
                     RRWebMutationData.AddRecord addRecord = new RRWebMutationData.AddRecord(
                             operation.getAddChange().getParentId(),
-                            operation.getAddChange().getId()+1,
+                            0,
                             node
                     );
                     adds.add(addRecord);

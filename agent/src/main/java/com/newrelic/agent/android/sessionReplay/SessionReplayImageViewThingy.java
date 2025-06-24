@@ -51,7 +51,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     }
 
     @Override
-    public String getCSSSelector() {
+    public String getCssSelector() {
         return viewDetails.getCssSelector();
     }
 
@@ -59,6 +59,21 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     @Override
     public String generateCssDescription() {
         StringBuilder cssBuilder = new StringBuilder(viewDetails.generateCssDescription());
+        generateImageCss(cssBuilder);
+        cssBuilder.append("}");
+
+        return cssBuilder.toString();
+    }
+
+    @Override
+    public String generateInlineCss() {
+        StringBuilder cssBuilder = new StringBuilder();
+        cssBuilder.append(" ");
+        generateImageCss(cssBuilder);
+        return cssBuilder.toString();
+    }
+
+    private void generateImageCss(StringBuilder cssBuilder) {
         cssBuilder.append("background-color: ");
         cssBuilder.append(this.backgroundColor);
         cssBuilder.append("; ");
@@ -67,10 +82,8 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         cssBuilder.append("; ");
         cssBuilder.append("background-repeat: no-repeat; ");
         cssBuilder.append("background-position: center; ");
-        cssBuilder.append("}");
-
-        return cssBuilder.toString();
     }
+
 
     @Override
     public RRWebElementNode generateRRWebNode() {

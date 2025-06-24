@@ -54,7 +54,7 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
     }
 
     @Override
-    public String getCSSSelector() {
+    public String getCssSelector() {
         return viewDetails.getCssSelector();
     }
 
@@ -65,6 +65,11 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
         StringBuilder cssBuilder = new StringBuilder(super.generateCssDescription())
                 .append(" }");
         return cssBuilder.toString();
+    }
+
+    @Override
+    public String generateInlineCss() {
+        return super.generateInlineCss();
     }
 
     @Override

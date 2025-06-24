@@ -116,7 +116,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     @Override
-    public String getCSSSelector() {
+    public String getCssSelector() {
         return viewDetails.getCssSelector();
     }
 
@@ -125,6 +125,21 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     public String generateCssDescription() {
         StringBuilder cssBuilder = new StringBuilder(viewDetails.generateCssDescription());
         cssBuilder.append("");
+        generateTextCss(cssBuilder);
+        cssBuilder.append("}");
+
+        return cssBuilder.toString();
+    }
+
+    @Override
+    public String generateInlineCss() {
+        StringBuilder cssBuilder = new StringBuilder(viewDetails.generateInlineCSS());
+        cssBuilder.append(" ");
+        generateTextCss(cssBuilder);
+        return cssBuilder.toString();
+    }
+
+    private void generateTextCss(StringBuilder cssBuilder) {
         cssBuilder.append("white-space: pre-wrap;");
         cssBuilder.append("");
         cssBuilder.append("word-wrap: break-word");
@@ -140,9 +155,6 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         cssBuilder.append("text-align: ");
         cssBuilder.append(this.textAlign);
         cssBuilder.append("; ");
-        cssBuilder.append("}");
-
-        return cssBuilder.toString();
     }
 
     @Override

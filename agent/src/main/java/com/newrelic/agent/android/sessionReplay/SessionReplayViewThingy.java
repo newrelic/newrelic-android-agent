@@ -40,13 +40,18 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
     }
 
     @Override
-    public String getCSSSelector() {
+    public String getCssSelector() {
         return viewDetails.getCssSelector();
     }
 
     @Override
     public String generateCssDescription() {
         return viewDetails.generateCssDescription();
+    }
+
+    @Override
+    public String generateInlineCss() {
+        return viewDetails.generateInlineCSS();
     }
 
     @Override

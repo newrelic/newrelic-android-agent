@@ -5,7 +5,6 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode; // Assu
 //import com.newrelic.agent.android.sessionReplay.models.MutationRecord; // Assuming MutationRecord exists in your models
 
 import java.util.List;
-import java.util.Objects; // For hashCode and equals equivalence
 
 // Equivalent to Swift's SessionReplayViewThingy protocol
 // Implements Hashable equivalent via hashCode and equals
@@ -22,7 +21,9 @@ public interface SessionReplayViewThingyInterface {
 
     String generateCssDescription();
 
-    String getCSSSelector();
+    String generateInlineCss();
+
+    String getCssSelector();
 
 
     RRWebElementNode generateRRWebNode();
