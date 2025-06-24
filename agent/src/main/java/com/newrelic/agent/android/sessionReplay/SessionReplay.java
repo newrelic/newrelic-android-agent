@@ -12,11 +12,12 @@ import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.sessionReplay.internal.Curtains;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
-import com.newrelic.agent.android.sessionReplay.internal.OnRootViewsChangedListener;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAware, OnTouchRecordedListener {
     private static Application application;
@@ -29,6 +30,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     private ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
     private ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
+    private long firstTimestamp;
+    private long lastTimestamp;
 
     /**
      * Initializes the SessionReplay system.
@@ -90,21 +93,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return;
         }
 
-//        // Create a copy of rawFrames
-//        List<SessionReplayFrame> rawFramesCopy;
-//        synchronized (rawFrames) {
-//            rawFramesCopy = new ArrayList<>(rawFrames);
-//            rawFrames.clear();
-//        }
 
         rrWebEvents.addAll(processor.processFrames(rawFrames));
 
-        // Create a copy of touchTrackers and clear the original
-//        List<TouchTracker> touchTrackersCopy;
-//        synchronized (touchTrackers) {
-//            touchTrackersCopy = new ArrayList<>(touchTrackers);
-//            touchTrackers.clear();
-//        }
+
 
         ArrayList<RRWebEvent> totalTouches = new ArrayList<>();
         for(TouchTracker touchTracker : touchTrackers) {
@@ -114,7 +106,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         rrWebEvents.addAll(totalTouches);
 
         String json = new Gson().toJson(rrWebEvents);
-        SessionReplayReporter.reportSessionReplayData(json.getBytes());
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("firstTimestamp", rawFrames.get(0).timestamp);
+        attributes.put("lastTimestamp", rawFrames.get(rawFrames.size()-1).timestamp);
+        SessionReplayReporter.reportSessionReplayData(json.getBytes(),attributes);
 
         rrWebEvents.clear();
         rawFrames.clear();
