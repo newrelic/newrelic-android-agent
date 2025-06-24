@@ -397,7 +397,7 @@ public class AgentConfiguration implements HarvestConfigurable {
         // update the global agent config w/changes
         applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
         logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);
-        mobileSessionReplayConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().mobileSessionReplayConfiguration);
+       // mobileSessionReplayConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().mobileSessionReplayConfiguration);
         entityGuid = harvestConfiguration.getEntity_guid();
 
         if (instance.get() != null) {

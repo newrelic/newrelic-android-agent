@@ -1,6 +1,5 @@
 package com.newrelic.agent.android.sessionReplay;
 
-import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.Data;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent;
@@ -10,6 +9,7 @@ import com.newrelic.agent.android.sessionReplay.models.Node;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 import com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent;
+import com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent;
 import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
@@ -30,10 +30,30 @@ public class SessionReplayProcessor {
         for(SessionReplayFrame rawFrame : rawFrames) {
             // We need to come up with a way to tell if the activity or fragment is different.
             if(lastFrame == null)  {
+                RRWebMetaEvent metaEvent = new RRWebMetaEvent(
+                        new RRWebMetaEvent.RRWebMetaEventData(
+                                "https://newrelic.com",
+                                rawFrame.width,
+                                rawFrame.height
+                        ),
+                        rawFrame.timestamp
+                );
+                snapshot.add(metaEvent);
                 snapshot.add(processFullFrame(rawFrame));
             } else {
                 if(rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
                     snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
+                } else if (rawFrame.width != lastFrame.width || rawFrame.height != lastFrame.height) {
+                    RRWebMetaEvent metaEvent = new RRWebMetaEvent(
+                            new RRWebMetaEvent.RRWebMetaEventData(
+                                    "https://newrelic.com",
+                                    rawFrame.width,
+                                    rawFrame.height
+                            ),
+                            rawFrame.timestamp
+                    );
+                    snapshot.add(metaEvent);
+                    snapshot.add(processFullFrame(rawFrame));
                 } else {
                     snapshot.add(processFullFrame(rawFrame));
                 }
@@ -63,7 +83,7 @@ public class SessionReplayProcessor {
         RRWebElementNode bodyNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_BODY, NewRelicIdGenerator.generateId(), Collections.singletonList(rootElement));
 
         // HTML node
-        RRWebElementNode htmlNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_HTML,NewRelicIdGenerator.generateId(), Arrays.asList(headNode, bodyNode));
+        RRWebElementNode htmlNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_HTML, NewRelicIdGenerator.generateId(), Arrays.asList(headNode, bodyNode));
 
         Node node = new Node(RRWebNode.RRWEB_NODE_TYPE_DOCUMENT, NewRelicIdGenerator.generateId(), Collections.singletonList(htmlNode));
 
@@ -82,7 +102,7 @@ public class SessionReplayProcessor {
 //        Attributes attribues = new Attributes(rootThingy.getCSSSelector());
         ArrayList<RRWebNode> childNodes = new ArrayList<>();
         RRWebElementNode elementNode = rootThingy.generateRRWebNode();
-        for(SessionReplayViewThingyInterface childNode : rootThingy.getSubviews()) {
+        for (SessionReplayViewThingyInterface childNode : rootThingy.getSubviews()) {
             RRWebNode childElement = recursivelyProcessThingy(childNode, cssStyleBuilder);
             childNodes.add(childElement);
         }

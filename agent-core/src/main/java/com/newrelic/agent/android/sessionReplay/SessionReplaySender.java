@@ -7,7 +7,9 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.aei.Error;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
+import com.newrelic.agent.android.analytics.AnalyticsController;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
@@ -18,15 +20,17 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
 
-
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -34,38 +38,44 @@ public class SessionReplaySender extends PayloadSender {
 
     protected Payload payload;
     private HarvestConfiguration harvestConfiguration;
-    private Boolean isFirstChunk;
+    private int payloadSize;
+    private Map<String,Object> replayDataMap;
 
     public SessionReplaySender(byte[] bytes, AgentConfiguration agentConfiguration) {
         super(bytes, agentConfiguration);
     }
 
-    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration,Boolean isFirstChunk) {
+    public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration,Map<String, Object> replayDataMap) throws IOException {
         super(payload, agentConfiguration);
         this.payload = payload;
+        this.payloadSize = payload.getBytes().length;
+
+
         this.harvestConfiguration = harvestConfiguration;
-        this.isFirstChunk = isFirstChunk;
-        setPayload(payload.getBytes());
+        this.replayDataMap = replayDataMap;
+        setPayload(gzipCompress(payload.getBytes()));
     }
 
     @Override
     protected HttpURLConnection getConnection() throws IOException {
 
         final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
-        final AnalyticsAttribute userIdAttr = controller.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
 
         Map<String, String> attributes = new HashMap<>();
         attributes.put("entityGuid", AgentConfiguration.getInstance().getEntityGuid());
-        attributes.put("agentVersion", Agent.getDeviceInformation().getAgentVersion());
-        attributes.put("session", AgentConfiguration.getInstance().getSessionID());
-        attributes.put("isFirstChunk", String.valueOf(isFirstChunk.booleanValue()));
+        attributes.put("isFirstChunk", replayDataMap.get("isFirstChunk") + "");
         attributes.put("rrweb.version", "^2.0.0-alpha.17");
+        attributes.put("decompressedBytes",this.payloadSize + "");
         attributes.put("payload.type", "standard");
-        attributes.put("replay.firstTimestamp", (System.currentTimeMillis() - Harvest.getInstance().getHarvestTimer().timeSinceStart()) + "");
-        attributes.put("replay.lastTimestamp", System.currentTimeMillis() + "");
-        if(userIdAttr != null) {
-            attributes.put("enduser.id", userIdAttr.getStringValue());
+        attributes.put("replay.firstTimestamp", replayDataMap.get("firstTimestamp") + "");
+        attributes.put("replay.lastTimestamp", replayDataMap.get("lastTimestamp") + "");
+        attributes.put("content_encoding", "gzip");
+        attributes.put("appVersion", Agent.getApplicationInformation().getAppVersion());
+
+        for (AnalyticsAttribute analyticsAttribute : controller.getSessionAttributes()) {
+            attributes.put(analyticsAttribute.getName(), analyticsAttribute.asJsonElement().getAsString());
         }
+        attributes.put("hasMeta", replayDataMap.get("hasMeta") + "");
 
         StringBuilder attributesString = new StringBuilder();
         try {
@@ -81,13 +91,18 @@ public class SessionReplaySender extends PayloadSender {
             log.error("Error encoding attributes: " + e.getMessage());
         }
 
-         String urlString = "https://staging-mobile-collector.newrelic.com/mobile/blobs?" +
+         String urlString = getCollectorURI() +
                 "type=SessionReplay" +
                 "&app_id="+harvestConfiguration.getApplication_id() +
                 "&protocol_version=0" +
                 "&timestamp=" + System.currentTimeMillis() +
                 "&attributes=" + attributesString;
 
+        final HttpURLConnection connection = getHttpURLConnection(urlString);
+        return connection;
+    }
+
+    private HttpURLConnection getHttpURLConnection(String urlString) throws IOException {
         final URL url = new URL(urlString);
         final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setDoOutput(true);
@@ -144,5 +159,17 @@ public class SessionReplaySender extends PayloadSender {
     protected void onFailedUpload(String errorMsg) {
         log.error(errorMsg);
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_HEX_FAILED_UPLOAD);
+    }
+    // Helper method to apply gzip compression
+    private static byte[] gzipCompress(byte[] uncompressedData) throws IOException {
+        ByteArrayOutputStream byteStream = new ByteArrayOutputStream(uncompressedData.length);
+        try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteStream)) {
+            gzipOutputStream.write(uncompressedData);
+        }
+        return byteStream.toByteArray();
+    }
+
+    protected URI getCollectorURI() {
+        return URI.create(getProtocol() + agentConfiguration.getCollectorHost() + "/mobile/blobs?");
     }
 }

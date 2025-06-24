@@ -16,6 +16,7 @@ import com.newrelic.agent.android.payload.PayloadSender;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,6 +26,7 @@ public class SessionReplayReporter extends PayloadReporter {
     protected static final AtomicReference<SessionReplayReporter> instance = new AtomicReference<>(null);
     protected final SessionReplayStore sessionReplayStore;
     private Boolean isFirstChunk = true;
+    private Boolean hasMeta = true;
 
     protected final Callable reportCachedSessionReplayDataCallable = new Callable() {
         @Override
@@ -54,20 +56,13 @@ public class SessionReplayReporter extends PayloadReporter {
         }
     }
 
-    public static boolean reportSessionReplayData(byte[] bytes) {
+    public static boolean reportSessionReplayData(byte[] bytes, Map<String, Object> attributes) {
         boolean reported = false;
 
         if (isInitialized()) {
-            try {
-                // Apply gzip compression
-                byte[] compressedBytes = gzipCompress(bytes);
-
-                Payload payload = new Payload(compressedBytes);
-                instance.get().storeAndReportSessionReplayData(payload);
-                reported = true;
-            } catch (IOException e) {
-                log.error("Failed to compress session replay data", e);
-            }
+            Payload payload = new Payload(bytes);
+            instance.get().storeAndReportSessionReplayData(payload, attributes);
+            reported = true;
         } else {
             log.error("SessionReplayDataReporter not initialized");
         }
@@ -119,22 +114,20 @@ public class SessionReplayReporter extends PayloadReporter {
             SessionReplayStore sessionStore = agentConfiguration.getSessionReplayStore();
             List<String> data = sessionStore.fetchAll();
             String sessionReplayData = data.get(0);
-            reportSessionReplayData(sessionReplayData.getBytes());
+            reportSessionReplayData(sessionReplayData.getBytes(),null);
         } else {
             log.error("SessionReplayDataReporter not initialized");
         }
     }
 
-    public Future reportSessionReplayData(Payload payload) {
-        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),isFirstChunk);
+    public Future reportSessionReplayData(Payload payload, Map<String, Object> attributes) throws IOException {
+
+        attributes.put("isFirstChunk", isFirstChunk);
+        attributes.put("hasMeta", hasMeta);
+
+        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),attributes);
 
         isFirstChunk = false; // Set to false after the first chunk is sent
-
-//        if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
-//            log.error("Unable to upload because payload is larger than 1 MB, handled exceptions are discarded.");
-//            return null;
-//        }
-
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {
@@ -158,8 +151,13 @@ public class SessionReplayReporter extends PayloadReporter {
         return future;
     }
 
-    public void storeAndReportSessionReplayData(Payload payload) {
-        reportSessionReplayData(payload);
+public void storeAndReportSessionReplayData(Payload payload, Map<String, Object> attributes) {
+        try {
+            reportSessionReplayData(payload,attributes);
+        } catch (IOException e) {
+            log.error("SessionReplayReporter.storeAndReportSessionReplayData(Payload): " + e);
+        }
+
     }
 
     @Override
