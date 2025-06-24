@@ -12,6 +12,7 @@ import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.payload.PayloadSender;
+import com.newrelic.agent.android.util.Constants;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -112,9 +113,9 @@ public class SessionReplayReporter extends PayloadReporter {
     protected void reportCachedSessionReplayData() {
         if (isInitialized()) {
             SessionReplayStore sessionStore = agentConfiguration.getSessionReplayStore();
-            List<String> data = sessionStore.fetchAll();
-            String sessionReplayData = data.get(0);
-            reportSessionReplayData(sessionReplayData.getBytes(),null);
+            List data = sessionStore.fetchAll();
+            String sessionReplayData = data.get(0).toString();
+            reportSessionReplayData(sessionReplayData.getBytes(), null);
         } else {
             log.error("SessionReplayDataReporter not initialized");
         }
@@ -122,10 +123,10 @@ public class SessionReplayReporter extends PayloadReporter {
 
     public Future reportSessionReplayData(Payload payload, Map<String, Object> attributes) throws IOException {
 
-        attributes.put("isFirstChunk", isFirstChunk);
-        attributes.put("hasMeta", hasMeta);
+        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
+        attributes.put(Constants.SessionReplay.HAS_META, hasMeta);
 
-        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),attributes);
+        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(), attributes);
 
         isFirstChunk = false; // Set to false after the first chunk is sent
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
@@ -151,9 +152,9 @@ public class SessionReplayReporter extends PayloadReporter {
         return future;
     }
 
-public void storeAndReportSessionReplayData(Payload payload, Map<String, Object> attributes) {
+    public void storeAndReportSessionReplayData(Payload payload, Map<String, Object> attributes) {
         try {
-            reportSessionReplayData(payload,attributes);
+            reportSessionReplayData(payload, attributes);
         } catch (IOException e) {
             log.error("SessionReplayReporter.storeAndReportSessionReplayData(Payload): " + e);
         }

@@ -656,6 +656,7 @@ public class AndroidAgentImpl implements
 
         if(agentConfiguration.getMobileSessionReplayConfiguration().isSessionReplayEnabled()) {
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_SAMPLED + agentConfiguration.getMobileSessionReplayConfiguration().isSampled());
             Handler uiHandler = new Handler(Looper.getMainLooper());
             SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler);
 
