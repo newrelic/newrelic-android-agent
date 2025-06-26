@@ -59,7 +59,7 @@ public class PersistentUUID {
     @SuppressLint("MissingPermission")
     private String generateUniqueID(Context context) {
         String hardwareDeviceId;
-        String androidDeviceId = Build.ID;
+        String androidDeviceId;
         String uuid;
 
         // Get hardware serial using the appropriate API based on Android version
@@ -152,14 +152,14 @@ public class PersistentUUID {
         int count = 0;
         for (int i = string.length() - 1; i >= 0; i--) {
             count++;
-            result = string.substring(i, i + 1) + result;
+            result = string.charAt(i) + result;
             if (0 == (count % sublen)) {
                 result = "-" + result;
             }
         }
 
         if (result.startsWith("-")) {
-            result = result.substring(1, result.length());
+            result = result.substring(1);
         }
 
         return result;
@@ -170,11 +170,7 @@ public class PersistentUUID {
      */
     protected void noticeUUIDMetric(final String tag) {
         final StatsEngine statsEngine = StatsEngine.get();
-        if (statsEngine != null) {
-            statsEngine.inc(MetricNames.METRIC_MOBILE + tag);
-        } else {
-            log.error("StatsEngine is null. " + tag + "  not recorded.");
-        }
+        statsEngine.inc(MetricNames.METRIC_MOBILE + tag);
     }
 
 
@@ -224,18 +220,12 @@ public class PersistentUUID {
         String uuid = null;
 
         if (UUID_FILE.exists()) {
-            BufferedReader in = null;
+            BufferedReader in;
             try {
                 in = new BufferedReader(new FileReader(UUID_FILE));
                 String uuidJson = in.readLine();
                 uuid = new JSONObject(uuidJson).getString(UUID_KEY);
-            } catch (FileNotFoundException e) {
-                log.error(e.getMessage());
-            } catch (IOException e) {
-                log.error(e.getMessage());
-            } catch (JSONException e) {
-                log.error(e.getMessage());
-            } catch (NullPointerException e) {
+            } catch (IOException | JSONException | NullPointerException e) {
                 log.error(e.getMessage());
             }
         }

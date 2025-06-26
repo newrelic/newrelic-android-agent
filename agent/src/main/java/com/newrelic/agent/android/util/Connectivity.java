@@ -18,7 +18,6 @@ import com.newrelic.agent.android.api.common.WanType;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 
-import java.text.MessageFormat;
 
 public final class Connectivity {
     private static final String ANDROID = "Android";

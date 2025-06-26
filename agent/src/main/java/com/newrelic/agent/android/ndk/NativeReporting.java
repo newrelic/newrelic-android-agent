@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class NativeReporting extends HarvestAdapter {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
     protected static AtomicReference<NativeReporting> instance = new AtomicReference<>(null);
-    protected static AtomicReference<AgentNDK> agentNdk = new AtomicReference<AgentNDK>(null);
+    protected static AtomicReference<AgentNDK> agentNdk = new AtomicReference<>(null);
 
     protected final NativeReportListener nativeReportListener;
 
@@ -56,7 +56,9 @@ public class NativeReporting extends HarvestAdapter {
     }
 
     public static boolean isInitialized() {
-        return (instance.get() != null && agentNdk.get() != null) && (AgentNDK.getInstance() != null);
+        if ((instance.get() == null || agentNdk.get() == null)) return false;
+        AgentNDK.getInstance();
+        return true;
     }
 
     public static void crashNow(final String message) {

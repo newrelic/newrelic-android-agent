@@ -46,7 +46,7 @@ public class ReachabilityTest {
 
 
     @Test
-    public void testWifiReachabilityModern() throws Exception {
+    public void testWifiReachabilityModern() {
         when(connectivityManager.getActiveNetwork()).thenReturn(network);
         when(connectivityManager.getNetworkCapabilities(network)).thenReturn(networkCapabilities);
         when(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)).thenReturn(true);
@@ -55,7 +55,7 @@ public class ReachabilityTest {
     }
 
     @Test
-    public void testCellularReachabilityModern() throws Exception {
+    public void testCellularReachabilityModern()  {
         when(connectivityManager.getActiveNetwork()).thenReturn(network);
         when(connectivityManager.getNetworkCapabilities(network)).thenReturn(networkCapabilities);
         when(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)).thenReturn(true);
@@ -64,7 +64,7 @@ public class ReachabilityTest {
     }
 
     @Test
-    public void testEthernetReachabilityModern() throws Exception {
+    public void testEthernetReachabilityModern()  {
         when(connectivityManager.getActiveNetwork()).thenReturn(network);
         when(connectivityManager.getNetworkCapabilities(network)).thenReturn(networkCapabilities);
         when(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)).thenReturn(true);
@@ -73,13 +73,13 @@ public class ReachabilityTest {
     }
 
     @Test
-    public void testWithoutConnectivityManager() throws Exception {
+    public void testWithoutConnectivityManager()  {
         when(context.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(null);
         Assert.assertTrue(Reachability.hasReachableNetworkConnection(context, null));
     }
 
     @Test
-    public void testWithReachableHost() throws Exception {
+    public void testWithReachableHost() {
         Assert.assertTrue(Reachability.hasReachableNetworkConnection(context, "newrelic.com"));
     }
 

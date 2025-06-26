@@ -8,6 +8,7 @@ package com.newrelic.agent.android.instrumentation;
 import android.annotation.TargetApi;
 import android.os.*;
 import com.newrelic.agent.android.api.v2.TraceFieldInterface;
+import com.newrelic.agent.android.harvest.AgentHealth;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -38,8 +39,8 @@ public class AsyncTaskInstrumentation {
         } catch (ClassCastException e) {
             ExceptionHelper.recordSupportabilityMetric(e, "TraceFieldInterface");
             log.error("Not a TraceFieldInterface: " + e.getMessage());
-        } catch (TracingInactiveException e) {
-        } catch (NoSuchFieldError e) {
+        } catch (TracingInactiveException | NoSuchFieldError e) {
+
         }
         return task.execute(params);
     }

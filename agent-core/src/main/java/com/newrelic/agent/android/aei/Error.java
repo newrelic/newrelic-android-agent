@@ -1,7 +1,5 @@
 package com.newrelic.agent.android.aei;
 
-import static com.newrelic.agent.android.aei.AEISessionMapper.gson;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -36,7 +34,6 @@ import java.util.Set;
 
 public class Error extends HarvestableObject {
     public static final int PROTOCOL_VERSION = 1;
-    public static final int MAX_UPLOAD_COUNT = 3;
 
     final private String agentName;
     final private String agentVersion;
@@ -225,10 +222,9 @@ public class Error extends HarvestableObject {
 
         if (errorObject.has("analyticsEvents")) {
             List<HashMap<String, Object>> events = new ArrayList<>();
-            Iterator<JsonElement> entry = errorObject.get("analyticsEvents").getAsJsonArray().iterator();
-            while (entry.hasNext()) {
-                JsonElement e = entry.next();
-                events.add(gson.fromJson(e, new com.google.gson.reflect.TypeToken<HashMap<String, Object>>(){}.getType()));
+            for (JsonElement e : errorObject.get("analyticsEvents").getAsJsonArray()) {
+                events.add(gson.fromJson(e, new com.google.gson.reflect.TypeToken<HashMap<String, Object>>() {
+                }.getType()));
             }
             if (!events.isEmpty()) {
                 error.setAnalyticsEvents(events.get(0));

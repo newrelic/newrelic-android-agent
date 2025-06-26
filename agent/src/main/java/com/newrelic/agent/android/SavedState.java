@@ -13,6 +13,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
+import com.newrelic.agent.android.harvest.AgentHealth;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
 import com.newrelic.agent.android.harvest.DataToken;
@@ -473,9 +474,6 @@ public class SavedState extends HarvestAdapter {
 
         try {
             JSONTokener tokener = new JSONTokener(dataTokenString);
-            if (tokener == null) {
-                return null;
-            }
 
             JSONArray array = (JSONArray) tokener.nextValue();
             if (array == null) {
@@ -488,7 +486,7 @@ public class SavedState extends HarvestAdapter {
             return dataToken;
 
         } catch (JSONException e) {
-            e.printStackTrace();
+            AgentHealth.noticeException(e);
         }
 
         return null;
@@ -637,6 +635,7 @@ public class SavedState extends HarvestAdapter {
         try {
             applicationFramework = ApplicationFramework.valueOf(getString(PREF_PLATFORM));
         } catch (IllegalArgumentException e) {
+            log.error("Invalid application framework: " + getString(PREF_PLATFORM));
         }
         return applicationFramework;
     }

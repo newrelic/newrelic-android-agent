@@ -6,24 +6,24 @@
 package com.newrelic.agent.android.api.common;
 
 public interface WanType {
-    public static final String NONE = "none";
-    public static final String WIFI = "wifi";
-    public static final String UNKNOWN = "unknown";
+    String NONE = "none";
+    String WIFI = "wifi";
+    String UNKNOWN = "unknown";
 
-    public static final String CDMA = "CDMA";
-    public static final String EDGE = "EDGE";
-    public static final String EVDO_REV_0 = "EVDO rev 0";
-    public static final String EVDO_REV_A = "EVDO rev A";
-    public static final String EVDO_REV_B = "EVDO rev B";
-    public static final String GPRS = "GPRS";
-    public static final String HRPD = "HRPD";
-    public static final String HSDPA = "HSDPA";
-    public static final String HSPA = "HSPA";
-    public static final String HSPAP = "HSPAP";
-    public static final String HSUPA = "HSUPA";
-    public static final String IDEN = "IDEN";
-    public static final String LTE = "LTE";
-    public static final String RTT = "1xRTT";
-    public static final String UMTS = "UMTS";
-    public static final String ETHERNET = "ETHERNET";
+    String CDMA = "CDMA";
+    String EDGE = "EDGE";
+    String EVDO_REV_0 = "EVDO rev 0";
+    String EVDO_REV_A = "EVDO rev A";
+    String EVDO_REV_B = "EVDO rev B";
+    String GPRS = "GPRS";
+    String HRPD = "HRPD";
+    String HSDPA = "HSDPA";
+    String HSPA = "HSPA";
+    String HSPAP = "HSPAP";
+    String HSUPA = "HSUPA";
+    String IDEN = "IDEN";
+    String LTE = "LTE";
+    String RTT = "1xRTT";
+    String UMTS = "UMTS";
+    String ETHERNET = "ETHERNET";
 }
