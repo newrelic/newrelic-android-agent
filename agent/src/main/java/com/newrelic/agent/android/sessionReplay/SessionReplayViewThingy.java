@@ -93,6 +93,21 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
     }
 
     @Override
+    public List<RRWebMutationData.AddRecord> generateAdditionNodes(int parentId) {
+        RRWebElementNode node = generateRRWebNode();
+        node.attributes.metadata.put("style", generateInlineCss());
+        RRWebMutationData.AddRecord addRecord = new RRWebMutationData.AddRecord(
+                parentId,
+                0,
+                node
+        );
+
+        List<RRWebMutationData.AddRecord> adds = new ArrayList<>();
+        adds.add(addRecord);
+        return adds;
+    }
+
+    @Override
     public int getViewId() {
         return viewDetails.viewId;
     }

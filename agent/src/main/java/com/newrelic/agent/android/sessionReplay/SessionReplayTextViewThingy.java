@@ -160,13 +160,10 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
     @Override
     public RRWebElementNode generateRRWebNode() {
-        // Use classes from your project's models package
         RRWebTextNode textNode = new RRWebTextNode(this.labelText, false, NewRelicIdGenerator.generateId());
 
-        // Use classes from your project's models package
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
 
-        // Use classes from your project's models package
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, Collections.singletonList(textNode));
     }
 
@@ -216,6 +213,40 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         }
 
         return mutations;
+    }
+
+    @Override
+    public List<RRWebMutationData.AddRecord> generateAdditionNodes(int parentId) {
+        // We have to recreate the RRWebElementNode instead of calling the
+        // method because that method automatically adds the text node as a
+        // child. For adds, the text node should be it's own node.
+
+        Attributes attributes = new Attributes(viewDetails.getCssSelector());
+
+        RRWebElementNode viewNode =  new RRWebElementNode(
+                attributes,
+                RRWebElementNode.TAG_TYPE_DIV,
+                viewDetails.viewId,
+                new ArrayList<>());
+
+        viewNode.attributes.metadata.put("style", generateInlineCss());
+
+        RRWebTextNode textNode = new RRWebTextNode(this.labelText, false, NewRelicIdGenerator.generateId());
+
+        RRWebMutationData.AddRecord viewAddRecord = new RRWebMutationData.AddRecord(
+                parentId,
+                0,
+                viewNode);
+
+        RRWebMutationData.AddRecord textAddRecord = new RRWebMutationData.AddRecord(
+                viewDetails.viewId,
+                0,
+                textNode);
+
+        List<RRWebMutationData.AddRecord> adds = new ArrayList<>();
+        adds.add(viewAddRecord);
+        adds.add(textAddRecord);
+        return adds;
     }
 
     @Override

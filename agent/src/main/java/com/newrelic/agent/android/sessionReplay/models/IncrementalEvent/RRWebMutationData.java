@@ -2,6 +2,7 @@ package com.newrelic.agent.android.sessionReplay.models.IncrementalEvent;
 
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
+import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 
 import java.util.List;
 
@@ -18,9 +19,9 @@ public class RRWebMutationData extends RRWebIncrementalData {
     public static class AddRecord implements MutationRecord {
         public int parentId;
         public int nextId;
-        public RRWebElementNode node;
+        public RRWebNode node;
 
-        public AddRecord(int parentId, int nextId, RRWebElementNode node) {
+        public AddRecord(int parentId, int nextId, RRWebNode node) {
             this.parentId = parentId;
             this.nextId = nextId;
             this.node = node;
