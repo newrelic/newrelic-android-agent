@@ -6,9 +6,7 @@
 package com.newrelic.agent.android.instrumentation;
 
 import android.annotation.TargetApi;
-import android.os.AsyncTask;
-import android.os.Build;
-
+import android.os.*;
 import com.newrelic.agent.android.api.v2.TraceFieldInterface;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -18,6 +16,7 @@ import com.newrelic.agent.android.util.ExceptionHelper;
 
 import java.util.concurrent.Executor;
 
+@Deprecated
 @SuppressWarnings({"unused", "unchecked"})
 public class AsyncTaskInstrumentation {
 
@@ -28,6 +27,7 @@ public class AsyncTaskInstrumentation {
 
     @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
     @ReplaceCallSite
+    @Deprecated
     public final static <Params, Progress, Result> AsyncTask execute(AsyncTask<Params, Progress, Result> task, Params... params) {
         try {
             // if (task instanceof TraceFieldInterface) {
@@ -46,6 +46,7 @@ public class AsyncTaskInstrumentation {
 
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     @ReplaceCallSite
+    @Deprecated
     public final static <Params, Progress, Result> AsyncTask executeOnExecutor
             (AsyncTask<Params, Progress, Result> task, Executor exec, Params... params) {
         try {

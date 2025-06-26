@@ -25,4 +25,5 @@ public interface WanType {
     public static final String LTE = "LTE";
     public static final String RTT = "1xRTT";
     public static final String UMTS = "UMTS";
+    public static final String ETHERNET = "ETHERNET";
 }

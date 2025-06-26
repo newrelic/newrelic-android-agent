@@ -224,12 +224,11 @@ public class Error extends HarvestableObject {
         }
 
         if (errorObject.has("analyticsEvents")) {
-
             List<HashMap<String, Object>> events = new ArrayList<>();
             Iterator<JsonElement> entry = errorObject.get("analyticsEvents").getAsJsonArray().iterator();
             while (entry.hasNext()) {
                 JsonElement e = entry.next();
-                events.add(gson.fromJson(e, HashMap.class));
+                events.add(gson.fromJson(e, new com.google.gson.reflect.TypeToken<HashMap<String, Object>>(){}.getType()));
             }
             if (!events.isEmpty()) {
                 error.setAnalyticsEvents(events.get(0));

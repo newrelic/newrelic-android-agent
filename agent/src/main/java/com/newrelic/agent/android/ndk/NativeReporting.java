@@ -76,7 +76,7 @@ public class NativeReporting extends HarvestAdapter {
 
     protected NativeReporting(Context context, AgentConfiguration agentConfiguration) {
         this.nativeReportListener = new NativeReportListener();
-        this.agentNdk.compareAndSet(null,
+        agentNdk.compareAndSet(null,
                 new AgentNDK.Builder(context)
                         .withBuildId(Agent.getBuildId())
                         .withANRMonitor(!agentConfiguration.getApplicationExitConfiguration().isEnabled())

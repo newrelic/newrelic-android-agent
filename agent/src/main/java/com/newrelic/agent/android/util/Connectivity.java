@@ -5,9 +5,11 @@
 
 package com.newrelic.agent.android.util;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.telephony.TelephonyManager;
 
@@ -23,110 +25,92 @@ public final class Connectivity {
 
     private static AgentLog log = AgentLogManager.getAgentLog();
 
-    public static String carrierNameFromContext(final Context context) {
-        final NetworkInfo networkInfo;
-        try {
-            networkInfo = getNetworkInfo(context);
-        } catch (SecurityException e) {
-            return CarrierType.UNKNOWN;
-        }
+    public static String carrierNameFromContext(final Context context) {         // Modern approach for Android M (API 23) and above
+            return getCarrierName(context);
 
-        if (!isConnected(networkInfo)) {
-            return CarrierType.NONE;
-        } else if (isHardwired(networkInfo)) {
-            return CarrierType.ETHERNET;
-        } else if (isWan(networkInfo)) {
-            return carrierNameFromTelephonyManager(context);
-        } else if (isWifi(networkInfo)) {
-            return CarrierType.WIFI;
-        } else if (isBluetooth(networkInfo)) {
-            return CarrierType.BLUETOOTH;
-        } else {
-            log.warn(MessageFormat.format("Unknown network type: {0} [{1}]", networkInfo.getTypeName(), networkInfo.getType()));
-            return CarrierType.UNKNOWN;
-        }
     }
 
     public static String wanType(final Context context) {
-        final NetworkInfo networkInfo;
-        try {
-            networkInfo = getNetworkInfo(context);
-        } catch (SecurityException e) {
-            return WanType.UNKNOWN;
-        }
+            return getWanType(context);
 
-        if (!isConnected(networkInfo)) {
-            return WanType.NONE;
-        } else if (isWifi(networkInfo)) {
-            return WanType.WIFI;
-        } else if (isHardwired(networkInfo)) {
-            return connectionNameFromNetworkSubtype(networkInfo.getSubtype());
-        } else if (isWan(networkInfo)) {
-            return connectionNameFromNetworkSubtype(networkInfo.getSubtype());
-        } else {
-            return WanType.UNKNOWN;
-        }
     }
 
-    private static boolean isConnected(final NetworkInfo networkInfo) {
-        return networkInfo != null && networkInfo.isConnected();
-    }
 
-    private static boolean isWan(final NetworkInfo networkInfo) {
-        switch (networkInfo.getType()) {
-            case ConnectivityManager.TYPE_MOBILE:
-            case ConnectivityManager.TYPE_MOBILE_DUN:
-            case ConnectivityManager.TYPE_MOBILE_HIPRI:
-            case ConnectivityManager.TYPE_MOBILE_MMS:
-            case ConnectivityManager.TYPE_MOBILE_SUPL:
-            case ConnectivityManager.TYPE_ETHERNET:
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static boolean isWifi(final NetworkInfo networkInfo) {
-        switch (networkInfo.getType()) {
-            case ConnectivityManager.TYPE_WIFI:
-            case ConnectivityManager.TYPE_WIMAX:
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static boolean isHardwired(NetworkInfo networkInfo) {
-        switch (networkInfo.getType()) {
-            case ConnectivityManager.TYPE_ETHERNET:
-            case ConnectivityManager.TYPE_MOBILE_DUN:   // Maybe? (tethering)
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static boolean isBluetooth(NetworkInfo networkInfo) {
-        switch (networkInfo.getType()) {
-            case ConnectivityManager.TYPE_BLUETOOTH:
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static NetworkInfo getNetworkInfo(final Context context) throws SecurityException {
+    private static String getCarrierName(final Context context) {
         final ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager == null) {
+            return CarrierType.UNKNOWN;
+        }
+
         try {
-            return connectivityManager.getActiveNetworkInfo();
+            Network network = connectivityManager.getActiveNetwork();
+            if (network == null) {
+                return CarrierType.NONE;
+            }
+
+            NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
+            if (capabilities == null) {
+                return CarrierType.UNKNOWN;
+            }
+
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                return CarrierType.ETHERNET;
+            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                return carrierNameFromTelephonyManager(context);
+            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                return CarrierType.WIFI;
+            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH)) {
+                return CarrierType.BLUETOOTH;
+            } else {
+                return CarrierType.UNKNOWN;
+            }
         } catch (SecurityException e) {
             log.warn("Cannot determine network state. Enable android.permission.ACCESS_NETWORK_STATE in your manifest.");
-            throw e;
+            return CarrierType.UNKNOWN;
+        }
+    }
+
+    private static String getWanType(final Context context) {
+        final ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager == null) {
+            return WanType.UNKNOWN;
+        }
+
+        try {
+            Network network = connectivityManager.getActiveNetwork();
+            if (network == null) {
+                return WanType.NONE;
+            }
+
+            NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
+            if (capabilities == null) {
+                return WanType.UNKNOWN;
+            }
+
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                return WanType.WIFI;
+            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+                if (telephonyManager != null) {
+                    return connectionNameFromNetworkSubtype(getNetworkType(telephonyManager));
+                }
+            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                return WanType.ETHERNET;
+            }
+            
+            return WanType.UNKNOWN;
+        } catch (SecurityException e) {
+            log.warn("Cannot determine network state. Enable android.permission.ACCESS_NETWORK_STATE in your manifest.");
+            return WanType.UNKNOWN;
         }
     }
 
     private static String carrierNameFromTelephonyManager(final Context context) {
         final TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+        if (telephonyManager == null) {
+            return CarrierType.UNKNOWN;
+        }
+        
         final String networkOperator = telephonyManager.getNetworkOperatorName();
 
         if (networkOperator == null || networkOperator.isEmpty()) {
@@ -184,5 +168,25 @@ public final class Connectivity {
             default:
                 return WanType.UNKNOWN;
         }
+    }
+
+    /**
+     * Gets the network type from TelephonyManager in a way that handles API deprecation.
+     * 
+     * @param telephonyManager The TelephonyManager instance
+     * @return The network type as an integer
+     */
+    @SuppressLint("MissingPermission")
+    @SuppressWarnings("deprecation")
+    private static int getNetworkType(TelephonyManager telephonyManager) {
+            // For API 24 (Android 7.0) and above, we should use getDataNetworkType
+            // This requires READ_PHONE_STATE permission
+            try {
+                return telephonyManager.getDataNetworkType();
+            } catch (SecurityException e) {
+                // Fall back to deprecated method if permission is not granted
+                log.warn("Cannot determine network type. Enable android.permission.READ_PHONE_STATE in your manifest.");
+                return telephonyManager.getNetworkType();
+            }
     }
 }

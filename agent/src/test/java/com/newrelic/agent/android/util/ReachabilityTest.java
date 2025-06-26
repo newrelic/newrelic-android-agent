@@ -5,13 +5,13 @@
 
 package com.newrelic.agent.android.util;
 
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import com.newrelic.agent.android.SpyContext;
 
 import org.junit.Assert;
@@ -20,42 +20,54 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 
+
 @RunWith(RobolectricTestRunner.class)
 public class ReachabilityTest {
 
-    SpyContext spyContext = new SpyContext();
-    Context context = spyContext.getContext();
-    ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-    NetworkInfo networkInfo = spy(connectivityManager.getActiveNetworkInfo());
+    SpyContext spyContext;
+    Context context;
+    ConnectivityManager connectivityManager;
+    
+    // For modern API (API 23+)
+    Network network;
+    NetworkCapabilities networkCapabilities;
+
 
     @Before
     public void setUp() throws Exception {
         spyContext = new SpyContext();
         context = spyContext.getContext();
         connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        networkInfo = spy(connectivityManager.getActiveNetworkInfo());
+        
+        // Setup for modern API
+        network = mock(Network.class);
+        networkCapabilities = mock(NetworkCapabilities.class);
     }
 
+
     @Test
-    public void testWifiReachability() throws Exception {
-        when(connectivityManager.getActiveNetworkInfo()).thenReturn(networkInfo);
-        when(networkInfo.getType()).thenReturn(ConnectivityManager.TYPE_WIFI);
+    public void testWifiReachabilityModern() throws Exception {
+        when(connectivityManager.getActiveNetwork()).thenReturn(network);
+        when(connectivityManager.getNetworkCapabilities(network)).thenReturn(networkCapabilities);
+        when(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)).thenReturn(true);
 
         Assert.assertTrue(Reachability.hasReachableNetworkConnection(context, null));
     }
 
     @Test
-    public void testCellularReachability() throws Exception {
-        when(connectivityManager.getActiveNetworkInfo()).thenReturn(networkInfo);
-        when(networkInfo.getType()).thenReturn(ConnectivityManager.TYPE_MOBILE);
+    public void testCellularReachabilityModern() throws Exception {
+        when(connectivityManager.getActiveNetwork()).thenReturn(network);
+        when(connectivityManager.getNetworkCapabilities(network)).thenReturn(networkCapabilities);
+        when(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)).thenReturn(true);
 
         Assert.assertTrue(Reachability.hasReachableNetworkConnection(context, null));
     }
 
     @Test
-    public void testEthernetReachability() throws Exception {
-        when(connectivityManager.getActiveNetworkInfo()).thenReturn(networkInfo);
-        when(networkInfo.getType()).thenReturn(ConnectivityManager.TYPE_ETHERNET);
+    public void testEthernetReachabilityModern() throws Exception {
+        when(connectivityManager.getActiveNetwork()).thenReturn(network);
+        when(connectivityManager.getNetworkCapabilities(network)).thenReturn(networkCapabilities);
+        when(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)).thenReturn(true);
 
         Assert.assertTrue(Reachability.hasReachableNetworkConnection(context, null));
     }

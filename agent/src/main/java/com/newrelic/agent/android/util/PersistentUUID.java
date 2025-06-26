@@ -58,13 +58,29 @@ public class PersistentUUID {
 
     @SuppressLint("MissingPermission")
     private String generateUniqueID(Context context) {
-        String hardwareDeviceId = Build.SERIAL;
+        String hardwareDeviceId;
         String androidDeviceId = Build.ID;
         String uuid;
 
+        // Get hardware serial using the appropriate API based on Android version
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // For Android 8.0 (API 26) and above, use getSerial() which requires READ_PHONE_STATE permission
+            try {
+                hardwareDeviceId = Build.getSerial();
+            } catch (SecurityException e) {
+                // Permission not granted, fall back to a combination of hardware identifiers
+                hardwareDeviceId = Build.HARDWARE + Build.DEVICE + Build.BOARD + Build.BRAND;
+                log.debug("Unable to access device serial: " + e.getMessage());
+            }
+        } else {
+            // For older versions, use the deprecated SERIAL field
+            @SuppressWarnings("deprecation")
+            String serial = Build.SERIAL;
+            hardwareDeviceId = serial;
+        }
+
         // get internal android id
         try {
-
             androidDeviceId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
 
             // build up the uuid
@@ -77,8 +93,22 @@ public class PersistentUUID {
                     // if app already uses READ_PHONE, use the telephony device id
                     final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
                     if (tm != null) {
-                        //noinspection
-                        hardwareDeviceId = tm.getDeviceId();
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            try {
+                                // For Android 8.0+ use getImei() which requires READ_PHONE_STATE permission
+                                hardwareDeviceId = tm.getImei();
+                            } catch (SecurityException e) {
+                                // Permission not granted, keep existing hardwareDeviceId
+                                log.debug("Unable to access device IMEI: " + e.getMessage());
+                            }
+                        } else {
+                            // For older versions, use the deprecated getDeviceId()
+                            @SuppressWarnings("deprecation")
+                            String deviceId = tm.getDeviceId();
+                            if (!TextUtils.isEmpty(deviceId)) {
+                                hardwareDeviceId = deviceId;
+                            }
+                        }
                     }
                 } catch (Exception e) {
                     hardwareDeviceId = "badf00d";
