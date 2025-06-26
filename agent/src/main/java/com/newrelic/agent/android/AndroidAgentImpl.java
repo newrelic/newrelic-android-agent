@@ -385,7 +385,7 @@ public class AndroidAgentImpl implements
         if (TextUtils.isEmpty(build)) {
             if (packageInfo != null) {
                 // set the versionCode as the build by default
-                build = String.valueOf(packageInfo.versionCode);
+                build = getVersionCode(packageInfo) + "";
             } else {
                 build = "";
                 log.warn("Your app doesn't appear to have a version code defined. Ensure you have defined 'versionCode' in your manifest.");
@@ -394,7 +394,29 @@ public class AndroidAgentImpl implements
         log.debug("Using build " + build);
 
         applicationInformation = new ApplicationInformation(appName, appVersion, packageName, build);
-        applicationInformation.setVersionCode(packageInfo.versionCode);
+        applicationInformation.setVersionCode((int)getVersionCode(packageInfo));
+    }
+
+    /**
+     * Gets the version code from a PackageInfo object, handling API differences.
+     *
+     * @param packageInfo The PackageInfo object containing version information
+     * @return The version code as a long value, or 0 if packageInfo is null
+     */
+    private long getVersionCode(PackageInfo packageInfo) {
+        if (packageInfo == null) {
+            return 0;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            // For API 28 (Android 9.0) and above
+            return packageInfo.getLongVersionCode();
+        } else {
+            // For older Android versions
+            @SuppressWarnings("deprecation")
+            long versionCode = packageInfo.versionCode;
+            return versionCode;
+        }
     }
 
     @Override
@@ -607,6 +629,9 @@ public class AndroidAgentImpl implements
         Harvest.shutdown();
         Measurements.shutdown();
         PayloadController.shutdown();
+        if (LogReporting.isRemoteLoggingEnabled()) {
+            LogReporting.shutdown();
+        }
     }
 
     @Override
@@ -645,7 +670,6 @@ public class AndroidAgentImpl implements
         try {
             Agent.setImpl(new AndroidAgentImpl(context, agentConfiguration));
             Agent.start();
-            startLogReporter(context, agentConfiguration);
         } catch (AgentInitializationException e) {
             log.error("Failed to initialize the agent: " + e.toString());
         }
@@ -891,7 +915,7 @@ public class AndroidAgentImpl implements
         }
 
         if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-            if (LogReporting.isRemoteLoggingEnabled()) {
+            if (LogReporting.isRemoteLoggingEnabled() && !LogReporting.isInitialized()) {
                 startLogReporter(context, agentConfiguration);
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_SAMPLED + agentConfiguration.getLogReportingConfiguration().isSampled());
             }

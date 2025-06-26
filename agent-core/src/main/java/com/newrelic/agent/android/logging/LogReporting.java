@@ -64,6 +64,17 @@ public abstract class LogReporting {
         }
     }
 
+    public static boolean isInitialized() {
+        return LogReporter.getInstance() != null;
+    }
+
+    public static void shutdown() {
+        if(isInitialized()) {
+            LogReporter.getInstance().shutdown();
+        }
+    }
+
+
     public static Logger getLogger() {
         return instance.get();
     }
@@ -84,6 +95,7 @@ public abstract class LogReporting {
 
     /**
      * Return ordinal value of log level
+     *
      *
      * @return LogLevel enum @link {LogLevel#ordinal()}
      */
