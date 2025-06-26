@@ -127,14 +127,6 @@ public class SessionReplayProcessor {
         for (IncrementalDiffGenerator.Operation operation : operations) {
             switch (operation.getType()) {
                 case ADD:
-//                    RRWebElementNode node = operation.getAddChange().getNode().generateRRWebNode();
-//                    node.attributes.metadata.put("style", operation.getAddChange().getNode().generateInlineCss());
-//                    RRWebMutationData.AddRecord addRecord = new RRWebMutationData.AddRecord(
-//                            operation.getAddChange().getParentId(),
-//                            0,
-//                            node
-//                    );
-//                    adds.add(addRecord);
                     adds.addAll(operation.getAddChange().getNode().generateAdditionNodes(operation.getAddChange().getParentId()));
                     break;
                 case REMOVE:

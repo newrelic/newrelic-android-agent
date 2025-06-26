@@ -132,7 +132,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         node.attributes.metadata.put("style", generateInlineCss());
         RRWebMutationData.AddRecord addRecord = new RRWebMutationData.AddRecord(
                 parentId,
-                0,
+                null,
                 node);
 
         List<RRWebMutationData.AddRecord> adds = new ArrayList<>();

@@ -235,12 +235,12 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         RRWebMutationData.AddRecord viewAddRecord = new RRWebMutationData.AddRecord(
                 parentId,
-                0,
+                null,
                 viewNode);
 
         RRWebMutationData.AddRecord textAddRecord = new RRWebMutationData.AddRecord(
                 viewDetails.viewId,
-                0,
+                null,
                 textNode);
 
         List<RRWebMutationData.AddRecord> adds = new ArrayList<>();
