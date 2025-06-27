@@ -18,7 +18,7 @@ buildscript {
                         ndk     : hasOptional('newrelic.ndk.version', '1.+')
                 ]
         ]
-        newrelic.agent.snapshotUri = uri("https://oss.sonatype.org/content/repositories/comnewrelic-${newrelic.agent.snapshot}")
+        newrelic.agent.snapshotUri = uri("https://ossrh-staging-api.central.sonatype.com/content/repositories/comnewrelic-${newrelic.agent.snapshot}")
         newrelic.deps = [
                 agent : "com.newrelic.agent.android:android-agent:${newrelic.agent.version}",
                 plugin: "com.newrelic.agent.android:agent-gradle-plugin:${newrelic.agent.version}",
