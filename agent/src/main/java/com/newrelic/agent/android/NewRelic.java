@@ -273,6 +273,19 @@ public final class NewRelic {
     }
 
     /**
+     * Configure network domains to ignore during network request tracking.
+     * Network requests to these domains will not be tracked by the agent.
+     *
+     * @param ignoredDomains List of domain names to ignore (e.g., "example.com", "api.thirdparty.com")
+     */
+    public NewRelic withIgnoredNetworkDomains(List<String> ignoredDomains) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "withIgnoredNetworkDomains"));
+        agentConfiguration.setIgnoredNetworkDomains(ignoredDomains);
+        return this;
+    }
+
+    /**
      * Starts the agent.  Be sure to call this, otherwise the agent won't do anything!
      *
      * @param context The application context

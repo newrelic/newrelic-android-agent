@@ -26,6 +26,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.List;
+import java.util.ArrayList;
 
 public class AgentConfiguration implements HarvestConfigurable {
     private static final AgentLog log = AgentLogManager.getAgentLog();
@@ -70,6 +72,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
     private String entityGuid;
+    private List<String> ignoredNetworkDomains = new ArrayList<>();
 
     // Support remote configuration for these features
     private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.INFO);
@@ -364,6 +367,14 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setLaunchActivityClassName(String launchActivityClassName) {
         this.launchActivityClassName = launchActivityClassName;
+    }
+
+    public List<String> getIgnoredNetworkDomains() {
+        return ignoredNetworkDomains;
+    }
+
+    public void setIgnoredNetworkDomains(List<String> ignoredDomains) {
+        this.ignoredNetworkDomains = ignoredDomains != null ? new ArrayList<>(ignoredDomains) : new ArrayList<>();
     }
 
     public LogReportingConfiguration getLogReportingConfiguration() {
