@@ -23,26 +23,29 @@ public class SessionReplayProcessor {
     public List<RRWebEvent> processFrames(List<SessionReplayFrame> rawFrames) {
         ArrayList<RRWebEvent> snapshot = new ArrayList<>();
 
-
         for (SessionReplayFrame rawFrame : rawFrames) {
-                RRWebMetaEvent metaEvent = new RRWebMetaEvent(
-                        new RRWebMetaEvent.RRWebMetaEventData(
-                                "https://newrelic.com",
-                                rawFrame.width,
-                                rawFrame.height
-                        ),
-                        rawFrame.timestamp
-                );
-                snapshot.add(metaEvent);
-
-            snapshot.add(processFrame(rawFrame));
+            // Process each frame and add all resulting events to the snapshot
+            snapshot.addAll(processFrame(rawFrame));
             lastFrame = rawFrame;
         }
 
         return snapshot;
     }
 
-    private RRWebFullSnapshotEvent processFrame(SessionReplayFrame frame) {
+    public List<RRWebEvent> processFrame(SessionReplayFrame frame) {
+        List<RRWebEvent> events = new ArrayList<>();
+
+        // Create meta event
+        RRWebMetaEvent metaEvent = new RRWebMetaEvent(
+                new RRWebMetaEvent.RRWebMetaEventData(
+                        "https://newrelic.com",
+                        frame.width,
+                        frame.height
+                ),
+                frame.timestamp
+        );
+        events.add(metaEvent);
+
         // Generate style string
         StringBuilder cssStyleBuilder = new StringBuilder();
 
@@ -69,8 +72,9 @@ public class SessionReplayProcessor {
 
         // Create Full Snapshot Root and add the above to it
         RRWebFullSnapshotEvent fullSnapshotEvent = new RRWebFullSnapshotEvent(frame.timestamp, data);
+        events.add(fullSnapshotEvent);
 
-        return fullSnapshotEvent;
+        return events;
     }
 
     private RRWebNode recursivelyProcessThingy(SessionReplayViewThingyInterface rootThingy, StringBuilder cssStyleBuilder) {
