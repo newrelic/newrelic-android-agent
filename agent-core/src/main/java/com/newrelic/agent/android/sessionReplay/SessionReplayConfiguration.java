@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public class MobileSessionReplayConfiguration {
+public class SessionReplayConfiguration {
 
     @SerializedName("enabled")
     private boolean enabled;
@@ -27,19 +27,19 @@ public class MobileSessionReplayConfiguration {
     @SerializedName("mode")
     private String mode;
 
-    @SerializedName("maskApplicationText")
+    @SerializedName("mask_application_text")
     private boolean maskApplicationText;
 
-    @SerializedName("maskUserInputText")
+    @SerializedName("mask_user_input_text")
     private boolean maskUserInputText;
 
-    @SerializedName("maskAllUserTouches")
+    @SerializedName("mask_all_user_touches")
     private boolean maskAllUserTouches;
 
-    @SerializedName("maskAllImages")
+    @SerializedName("mask_all_images")
     private boolean maskAllImages;
 
-    @SerializedName("customMaskingRules")
+    @SerializedName("custom_masking_rules")
     private List<CustomMaskingRule> customMaskingRules;
 
     static Double sampleSeed = 100.000000;
@@ -67,15 +67,15 @@ public class MobileSessionReplayConfiguration {
      */
     private Set<String> unmaskedViewTags;
 
-    public MobileSessionReplayConfiguration() {
+    public SessionReplayConfiguration() {
         // Default values
-        this.enabled = true;
-        this.samplingRate = 0.0;
+        this.enabled = false;
+        this.samplingRate = 10.0;
         this.errorSamplingRate = 100.0;
-        this.mode = "custom";
+        this.mode = "default";
         this.maskApplicationText = true;
         this.maskUserInputText = true;
-        this.maskAllUserTouches = true;
+        this.maskAllUserTouches = false;
         this.maskAllImages = true;
         this.customMaskingRules = new ArrayList<>();
         this.textMaskingStrategy = TextMaskingStrategy.MASK_ALL_TEXT;
@@ -118,9 +118,10 @@ public class MobileSessionReplayConfiguration {
     }
 
     public void setMaskApplicationText(boolean maskApplicationText) {
-        if (maskApplicationText) {
+        this.maskApplicationText = maskApplicationText;
+        if (this.maskApplicationText) {
             this.textMaskingStrategy = TextMaskingStrategy.MASK_ALL_TEXT;
-        } else if (maskUserInputText) {
+        } else if (this.maskUserInputText) {
             this.textMaskingStrategy = TextMaskingStrategy.MASK_USER_INPUT_TEXT;
         } else {
             this.textMaskingStrategy = TextMaskingStrategy.MASK_NO_TEXT;
@@ -128,19 +129,19 @@ public class MobileSessionReplayConfiguration {
     }
 
     public boolean isMaskUserInputText() {
-        return textMaskingStrategy == TextMaskingStrategy.MASK_ALL_TEXT || 
-               textMaskingStrategy == TextMaskingStrategy.MASK_USER_INPUT_TEXT;
+        return this.maskUserInputText;
     }
 
     public void setMaskUserInputText(boolean maskUserInputText) {
-        if (this.textMaskingStrategy == TextMaskingStrategy.MASK_ALL_TEXT) {
-            // Keep MASK_ALL_TEXT strategy if it's already set
-            return;
+        this.maskUserInputText = maskUserInputText;
+
+        if (this.maskApplicationText) {
+            this.textMaskingStrategy = TextMaskingStrategy.MASK_ALL_TEXT;
+        } else if (this.maskUserInputText) {
+            this.textMaskingStrategy = TextMaskingStrategy.MASK_USER_INPUT_TEXT;
+        } else {
+            this.textMaskingStrategy = TextMaskingStrategy.MASK_NO_TEXT;
         }
-        
-        this.textMaskingStrategy = maskUserInputText ? 
-            TextMaskingStrategy.MASK_USER_INPUT_TEXT : 
-            TextMaskingStrategy.MASK_NO_TEXT;
     }
 
     public boolean isMaskAllUserTouches() {
@@ -306,7 +307,7 @@ public class MobileSessionReplayConfiguration {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        MobileSessionReplayConfiguration that = (MobileSessionReplayConfiguration) o;
+        SessionReplayConfiguration that = (SessionReplayConfiguration) o;
         return enabled == that.enabled &&
                 Double.compare(that.samplingRate, samplingRate) == 0 &&
                 Double.compare(that.errorSamplingRate, errorSamplingRate) == 0 &&
@@ -325,7 +326,7 @@ public class MobileSessionReplayConfiguration {
                 maskUserInputText, maskAllUserTouches, maskAllImages, customMaskingRules, textMaskingStrategy);
     }
 
-    public void setConfiguration(MobileSessionReplayConfiguration sessionReplayConfiguration) {
+    public void setConfiguration(SessionReplayConfiguration sessionReplayConfiguration) {
         if (!sessionReplayConfiguration.equals(this)) {
             enabled = sessionReplayConfiguration.enabled;
             samplingRate = sessionReplayConfiguration.samplingRate;
@@ -383,6 +384,26 @@ public class MobileSessionReplayConfiguration {
         return unmaskedViewClasses;
     }
 
+    @Override
+    public String toString() {
+        return "MobileSessionReplayConfiguration{" +
+                "enabled=" + enabled +
+                ", samplingRate=" + samplingRate +
+                ", errorSamplingRate=" + errorSamplingRate +
+                ", mode='" + mode + '\'' +
+                ", maskApplicationText=" + maskApplicationText +
+                ", maskUserInputText=" + maskUserInputText +
+                ", maskAllUserTouches=" + maskAllUserTouches +
+                ", maskAllImages=" + maskAllImages +
+                ", textMaskingStrategy=" + textMaskingStrategy +
+                ", customMaskingRules=" + customMaskingRules +
+                ", maskedViewClasses=" + maskedViewClasses +
+                ", unmaskedViewClasses=" + unmaskedViewClasses +
+                ", maskedViewTags=" + maskedViewTags +
+                ", unmaskedViewTags=" + unmaskedViewTags +
+                '}';
+    }
+
     public static class CustomMaskingRule {
         @SerializedName("identifier")
         private String identifier;
@@ -436,6 +457,15 @@ public class MobileSessionReplayConfiguration {
          * @return true is remote logging is enabled AND this session is sampling
          */
 
+        @Override
+        public String toString() {
+            return "CustomMaskingRule{" +
+                    "identifier='" + identifier + '\'' +
+                    ", name=" + name +
+                    ", operator='" + operator + '\'' +
+                    ", type='" + type + '\'' +
+                    '}';
+        }
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;

@@ -19,7 +19,7 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadStore;
-import com.newrelic.agent.android.sessionReplay.MobileSessionReplayConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
@@ -77,7 +77,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     // Support remote configuration for these features
     private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.INFO);
     private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
-    private MobileSessionReplayConfiguration mobileSessionReplayConfiguration = new MobileSessionReplayConfiguration();
+    private SessionReplayConfiguration mobileSessionReplayConfiguration = new SessionReplayConfiguration();
 
     public String getApplicationToken() {
         return applicationToken;
@@ -414,11 +414,11 @@ public class AgentConfiguration implements HarvestConfigurable {
         return instance.get();
     }
 
-    public MobileSessionReplayConfiguration getMobileSessionReplayConfiguration() {
+    public SessionReplayConfiguration getMobileSessionReplayConfiguration() {
         return mobileSessionReplayConfiguration;
     }
 
-    public void setMobileSessionReplayConfiguration(MobileSessionReplayConfiguration mobileSessionReplayConfiguration) {
-        this.mobileSessionReplayConfiguration = mobileSessionReplayConfiguration;
+    public void setMobileSessionReplayConfiguration(SessionReplayConfiguration sessionReplayConfiguration) {
+        this.mobileSessionReplayConfiguration = sessionReplayConfiguration;
     }
 }

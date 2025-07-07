@@ -17,7 +17,7 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
 
     public boolean shouldRecordSubviews = false;
     private String hint;
-    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
+    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view, SessionReplayConfiguration sessionReplayConfiguration) {
         super(viewDetails, view, sessionReplayConfiguration);
         this.viewDetails = viewDetails;
 

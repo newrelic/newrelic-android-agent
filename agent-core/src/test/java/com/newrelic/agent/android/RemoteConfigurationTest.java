@@ -10,6 +10,7 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -49,6 +50,31 @@ public class RemoteConfigurationTest {
         Assert.assertFalse(remoteConfig.getLogReportingConfiguration().getLoggingEnabled());
         Assert.assertEquals(LogLevel.INFO, remoteConfig.getLogReportingConfiguration().getLogLevel());
     }
+
+    @Test
+    public void testSetAndGetSessionReplayConfiguration() {
+        RemoteConfiguration config = new RemoteConfiguration();
+        SessionReplayConfiguration sessionReplayConfig = new SessionReplayConfiguration();
+
+        config.setMobileSessionReplayConfiguration(sessionReplayConfig);
+
+        Assert.assertEquals(sessionReplayConfig, config.getMobileSessionReplayConfiguration());
+    }
+
+
+    @Test
+    public void testDefaultConstructor() {
+        RemoteConfiguration config = new RemoteConfiguration();
+
+        Assert.assertNotNull(config.getApplicationExitConfiguration());
+        Assert.assertNotNull(config.getLogReportingConfiguration());
+        Assert.assertNotNull(config.getMobileSessionReplayConfiguration());
+
+        Assert.assertTrue(config.getApplicationExitConfiguration().isEnabled());
+        Assert.assertFalse(config.getLogReportingConfiguration().getLoggingEnabled());
+        Assert.assertEquals(LogLevel.INFO, config.getLogReportingConfiguration().getLogLevel());
+    }
+
 
     @Test
     public void setLogReportingConfiguration() {

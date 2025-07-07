@@ -34,7 +34,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     private float density;
     private int currentTouchId = -1;
     private TouchTracker currentTouchTracker = null;
-    MobileSessionReplayConfiguration sessionReplayConfiguration;
+    SessionReplayConfiguration sessionReplayConfiguration;
     private final OnTouchRecordedListener onTouchRecordedListener;
 
     public SessionReplayActivityLifecycleCallbacks(OnTouchRecordedListener onTouchRecordedListener) {
