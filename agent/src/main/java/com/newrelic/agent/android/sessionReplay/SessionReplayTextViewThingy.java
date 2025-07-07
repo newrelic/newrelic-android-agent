@@ -27,9 +27,9 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String fontFamily;
     private String textColor;
     private String textAlign;
-    private  MobileSessionReplayConfiguration sessionReplayConfiguration;
+    private SessionReplayConfiguration sessionReplayConfiguration;
 
-    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
+    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, SessionReplayConfiguration sessionReplayConfiguration) {
         this.sessionReplayConfiguration = sessionReplayConfiguration;
         this.viewDetails = viewDetails;
 

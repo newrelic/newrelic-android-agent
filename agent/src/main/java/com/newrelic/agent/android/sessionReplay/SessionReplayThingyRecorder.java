@@ -6,9 +6,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.harvest.HarvestConfiguration;
-
-import java.util.List;
 
 public class SessionReplayThingyRecorder {
     private static String SessionReplayKey = "NewRelicSessionReplayKey";
@@ -23,7 +20,7 @@ public class SessionReplayThingyRecorder {
 
 
         AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
-        MobileSessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getMobileSessionReplayConfiguration();
+        SessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getMobileSessionReplayConfiguration();
 
         if (view instanceof EditText) {
             return new SessionReplayEditTextThingy(viewDetails, (EditText) view,sessionReplayConfiguration);

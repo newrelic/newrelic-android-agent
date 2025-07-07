@@ -20,7 +20,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     private ImageView.ScaleType scaleType;
     private String backgroundColor;
 
-    public SessionReplayImageViewThingy(ViewDetails viewDetails, ImageView view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
+    public SessionReplayImageViewThingy(ViewDetails viewDetails, ImageView view, SessionReplayConfiguration sessionReplayConfiguration) {
         this.viewDetails = viewDetails;
 
         this.contentDescription = view.getContentDescription() != null ? view.getContentDescription().toString() : "";
