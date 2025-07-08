@@ -15,8 +15,6 @@ import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
-
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
@@ -25,7 +23,6 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -33,7 +30,6 @@ public class SessionReplaySender extends PayloadSender {
 
     protected Payload payload;
     private HarvestConfiguration harvestConfiguration;
-    private int payloadSize;
     private Map<String, Object> replayDataMap;
 
     public SessionReplaySender(byte[] bytes, AgentConfiguration agentConfiguration) {
@@ -43,11 +39,9 @@ public class SessionReplaySender extends PayloadSender {
     public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration, Map<String, Object> replayDataMap) throws IOException {
         super(payload, agentConfiguration);
         this.payload = payload;
-        this.payloadSize = payload.getBytes().length;
-
         this.harvestConfiguration = harvestConfiguration;
         this.replayDataMap = replayDataMap;
-        setPayload(gzipCompress(payload.getBytes()));
+        setPayload(this.payload.getBytes());
     }
 
     @Override
@@ -59,7 +53,7 @@ public class SessionReplaySender extends PayloadSender {
         attributes.put(Constants.SessionReplay.ENTITY_GUID, AgentConfiguration.getInstance().getEntityGuid());
         attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, true + "");
         attributes.put(Constants.SessionReplay.RRWEB_VERSION, Constants.SessionReplay.RRWEB_VERSION_VALUE);
-        attributes.put(Constants.SessionReplay.DECOMPRESSED_BYTES, this.payloadSize + "");
+        attributes.put(Constants.SessionReplay.DECOMPRESSED_BYTES, replayDataMap.get(Constants.SessionReplay.DECOMPRESSED_BYTES) + "");
         attributes.put(Constants.SessionReplay.PAYLOAD_TYPE, Constants.SessionReplay.PAYLOAD_TYPE_STANDARD);
         attributes.put(Constants.SessionReplay.REPLAY_FIRST_TIMESTAMP, replayDataMap.get("firstTimestamp") + "");
         attributes.put(Constants.SessionReplay.REPLAY_LAST_TIMESTAMP, replayDataMap.get("lastTimestamp") + "");
@@ -130,13 +124,14 @@ public class SessionReplaySender extends PayloadSender {
             case HttpsURLConnection.HTTP_ACCEPTED:
                 StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIME, timer.peek());
                 int payloadSize = getPayloadSize();
-                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED, payloadSize);
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_COMPRESSED, payloadSize);
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED, (long)replayDataMap.get(Constants.SessionReplay.DECOMPRESSED_BYTES));
                 log.info("Session Replay Blob: [" + payloadSize + "] bytes successfully submitted.");
                 break;
 
             case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] has timed out (will try again later) - Response code [" + responseCode + "]");
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIMEOUT);
+                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIMEOUT,timer.peek());
                 break;
 
             case 429: // 'Too Many Requests' not defined by HttpURLConnection
@@ -150,7 +145,7 @@ public class SessionReplaySender extends PayloadSender {
                 break;
             case HttpURLConnection.HTTP_FORBIDDEN:
                 onFailedUpload("The data payload [" + payload.getUuid() + "] was rejected and will be deleted - Response code [" + responseCode + "]");
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD, timer.peek());
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD, timer.peek());
                 break;
 
             default:
@@ -175,16 +170,6 @@ public class SessionReplaySender extends PayloadSender {
         log.warn("Session Replay: endpoint is not reachable. Will try later...");
 
         return this;
-    }
-
-
-    // Helper method to apply gzip compression
-    private static byte[] gzipCompress(byte[] uncompressedData) throws IOException {
-        ByteArrayOutputStream byteStream = new ByteArrayOutputStream(uncompressedData.length);
-        try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteStream)) {
-            gzipOutputStream.write(uncompressedData);
-        }
-        return byteStream.toByteArray();
     }
 
     protected URI getCollectorURI() {
