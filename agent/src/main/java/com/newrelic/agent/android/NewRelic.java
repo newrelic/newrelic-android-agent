@@ -1279,7 +1279,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().setTextMaskingStrategy(strategy);
+            agentConfiguration.getSessionReplayConfiguration().setTextMaskingStrategy(strategy);
             return true;
         }
 
@@ -1303,7 +1303,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "setSessionReplayMaskUserTouches"));
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().setMaskAllUserTouches(maskTouches);
+            agentConfiguration.getSessionReplayConfiguration().setMaskAllUserTouches(maskTouches);
             return true;
         }
 
@@ -1335,7 +1335,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().addMaskViewClass(viewClassName);
+            agentConfiguration.getSessionReplayConfiguration().addMaskViewClass(viewClassName);
             return true;
         }
 
@@ -1361,7 +1361,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().addUnmaskViewClass(viewClassName);
+            agentConfiguration.getSessionReplayConfiguration().addUnmaskViewClass(viewClassName);
             return true;
         }
 
@@ -1387,7 +1387,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().addMaskViewTag(viewTag);
+            agentConfiguration.getSessionReplayConfiguration().addMaskViewTag(viewTag);
             return true;
         }
 
@@ -1413,7 +1413,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().addUnmaskViewTag(viewTag);
+            agentConfiguration.getSessionReplayConfiguration().addUnmaskViewTag(viewTag);
             return true;
         }
 

@@ -118,7 +118,7 @@ public class CrashReporter extends PayloadReporter {
     protected Future reportCrash(final Crash crash) {
         if (crash != null) {
 
-            if (agentConfiguration.getMobileSessionReplayConfiguration().isEnabled()) {
+            if (agentConfiguration.getSessionReplayConfiguration().isEnabled()) {
                 sessionReplayHandler.handleCrashSessionReplay(crash);
             }
 

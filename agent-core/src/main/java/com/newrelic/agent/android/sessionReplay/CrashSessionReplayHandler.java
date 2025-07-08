@@ -48,7 +48,7 @@ public class CrashSessionReplayHandler {
      * @param crash The crash object containing session information
      */
     public void handleCrashSessionReplay(Crash crash) {
-        if (!agentConfiguration.getMobileSessionReplayConfiguration().isEnabled()) {
+        if (!agentConfiguration.getSessionReplayConfiguration().isEnabled()) {
             log.debug("Session replay is disabled, skipping crash session replay handling");
             return;
         }

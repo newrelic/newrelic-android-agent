@@ -20,7 +20,7 @@ public class SessionReplayThingyRecorder {
 
 
         AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
-        SessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getMobileSessionReplayConfiguration();
+        SessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
 
         if (view instanceof EditText) {
             return new SessionReplayEditTextThingy(viewDetails, (EditText) view,sessionReplayConfiguration);

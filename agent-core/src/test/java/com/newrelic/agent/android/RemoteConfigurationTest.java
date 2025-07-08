@@ -56,9 +56,9 @@ public class RemoteConfigurationTest {
         RemoteConfiguration config = new RemoteConfiguration();
         SessionReplayConfiguration sessionReplayConfig = new SessionReplayConfiguration();
 
-        config.setMobileSessionReplayConfiguration(sessionReplayConfig);
+        config.setSessionReplayConfiguration(sessionReplayConfig);
 
-        Assert.assertEquals(sessionReplayConfig, config.getMobileSessionReplayConfiguration());
+        Assert.assertEquals(sessionReplayConfig, config.getSessionReplayConfiguration());
     }
 
 
@@ -68,7 +68,7 @@ public class RemoteConfigurationTest {
 
         Assert.assertNotNull(config.getApplicationExitConfiguration());
         Assert.assertNotNull(config.getLogReportingConfiguration());
-        Assert.assertNotNull(config.getMobileSessionReplayConfiguration());
+        Assert.assertNotNull(config.getSessionReplayConfiguration());
 
         Assert.assertTrue(config.getApplicationExitConfiguration().isEnabled());
         Assert.assertFalse(config.getLogReportingConfiguration().getLoggingEnabled());

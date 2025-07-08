@@ -114,7 +114,7 @@ public class SessionReplayConfiguration {
     }
 
     public boolean isMaskApplicationText() {
-        return textMaskingStrategy == TextMaskingStrategy.MASK_ALL_TEXT;
+       return this.maskApplicationText;
     }
 
     public void setMaskApplicationText(boolean maskApplicationText) {

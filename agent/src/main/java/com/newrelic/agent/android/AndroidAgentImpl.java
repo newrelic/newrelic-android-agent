@@ -600,7 +600,7 @@ public class AndroidAgentImpl implements
         Harvest.shutdown();
         Measurements.shutdown();
         PayloadController.shutdown();
-        if(agentConfiguration.getMobileSessionReplayConfiguration().isSessionReplayEnabled()) {
+        if(agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
             SessionReplay.deInitialize();
         }
     }
@@ -650,10 +650,10 @@ public class AndroidAgentImpl implements
 
     private static void startSessionReplayRecorder(Context context, AgentConfiguration agentConfiguration) {
 
-        agentConfiguration.getMobileSessionReplayConfiguration().reseed();
-        if(agentConfiguration.getMobileSessionReplayConfiguration().isSessionReplayEnabled()) {
+        agentConfiguration.getSessionReplayConfiguration().reseed();
+        if(agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
-            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_SAMPLED + agentConfiguration.getMobileSessionReplayConfiguration().isSampled());
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_SAMPLED + agentConfiguration.getSessionReplayConfiguration().isSampled());
             Handler uiHandler = new Handler(Looper.getMainLooper());
             SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler);
 

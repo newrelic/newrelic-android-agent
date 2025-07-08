@@ -66,11 +66,11 @@ public class RemoteConfiguration implements HarvestLifecycleAware, HarvestConfig
         this.applicationExitConfiguration = applicationExitConfiguration;
     }
 
-    public SessionReplayConfiguration getMobileSessionReplayConfiguration() {
+    public SessionReplayConfiguration getSessionReplayConfiguration() {
         return sessionReplayConfiguration;
     }
 
-    public void setMobileSessionReplayConfiguration(SessionReplayConfiguration sessionReplayConfiguration) {
+    public void setSessionReplayConfiguration(SessionReplayConfiguration sessionReplayConfiguration) {
         this.sessionReplayConfiguration = sessionReplayConfiguration;
     }
 

@@ -63,7 +63,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
-        sessionReplayConfiguration = agentConfiguration.getMobileSessionReplayConfiguration();
+        sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
         boolean shouldMaskTouches = sessionReplayConfiguration.isMaskAllUserTouches();
         Log.d(TAG, "onActivityResumed: " + activity.getClass().getSimpleName());
         density = activity.getResources().getDisplayMetrics().density;
