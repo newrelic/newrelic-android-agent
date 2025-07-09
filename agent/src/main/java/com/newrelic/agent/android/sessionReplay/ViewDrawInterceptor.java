@@ -10,6 +10,7 @@ import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.WindowMetrics;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 
 import java.util.Map;
@@ -21,8 +22,10 @@ public class ViewDrawInterceptor {
     private final OnFrameTakenListener listener;
     private static final long CAPTURE_INTERVAL = 1000;
     private long lastCaptureTime = 0;
-    public ViewDrawInterceptor(OnFrameTakenListener listener) {
+    private AgentConfiguration agentConfiguration;
+    public ViewDrawInterceptor(OnFrameTakenListener listener, AgentConfiguration agentConfiguration) {
         this.listener = listener;
+        this.agentConfiguration = agentConfiguration;
     }
 
 
@@ -40,7 +43,7 @@ public class ViewDrawInterceptor {
                 int height = (int) (screenSize.y/density);
 
             // Start walking the view tree
-            SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length -1]), System.currentTimeMillis(), width, height);
+            SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length -1],agentConfiguration), System.currentTimeMillis(), width, height);
 
             // Create a SessionReplayFrame, then add it to a thing to wait for processing
             ViewDrawInterceptor.this.listener.onFrameTaken(frame);

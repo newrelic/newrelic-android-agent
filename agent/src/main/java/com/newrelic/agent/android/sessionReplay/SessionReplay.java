@@ -11,6 +11,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.background.ApplicationStateListener;
 import com.newrelic.agent.android.harvest.Harvest;
@@ -49,7 +50,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @param application     The application instance
      * @param uiThreadHandler Handler for the UI thread
      */
-    public static void initialize(Application application, Handler uiThreadHandler) {
+    public static void initialize(Application application, Handler uiThreadHandler, AgentConfiguration agentConfiguration) {
         if (application == null) {
             Log.e("SessionReplay", "Cannot initialize with null application");
             return;
@@ -64,7 +65,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         SessionReplay.uiThreadHandler = uiThreadHandler;
 
         sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance);
-        viewDrawInterceptor = new ViewDrawInterceptor(instance);
+        viewDrawInterceptor = new ViewDrawInterceptor(instance,agentConfiguration);
 
         // Initialize file manager
         instance.fileManager = new SessionReplayFileManager(instance.processor);

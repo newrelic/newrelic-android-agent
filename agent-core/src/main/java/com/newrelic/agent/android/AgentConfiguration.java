@@ -20,6 +20,7 @@ import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadStore;
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
@@ -78,6 +79,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.INFO);
     private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
     private SessionReplayConfiguration mobileSessionReplayConfiguration = new SessionReplayConfiguration();
+    private SessionReplayLocalConfiguration sessionReplayLocalConfiguration = new SessionReplayLocalConfiguration();
 
     public String getApplicationToken() {
         return applicationToken;
@@ -420,5 +422,13 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setSessionReplayConfiguration(SessionReplayConfiguration sessionReplayConfiguration) {
         this.mobileSessionReplayConfiguration = sessionReplayConfiguration;
+    }
+
+    public SessionReplayLocalConfiguration getSessionReplayLocalConfiguration() {
+        return this.sessionReplayLocalConfiguration;
+    }
+
+    public void setSessionReplayConfiguration(SessionReplayLocalConfiguration sessionReplayLocalConfiguration) {
+        this.mobileSessionReplayConfiguration = mobileSessionReplayConfiguration;
     }
 }
