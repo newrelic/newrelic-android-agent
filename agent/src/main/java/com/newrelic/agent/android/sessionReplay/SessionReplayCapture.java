@@ -5,6 +5,7 @@ import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 
 import java.util.ArrayList;
@@ -12,8 +13,8 @@ import java.util.ArrayList;
 public class SessionReplayCapture {
     private SessionReplayThingyRecorder recorder;
 
-    public SessionReplayViewThingyInterface capture(View rootView) {
-        recorder = new SessionReplayThingyRecorder(rootView.getResources().getDisplayMetrics().density);
+    public SessionReplayViewThingyInterface capture(View rootView, AgentConfiguration agentConfiguration) {
+        recorder = new SessionReplayThingyRecorder(rootView.getResources().getDisplayMetrics().density,agentConfiguration);
         return recursivelyCapture(rootView,false);
     }
 

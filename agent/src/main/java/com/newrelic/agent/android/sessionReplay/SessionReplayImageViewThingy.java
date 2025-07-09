@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 
@@ -20,7 +21,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     private ImageView.ScaleType scaleType;
     private String backgroundColor;
 
-    public SessionReplayImageViewThingy(ViewDetails viewDetails, ImageView view, SessionReplayConfiguration sessionReplayConfiguration) {
+    public SessionReplayImageViewThingy(ViewDetails viewDetails, ImageView view, AgentConfiguration agentConfiguration) {
         this.viewDetails = viewDetails;
 
         this.contentDescription = view.getContentDescription() != null ? view.getContentDescription().toString() : "";

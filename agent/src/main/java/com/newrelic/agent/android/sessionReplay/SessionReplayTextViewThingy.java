@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.Typeface;
 import android.widget.TextView;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
@@ -12,6 +13,7 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 // Assuming SessionReplayViewThingy is an interface or abstract class in Java
@@ -27,18 +29,20 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String fontFamily;
     private String textColor;
     private String textAlign;
-    private SessionReplayConfiguration sessionReplayConfiguration;
+    protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
+    protected SessionReplayConfiguration sessionReplayConfiguration;
 
-    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, SessionReplayConfiguration sessionReplayConfiguration) {
-        this.sessionReplayConfiguration = sessionReplayConfiguration;
+    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, AgentConfiguration agentConfiguration) {
+        this.sessionReplayLocalConfiguration = agentConfiguration.getSessionReplayLocalConfiguration();
+        this.sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
         this.viewDetails = viewDetails;
 
         // Get the raw text from the TextView
         String rawText = view.getText() != null ? view.getText().toString() : "";
 
         // Determine if text should be masked based on configuration
-        boolean shouldMaskText = sessionReplayConfiguration.isMaskApplicationText() ||
-                                (sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0);
+        boolean shouldMaskText = ((sessionReplayConfiguration.isMaskApplicationText())  ||
+                                ((sessionReplayConfiguration.isMaskUserInputText()) && view.getInputType() != 0));
 
         // Apply masking if needed
         this.labelText = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
@@ -225,11 +229,13 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         // Check if view has tags that prevent masking
         Object viewTag = view.getTag();
         Object privacyTag = view.getTag(R.id.newrelic_privacy);
-        boolean hasUnmaskTag = ("nr-unmask".equals(viewTag)) ||
-              ("nr-unmask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString()) )|| checkMaskUnMaskViewClass(sessionReplayConfiguration.getUnmaskedViewClasses(),view);
-
+        boolean hasUnmaskTag = false;
+        if(Objects.equals(sessionReplayConfiguration.getMode(), "custom")) {
+            hasUnmaskTag = ("nr-unmask".equals(viewTag)) ||
+                    ("nr-unmask".equals(privacyTag)) || (view.getTag() != null && (sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString()) || sessionReplayLocalConfiguration.shouldUnmaskViewTag(view.getTag().toString()))) || checkMaskUnMaskViewClass(sessionReplayConfiguration.getUnmaskedViewClasses(), view) || checkMaskUnMaskViewClass(sessionReplayLocalConfiguration.getUnmaskedViewClasses(), view);
+        }
         // Check if view has tag that forces masking
-        boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString())) || checkMaskUnMaskViewClass(sessionReplayConfiguration.getMaskedViewClasses(),view);
+        boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && (sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString()) || sessionReplayLocalConfiguration.shouldMaskViewTag(view.getTag().toString()))) || checkMaskUnMaskViewClass(sessionReplayConfiguration.getMaskedViewClasses(),view) || checkMaskUnMaskViewClass(sessionReplayLocalConfiguration.getMaskedViewClasses(),view);
         // Apply masking if needed:
         // - If general masking is enabled AND no unmask tag AND not in unmask class list, OR
         // - If has explicit mask tag OR class is explicitly masked

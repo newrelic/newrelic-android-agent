@@ -600,9 +600,8 @@ public class AndroidAgentImpl implements
         Harvest.shutdown();
         Measurements.shutdown();
         PayloadController.shutdown();
-        if(agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
-            SessionReplay.deInitialize();
-        }
+        SessionReplay.deInitialize();
+
     }
 
     @Override
@@ -655,7 +654,7 @@ public class AndroidAgentImpl implements
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_SAMPLED + agentConfiguration.getSessionReplayConfiguration().isSampled());
             Handler uiHandler = new Handler(Looper.getMainLooper());
-            SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler);
+            SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler,agentConfiguration);
 
         } else
             // if the session replay is not enabled, remove the attribute from the previous session

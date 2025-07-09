@@ -10,19 +10,26 @@ import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.WindowMetrics;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 
 import java.util.Map;
 import java.util.WeakHashMap;
 
-public class ViewDrawInterceptor {
+public class ViewDrawInterceptor  {
     private final WeakHashMap<View, ViewTreeObserver.OnDrawListener> decorViewListeners = new WeakHashMap<>();
     SessionReplayCapture capture = new SessionReplayCapture();
     private final OnFrameTakenListener listener;
     private static final long CAPTURE_INTERVAL = 1000;
     private long lastCaptureTime = 0;
-    public ViewDrawInterceptor(OnFrameTakenListener listener) {
+    private AgentConfiguration agentConfiguration;
+    private Debouncer captureDebouncer;
+    private static final long DEBOUNCE_DELAY = 1000; // ~60 FPS (16ms per frame)
+
+    public ViewDrawInterceptor(OnFrameTakenListener listener, AgentConfiguration agentConfiguration) {
         this.listener = listener;
+        this.agentConfiguration = agentConfiguration;
+        this.captureDebouncer = new Debouncer(DEBOUNCE_DELAY);
     }
 
 
@@ -30,23 +37,29 @@ public class ViewDrawInterceptor {
         stopInterceptAndRemove(decorViews);
         ViewTreeObserver.OnDrawListener listener = () -> {
             long currentTime = System.currentTimeMillis();
-            if (currentTime - lastCaptureTime >= CAPTURE_INTERVAL) {
-                Context context = decorViews[0].getContext().getApplicationContext();
-                float density = context.getResources().getDisplayMetrics().density;
+            Log.d("ViewDrawInterceptor", "onDraw() called" + " at " + currentTime + " lastCaptureTime: " + lastCaptureTime + " interval: " + CAPTURE_INTERVAL);
 
-                // Get screen dimensions
-                Point screenSize = getScreenDimensions(context);
-                int width = (int) (screenSize.x/density);
-                int height = (int) (screenSize.y/density);
+            // Use debouncer to limit capture frequency
+            captureDebouncer.debounce(() -> {
+                if (currentTime - lastCaptureTime >= CAPTURE_INTERVAL) {
+                    Log.d("ViewDrawInterceptor", "Capturing frame");
+                    Context context = decorViews[0].getContext().getApplicationContext();
+                    float density = context.getResources().getDisplayMetrics().density;
 
-            // Start walking the view tree
-            SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length -1]), System.currentTimeMillis(), width, height);
+                    // Get screen dimensions
+                    Point screenSize = getScreenDimensions(context);
+                    int width = (int) (screenSize.x/density);
+                    int height = (int) (screenSize.y/density);
 
-            // Create a SessionReplayFrame, then add it to a thing to wait for processing
-            ViewDrawInterceptor.this.listener.onFrameTaken(frame);
-                // Update the last capture time
-                lastCaptureTime = currentTime;
-            }
+                    // Start walking the view tree
+                    SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length -1],agentConfiguration), System.currentTimeMillis(), width, height);
+
+                    // Create a SessionReplayFrame, then add it to a thing to wait for processing
+                    ViewDrawInterceptor.this.listener.onFrameTaken(frame);
+                    // Update the last capture time
+                    lastCaptureTime = System.currentTimeMillis(); // Use current time when actually executing
+                }
+            });
         };
 
         for(View decorView : decorViews) {
@@ -63,6 +76,7 @@ public class ViewDrawInterceptor {
     }
 
     public void stopIntercept() {
+        captureDebouncer.cancel(); // Cancel any pending captures
         for(Map.Entry<View, ViewTreeObserver.OnDrawListener> entry : decorViewListeners.entrySet()) {
             safeObserverRemoval(entry.getKey(), entry.getValue());
         }
@@ -118,4 +132,6 @@ public class ViewDrawInterceptor {
         }
         return new Point(width, height);
     }
+
+
 }
