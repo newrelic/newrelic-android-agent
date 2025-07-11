@@ -35,8 +35,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -626,16 +629,23 @@ public class LogReporter extends PayloadReporter {
     public void appendToWorkingLogfile(Map<String, Object> logDataMap) throws IOException {
         try {
             workingFileLock.lock();
-            String logJsonData = gson.toJson(logDataMap, gtype);
+            try (RandomAccessFile raf = new RandomAccessFile(workingLogfile, "rw");
+                 FileChannel channel = raf.getChannel();
+                 FileLock lock = channel.lock()) {
+                String logJsonData = gson.toJson(logDataMap, gtype);
 
-            if (null != workingLogfileWriter.get()) {
-                workingLogfileWriter.get().append(logJsonData);
-                workingLogfileWriter.get().newLine();
+                if (null != workingLogfileWriter.get()) {
+                    workingLogfileWriter.get().append(logJsonData);
+                    workingLogfileWriter.get().newLine();
 
-            } else {
-                // the writer has closed, usually a result of the agent stopping
+                } else {
+                    // the writer has closed, usually a result of the agent stopping
+                }
+            } catch(Exception ex){
+                ex.printStackTrace();
+            } finally {
+                // The lock is automatically released by try-with-resources when 'lock.close()' is called.
             }
-
         } catch(Exception ex) {
           ex.printStackTrace();
         } finally {
