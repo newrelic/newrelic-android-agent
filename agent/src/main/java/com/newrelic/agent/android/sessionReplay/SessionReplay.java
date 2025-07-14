@@ -85,6 +85,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * functionality needs to be disabled.
      */
     public static void deInitialize() {
+        if(application == null) {
+            return;
+        }
         unregisterCallbacks();
         stopRecording();
 

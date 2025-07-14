@@ -40,7 +40,6 @@ public class ViewDrawInterceptor  {
             Log.d("ViewDrawInterceptor", "onDraw() called" + " at " + currentTime + " lastCaptureTime: " + lastCaptureTime + " interval: " + CAPTURE_INTERVAL);
 
             // Use debouncer to limit capture frequency
-            captureDebouncer.debounce(() -> {
                 if (currentTime - lastCaptureTime >= CAPTURE_INTERVAL) {
                     Log.d("ViewDrawInterceptor", "Capturing frame");
                     Context context = decorViews[0].getContext().getApplicationContext();
@@ -59,8 +58,7 @@ public class ViewDrawInterceptor  {
                     // Update the last capture time
                     lastCaptureTime = System.currentTimeMillis(); // Use current time when actually executing
                 }
-            });
-        };
+            };
 
         for(View decorView : decorViews) {
             ViewTreeObserver viewTreeObserver = decorView.getViewTreeObserver();
