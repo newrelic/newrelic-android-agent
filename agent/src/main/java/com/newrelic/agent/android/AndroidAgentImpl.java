@@ -677,7 +677,10 @@ public class AndroidAgentImpl implements
     private static void startSessionReplayRecorder(Context context, AgentConfiguration agentConfiguration) {
 
         SessionReplayConfiguration.reseed();
-        if(agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+        SessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
+        if(sessionReplayConfiguration.isSessionReplayEnabled()) {
+            // only process masking rules if session replay is enabled
+            sessionReplayConfiguration.processCustomMaskingRules();
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_SAMPLED + agentConfiguration.getSessionReplayConfiguration().isSampled());
             Handler uiHandler = new Handler(Looper.getMainLooper());

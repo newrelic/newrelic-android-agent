@@ -256,7 +256,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         Class clazz = view.getClass();
 
         while (clazz!= null) {
-            if (viewClasses.contains(clazz.getName())) {
+            if (viewClasses != null && viewClasses.contains(clazz.getName())) {
                 return true;
             }
             clazz = clazz.getSuperclass();

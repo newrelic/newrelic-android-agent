@@ -24,7 +24,7 @@ public class ViewDrawInterceptor  {
     private long lastCaptureTime = 0;
     private AgentConfiguration agentConfiguration;
     private Debouncer captureDebouncer;
-    private static final long DEBOUNCE_DELAY = 1000; // ~60 FPS (16ms per frame)
+    private static final long DEBOUNCE_DELAY = 250; // ~60 FPS (16ms per frame)
 
     public ViewDrawInterceptor(OnFrameTakenListener listener, AgentConfiguration agentConfiguration) {
         this.listener = listener;
@@ -39,26 +39,26 @@ public class ViewDrawInterceptor  {
             long currentTime = System.currentTimeMillis();
             Log.d("ViewDrawInterceptor", "onDraw() called" + " at " + currentTime + " lastCaptureTime: " + lastCaptureTime + " interval: " + CAPTURE_INTERVAL);
 
-            // Use debouncer to limit capture frequency
-                if (currentTime - lastCaptureTime >= CAPTURE_INTERVAL) {
-                    Log.d("ViewDrawInterceptor", "Capturing frame");
-                    Context context = decorViews[0].getContext().getApplicationContext();
-                    float density = context.getResources().getDisplayMetrics().density;
+            captureDebouncer.debounce(() -> {
+                // Use debouncer to limit capture frequency
+                lastCaptureTime = currentTime;
+                Log.d("ViewDrawInterceptor", "Capturing frame");
+                Context context = decorViews[0].getContext().getApplicationContext();
+                float density = context.getResources().getDisplayMetrics().density;
 
-                    // Get screen dimensions
-                    Point screenSize = getScreenDimensions(context);
-                    int width = (int) (screenSize.x/density);
-                    int height = (int) (screenSize.y/density);
+                // Get screen dimensions
+                Point screenSize = getScreenDimensions(context);
+                int width = (int) (screenSize.x / density);
+                int height = (int) (screenSize.y / density);
 
-                    // Start walking the view tree
-                    SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length -1],agentConfiguration), System.currentTimeMillis(), width, height);
+                // Start walking the view tree
+                SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length - 1], agentConfiguration), System.currentTimeMillis(), width, height);
 
-                    // Create a SessionReplayFrame, then add it to a thing to wait for processing
-                    ViewDrawInterceptor.this.listener.onFrameTaken(frame);
-                    // Update the last capture time
-                    lastCaptureTime = System.currentTimeMillis(); // Use current time when actually executing
-                }
-            };
+                // Create a SessionReplayFrame, then add it to a thing to wait for processing
+                ViewDrawInterceptor.this.listener.onFrameTaken(frame);
+                // Update the last capture time
+            });
+        };
 
         for(View decorView : decorViews) {
             ViewTreeObserver viewTreeObserver = decorView.getViewTreeObserver();
