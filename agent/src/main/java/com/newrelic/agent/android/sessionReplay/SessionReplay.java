@@ -115,8 +115,14 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return;
         }
 
-        log.debug("Processing"+rawFrames.size() +  "frame data");
+        Log.d("SessionReplay","Processing"+rawFrames.size() +  "frame data");
+
+        // Start timing frame processing
+        long frameProcessingStart = System.currentTimeMillis();
         rrWebEvents.addAll(processor.processFrames(rawFrames));
+        long frameProcessingTime = System.currentTimeMillis() - frameProcessingStart;
+
+        Log.d("SessionReplay","Frame processing took: " + frameProcessingTime + "ms for " + rawFrames.size() + " frames");
 
         ArrayList<RRWebEvent> totalTouches = new ArrayList<>();
         for (TouchTracker touchTracker : touchTrackers) {

@@ -51,9 +51,14 @@ public class ViewDrawInterceptor  {
                 int width = (int) (screenSize.x / density);
                 int height = (int) (screenSize.y / density);
 
+                // Start timing the frame creation
+                long frameCreationStart = System.currentTimeMillis();
                 // Start walking the view tree
                 SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length - 1], agentConfiguration), System.currentTimeMillis(), width, height);
 
+                // Calculate frame creation time
+                long frameCreationTime = System.currentTimeMillis() - frameCreationStart;
+                Log.d("ViewDrawInterceptor", "Frame creation took: " + frameCreationTime + "ms");
                 // Create a SessionReplayFrame, then add it to a thing to wait for processing
                 ViewDrawInterceptor.this.listener.onFrameTaken(frame);
                 // Update the last capture time
