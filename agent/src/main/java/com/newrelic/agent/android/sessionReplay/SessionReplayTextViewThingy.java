@@ -41,8 +41,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         String rawText = view.getText() != null ? view.getText().toString() : "";
 
         // Determine if text should be masked based on configuration
-        boolean shouldMaskText = ((sessionReplayConfiguration.isMaskApplicationText())  ||
-                                ((sessionReplayConfiguration.isMaskUserInputText()) && view.getInputType() != 0));
+        boolean shouldMaskText = view.getInputType() != 0 ? sessionReplayConfiguration.isMaskUserInputText(): sessionReplayConfiguration.isMaskApplicationText();
 
         // Apply masking if needed
         this.labelText = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
