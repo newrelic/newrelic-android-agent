@@ -20,10 +20,6 @@ public class SessionReplayThingyRecorder {
     public SessionReplayViewThingyInterface recordView(View view) {
         ViewDetails viewDetails = new ViewDetails(view);
 
-
-
-
-
         if (view instanceof EditText) {
             return new SessionReplayEditTextThingy(viewDetails, (EditText) view,agentConfiguration);
         } if (view instanceof ImageView) {

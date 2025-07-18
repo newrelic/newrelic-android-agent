@@ -61,7 +61,6 @@ public class ViewDrawInterceptor  {
                 Log.d("ViewDrawInterceptor", "Frame creation took: " + frameCreationTime + "ms");
                 // Create a SessionReplayFrame, then add it to a thing to wait for processing
                 ViewDrawInterceptor.this.listener.onFrameTaken(frame);
-                // Update the last capture time
             });
         };
 
