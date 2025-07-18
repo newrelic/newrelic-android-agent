@@ -203,7 +203,8 @@ publishing {
             }
 
             pom {
-                groupId = 'com.newrelic.agent.android'
+//                groupId = 'com.newrelic.agent.android'
+                groupId = 'io.github.ywang-nr'
                 artifactId = monoEnabled ? 'android-agent-static' : 'android-agent'
                 version = rootProject.version
                 name = 'New Relic Android Agent'

@@ -43,7 +43,8 @@ project.tasks.register("checkJavaVersion") {
 
 allprojects { project ->
     version = project.versions.agent
-    group = 'com.newrelic.agent.android'
+//    group = 'com.newrelic.agent.android'
+    group = 'io.github.ywang-nr'
 
     task allDeps(type: DependencyReportTask) {}
 
