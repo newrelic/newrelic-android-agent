@@ -12,7 +12,7 @@ buildscript {
         mavenCentral()
         google()
         maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "https://oss.sonatype.org/content/repositories/comnewrelic-${project.versions.agent}" }
+        maven { url "https://ossrh-staging-api.central.sonatype.com/content/repositories/comnewrelic-${project.versions.agent}" }
     }
 
     dependencies {
@@ -43,12 +43,13 @@ project.tasks.register("checkJavaVersion") {
 
 allprojects { project ->
     version = project.versions.agent
-    group = 'com.newrelic.agent.android'
+//    group = 'com.newrelic.agent.android'
+    group = 'io.github.ywang-nr'
 
     task allDeps(type: DependencyReportTask) {}
 
     repositories {
-        maven { url "https://oss.sonatype.org/content/repositories/comnewrelic-" + newrelic.agent.snapshot }
+        maven { url "https://ossrh-staging-api.central.sonatype.com/content/repositories/comnewrelic-" + newrelic.agent.snapshot }
         mavenCentral()
         google()
     }
@@ -137,6 +138,8 @@ if (project.findProperty("sonatypeUsername") != null && project.findProperty("so
     nexusPublishing {
         repositories {
             sonatype {
+                nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+                snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
                 username = sonatypeUsername
                 password = sonatypePassword
             }
