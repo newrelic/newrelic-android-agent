@@ -11,7 +11,9 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.os.Build;
 import android.os.Debug;
 import android.os.Process;
 import android.telephony.TelephonyManager;
@@ -30,6 +32,7 @@ public class SpyContext {
 
     public static final String APP_VERSION_NAME = "1.1";
     public static final int APP_VERSION_CODE = 99;
+    public static final long APP_LONG_VERSION_CODE = 99L;
     public static final int APP_MEMORY = 0xbadf00d;
 
     private Context context = ApplicationProvider.getApplicationContext();
@@ -72,8 +75,10 @@ public class SpyContext {
         }
 
         final ConnectivityManager connectivityManager = spy((ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE));
-        final NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
-        when(connectivityManager.getActiveNetworkInfo()).thenReturn(networkInfo);
+        
+        // Setup connectivity based on API level
+        setupConnectivity(context, connectivityManager);
+        
         when(context.getSystemService(Context.CONNECTIVITY_SERVICE)).thenReturn(connectivityManager);
 
         final TelephonyManager telephonyManager = spy((TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE));
@@ -84,6 +89,33 @@ public class SpyContext {
         when(activityManager.getProcessMemoryInfo(pids)).thenReturn(memInfo);
         when(context.getSystemService(Context.ACTIVITY_SERVICE)).thenReturn(activityManager);
     }
+    
+    /**
+     * Sets up connectivity information based on API level
+     */
+    private void setupConnectivity(Context context, ConnectivityManager connectivityManager) {
+            // For API 23+ (Android 6.0+), use the new NetworkCapabilities API
+            setupModernConnectivity(connectivityManager);
+
+    }
+    
+    /**
+     * Sets up connectivity using the modern NetworkCapabilities API (API 23+)
+     */
+    private void setupModernConnectivity(ConnectivityManager connectivityManager) {
+        Network network = mock(Network.class);
+        NetworkCapabilities networkCapabilities = mock(NetworkCapabilities.class);
+        
+        // Mock a WiFi connection
+        when(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)).thenReturn(true);
+        when(networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)).thenReturn(true);
+        when(networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)).thenReturn(true);
+        
+        when(connectivityManager.getActiveNetwork()).thenReturn(network);
+        when(connectivityManager.getNetworkCapabilities(network)).thenReturn(networkCapabilities);
+        
+        // Also set up legacy NetworkInfo for backward compatibility
+    }
 
     private PackageInfo providePackageInfo(Context context) {
         PackageManager packageManager = context.getPackageManager();
@@ -92,12 +124,49 @@ public class SpyContext {
         try {
             packageInfo = packageManager.getPackageInfo(context.getPackageName(), 0);
             packageInfo.versionName = APP_VERSION_NAME;
-            packageInfo.versionCode = APP_VERSION_CODE;
+            
+            // Set version code based on API level
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                // For API 28 (Android 9.0) and above, use the new method
+                setLongVersionCode(packageInfo, APP_LONG_VERSION_CODE);
+            } else {
+                // For older Android versions, use the deprecated field
+                setLegacyVersionCode(packageInfo, APP_VERSION_CODE);
+            }
         } catch (PackageManager.NameNotFoundException e) {
             Assert.fail();
         }
 
         return packageInfo;
+    }
+    
+    /**
+     * Sets the long version code for API 28+ using reflection to avoid direct dependency
+     * on API 28 methods which would cause compilation issues on older build tools.
+     * 
+     * @param packageInfo The PackageInfo object
+     * @param versionCode The long version code to set
+     */
+    private void setLongVersionCode(PackageInfo packageInfo, long versionCode) {
+        try {
+            // Try to use the new API if available
+            packageInfo.getClass().getMethod("setLongVersionCode", long.class)
+                    .invoke(packageInfo, versionCode);
+        } catch (Exception e) {
+            // Fall back to the deprecated field if the new API is not available
+            setLegacyVersionCode(packageInfo, (int) versionCode);
+        }
+    }
+    
+    /**
+     * Sets the legacy version code for backward compatibility
+     * 
+     * @param packageInfo The PackageInfo object
+     * @param versionCode The int version code to set
+     */
+    @SuppressWarnings("deprecation")
+    private void setLegacyVersionCode(PackageInfo packageInfo, int versionCode) {
+        packageInfo.versionCode = versionCode;
     }
 
     private ApplicationInfo provideApplicationInfo(Context context) {

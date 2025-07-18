@@ -3,6 +3,7 @@ package com.newrelic.agent.android.sessionReplay;
 import android.annotation.SuppressLint;
 import android.widget.EditText;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
@@ -17,14 +18,15 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
 
     public boolean shouldRecordSubviews = false;
     private String hint;
-    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view, SessionReplayConfiguration sessionReplayConfiguration) {
-        super(viewDetails, view, sessionReplayConfiguration);
+
+    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view, AgentConfiguration agentConfiguration) {
+        // Call the parent constructor to initialize common properties
+        super(viewDetails, view, agentConfiguration);
         this.viewDetails = viewDetails;
 
         // Get the raw text from the TextView
         String rawText = view.getHint() != null ? view.getHint().toString() : "";
-        boolean shouldMaskText = sessionReplayConfiguration.isMaskApplicationText() ||
-                (sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0);
+        boolean shouldMaskText =  view.getInputType() != 0 ? sessionReplayConfiguration.isMaskUserInputText(): sessionReplayConfiguration.isMaskApplicationText();
 
         // Apply masking if needed
         this.hint = getMaskedTextIfNeeded(view, rawText, shouldMaskText);

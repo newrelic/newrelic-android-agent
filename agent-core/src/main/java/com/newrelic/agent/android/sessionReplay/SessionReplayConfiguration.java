@@ -168,6 +168,62 @@ public class SessionReplayConfiguration {
         this.customMaskingRules = customMaskingRules;
     }
 
+    /**
+     * Process custom masking rules to populate the view class and tag sets.
+     * This should be called after deserialization from JSON.
+     */
+    public void processCustomMaskingRules() {
+        // Initialize sets
+        if (maskedViewTags == null) {
+            maskedViewTags = new HashSet<>();
+        } else {
+            maskedViewTags.clear();
+        }
+
+        if (unmaskedViewTags == null) {
+            unmaskedViewTags = new HashSet<>();
+        } else {
+            unmaskedViewTags.clear();
+        }
+
+        if (maskedViewClasses == null) {
+            maskedViewClasses = new HashSet<>();
+        } else {
+            maskedViewClasses.clear();
+        }
+
+        if (unmaskedViewClasses == null) {
+            unmaskedViewClasses = new HashSet<>();
+        } else {
+            unmaskedViewClasses.clear();
+        }
+
+        // Process rules if they exist
+        if (customMaskingRules != null) {
+            customMaskingRules.forEach(rule -> {
+                if (rule != null && rule.getOperator() != null && rule.getType() != null && rule.getIdentifier() != null) {
+                    if (rule.getOperator().equals("equals") && rule.getType().equals("mask") && rule.getIdentifier().equals("tag")) {
+                        if (rule.getName() != null) {
+                            maskedViewTags.addAll(rule.getName());
+                        }
+                    } else if (rule.getOperator().equals("equals") && rule.getType().equals("unmask") && rule.getIdentifier().equals("tag")) {
+                        if (rule.getName() != null) {
+                            unmaskedViewTags.addAll(rule.getName());
+                        }
+                    } else if (rule.getOperator().equals("equals") && rule.getType().equals("mask") && rule.getIdentifier().equals("class")) {
+                        if (rule.getName() != null) {
+                            maskedViewClasses.addAll(rule.getName());
+                        }
+                    } else if (rule.getOperator().equals("equals") && rule.getType().equals("unmask") && rule.getIdentifier().equals("class")) {
+                        if (rule.getName() != null) {
+                            unmaskedViewClasses.addAll(rule.getName());
+                        }
+                    }
+                }
+            });
+        }
+    }
+
     public boolean isSessionReplayEnabled() {
         return this.enabled && isSampled();
     }
@@ -179,99 +235,7 @@ public class SessionReplayConfiguration {
         return sampleSeed <= samplingRate;
     }
 
-    public Set<String> getMaskedViewTags() {
-        if (maskedViewTags == null) {
-            maskedViewTags = new HashSet<>();
-        }
-        
-        customMaskingRules.forEach(rule -> {
-            if (rule.getOperator().equals("equals") && rule.getType().equals("mask")) {
-                maskedViewTags.addAll(rule.getName());
-            }
-        });
-        return maskedViewTags;
-    }
 
-    public Set<String> getUnMaskedViewTags() {
-        if (unmaskedViewTags == null) {
-            unmaskedViewTags = new HashSet<>();
-        }
-        
-        customMaskingRules.forEach(rule -> {
-            if (rule.getOperator().equals("equals") && rule.getType().equals("un-mask")) {
-                unmaskedViewTags.addAll(rule.getName());
-            }
-        });
-        return unmaskedViewTags;
-    }
-
-    /**
-     * Adds a view class name to the list of views that should have their text masked
-     * during session replay.
-     *
-     * @param viewClassName The fully qualified class name of the view to mask
-     */
-    public void addMaskViewClass(String viewClassName) {
-        if (maskedViewClasses == null) {
-            maskedViewClasses = new HashSet<>();
-        }
-        maskedViewClasses.add(viewClassName);
-    }
-
-    /**
-     * Adds a view class name to the list of views that should be explicitly unmasked
-     * during session replay, even if they would otherwise be masked.
-     *
-     * @param viewClassName The fully qualified class name of the view to unmask
-     */
-    public void addUnmaskViewClass(String viewClassName) {
-        if (unmaskedViewClasses == null) {
-            unmaskedViewClasses = new HashSet<>();
-        }
-        unmaskedViewClasses.add(viewClassName);
-    }
-
-    /**
-     * Checks if a view class should be masked based on its class name.
-     *
-     * @param viewClassName The class name to check
-     * @return true if the view should be masked, false otherwise
-     */
-    public boolean shouldMaskViewClass(String viewClassName) {
-        // If explicitly masked, do mask
-        return maskedViewClasses != null && maskedViewClasses.contains(viewClassName);
-    }
-
-    public boolean shouldUnmaskViewClass(String viewClassName) {
-        // If explicitly unmasked, do not mask
-        return unmaskedViewClasses != null && unmaskedViewClasses.contains(viewClassName);
-    }
-
-    /**
-     * Adds a view tag to the list of views that should have their text masked
-     * during session replay.
-     *
-     * @param viewTag The tag value to mask
-     */
-    public void addMaskViewTag(String viewTag) {
-        if (maskedViewTags == null) {
-            maskedViewTags = new HashSet<>();
-        }
-        maskedViewTags.add(viewTag);
-    }
-
-    /**
-     * Adds a view tag to the list of views that should be explicitly unmasked
-     * during session replay, even if they would otherwise be masked.
-     *
-     * @param viewTag The tag value to unmask
-     */
-    public void addUnmaskViewTag(String viewTag) {
-        if (unmaskedViewTags == null) {
-            unmaskedViewTags = new HashSet<>();
-        }
-        unmaskedViewTags.add(viewTag);
-    }
 
 
     /**
@@ -281,15 +245,12 @@ public class SessionReplayConfiguration {
      * @return true if the view should be masked, false otherwise
      */
     public boolean shouldMaskViewTag(String viewTag) {
-        getMaskedViewTags();
-        
+
         // If explicitly masked, do mask
         return maskedViewTags != null && maskedViewTags.contains(viewTag);
     }
 
     public boolean shouldUnmaskViewTag(String viewTag) {
-        getUnMaskedViewTags();
-
         // If explicitly unmasked, do not mask
         return unmaskedViewTags != null && unmaskedViewTags.contains(viewTag);
     }
@@ -366,9 +327,6 @@ public class SessionReplayConfiguration {
      * @return The set of view class names to mask, or an empty set if none are defined
      */
     public Set<String> getMaskedViewClasses() {
-        if (maskedViewClasses == null) {
-            maskedViewClasses = new HashSet<>();
-        }
         return maskedViewClasses;
     }
 
@@ -378,11 +336,29 @@ public class SessionReplayConfiguration {
      * @return The set of view class names to unmask, or an empty set if none are defined
      */
     public Set<String> getUnmaskedViewClasses() {
-        if (unmaskedViewClasses == null) {
-            unmaskedViewClasses = new HashSet<>();
-        }
         return unmaskedViewClasses;
     }
+
+    /**
+     * Gets the set of view tags that should be masked during session replay.
+     *
+     * @return The set of view tags to mask, or an empty set if none are defined
+     */
+    public Set<String> getMaskedViewTags() {
+        return maskedViewTags;
+    }
+
+    /**
+     * Gets the set of view tags that should be explicitly unmasked during session replay.
+     *
+     * @return The set of view tags to unmask, or an empty set if none are defined
+     */
+    public Set<String> getUnmaskedViewTags() {
+        return unmaskedViewTags;
+    }
+
+
+
 
     @Override
     public String toString() {

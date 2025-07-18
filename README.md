@@ -210,7 +210,7 @@ Build and test the agent project
 Build and install artifacts to the in-project Maven local repository (${rootProject.buildDir}/.m2/repository)
 
 # Sonatype Staging
-Agent pre-release snapshots will be posted to `https://oss.sonatype.org/content/repositories/comnewrelic-{snapshotId}`
+Agent pre-release snapshots will be posted to `https://ossrh-staging-api.central.sonatype.com/content/repositories/comnewrelic-{snapshotId}`
 
 # Usage
 The [Agent SDK](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/android-sdk-api/android-sdk-api-guide/) provides information on thw various agent SDK methods available to clients.
