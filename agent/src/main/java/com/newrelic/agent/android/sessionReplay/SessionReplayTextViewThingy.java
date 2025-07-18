@@ -41,7 +41,19 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         String rawText = view.getText() != null ? view.getText().toString() : "";
 
         // Determine if text should be masked based on configuration
-        boolean shouldMaskText = view.getInputType() != 0 ? sessionReplayConfiguration.isMaskUserInputText(): sessionReplayConfiguration.isMaskApplicationText();
+        boolean shouldMaskText;
+
+        // Check if input type is for password - always mask password fields
+        int inputType = view.getInputType();
+        if ((inputType & android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD) != 0 ||
+                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) != 0 ||
+                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) != 0 ||
+                (inputType & android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) != 0) {
+            shouldMaskText = true;
+        } else {
+            // For non-password fields, use configuration-based logic
+            shouldMaskText = inputType != 0 ? sessionReplayConfiguration.isMaskUserInputText() : sessionReplayConfiguration.isMaskApplicationText();
+        }
 
         // Apply masking if needed
         this.labelText = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
