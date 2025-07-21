@@ -325,7 +325,7 @@ public class Harvest implements HarvestConfigurable {
         return unregisteredLifecycleListeners.contains(harvestAware);
     }
 
-    protected HarvestTimer getHarvestTimer() {
+    public HarvestTimer getHarvestTimer() {
         return harvestTimer;
     }
 

@@ -16,8 +16,7 @@ import org.gradle.api.internal.classpath.ModuleRegistry
 import org.gradle.api.internal.project.ProjectInternal
 
 
-//group = 'com.newrelic.agent.android'
-group = 'io.github.ywang-nr'
+group = 'com.newrelic.agent.android'
 version = project.versions.agent
 
 sourceSets {
@@ -50,11 +49,11 @@ configurations {
 
 compileGroovy {
     dependsOn tasks.getByPath('compileKotlin')
-    classpath += files(compileKotlin.destinationDir)
+    classpath += files(compileKotlin.destinationDirectory)
 }
 
 compileKotlin {
-    classpath += files(compileGroovy.destinationDir)
+//    classpath += files(compileGroovy.destinationDirectory)
 }
 
 classes.dependsOn compileKotlin

@@ -17,7 +17,6 @@ import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.Streams;
 
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,7 +24,6 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
-import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -126,6 +124,7 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         try {
             byte[] payloadBytes = getPayload().getBytes();
             final HttpURLConnection connection = getConnection();
+
 
             try {
                 timer.tic();

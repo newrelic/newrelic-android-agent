@@ -65,8 +65,7 @@ android {
             }
         }
     }
-
-    libraryVariants.configureEach { variant ->
+    libraryVariants.all { variant ->
         logger.info("[FAT-JAR] Variant[${variant.name}]")
         variant.ext.fatJarProvider = toFatJarTask(variant)
         artifacts {
@@ -74,15 +73,32 @@ android {
             archives variant.ext.fatJarProvider
         }
 
-        def assembleTask = variant.getAssembleProvider()
-        fatJarProvider.configure {
-            dependsOn assembleTask
+        //Task To delete the default classes.jar from the AAR
+
+        def deleteClassesJar = tasks.register("deleteClassesJar${variant.name.capitalize()}", Delete) {
+            group = "build"
+            description = "Deletes the default classes.jar from the AAR for ${variant.name}."
+            dependsOn("sync${variant.name.capitalize()}LibJars")
+            delete("$buildDir/intermediates/aar_main_jar/${variant.name}/classes.jar")
         }
-        assembleTask.configure {
-            finalizedBy variant.ext.fatJarProvider
+        // Task to copy the fat JAR to aar_libs_directory.
+        def copyFatJarToAarLibs = tasks.register("copyFatJarToAarLibs${variant.name.capitalize()}", Copy) {
+            group = "build"
+            description = "Copies the fat JAR to the aar_libs_directory for ${variant.name}."
+            dependsOn("deleteClassesJar${variant.name.capitalize()}") // Make sure the fat JAR is built first
+            from(variant.ext.fatJarProvider) // Take the fat JAR as the source
+            into("$buildDir/intermediates/aar_main_jar/${variant.name}") // Destination
+            rename {
+                "classes.jar"
+            }
+        }
+        // Run the copy task before packaging the library.
+        variant.packageLibraryProvider.configure {
+            dependsOn(copyFatJarToAarLibs)
         }
     }
 }
+
 
 dependencies {
     implementation project(path: ':agent-core', configuration: 'fat')
@@ -168,21 +184,20 @@ def toFatJarTask(def variant) {
 /**
  * Configure artifact publishing
  */
-apply from: "${rootDir}/gradle/publishing.gradle"
+apply from: "${rootDir}/gradle/publishing_aar.gradle"
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
-            artifactId 'android-agent'
-            android.libraryVariants.all { variant ->
-                artifact variant.ext.fatJarProvider
+        libraryProject(MavenPublication) {
+            setGroupId 'com.newrelic.agent.android'
+            setArtifactId monoEnabled ? 'android-agent-static' : 'android-agent'
+            version rootProject.version
+            artifact("$buildDir/outputs/aar/android-agent-release.aar") {
+                builtBy assemble
             }
-            artifact javadocJar
-            artifact sourcesJar
 
             pom {
-//                groupId = 'com.newrelic.agent.android'
-                groupId = 'io.github.ywang-nr'
+                groupId = 'com.newrelic.agent.android'
                 artifactId = monoEnabled ? 'android-agent-static' : 'android-agent'
                 version = rootProject.version
                 name = 'New Relic Android Agent'

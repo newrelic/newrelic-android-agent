@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.android.measurement.consumer;
 
+import com.newrelic.agent.android.background.ApplicationStateEvent;
+import com.newrelic.agent.android.background.ApplicationStateListener;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.instrumentation.MetricCategory;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -26,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer implements TraceLifecycleAware {
+public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer implements TraceLifecycleAware, ApplicationStateListener {
     protected static final String METRIC_PREFIX = "Mobile/Summary/";
     protected static final String ACTIVITY_METRIC_PREFIX = "Mobile/Activity/Summary/Name/";
 
@@ -95,11 +97,11 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
 
     @Override
     public void onHarvest() {
-        if (metrics.getAll().size() == 0) {
+        if (metrics.getAll().isEmpty()) {
             return;
         }
 
-        if (completedTraces.size() == 0) {
+        if (completedTraces.isEmpty()) {
             return;
         }
 
@@ -107,7 +109,7 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
             summarizeActivityMetrics(trace);
         }
 
-        if (metrics.getAll().size() != 0) {
+        if (!metrics.getAll().isEmpty()) {
             log.debug("Not all metrics were summarized!");
         }
 
@@ -205,5 +207,15 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
     public void onTraceComplete(ActivityTrace activityTrace) {
         if (!completedTraces.contains(activityTrace))
             completedTraces.add(activityTrace);
+    }
+
+    @Override
+    public void applicationForegrounded(ApplicationStateEvent e) {
+
+    }
+
+    @Override
+    public void applicationBackgrounded(ApplicationStateEvent e) {
+        TraceMachine.removeTraceListener(this);
     }
 }

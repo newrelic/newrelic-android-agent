@@ -6,6 +6,7 @@
 package com.newrelic.agent.android;
 
 import com.newrelic.agent.android.analytics.TestEventStore;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -30,26 +31,26 @@ public class AgentConfigurationTest {
         Assert.assertNull(region);
 
         region = agentConfiguration.parseRegionFromApplicationToken("eu01xx" + appToken);
-        Assert.assertEquals(region, "eu01");
+        Assert.assertEquals("eu01", region);
 
         region = agentConfiguration.parseRegionFromApplicationToken("xtestx" + appToken);
-        Assert.assertEquals(region, "xtest");
+        Assert.assertEquals("xtest", region);
 
         region = agentConfiguration.parseRegionFromApplicationToken("xtest" + appToken);
         Assert.assertNull(region);
 
         region = agentConfiguration.parseRegionFromApplicationToken("eu01x");
-        Assert.assertEquals(region, "eu01");
+        Assert.assertEquals("eu01", region);
 
         region = agentConfiguration.parseRegionFromApplicationToken("gov66xx");
-        Assert.assertEquals(region, "gov66");
+        Assert.assertEquals("gov66", region);
 
         // Edge-case: leading spaces
         region = agentConfiguration.parseRegionFromApplicationToken("  x" + appToken);
-        Assert.assertEquals(region, "  ");
+        Assert.assertEquals("  ", region);
 
         region = agentConfiguration.parseRegionFromApplicationToken("  xx" + appToken);
-        Assert.assertEquals(region, "  ");
+        Assert.assertEquals("  ", region);
 
         // More tests: https://source.datanerd.us/agents/cross_agent_tests/blob/master/collector_hostname.json
     }
@@ -62,24 +63,24 @@ public class AgentConfigurationTest {
         Assert.assertEquals(collectorHost, agentConfiguration.getDefaultCollectorHost());
 
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("eu01xx" + appToken);
-        Assert.assertEquals(collectorHost, "mobile-collector.eu01.nr-data.net");
+        Assert.assertEquals("mobile-collector.eu01.nr-data.net", collectorHost);
 
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("xtestx" + appToken);
-        Assert.assertEquals(collectorHost, "mobile-collector.xtest.nr-data.net");
+        Assert.assertEquals("mobile-collector.xtest.nr-data.net", collectorHost);
 
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("xtest" + appToken);
         Assert.assertEquals(collectorHost, agentConfiguration.getDefaultCollectorHost());
 
         // Return default collector host, event with bad app token
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("gov66x");
-        Assert.assertEquals(collectorHost, "mobile-collector.gov66.nr-data.net");
+        Assert.assertEquals("mobile-collector.gov66.nr-data.net", collectorHost);
 
         // Edge-case: leading spaces
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("  x" + appToken);
         Assert.assertEquals(collectorHost, "mobile-collector.  .nr-data.net");
 
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("  xx" + appToken);
-        Assert.assertEquals(collectorHost, "mobile-collector.  .nr-data.net");
+        Assert.assertEquals("mobile-collector.  .nr-data.net", collectorHost);
 
         // region aware key with more than one identifier
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("eu01xeu02x" + appToken);
@@ -165,5 +166,35 @@ public class AgentConfigurationTest {
     public void testSetEventStore() {
         agentConfiguration.setEventStore(new TestEventStore());
         Assert.assertNotNull(agentConfiguration.getEventStore());
+    }
+
+    @Test
+    public void shouldReturnSingletonInstanceWhenGetInstanceIsCalledMultipleTimes() {
+        AgentConfiguration instance1 = AgentConfiguration.getInstance();
+        AgentConfiguration instance2 = AgentConfiguration.getInstance();
+        AgentConfiguration instance3 = AgentConfiguration.getInstance();
+        
+        Assert.assertSame(instance1, instance2);
+        Assert.assertSame(instance2, instance3);
+        Assert.assertSame(instance1, instance3);
+        Assert.assertNotNull(instance1);
+    }
+
+    @Test
+    public void shouldInitializeMobileSessionReplayConfigurationWithDefaultValues() {
+        AgentConfiguration config = new AgentConfiguration();
+        Assert.assertNotNull(config.getSessionReplayConfiguration());
+        Assert.assertEquals(new SessionReplayConfiguration(), config.getSessionReplayConfiguration());
+    }
+
+    @Test
+    public void shouldHandleNullInputGracefullyWhenSetMobileSessionReplayConfigurationIsCalledWithNull() {
+        AgentConfiguration config = new AgentConfiguration();
+        SessionReplayConfiguration originalConfig = config.getSessionReplayConfiguration();
+        
+        config.setSessionReplayConfiguration(null);
+        
+        Assert.assertNull(config.getSessionReplayConfiguration());
+        Assert.assertNotSame(originalConfig, config.getSessionReplayConfiguration());
     }
 }

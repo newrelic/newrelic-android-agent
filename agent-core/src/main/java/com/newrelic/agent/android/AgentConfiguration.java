@@ -19,6 +19,9 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadStore;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
@@ -66,6 +69,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private AnalyticsAttributeStore analyticsAttributeStore;
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
     private AnalyticsEventStore eventStore;
+    private SessionReplayStore sessionReplayStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
@@ -74,6 +78,8 @@ public class AgentConfiguration implements HarvestConfigurable {
     // Support remote configuration for these features
     private LogReportingConfiguration logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.INFO);
     private ApplicationExitConfiguration applicationExitConfiguration = new ApplicationExitConfiguration(true);
+    private SessionReplayConfiguration mobileSessionReplayConfiguration = new SessionReplayConfiguration();
+    private SessionReplayLocalConfiguration sessionReplayLocalConfiguration = new SessionReplayLocalConfiguration();
 
     public String getApplicationToken() {
         return applicationToken;
@@ -145,6 +151,14 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setEventStore(AnalyticsEventStore eventStore) {
         this.eventStore = eventStore;
+    }
+
+    public SessionReplayStore getSessionReplayStore() {
+        return sessionReplayStore;
+    }
+
+    public void setSessionReplayStore(SessionReplayStore sessionReplayStore) {
+        this.sessionReplayStore = sessionReplayStore;
     }
 
     public boolean getReportHandledExceptions() {
@@ -374,6 +388,7 @@ public class AgentConfiguration implements HarvestConfigurable {
         return applicationExitConfiguration;
     }
 
+
     /**
      * Update agent config with any changes returned in the harvest response.
      *
@@ -384,6 +399,7 @@ public class AgentConfiguration implements HarvestConfigurable {
         // update the global agent config w/changes
         applicationExitConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().applicationExitConfiguration);
         logReportingConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().logReportingConfiguration);
+        mobileSessionReplayConfiguration.setConfiguration(harvestConfiguration.getRemote_configuration().sessionReplayConfiguration);
         entityGuid = harvestConfiguration.getEntity_guid();
 
         if (instance.get() != null) {
@@ -400,4 +416,19 @@ public class AgentConfiguration implements HarvestConfigurable {
         return instance.get();
     }
 
+    public SessionReplayConfiguration getSessionReplayConfiguration() {
+        return mobileSessionReplayConfiguration;
+    }
+
+    public void setSessionReplayConfiguration(SessionReplayConfiguration sessionReplayConfiguration) {
+        this.mobileSessionReplayConfiguration = sessionReplayConfiguration;
+    }
+
+    public SessionReplayLocalConfiguration getSessionReplayLocalConfiguration() {
+        return this.sessionReplayLocalConfiguration;
+    }
+
+    public void setSessionReplayLocalConfiguration(SessionReplayLocalConfiguration sessionReplayLocalConfiguration) {
+        this.mobileSessionReplayConfiguration = mobileSessionReplayConfiguration;
+    }
 }
