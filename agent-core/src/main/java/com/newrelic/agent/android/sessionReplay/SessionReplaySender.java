@@ -125,7 +125,7 @@ public class SessionReplaySender extends PayloadSender {
                 StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIME, timer.peek());
                 int payloadSize = getPayloadSize();
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_COMPRESSED, payloadSize);
-                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED, (long)replayDataMap.get(Constants.SessionReplay.DECOMPRESSED_BYTES));
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED, ((Integer)this.replayDataMap.get("decompressedBytes")).intValue());
                 log.info("Session Replay Blob: [" + payloadSize + "] bytes successfully submitted.");
                 break;
 

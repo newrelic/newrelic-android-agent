@@ -1311,8 +1311,6 @@ public final class NewRelic {
     /**
      * Adds a view class to be masked during session replay.
 
-
-
     /**
      * Adds a view class to be masked during session replay.
      * All instances of the specified class and its subclasses will have their text content masked.

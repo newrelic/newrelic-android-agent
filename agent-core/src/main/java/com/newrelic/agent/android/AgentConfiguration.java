@@ -428,7 +428,7 @@ public class AgentConfiguration implements HarvestConfigurable {
         return this.sessionReplayLocalConfiguration;
     }
 
-    public void setSessionReplayConfiguration(SessionReplayLocalConfiguration sessionReplayLocalConfiguration) {
+    public void setSessionReplayLocalConfiguration(SessionReplayLocalConfiguration sessionReplayLocalConfiguration) {
         this.mobileSessionReplayConfiguration = mobileSessionReplayConfiguration;
     }
 }

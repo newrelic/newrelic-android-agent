@@ -204,6 +204,7 @@ public class OkHttp2TransactionStateUtilTest {
         assertEquals(request.urlString(), requestUrl);
         assertEquals(request.header(Constants.Network.APPLICATION_ID_HEADER), appId);
         assertNotNull("Cross-Process ID should not be NULL", request.header(Constants.Network.CROSS_PROCESS_ID_HEADER));
+        HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("1234");
 
         CallExtension call = (CallExtension) OkHttp2Instrumentation.newCall(client, request);
 
@@ -213,6 +214,7 @@ public class OkHttp2TransactionStateUtilTest {
 
         transactionState = call.getTransactionState();
         Assert.assertNotNull(transactionState.getTrace());
+        HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("");
 
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
     }

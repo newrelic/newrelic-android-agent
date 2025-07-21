@@ -113,6 +113,10 @@ public class SessionReplayFileManager {
                         workingSessionReplayFileWriter.get().write(new Gson().toJson(processor.processFrame(newFrame)));
                         workingSessionReplayFileWriter.get().newLine();
                     }
+                    BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
+                    if (currentWriter != null) {
+                        currentWriter.flush();
+                    }
                 } catch (IOException e) {
                     log.error("Error writing frame to file", e);
                 }
@@ -136,6 +140,10 @@ public class SessionReplayFileManager {
                     if (workingSessionReplayFileWriter.get() != null) {
                         workingSessionReplayFileWriter.get().write(new Gson().toJson(touchTracker.processTouchData()));
                         workingSessionReplayFileWriter.get().newLine();
+                    }
+                    BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
+                    if (currentWriter != null) {
+                        currentWriter.flush();
                     }
                 } catch (IOException e) {
                     log.error("Error writing touch data to file", e);
@@ -171,10 +179,6 @@ public class SessionReplayFileManager {
                         }
                     }
 
-                    // Create a new file and writer
-                    workingSessionReplayFile = getWorkingSessionReplayFile();
-                    workingSessionReplayFileWriter.set(new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile)));
-
                     log.debug("Created new session replay file: " + workingSessionReplayFile.getAbsolutePath());
                 } catch (IOException e) {
                     log.error("Error clearing working session replay file", e);
@@ -193,20 +197,20 @@ public class SessionReplayFileManager {
      * @throws IOException If file creation fails
      */
     static File getWorkingSessionReplayFile() throws IOException {
-        File logFile = new File(sessionReplayDataStore,
+        File sessionReplayFile = new File(sessionReplayDataStore,
                 String.format(Locale.getDefault(),
                         SESSION_REPLAY_FILE_MASK,
                         AgentConfiguration.getInstance().getSessionID(),
                         "tmp"));
 
-        logFile.getParentFile().mkdirs();
-        if (!logFile.exists()) {
-            logFile.createNewFile();
+        sessionReplayFile.getParentFile().mkdirs();
+        if (!sessionReplayFile.exists()) {
+            sessionReplayFile.createNewFile();
         }
 
-        logFile.setLastModified(System.currentTimeMillis());
+        sessionReplayFile.setLastModified(System.currentTimeMillis());
 
-        return logFile;
+        return sessionReplayFile;
     }
 
     /**
@@ -235,14 +239,8 @@ public class SessionReplayFileManager {
                 currentWriter.close();
                 workingSessionReplayFileWriter.set(null);
             }
-
-            fileWriteExecutor.shutdown();
-            if (!fileWriteExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                fileWriteExecutor.shutdownNow();
-            }
         } catch (Exception e) {
             log.error("Error during shutdown", e);
-            fileWriteExecutor.shutdownNow();
         }
     }
 }

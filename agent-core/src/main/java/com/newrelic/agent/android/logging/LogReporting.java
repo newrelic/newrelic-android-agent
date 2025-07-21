@@ -64,6 +64,17 @@ public abstract class LogReporting {
         }
     }
 
+    public static boolean isInitialized() {
+        return LogReporter.getInstance() != null;
+    }
+
+    public static void shutdown() {
+        if(isInitialized()) {
+            LogReporter.getInstance().shutdown();
+        }
+    }
+
+
     public static Logger getLogger() {
         return instance.get();
     }
@@ -84,6 +95,7 @@ public abstract class LogReporting {
 
     /**
      * Return ordinal value of log level
+     *
      *
      * @return LogLevel enum @link {LogLevel#ordinal()}
      */
@@ -217,18 +229,16 @@ public abstract class LogReporting {
     /**
      * Validate and sanitize key/value data pairs
      *
-     * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#supported-types
+     * @link <a href="https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#supported-types">...</a>
      */
     protected static Map<String, Object> validateLogData(MessageValidator validator, Map<String, Object> logDataMap) {
         if (null != logDataMap) {
             logDataMap.forEach((key, value) -> {
-                if (value instanceof String) {
-                    // TODO https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#message-attribute-parsin
-                    // Enforce log message constraints:
-                    //  static int MAX_ATTRIBUTES_PER_EVENT = 255;
-                    //  static int MAX_ATTRIBUTES_NAME_SIZE = 255;
-                    //  static int MAX_ATTRIBUTES_VALUE_SIZE = 4096;
-                }
+                // TODO https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#message-attribute-parsin
+                // Enforce log message constraints:
+                //  static int MAX_ATTRIBUTES_PER_EVENT = 255;
+                //  static int MAX_ATTRIBUTES_NAME_SIZE = 255;
+                //  static int MAX_ATTRIBUTES_VALUE_SIZE = 4096;
             });
         }
 
@@ -238,7 +248,7 @@ public abstract class LogReporting {
     /**
      * Final decoration of log data attribute set
      *
-     * @link https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#supported-types
+     * @link <a href="https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#supported-types">...</a>
      */
     protected Map<String, Object> decorateLogData(MessageValidator validator, Map<String, Object> logDataMap) {
         // TODO

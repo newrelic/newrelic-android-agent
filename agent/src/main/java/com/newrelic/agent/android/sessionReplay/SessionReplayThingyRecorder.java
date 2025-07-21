@@ -20,16 +20,12 @@ public class SessionReplayThingyRecorder {
     public SessionReplayViewThingyInterface recordView(View view) {
         ViewDetails viewDetails = new ViewDetails(view);
 
-
-
-        SessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
-
         if (view instanceof EditText) {
-            return new SessionReplayEditTextThingy(viewDetails, (EditText) view,sessionReplayConfiguration);
+            return new SessionReplayEditTextThingy(viewDetails, (EditText) view,agentConfiguration);
         } if (view instanceof ImageView) {
-            return new SessionReplayImageViewThingy(viewDetails, (ImageView) view, sessionReplayConfiguration);
+            return new SessionReplayImageViewThingy(viewDetails, (ImageView) view, agentConfiguration);
         } else  if (view instanceof TextView) {
-            return new SessionReplayTextViewThingy(viewDetails, (TextView) view,sessionReplayConfiguration);
+            return new SessionReplayTextViewThingy(viewDetails, (TextView) view,agentConfiguration);
         }else {
             // This is a plain old view
             return new SessionReplayViewThingy(viewDetails);
