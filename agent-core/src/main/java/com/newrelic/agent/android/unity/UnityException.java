@@ -7,6 +7,7 @@ package com.newrelic.agent.android.unity;
 
 public class UnityException extends RuntimeException {
     private String sourceExceptionType = null;
+    private StackTraceElement[] currentStack;
 
     public UnityException() {
         super();
@@ -29,22 +30,37 @@ public class UnityException extends RuntimeException {
     public void appendStackFrame(StackTraceElement stackFrame) {
         StackTraceElement[] currentStack = getStackTrace();
         StackTraceElement[] newStack = new StackTraceElement[currentStack.length + 1];
-        for (int i = 0; i < currentStack.length; i++) {
-            newStack[i] = currentStack[i];
-        }
+        System.arraycopy(currentStack, 0, newStack, 0, currentStack.length);
         newStack[currentStack.length] = stackFrame;
         setStackTrace(newStack);
+    }
+
+    @Override
+    public StackTraceElement[] getStackTrace() {
+        if (currentStack == null) {
+            currentStack = new StackTraceElement[0];
+            return currentStack;
+        }
+        return currentStack;
     }
 
     public void appendStackFrame(String className, String methodName, String fileName, int lineNumber) {
         StackTraceElement stackFrame = new StackTraceElement(className, methodName, fileName, lineNumber);
         StackTraceElement[] currentStack = getStackTrace();
         StackTraceElement[] newStack = new StackTraceElement[currentStack.length + 1];
-        for (int i = 0; i < currentStack.length; i++) {
-            newStack[i] = currentStack[i];
-        }
+        System.arraycopy(currentStack, 0, newStack, 0, currentStack.length);
         newStack[currentStack.length] = stackFrame;
         setStackTrace(newStack);
+    }
+
+    @Override
+    public void setStackTrace(StackTraceElement[] stackTraceElements) {
+        if (stackTraceElements == null) {
+            // Prevent setting null stack traces
+            return;
+        }
+        currentStack = stackTraceElements;
+        super.setStackTrace(stackTraceElements);
     }
 
     public void setSourceExceptionType(final String sourceExceptionType) {

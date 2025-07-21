@@ -41,10 +41,10 @@ public class Measurements {
 
     // Measurement Consumers
     private final static HttpTransactionMeasurementConsumer httpTransactionHarvester = new HttpTransactionMeasurementConsumer();
-    private final static ActivityMeasurementConsumer activityConsumer = new ActivityMeasurementConsumer();
-    private final static MethodMeasurementConsumer methodMeasurementConsumer = new MethodMeasurementConsumer();
-    private final static CustomMetricMeasurementConsumer customMetricMeasurementConsumer = new CustomMetricMeasurementConsumer();
-    private final static SummaryMetricMeasurementConsumer summaryMetricMeasurementConsumer = new SummaryMetricMeasurementConsumer();
+    private static ActivityMeasurementConsumer activityConsumer ;
+    private static MethodMeasurementConsumer methodMeasurementConsumer ;
+    private static CustomMetricMeasurementConsumer customMetricMeasurementConsumer ;
+    private static SummaryMetricMeasurementConsumer summaryMetricMeasurementConsumer ;
 
     private static boolean broadcastNewMeasurements = true;
 
@@ -54,6 +54,11 @@ public class Measurements {
     public static void initialize() {
         log.info("Measurement Engine initialized.");
         TaskQueue.start();
+
+        activityConsumer = new ActivityMeasurementConsumer();
+        methodMeasurementConsumer = new MethodMeasurementConsumer();
+        customMetricMeasurementConsumer = new CustomMetricMeasurementConsumer();
+        summaryMetricMeasurementConsumer = new SummaryMetricMeasurementConsumer();
 
         // Producers
         addMeasurementProducer(measurementEngine.getRootMeasurementPool());
@@ -89,6 +94,12 @@ public class Measurements {
         removeMeasurementConsumer(methodMeasurementConsumer);
         removeMeasurementConsumer(customMetricMeasurementConsumer);
         removeMeasurementConsumer(summaryMetricMeasurementConsumer);
+
+        //remove all consumers
+        activityConsumer = null;
+        methodMeasurementConsumer = null;
+        customMetricMeasurementConsumer = null;
+        summaryMetricMeasurementConsumer = null;
     }
 
     /*** Measurement Production APIs ***/

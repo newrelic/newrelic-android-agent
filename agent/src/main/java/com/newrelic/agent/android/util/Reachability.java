@@ -8,7 +8,8 @@ package com.newrelic.agent.android.util;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -23,10 +24,15 @@ public class Reachability {
             ConnectivityManager cm =
                     (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
             if (cm != null) {
-                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-
-                if (activeNetwork != null) {
-                    isReachable = activeNetwork.isConnectedOrConnecting();
+                    // Modern approach for Android M (API 23) and above
+                    Network network = cm.getActiveNetwork();
+                    if (network != null) {
+                        NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
+                        isReachable = capabilities != null &&
+                                (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
+                                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN));
                 }
 
                 // if connection is active and a host was specified, verify it is reachable
@@ -47,5 +53,4 @@ public class Reachability {
 
         return isReachable;
     }
-
 }

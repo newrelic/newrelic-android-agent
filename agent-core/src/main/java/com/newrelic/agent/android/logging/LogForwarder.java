@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.logging;
 
+import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.FileBackedPayload;
@@ -37,7 +38,7 @@ public class LogForwarder extends PayloadSender {
 
     @Override
     public PayloadSender call() throws Exception {
-        if (shouldUploadOpportunistically()) {
+        if (Agent.hasReachableNetworkConnection(null)) {
             timer.tic();
             return super.call();
         }
@@ -125,15 +126,7 @@ public class LogForwarder extends PayloadSender {
      */
     @Override
     protected boolean shouldUploadOpportunistically() {
-        try {
-            final String dest = getCollectorURI().toURL().getHost();
-            InetAddress inet = InetAddress.getByName(dest);
-            return dest.equals(inet.getHostName());
-
-        } catch (Exception e) {
-        }
-
-        return false;
+        return Agent.hasReachableNetworkConnection(null);
     }
 
     @Override

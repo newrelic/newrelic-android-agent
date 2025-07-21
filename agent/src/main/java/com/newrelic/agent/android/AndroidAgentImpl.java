@@ -16,6 +16,7 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.os.StatFs;
@@ -61,11 +62,14 @@ import com.newrelic.agent.android.ndk.NativeReporting;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.sample.MachineMeasurementConsumer;
 import com.newrelic.agent.android.sample.Sampler;
+import com.newrelic.agent.android.sessionReplay.SessionReplay;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsEventStore;
 import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
+import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
@@ -113,7 +117,6 @@ public class AndroidAgentImpl implements
     // Producers and consumers that are tightly coupled to Android implementations
     private MachineMeasurementConsumer machineMeasurementConsumer;
     private OfflineStorage offlineStorageInstance;
-
     public AndroidAgentImpl(final Context context, final AgentConfiguration agentConfiguration) throws AgentInitializationException {
         // We want an Application context, not an Activity context.
         this.context = appContext(context);
@@ -137,6 +140,7 @@ public class AndroidAgentImpl implements
         agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
+        agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         startLogReporter(context, agentConfiguration);
@@ -144,18 +148,16 @@ public class AndroidAgentImpl implements
         final UiBackgroundListener backgroundListener;
         if (Agent.getMonoInstrumentationFlag().equals("YES")) {
             backgroundListener = new ActivityLifecycleBackgroundListener();
-            if (backgroundListener instanceof Application.ActivityLifecycleCallbacks) {
-                try {
-                    if (context.getApplicationContext() instanceof Application) {
-                        Application application = (Application) context.getApplicationContext();
-                        application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
-                        if (agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin || agentConfiguration.getApplicationFramework() == ApplicationFramework.MAUI) {
-                            ApplicationStateMonitor.getInstance().activityStarted();
-                        }
+            try {
+                if (context.getApplicationContext() instanceof Application) {
+                    Application application = (Application) context.getApplicationContext();
+                    application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
+                    if (agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin || agentConfiguration.getApplicationFramework() == ApplicationFramework.MAUI) {
+                        ApplicationStateMonitor.getInstance().activityStarted();
                     }
-                } catch (Exception e) {
-                    // ignore
                 }
+            } catch (Exception e) {
+                // ignore
             }
         } else {
             backgroundListener = new UiBackgroundListener();
@@ -173,13 +175,13 @@ public class AndroidAgentImpl implements
             LogReportingConfiguration logReportingConfiguration = agentConfiguration.getLogReportingConfiguration();
             if (logReportingConfiguration.getLoggingEnabled() ) {
                 try {
-                    /**
-                     *  LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
-                     *  remove the oldest files when storage runs low, offloading some of the maintenance work from the reporter,
-                     *  but potentially resulting in unreported log file deletions.
-                     *
-                     * @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
-                     **/
+                    /*
+                       LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
+                       remove the oldest files when storage runs low, offloading some of the maintenance work from the reporter,
+                       but potentially resulting in unreported log file deletions.
+
+                      @see <a href="https://developer.android.com/reference/android/content/Context#getCacheDir()">getCacheDir()</a>
+                     */
                     LogReporting.initialize(context.getCacheDir(), agentConfiguration);
 
                 } catch (IOException e) {
@@ -346,7 +348,7 @@ public class AndroidAgentImpl implements
         final String packageName = context.getPackageName();
         final PackageManager packageManager = context.getPackageManager();
 
-        PackageInfo packageInfo = null;
+        PackageInfo packageInfo;
         try {
             packageInfo = packageManager.getPackageInfo(packageName, 0);
         } catch (PackageManager.NameNotFoundException e) {
@@ -355,7 +357,7 @@ public class AndroidAgentImpl implements
 
         String appVersion = agentConfiguration.getCustomApplicationVersion();
         if (TextUtils.isEmpty(appVersion)) {
-            if (packageInfo != null && packageInfo.versionName != null && packageInfo.versionName.length() > 0) {
+            if (packageInfo != null && packageInfo.versionName != null && !packageInfo.versionName.isEmpty()) {
                 appVersion = packageInfo.versionName;
             } else {
                 throw new AgentInitializationException("Your app doesn't appear to have a version defined. Ensure you have defined 'versionName' in your manifest.");
@@ -367,15 +369,8 @@ public class AndroidAgentImpl implements
         String appName;
         try {
             final ApplicationInfo info = packageManager.getApplicationInfo(packageName, 0);
-            if (info != null) {
-                appName = packageManager.getApplicationLabel(info).toString();
-            } else {
-                appName = packageName;
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            log.warn(e.toString());
-            appName = packageName;
-        } catch (SecurityException e) {
+            appName = packageManager.getApplicationLabel(info).toString();
+        } catch (PackageManager.NameNotFoundException | SecurityException e) {
             log.warn(e.toString());
             appName = packageName;
         }
@@ -385,7 +380,7 @@ public class AndroidAgentImpl implements
         if (TextUtils.isEmpty(build)) {
             if (packageInfo != null) {
                 // set the versionCode as the build by default
-                build = String.valueOf(packageInfo.versionCode);
+                build = getVersionCode(packageInfo) + "";
             } else {
                 build = "";
                 log.warn("Your app doesn't appear to have a version code defined. Ensure you have defined 'versionCode' in your manifest.");
@@ -394,7 +389,29 @@ public class AndroidAgentImpl implements
         log.debug("Using build " + build);
 
         applicationInformation = new ApplicationInformation(appName, appVersion, packageName, build);
-        applicationInformation.setVersionCode(packageInfo.versionCode);
+        applicationInformation.setVersionCode((int)getVersionCode(packageInfo));
+    }
+
+    /**
+     * Gets the version code from a PackageInfo object, handling API differences.
+     *
+     * @param packageInfo The PackageInfo object containing version information
+     * @return The version code as a long value, or 0 if packageInfo is null
+     */
+    private long getVersionCode(PackageInfo packageInfo) {
+        if (packageInfo == null) {
+            return 0;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            // For API 28 (Android 9.0) and above
+            return packageInfo.getLongVersionCode();
+        } else {
+            // For older Android versions
+            @SuppressWarnings("deprecation")
+            long versionCode = packageInfo.versionCode;
+            return versionCode;
+        }
     }
 
     @Override
@@ -607,6 +624,11 @@ public class AndroidAgentImpl implements
         Harvest.shutdown();
         Measurements.shutdown();
         PayloadController.shutdown();
+        SessionReplay.deInitialize();
+
+        if (LogReporting.isRemoteLoggingEnabled()) {
+            LogReporting.shutdown();
+        }
     }
 
     @Override
@@ -646,9 +668,28 @@ public class AndroidAgentImpl implements
             Agent.setImpl(new AndroidAgentImpl(context, agentConfiguration));
             Agent.start();
             startLogReporter(context, agentConfiguration);
+            startSessionReplayRecorder(context, agentConfiguration);
         } catch (AgentInitializationException e) {
-            log.error("Failed to initialize the agent: " + e.toString());
+            log.error("Failed to initialize the agent: " + e);
         }
+    }
+
+    private static void startSessionReplayRecorder(Context context, AgentConfiguration agentConfiguration) {
+
+        SessionReplayConfiguration.reseed();
+        SessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
+        if(sessionReplayConfiguration.isSessionReplayEnabled()) {
+            // only process masking rules if session replay is enabled
+            sessionReplayConfiguration.processCustomMaskingRules();
+            AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_SAMPLED + agentConfiguration.getSessionReplayConfiguration().isSampled());
+            Handler uiHandler = new Handler(Looper.getMainLooper());
+            SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler,agentConfiguration);
+
+        } else
+            // if the session replay is not enabled, remove the attribute from the previous session
+            AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED);
+
     }
 
     /*
@@ -687,6 +728,7 @@ public class AndroidAgentImpl implements
         if (!NewRelic.isShutdown) {
             start();
             startLogReporter(context, agentConfiguration);
+            startSessionReplayRecorder(context, agentConfiguration);
             AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME);
         }
     }
@@ -727,10 +769,10 @@ public class AndroidAgentImpl implements
         try {
             addresses = coder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
         } catch (IOException e) {
-            log.error("Unable to geocode location: " + e.toString());
+            log.error("Unable to geocode location: " + e);
         }
 
-        if (addresses == null || addresses.size() == 0) {
+        if (addresses == null || addresses.isEmpty()) {
             // No addresses returned.
             return;
         }
@@ -752,16 +794,13 @@ public class AndroidAgentImpl implements
     /**
      * Used to sort transactions in descending order by timestamp.
      */
-    private static final Comparator<TransactionData> cmp = new Comparator<TransactionData>() {
-        @Override
-        public int compare(TransactionData lhs, TransactionData rhs) {
-            if (lhs.getTimestamp() > rhs.getTimestamp()) {
-                return -1;
-            } else if (lhs.getTimestamp() < rhs.getTimestamp()) {
-                return 1;
-            } else {
-                return 0;
-            }
+    private static final Comparator<TransactionData> cmp = (lhs, rhs) -> {
+        if (lhs.getTimestamp() > rhs.getTimestamp()) {
+            return -1;
+        } else if (lhs.getTimestamp() < rhs.getTimestamp()) {
+            return 1;
+        } else {
+            return 0;
         }
     };
 
@@ -818,9 +857,7 @@ public class AndroidAgentImpl implements
 
             //clear measurementEngine
             MeasurementEngine measurementEngine = new MeasurementEngine();
-            if (measurementEngine != null) {
-                measurementEngine.clear();
-            }
+            measurementEngine.clear();
         } catch (Exception ex) {
             log.error("There is an error while clean data during shutdown process: " + ex.getLocalizedMessage());
         }
@@ -891,7 +928,7 @@ public class AndroidAgentImpl implements
         }
 
         if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-            if (LogReporting.isRemoteLoggingEnabled()) {
+            if (LogReporting.isRemoteLoggingEnabled() && !LogReporting.isInitialized()) {
                 startLogReporter(context, agentConfiguration);
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_SAMPLED + agentConfiguration.getLogReportingConfiguration().isSampled());
             }

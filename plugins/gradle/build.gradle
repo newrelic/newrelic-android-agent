@@ -50,11 +50,11 @@ configurations {
 
 compileGroovy {
     dependsOn tasks.getByPath('compileKotlin')
-    classpath += files(compileKotlin.destinationDir)
+    classpath += files(compileKotlin.destinationDirectory)
 }
 
 compileKotlin {
-    classpath += files(compileGroovy.destinationDir)
+//    classpath += files(compileGroovy.destinationDirectory)
 }
 
 classes.dependsOn compileKotlin
