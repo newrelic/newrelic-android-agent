@@ -136,11 +136,11 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         cssBuilder.append("");
         cssBuilder.append("white-space: pre-wrap;");
         cssBuilder.append("");
-        cssBuilder.append("word-wrap: break-word");
+        cssBuilder.append("word-wrap: break-word;");
         cssBuilder.append(" ");
         cssBuilder.append("font-size: ");
         cssBuilder.append(String.format("%.2f", this.fontSize));
-        cssBuilder.append("px ");
+        cssBuilder.append("px; ");
         cssBuilder.append(this.fontFamily);
         cssBuilder.append("; ");
         cssBuilder.append("color: #");
