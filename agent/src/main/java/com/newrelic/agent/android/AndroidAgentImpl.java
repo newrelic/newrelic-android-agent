@@ -927,6 +927,10 @@ public class AndroidAgentImpl implements
             }
         }
 
+        if(agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            startSessionReplayRecorder(context, agentConfiguration);
+        }
+
         if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
             if (LogReporting.isRemoteLoggingEnabled() && !LogReporting.isInitialized()) {
                 startLogReporter(context, agentConfiguration);
