@@ -35,12 +35,6 @@ public abstract class LogReporting {
     protected static final String LOG_ERROR_STACK_ATTRIBUTE = "error.stack";
     protected static final String LOG_ERROR_CLASS_ATTRIBUTE = "error.class";
     protected static final String LOG_SESSION_ID = "sessionId";
-    protected static final String LOG_INSTRUMENTATION_PROVIDER = "instrumentation.provider";
-    protected static final String LOG_INSTRUMENTATION_VERSION = "instrumentation.version";
-    protected static final String LOG_INSTRUMENTATION_NAME = "instrumentation.name";
-    protected static final String LOG_INSTRUMENTATION_PROVIDER_ATTRIBUTE = "mobile";
-    protected static final String LOG_INSTRUMENTATION_ANDROID_NAME = "AndroidAgent";
-    protected static final String LOG_INSTRUMENTATION_COLLECTOR_NAME = "collector.name";
     protected static final String LOG_PAYLOAD_COMMON_ATTRIBUTE = "common";
     protected static final String LOG_PAYLOAD_ATTRIBUTES_ATTRIBUTE = "attributes";
     protected static final String LOG_PAYLOAD_LOGS_ATTRIBUTE = "logs";

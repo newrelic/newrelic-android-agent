@@ -23,6 +23,7 @@ import com.newrelic.agent.android.sessionReplay.internal.Curtains;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 import com.newrelic.agent.android.stats.StatsEngine;
+import com.newrelic.agent.android.util.Constants;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     protected static final AgentLog log = AgentLogManager.getAgentLog();
     private final ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
     private final ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
+    private static boolean isFirstChunk = true;
 
     /**
      * Initializes the SessionReplay system.
@@ -74,6 +76,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         registerCallbacks();
         startRecording();
+        isFirstChunk = true;
 
         Log.d("SessionReplay", "Session replay initialized successfully");
     }
@@ -135,11 +138,13 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(FIRST_TIMESTAMP, rawFrames.get(0).timestamp);
         attributes.put(LAST_TIMESTAMP, rawFrames.get(rawFrames.size() - 1).timestamp);
+        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
         SessionReplayReporter.reportSessionReplayData(json.getBytes(), attributes);
 
         rrWebEvents.clear();
         rawFrames.clear();
         touchTrackers.clear();
+        isFirstChunk = false;
     }
 
 
