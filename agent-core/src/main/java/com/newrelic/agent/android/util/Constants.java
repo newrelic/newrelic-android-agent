@@ -20,6 +20,15 @@ public final class Constants {
     }
 
     public static final class SessionReplay {
+        public static final class InstrumentationDetails {
+            public static final String NAME = "instrumentation.name";
+            public static final String PROVIDER = "instrumentation.provider";
+            public static final String PROVIDER_ATTRIBUTE = "mobile";
+            public static final String ANDROID_NAME = "AndroidAgent";
+            public static final String VERSION = "instrumentation.version";
+            public static final String COLLECTOR_NAME = "collector.name";
+            public static final String ENTITY_ATTRIBUTE = "entity.guid";
+        }
         public static final String SESSION_REPLAY_DATA_DIR = "newrelic/sessionReplay/";
         public static final String SESSION_REPLAY_FILE_MASK = "sessionReplaydata%s.%s";
         public static final String IS_FIRST_CHUNK = "isFirstChunk";
