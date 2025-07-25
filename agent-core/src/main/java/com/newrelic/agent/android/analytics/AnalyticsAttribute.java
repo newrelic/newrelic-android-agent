@@ -113,6 +113,7 @@ public class AnalyticsAttribute {
     public static final String APP_EXIT_FINGERPRINT_ATTRIBUTE = "fingerprint";
     public static final String APP_EXIT_PROCESS_ID_ATTRIBUTE = "processId";
     public static final String HARVEST_ACCOUNT_ID_ATTRIBUTE = "HarvestAccountId";
+    public static final String SESSION_REPLAY_ENABLED = "hasReplay";
 
 
     public static final int ATTRIBUTE_NAME_MAX_LENGTH = 255;

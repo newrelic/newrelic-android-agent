@@ -14,6 +14,7 @@ import com.newrelic.agent.android.distributedtracing.TraceParent;
 import com.newrelic.agent.android.distributedtracing.TracePayload;
 import com.newrelic.agent.android.distributedtracing.TraceState;
 import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.harvest.HarvestData;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.harvest.HttpTransactions;
@@ -385,7 +386,7 @@ public class HttpURLConnectionExtensionTest {
     @Test
     public void testSetDistributedTraceRequestPayload() throws IOException {
         FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
-
+        HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("2");
         try {
             URL url = new URL(requestUrl);
             HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
@@ -403,6 +404,7 @@ public class HttpURLConnectionExtensionTest {
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
+        HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("");
 
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
     }

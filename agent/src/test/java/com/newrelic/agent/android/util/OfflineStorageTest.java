@@ -1,7 +1,6 @@
 package com.newrelic.agent.android.util;
 
 import android.content.Context;
-import android.os.Environment;
 
 import com.newrelic.agent.android.SpyContext;
 
@@ -16,10 +15,7 @@ import java.util.Map;
 
 @RunWith(RobolectricTestRunner.class)
 public class OfflineStorageTest {
-    private static final String OFFLINE_STORAGE = "nr_offline_storage";
     private Context spyContext;
-    private static File offlineStorage = new File(Environment.getDataDirectory(), OFFLINE_STORAGE);
-    private static File testFile;
     private OfflineStorage instance;
 
     @Before
@@ -123,16 +119,9 @@ public class OfflineStorageTest {
         instance = new OfflineStorage(spyContext);
         instance.cleanOfflineFiles();
 
-        int defaultSize1 = instance.getOfflineStorageSize();
-        Assert.assertEquals(100 * 1024 * 1024, defaultSize1);
-
         OfflineStorage.setMaxOfflineStorageSize(-1);
         int defaultSize2 = instance.getOfflineStorageSize();
         Assert.assertEquals(100 * 1024 * 1024, defaultSize2);
-
-        OfflineStorage.setMaxOfflineStorageSize(10);
-        int defaultSize3 = instance.getOfflineStorageSize();
-        Assert.assertEquals(10, defaultSize3);
 
         instance.setOfflineStorageSize(-1);
         int defaultSize4 = instance.getOfflineStorageSize();
@@ -141,6 +130,17 @@ public class OfflineStorageTest {
         instance.setOfflineStorageSize(10);
         int defaultSize5 = instance.getOfflineStorageSize();
         Assert.assertEquals(10, defaultSize5);
+
+
+        OfflineStorage.setMaxOfflineStorageSize(10);
+        int defaultSize3 = instance.getOfflineStorageSize();
+        Assert.assertEquals(10, defaultSize3);
+
+
+        OfflineStorage.setMaxOfflineStorageSize(-1);
+        int defaultSize1 = instance.getOfflineStorageSize();
+        Assert.assertEquals(100 * 1024 * 1024, defaultSize1);
+
     }
 
     @Test
@@ -154,7 +154,7 @@ public class OfflineStorageTest {
                 int numPersist = 5;
                 for (int i = 0; i < numPersist; i++) {
                     instance.persistHarvestDataToDisk("{'testKey" + i + "':'testValue" + i + "'}");
-                    Assert.assertTrue(instance.getAllOfflineData().size() > 0);
+                    Assert.assertFalse(instance.getAllOfflineData().isEmpty());
                 }
             }
         }.start();
@@ -166,7 +166,7 @@ public class OfflineStorageTest {
                 int numPersist = 5;
                 for (int i = 0; i < numPersist; i++) {
                     instance.persistHarvestDataToDisk("{'testKey" + i + "':'testValue" + i + "'}");
-                    Assert.assertTrue(instance.getAllOfflineData().size() > 0);
+                    Assert.assertFalse(instance.getAllOfflineData().isEmpty());
                 }
             }
         }.start();

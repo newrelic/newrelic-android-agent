@@ -10,6 +10,7 @@ import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.distributedtracing.TraceParent;
 import com.newrelic.agent.android.distributedtracing.TracePayload;
 import com.newrelic.agent.android.distributedtracing.TraceState;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.mock.TestHarvest;
@@ -262,6 +263,7 @@ public class OkHttp3TransactionStateUtilTest {
         assertEquals(request.header(Constants.Network.APPLICATION_ID_HEADER), appId);
         assertNotNull("Cross-Process ID should not be NULL", request.header(Constants.Network.CROSS_PROCESS_ID_HEADER));
 
+        HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("1234");
         CallExtension call = (CallExtension) OkHttp3Instrumentation.newCall(client, request);
 
         assertNotNull("Trace payload should not be null", call.request.header(TracePayload.TRACE_PAYLOAD_HEADER));
@@ -270,7 +272,7 @@ public class OkHttp3TransactionStateUtilTest {
 
         transactionState = call.getTransactionState();
         Assert.assertNotNull(transactionState.getTrace());
-
+        HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("");
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
     }
 

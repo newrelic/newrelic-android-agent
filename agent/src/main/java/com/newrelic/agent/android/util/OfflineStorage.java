@@ -36,7 +36,7 @@ public class OfflineStorage {
         boolean isSaved = false;
         try {
             double totalData = getTotalFileSize() + data.getBytes().length;
-            if (totalData > DEFAULT_MAX_OFFLINE_Storage_SIZE) {
+            if (totalData > offlineStorageSize) {
                 return false;
             }
 
