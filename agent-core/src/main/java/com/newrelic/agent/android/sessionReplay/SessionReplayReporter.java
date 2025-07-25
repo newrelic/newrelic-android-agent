@@ -5,8 +5,11 @@
 
 package com.newrelic.agent.android.sessionReplay;
 
+import static com.newrelic.agent.android.util.Constants.SessionReplay.InstrumentationDetails;
+
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.ApplicationFramework;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
@@ -20,6 +23,7 @@ import com.newrelic.agent.android.util.Constants;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -32,6 +36,30 @@ public class SessionReplayReporter extends PayloadReporter {
     protected final SessionReplayStore sessionReplayStore;
     private Boolean isFirstChunk = true;
     private Boolean hasMeta = true;
+    private static String getInstrumentationName() {
+        String name;
+        if(AgentConfiguration.getInstance().getApplicationFramework().equals(ApplicationFramework.Native )) {
+            name = InstrumentationDetails.ANDROID_NAME;
+        } else {
+            name = AgentConfiguration.getInstance().getApplicationFramework().name();
+        }
+        return name;
+    }
+    static Map<String, Object> setCommonBlockAttributes(Map<String,Object> attributes) {
+        Map<String, Object> attr;
+        if (attributes.isEmpty()){
+            log.error("setCommonBlockAttributes called with empty attributes property");
+            attr = new HashMap<>();
+        } else {
+            attr = attributes;
+        }
+        attr.put(InstrumentationDetails.PROVIDER, InstrumentationDetails.PROVIDER_ATTRIBUTE);
+        attr.put(InstrumentationDetails.NAME, getInstrumentationName());
+        attr.put(InstrumentationDetails.VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
+        attr.put(InstrumentationDetails.COLLECTOR_NAME, InstrumentationDetails.ANDROID_NAME);
+
+        return attr;
+    }
 
     protected final Callable reportCachedSessionReplayDataCallable = new Callable() {
         @Override
@@ -65,8 +93,9 @@ public class SessionReplayReporter extends PayloadReporter {
         boolean reported = false;
 
         if (isInitialized()) {
+            Map<String, Object> sessionReplayAttributes = setCommonBlockAttributes(attributes);
             Payload payload = new Payload(bytes);
-            instance.get().storeAndReportSessionReplayData(payload, attributes);
+            instance.get().storeAndReportSessionReplayData(payload, sessionReplayAttributes);
             reported = true;
         } else {
             log.error("SessionReplayDataReporter not initialized");

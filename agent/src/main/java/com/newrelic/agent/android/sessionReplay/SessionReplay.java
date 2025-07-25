@@ -2,6 +2,8 @@ package com.newrelic.agent.android.sessionReplay;
 
 import static com.newrelic.agent.android.util.Constants.SessionReplay.FIRST_TIMESTAMP;
 import static com.newrelic.agent.android.util.Constants.SessionReplay.LAST_TIMESTAMP;
+import static com.newrelic.agent.android.util.Constants.SessionReplay.SESSION_ID;
+import static com.newrelic.agent.android.util.Constants.SessionReplay.InstrumentationDetails;
 
 import android.app.Application;
 import android.os.Handler;
