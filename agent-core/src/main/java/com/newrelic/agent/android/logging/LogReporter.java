@@ -12,7 +12,6 @@ import static com.newrelic.agent.android.logging.LogReporting.LOG_PAYLOAD_LOGS_A
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
@@ -25,6 +24,7 @@ import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.stats.StatsEngine;
+import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.Streams;
 
 import java.io.BufferedReader;
@@ -35,8 +35,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -597,10 +600,10 @@ public class LogReporter extends PayloadReporter {
 
         attrs.put(LogReporting.LOG_ENTITY_ATTRIBUTE, AgentConfiguration.getInstance().getEntityGuid());
         attrs.put(LogReporting.LOG_SESSION_ID, AgentConfiguration.getInstance().getSessionID());
-        attrs.put(LogReporting.LOG_INSTRUMENTATION_PROVIDER, LogReporting.LOG_INSTRUMENTATION_PROVIDER_ATTRIBUTE);
-        attrs.put(LogReporting.LOG_INSTRUMENTATION_NAME, AgentConfiguration.getInstance().getApplicationFramework().equals(ApplicationFramework.Native) ? LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME : AgentConfiguration.getInstance().getApplicationFramework().name());
-        attrs.put(LogReporting.LOG_INSTRUMENTATION_VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
-        attrs.put(LogReporting.LOG_INSTRUMENTATION_COLLECTOR_NAME, LogReporting.LOG_INSTRUMENTATION_ANDROID_NAME);
+        attrs.put(Constants.INSTRUMENTATION_PROVIDER, Constants.INSTRUMENTATION_PROVIDER_ATTRIBUTE);
+        attrs.put(Constants.INSTRUMENTATION_NAME, AgentConfiguration.getInstance().getApplicationFramework().equals(ApplicationFramework.Native) ? Constants.INSTRUMENTATION_ANDROID_NAME : AgentConfiguration.getInstance().getApplicationFramework().name());
+        attrs.put(Constants.INSTRUMENTATION_VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
+        attrs.put(Constants.INSTRUMENTATION_COLLECTOR_NAME, Constants.INSTRUMENTATION_ANDROID_NAME);
 
         // adding session attributes
         final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
@@ -626,16 +629,23 @@ public class LogReporter extends PayloadReporter {
     public void appendToWorkingLogfile(Map<String, Object> logDataMap) throws IOException {
         try {
             workingFileLock.lock();
-            String logJsonData = gson.toJson(logDataMap, gtype);
+            try (RandomAccessFile raf = new RandomAccessFile(workingLogfile, "rw");
+                 FileChannel channel = raf.getChannel();
+                 FileLock lock = channel.lock()) {
+                String logJsonData = gson.toJson(logDataMap, gtype);
 
-            if (null != workingLogfileWriter.get()) {
-                workingLogfileWriter.get().append(logJsonData);
-                workingLogfileWriter.get().newLine();
+                if (null != workingLogfileWriter.get()) {
+                    workingLogfileWriter.get().append(logJsonData);
+                    workingLogfileWriter.get().newLine();
 
-            } else {
-                // the writer has closed, usually a result of the agent stopping
+                } else {
+                    // the writer has closed, usually a result of the agent stopping
+                }
+            } catch(Exception ex){
+                ex.printStackTrace();
+            } finally {
+                // The lock is automatically released by try-with-resources when 'lock.close()' is called.
             }
-
         } catch(Exception ex) {
           ex.printStackTrace();
         } finally {

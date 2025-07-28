@@ -1,16 +1,16 @@
 <a href="https://opensource.newrelic.com/oss-category/#community-plus"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/dark/Community_Plus.png"><source media="(prefers-color-scheme: light)" srcset="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Community_Plus.png"><img alt="New Relic Open Source community plus project banner." src="https://github.com/newrelic/opensource-website/raw/main/src/images/categories/Community_Plus.png"></picture></a>
-# New Relic Android Agent 
-> The New Relic Android agent provides performance monitoring instrumentation for Android applications. 
-> With [New Relic's Android agent](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android), you can track everything from performance issues to tiny errors within your code. Our agent monitors your Android app and provides visibility into its behavior during runtime. 
+# New Relic Android Agent
+> The New Relic Android agent provides performance monitoring instrumentation for Android applications.
+> With [New Relic's Android agent](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android), you can track everything from performance issues to tiny errors within your code. Our agent monitors your Android app and provides visibility into its behavior during runtime.
 
 ## Artifacts
 Agent releases follow [semantic versioning conventions](https://semver.org/). See [agent release notes](https://docs.newrelic.com/docs/release-notes/mobile-release-notes/android-release-notes/) for full details on releases and downloads. Agent artifacts can also be found on [Maven](https://search.maven.org/search?q=com.newrelic.agent.android).
 
 The Android agent is comprised of several modules that are used together to instrument client applications:
-  
+
 ### Agent ([:agent](https://github.com/newrelic/newrelic-android-agent/tree/main/agent))
 
-The agent module wraps `agent-core` and `instrumentation` modules into an Android-compatible library project. 
+The agent module wraps `agent-core` and `instrumentation` modules into an Android-compatible library project.
 
 The output is `android-agent-<version>.jar`
 
@@ -19,23 +19,23 @@ The output is `android-agent-<version>.jar`
 The `agent-core` module contains common runtime artifacts collected and embedded into a single JAR:
 
 *   The SDK interface (API)
-*   The agent model 
+*   The agent model
 *   Instrumentation and metrics
 *   Data collection and reporting
 *   Crash detection
-*   Events and analytics management 
+*   Events and analytics management
 
 The output is `agent-core-<version>.jar`
 
 ### Instrumentation ([:instrumentation](https://github.com/newrelic/newrelic-android-agent/tree/main/instrumentation))
 
-The instrumentation module performs instrumentation during builds on client code using bytecode rewriting. 
+The instrumentation module performs instrumentation during builds on client code using bytecode rewriting.
 
 The output is `instrumentation-<version>.jar`
 
 ### Gradle plugin ([:plugins:gradle](https://github.com/newrelic/newrelic-android-agent/tree/main/plugins))
 
-The Gradle plugin auto-instruments client code during builds when applied to Android build configurations. 
+The Gradle plugin auto-instruments client code during builds when applied to Android build configurations.
 
 The output is `agent-gradle-plugin-<version>.jar`
 
@@ -79,8 +79,12 @@ Tool dependencies must to be installed and configured for your environment prior
 
 ### AndroidStudio setup
 * [Download](https://developer.android.com/sdk/index.html) the Android Studio IDE.
-* Install SDK Platforms. SDK Manager left pane: Appearances & Behavior -> System Settings -> Android SDK. Right Pane selects the SDK Platforms.
-Android Studio must be configured with the Android Native Development Kit (NDK) installed. Update `cmake` in `Tools` -> `SDK Manager` -> `SDK Tools`
+* Install SDK Platforms. _From the main menu_ `Tools` -> `SDK Manager`
+    * **SDK Manager**
+        * In the left pane: navigate to `Language & Frameworks` -> Android SDK.
+        * In the right Pane: selects the SDK Platforms.
+
+_Note_ Android Studio **must** be configured with Android Native Development Kit (NDK). Update `cmake` in `Tools` -> `SDK Manager` -> `SDK Tools`
 * From Android Studio's main menu, select `File` -> `Import Project` -> `Next`. Provide the full path to your cloned agent repo.
 
 The JDK 11 implementation provided by Android Studio is the default JDK used when building from the IDE.
@@ -91,7 +95,7 @@ the Android agent [compatibility and requirements](https://docs.newrelic.com/doc
 
 ## Building
 
-The agent can be built from either the command line Gradle or Android Studio. 
+The agent can be built from either the command line Gradle or Android Studio.
 
 The agent version is contained in `gradle.properties`, but can be overridden by adding `-Pnewrelic.agent.version={version}` to the Gradlew command line.
 
@@ -160,19 +164,19 @@ Debugging the class rewriter or plugins is more difficult but you can use a ```R
 * From your command line, export the `GRADLE_OPTS` environment variable:
   > export GRADLE_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5050"
 * Initiate a command line build of your test app:
-  > ./gradlew clean assembleDebug 
+  > ./gradlew clean assembleDebug
   >
   You should then see `Listening for transport dt_socket at address: 5005`
 
 * Set some breakpoints in the agent or class rewriter, and start the remote debugging session
 * You are now live-debugging the Gradle build, specifically those tasks that interact with Agent code
-* To remove GRADLE_OPTS from the environment,  
+* To remove GRADLE_OPTS from the environment,
     > unset GRADLE_OPTS
 
 ## Debugging with Android Studio
 Starting in version 3.0, Android Studio has made it easier to debug client builds using remote debugging. You no longer have
-to declare a `GRADLE_OPTS` environment variable. Simply start a command line build with 
-> `-Dorg.gradle.debug=true --no-daemon` 
+to declare a `GRADLE_OPTS` environment variable. Simply start a command line build with
+> `-Dorg.gradle.debug=true --no-daemon`
 
 declared on the build command line, or as properties in the `gradle.properties` file.
 
@@ -210,7 +214,7 @@ Build and test the agent project
 Build and install artifacts to the in-project Maven local repository (${rootProject.buildDir}/.m2/repository)
 
 # Sonatype Staging
-Agent pre-release snapshots will be posted to `https://oss.sonatype.org/content/repositories/comnewrelic-{snapshotId}`
+Agent pre-release snapshots will be posted to `https://ossrh-staging-api.central.sonatype.com/content/repositories/comnewrelic-{snapshotId}`
 
 # Usage
 The [Agent SDK](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/android-sdk-api/android-sdk-api-guide/) provides information on thw various agent SDK methods available to clients.
@@ -222,7 +226,7 @@ New Relic hosts and moderates an online forum where customers, users, maintainer
 
 [forum.newrelic.com](https://forum.newrelic.com/)
 
-### Support Channels 
+### Support Channels
 
 * [New Relic Documentation](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android): Comprehensive guidance for using our platform
 * [New Relic Community](https://discuss.newrelic.com/tags/android): The best place to engage in troubleshooting questions

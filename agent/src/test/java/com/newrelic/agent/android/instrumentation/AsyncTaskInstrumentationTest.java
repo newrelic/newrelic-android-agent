@@ -6,7 +6,7 @@
 package com.newrelic.agent.android.instrumentation;
 
 import android.annotation.TargetApi;
-import android.os.AsyncTask;
+import android.os.*;
 import android.os.Build;
 
 import com.newrelic.agent.android.FeatureFlag;
@@ -30,7 +30,15 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Tests for AsyncTaskInstrumentation.
+ * 
+ * Note: AsyncTask and AsyncTaskInstrumentation are deprecated in API level 30 (Android 11),
+ * but these tests are maintained for backward compatibility with applications
+ * that still use AsyncTask.
+ */
 @RunWith(RobolectricTestRunner.class)
+@SuppressWarnings("deprecation") // Using deprecated AsyncTask and AsyncTaskInstrumentation intentionally for testing
 public class AsyncTaskInstrumentationTest {
 
     private final static String TAG = "AsyncTaskInstrumentationTest";
@@ -78,6 +86,7 @@ public class AsyncTaskInstrumentationTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation") // Using deprecated AsyncTaskInstrumentation intentionally for testing
     public void testTraceLifecycle() throws Exception {
         try {
             TraceMachine.startTracing("testTraceLifecycle");
@@ -102,6 +111,7 @@ public class AsyncTaskInstrumentationTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation") // Using deprecated AsyncTaskInstrumentation intentionally for testing
     public void testExecute() throws Exception {
         try {
             AsyncTaskInstrumentation.execute(testAsyncTask, TAG);
@@ -113,6 +123,7 @@ public class AsyncTaskInstrumentationTest {
 
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     @Test
+    @SuppressWarnings("deprecation") // Using deprecated AsyncTaskInstrumentation intentionally for testing
     public void testExecuteOnExecutor() throws Exception {
         try {
             AsyncTaskInstrumentation.executeOnExecutor(testAsyncTask, AsyncTask.THREAD_POOL_EXECUTOR, TAG);
@@ -124,6 +135,7 @@ public class AsyncTaskInstrumentationTest {
 
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     @Test
+    @SuppressWarnings("deprecation") // Using deprecated AsyncTaskInstrumentation intentionally for testing
     public void testShouldInjectTraceWhenInstrumented() throws Exception {
         TestTraceFieldInterface testTraceFieldInterface = spy(new TestTraceFieldInterface());
 
@@ -148,6 +160,7 @@ public class AsyncTaskInstrumentationTest {
         Assert.assertEquals(1, TraceMachine.getActivityHistory().size());
     }
 
+    @SuppressWarnings("deprecation") // Using deprecated AsyncTask intentionally for testing
     private static class TestAsyncTask extends AsyncTask<String, String, String>
             implements TraceFieldInterface {
 
@@ -172,6 +185,7 @@ public class AsyncTaskInstrumentationTest {
         }
     }
 
+    @SuppressWarnings("deprecation") // Using deprecated AsyncTask intentionally for testing
     private static class TestTraceFieldInterface extends TestAsyncTask
             implements TraceFieldInterface {
 
@@ -180,7 +194,6 @@ public class AsyncTaskInstrumentationTest {
 
         }
     }
-
 
     private static class TraceLifecycleListener implements TraceLifecycleAware {
 

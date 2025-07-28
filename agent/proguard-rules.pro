@@ -6,11 +6,31 @@
 ## NewRelic Gradle plugin 7.x requires the following additions:
 ##
 
-# Retain generic signatures of TypeToken and its subclasses with R8 version 3.0 and higher.
-# -keepattributes Signature
-# -keep class com.newrelic.com.google.gson.reflect.TypeToken { *; }
-# -keep class * extends com.newrelic.com.google.gson.reflect.TypeToken
-
+-keepattributes Signature
+-keep class com.newrelic.com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.newrelic.com.google.gson.reflect.TypeToken
 # For using GSON @Expose annotation
-# -keepattributes *Annotation*
+-keepattributes *Annotation*
+
+## Apache HTTP client
+-keep class org.apache.http.** { *; }
+-keep interface org.apache.http.** { *; }
+
+## OKHttp 2
+-keep class com.squareup.okhttp.** { *; }
+-keep interface com.squareup.okhttp.** { *; }
+
+## OKHttp 3
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+
+## Retrofit
+-keep class retrofit2.** { *; }
+-keep interface retrofit2.** { *; }
+
+## Gson
+-keep class com.google.gson.** { *; }
+-keep interface com.google.gson.** { *; }
+
+
 
