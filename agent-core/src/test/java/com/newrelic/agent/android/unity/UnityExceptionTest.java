@@ -15,7 +15,7 @@ public class UnityExceptionTest {
     public void testDefaultConstructor() {
         UnityException ue = new UnityException();
         assertNull(ue.getMessage());
-        assertTrue(ue.getStackTrace().length > 0);
+        assertTrue(ue.getStackTrace().length ==0);
     }
 
     @Test

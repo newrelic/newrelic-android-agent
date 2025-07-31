@@ -64,7 +64,7 @@ public class SessionReplayProcessor {
         return snapshot;
     }
 
-    private RRWebFullSnapshotEvent processFullFrame(SessionReplayFrame frame) {
+    RRWebFullSnapshotEvent processFullFrame(SessionReplayFrame frame) {
         // Generate style string
         StringBuilder cssStyleBuilder = new StringBuilder();
 

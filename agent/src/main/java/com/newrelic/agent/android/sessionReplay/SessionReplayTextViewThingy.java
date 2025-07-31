@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.Typeface;
 import android.widget.TextView;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
@@ -14,6 +15,7 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 // Assuming SessionReplayViewThingy is an interface or abstract class in Java
@@ -29,18 +31,31 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String fontFamily;
     private String textColor;
     private String textAlign;
-    private  MobileSessionReplayConfiguration sessionReplayConfiguration;
+    protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
+    protected SessionReplayConfiguration sessionReplayConfiguration;
 
-    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
-        this.sessionReplayConfiguration = sessionReplayConfiguration;
+    public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, AgentConfiguration agentConfiguration) {
+        this.sessionReplayLocalConfiguration = agentConfiguration.getSessionReplayLocalConfiguration();
+        this.sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
         this.viewDetails = viewDetails;
 
         // Get the raw text from the TextView
         String rawText = view.getText() != null ? view.getText().toString() : "";
 
         // Determine if text should be masked based on configuration
-        boolean shouldMaskText = sessionReplayConfiguration.isMaskApplicationText() ||
-                                (sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0);
+        boolean shouldMaskText;
+
+        // Check if input type is for password - always mask password fields
+        int inputType = view.getInputType();
+        if ((inputType & android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD) != 0 ||
+                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) != 0 ||
+                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) != 0 ||
+                (inputType & android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) != 0) {
+            shouldMaskText = true;
+        } else {
+            // For non-password fields, use configuration-based logic
+            shouldMaskText = inputType != 0 ? sessionReplayConfiguration.isMaskUserInputText() : sessionReplayConfiguration.isMaskApplicationText();
+        }
 
         // Apply masking if needed
         this.labelText = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
@@ -127,7 +142,6 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         StringBuilder cssBuilder = new StringBuilder(viewDetails.generateCssDescription());
         cssBuilder.append("");
         generateTextCss(cssBuilder);
-        cssBuilder.append("}");
 
         return cssBuilder.toString();
     }
@@ -142,12 +156,12 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
     private void generateTextCss(StringBuilder cssBuilder) {
         cssBuilder.append("white-space: pre-wrap;");
+        cssBuilder.append("");
+        cssBuilder.append("word-wrap: break-word;");
         cssBuilder.append(" ");
-        cssBuilder.append("word-wrap: break-word");
-        cssBuilder.append("; ");
         cssBuilder.append("font-size: ");
         cssBuilder.append(String.format("%.2f", this.fontSize));
-        cssBuilder.append("px ");
+        cssBuilder.append("px; ");
         cssBuilder.append(this.fontFamily);
         cssBuilder.append("; ");
         cssBuilder.append("color: #");
@@ -183,6 +197,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             styleDifferences.put("top", other.getViewDetails().frame.top + "px");
             styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
             styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
+            styleDifferences.put("line-height", other.getViewDetails().frame.height() + "px");
         }
 
         // Compare background colors if available
@@ -198,13 +213,34 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         if(this.textColor != null) {
             String otherTextColor = ((SessionReplayTextViewThingy) other).getTextColor();
             if (!this.textColor.equals(otherTextColor)) {
-                styleDifferences.put("color", otherTextColor);
+                styleDifferences.put("color", '#'+otherTextColor);
             }
+        }
+
+        if(this.fontFamily!= null) {
+            String otherFontFamily = ((SessionReplayTextViewThingy) other).getFontFamily();
+            if (!this.fontFamily.equals(otherFontFamily)) {
+                styleDifferences.put("font-family", otherFontFamily);
+            }
+        }
+
+
+        // Compare text alignment
+        if(this.textAlign != null) {
+            String otherTextAlign = ((SessionReplayTextViewThingy) other).textAlign;
+            if (!this.textAlign.equals(otherTextAlign)) {
+                styleDifferences.put("text-align", otherTextAlign);
+            }
+        }
+
+        if (this.fontSize != ((SessionReplayTextViewThingy) other).getFontSize()) {
+            styleDifferences.put("font-size", String.format("%.2fpx", ((SessionReplayTextViewThingy) other).getFontSize()));
         }
 
         // Create and return a MutationRecord with the style differences
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
-        attributes.setMetadata(styleDifferences);    List<MutationRecord> mutations = new ArrayList<>();
+        attributes.setMetadata(styleDifferences);
+        List<MutationRecord> mutations = new ArrayList<>();
         mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
 
         // Check if label text has changed
@@ -328,11 +364,13 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         // Check if view has tags that prevent masking
         Object viewTag = view.getTag();
         Object privacyTag = view.getTag(R.id.newrelic_privacy);
-        boolean hasUnmaskTag = ("nr-unmask".equals(viewTag)) ||
-              ("nr-unmask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString()) )|| checkMaskUnMaskViewClass(sessionReplayConfiguration.getUnmaskedViewClasses(),view);
-
+        boolean hasUnmaskTag = false;
+        if(Objects.equals(sessionReplayConfiguration.getMode(), "custom")) {
+            hasUnmaskTag = ("nr-unmask".equals(viewTag)) ||
+                    ("nr-unmask".equals(privacyTag)) || (view.getTag() != null && (sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString()) || sessionReplayLocalConfiguration.shouldUnmaskViewTag(view.getTag().toString()))) || checkMaskUnMaskViewClass(sessionReplayConfiguration.getUnmaskedViewClasses(), view) || checkMaskUnMaskViewClass(sessionReplayLocalConfiguration.getUnmaskedViewClasses(), view);
+        }
         // Check if view has tag that forces masking
-        boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString())) || checkMaskUnMaskViewClass(sessionReplayConfiguration.getMaskedViewClasses(),view);
+        boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && (sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString()) || sessionReplayLocalConfiguration.shouldMaskViewTag(view.getTag().toString()))) || checkMaskUnMaskViewClass(sessionReplayConfiguration.getMaskedViewClasses(),view) || checkMaskUnMaskViewClass(sessionReplayLocalConfiguration.getMaskedViewClasses(),view);
         // Apply masking if needed:
         // - If general masking is enabled AND no unmask tag AND not in unmask class list, OR
         // - If has explicit mask tag OR class is explicitly masked
@@ -353,7 +391,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         Class clazz = view.getClass();
 
         while (clazz!= null) {
-            if (viewClasses.contains(clazz.getName())) {
+            if (viewClasses != null && viewClasses.contains(clazz.getName())) {
                 return true;
             }
             clazz = clazz.getSuperclass();

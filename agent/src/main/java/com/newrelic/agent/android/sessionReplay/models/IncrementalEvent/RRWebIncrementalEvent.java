@@ -13,4 +13,9 @@ public class RRWebIncrementalEvent implements RRWebEvent {
         this.timestamp = timestamp;
         this.data = data;
     }
+
+    @Override
+    public long getTimestamp() {
+        return this.timestamp;
+    }
 }

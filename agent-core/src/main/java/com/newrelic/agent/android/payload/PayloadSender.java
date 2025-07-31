@@ -125,6 +125,7 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
             byte[] payloadBytes = getPayload().getBytes();
             final HttpURLConnection connection = getConnection();
 
+
             try {
                 timer.tic();
                 connection.connect();

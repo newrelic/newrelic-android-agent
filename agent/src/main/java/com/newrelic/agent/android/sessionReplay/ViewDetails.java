@@ -1,13 +1,17 @@
 package com.newrelic.agent.android.sessionReplay;
 
-import android.graphics.Rect;
+import android.graphics.Paint;
+import android.graphics.Rect; // Equivalent to CGRect for basic representation
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.view.View;
+import android.view.View; // Use Android's View class
 import android.view.ViewGroup;
+//import com.newrelic.agent.android.sessionReplay.gestures.SessionReplayIdentifier; // Assuming this class exists for managing view IDs
 import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
+//import com.newrelic.agent.android.sessionReplay.models.NewRelicIdGenerator; // Assuming this class exists for generating IDs
 
-import java.util.Objects;
+import java.lang.reflect.Field;
+import java.util.Objects; // For hashCode and equals
 
 public class ViewDetails {
     public final int viewId;
@@ -20,20 +24,25 @@ public class ViewDetails {
     public final String viewName;
     public final float density;
 
+
+    // Computed property: cssSelector
     public String getCssSelector() {
         return this.viewName + "-" + this.viewId;
     }
 
+    // Computed property: isVisible
     public boolean isVisible() {
         // Equivalent of Swift's frame != .zero requires checking Rect's fields
         return !isHidden && alpha > 0 && (frame.width() > 0 || frame.height() > 0);
     }
 
+    // Computed property: isClear
     public boolean isClear() {
         // In Android, alpha is typically 0.0 to 1.0
         return alpha <= 1.0f;
     }
 
+    // Equivalent of Swift's init(view: UIView)
     public ViewDetails(View view) {
         // Getting the global visible rectangle of the view
         this.density = view.getContext().getResources().getDisplayMetrics().density;
@@ -43,7 +52,9 @@ public class ViewDetails {
         float y = location[1] / density;
         float width = view.getWidth() / density;
         float height = view.getHeight() / density;
-        this.frame = new Rect((int) x, (int) y, (int) ((int) x + width), (int) ((int) y + height));
+        this.frame = new Rect((int) x, (int) y, (int) ((int)  x+width), (int) ((int) y+height));
+
+
 
         this.backgroundColor = ViewBackgroundHelper.getBackgroundColor(view);
 
@@ -54,6 +65,7 @@ public class ViewDetails {
         // View.GONE and View.INVISIBLE are considered hidden in a session replay context
         this.isHidden = view.getVisibility() == View.GONE || view.getVisibility() == View.INVISIBLE;
 
+        // Equivalent of Swift's String(describing: type(of: view))
         this.viewName = view.getClass().getSimpleName(); // Gets the simple class name
 
         viewId = getStableId(view);
@@ -66,6 +78,31 @@ public class ViewDetails {
             // If the parent is not a ViewGroup, we can still get its ID
             parentId = 0;
         }
+    }
+
+    // Getters for the final properties
+    public int getViewId() {
+        return viewId;
+    }
+
+    public Rect getFrame() {
+        return frame;
+    }
+
+    public String getBackgroundColor() {
+        return backgroundColor;
+    }
+
+    public float getAlpha() {
+        return alpha;
+    }
+
+    public boolean isHidden() {
+        return isHidden;
+    }
+
+    public String getViewName() {
+        return viewName;
     }
 
     public String getCSSSelector() {
@@ -84,7 +121,7 @@ public class ViewDetails {
 
         return cssString.toString();
     }
-    
+
     public String generateInlineCSS() {
         StringBuilder cssString = new StringBuilder();
         cssString.append(generatePositionCss())
@@ -109,7 +146,11 @@ public class ViewDetails {
                 .append("px;")
                 .append("height: ")
                 .append(frame.height())
+                .append("px;")
+                .append("line-height: ")
+                .append(frame.height())
                 .append("px;");
+
 
         return positionStringBuilder;
     }
@@ -131,6 +172,7 @@ public class ViewDetails {
         return backgroundColorStringBuilder.toString();
     }
 
+    // Implementing hashCode and equals for equivalence to Swift's implicit Hashable for structs with Hashable members
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

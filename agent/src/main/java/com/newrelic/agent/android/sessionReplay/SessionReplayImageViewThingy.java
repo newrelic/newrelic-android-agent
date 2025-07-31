@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
@@ -22,7 +23,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     private ImageView.ScaleType scaleType;
     private String backgroundColor;
 
-    public SessionReplayImageViewThingy(ViewDetails viewDetails, ImageView view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
+    public SessionReplayImageViewThingy(ViewDetails viewDetails, ImageView view, AgentConfiguration agentConfiguration) {
         this.viewDetails = viewDetails;
 
         this.contentDescription = view.getContentDescription() != null ? view.getContentDescription().toString() : "";
@@ -88,7 +89,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
-        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, Collections.emptyList());
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.emptyList());
     }
 
     @Override
@@ -122,7 +123,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
         attributes.setMetadata(styleDifferences);
         List<MutationRecord> mutations = new ArrayList<>();
-        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.getViewId(), attributes));
         return mutations;
     }
 
@@ -150,7 +151,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         if (background != null) {
             return "#FF474C"; // Placeholder color, you might want to implement a method to extract actual color
         }
-        return " #FFC0CB";
+        return "#CCCCCC";
     }
 
     private String getBackgroundSizeFromScaleType() {

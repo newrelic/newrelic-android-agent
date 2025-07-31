@@ -17,10 +17,22 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
     @Override
     public JsonElement serialize(Attributes src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject jsonObject = new JsonObject();
-        
+        JsonObject metadataObject = new JsonObject();
+
         // Add all metadata entries directly to the root JSON object
         for (Map.Entry<String, String> entry : src.getMetadata().entrySet()) {
-            jsonObject.addProperty(entry.getKey(), entry.getValue());
+            if ("style".equals(entry.getKey())) {
+                // Handle style separately - add it as a nested object
+                jsonObject.addProperty(entry.getKey(), entry.getValue());
+            } else {
+                // Add all other metadata entries directly to the root JSON object
+                metadataObject.addProperty(entry.getKey(), entry.getValue());
+            }
+        }
+
+        // Only add the style object if it has content
+        if (metadataObject.size() > 0) {
+            jsonObject.add("style", metadataObject);
         }
         // Add other fields of Attributes if needed
         if (src.getId() != null) {

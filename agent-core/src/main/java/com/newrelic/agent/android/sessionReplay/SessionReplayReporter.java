@@ -5,13 +5,18 @@
 
 package com.newrelic.agent.android.sessionReplay;
 
+import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
+import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.payload.PayloadSender;
+import com.newrelic.agent.android.stats.StatsEngine;
+import com.newrelic.agent.android.util.Constants;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,7 +30,6 @@ import java.util.zip.GZIPOutputStream;
 public class SessionReplayReporter extends PayloadReporter {
     protected static final AtomicReference<SessionReplayReporter> instance = new AtomicReference<>(null);
     protected final SessionReplayStore sessionReplayStore;
-    private Boolean isFirstChunk = true;
     private Boolean hasMeta = true;
 
     protected final Callable reportCachedSessionReplayDataCallable = new Callable() {
@@ -112,9 +116,9 @@ public class SessionReplayReporter extends PayloadReporter {
     protected void reportCachedSessionReplayData() {
         if (isInitialized()) {
             SessionReplayStore sessionStore = agentConfiguration.getSessionReplayStore();
-            List<String> data = sessionStore.fetchAll();
-            String sessionReplayData = data.get(0);
-            reportSessionReplayData(sessionReplayData.getBytes(),null);
+            List data = sessionStore.fetchAll();
+            String sessionReplayData = data.get(0).toString();
+            reportSessionReplayData(sessionReplayData.getBytes(), null);
         } else {
             log.error("SessionReplayDataReporter not initialized");
         }
@@ -122,17 +126,28 @@ public class SessionReplayReporter extends PayloadReporter {
 
     public Future reportSessionReplayData(Payload payload, Map<String, Object> attributes) throws IOException {
 
-        attributes.put("isFirstChunk", isFirstChunk);
-        attributes.put("hasMeta", hasMeta);
+        attributes.put(Constants.SessionReplay.HAS_META, hasMeta);
+        attributes.put(Constants.SessionReplay.DECOMPRESSED_BYTES, payload.getBytes().length);
 
-        PayloadSender payloadSender = new SessionReplaySender(payload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(),attributes);
+        byte[] compressedBytes = gzipCompress(payload.getBytes());
+        if(compressedBytes.length > Constants.Network.MAX_PAYLOAD_SIZE) {
+            DeviceInformation deviceInformation = Agent.getDeviceInformation();
+            String name = MetricNames.SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT
+                    .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
+                    .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
+                    .replace(MetricNames.TAG_SUBDESTINATION,"SessionReplay");
+            StatsEngine.SUPPORTABILITY.inc(name);
+            return null;
+        }
+        Payload compressedPayload = new Payload(compressedBytes);
+        PayloadSender payloadSender = new SessionReplaySender(compressedPayload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(), attributes);
 
-        isFirstChunk = false; // Set to false after the first chunk is sent
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {
                 if (payloadSender.isSuccessfulResponse()) {
                     //add supportability metrics
+
                 } else {
                     // sender will remain in store and retry every harvest cycle
                     //Offline storage: No network at all, don't send back data
@@ -151,9 +166,9 @@ public class SessionReplayReporter extends PayloadReporter {
         return future;
     }
 
-public void storeAndReportSessionReplayData(Payload payload, Map<String, Object> attributes) {
+    public void storeAndReportSessionReplayData(Payload payload, Map<String, Object> attributes) {
         try {
-            reportSessionReplayData(payload,attributes);
+            reportSessionReplayData(payload, attributes);
         } catch (IOException e) {
             log.error("SessionReplayReporter.storeAndReportSessionReplayData(Payload): " + e);
         }

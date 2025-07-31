@@ -11,7 +11,7 @@ import com.newrelic.agent.android.harvest.HarvestConfigurable;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.logging.LogLevel;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
-import com.newrelic.agent.android.sessionReplay.MobileSessionReplayConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 
 /**
  * Data model for agent configuration Json data returned in the Collector connect response.
@@ -29,13 +29,13 @@ public class RemoteConfiguration implements HarvestLifecycleAware, HarvestConfig
     @SerializedName("logs")
     protected LogReportingConfiguration logReportingConfiguration;
 
-    @SerializedName("mobile_session_replay")
-    protected MobileSessionReplayConfiguration mobileSessionReplayConfiguration;
+    @SerializedName("session_replay")
+    protected SessionReplayConfiguration sessionReplayConfiguration;
 
     public RemoteConfiguration() {
         this.applicationExitConfiguration = new ApplicationExitConfiguration(true);
         this.logReportingConfiguration = new LogReportingConfiguration(false, LogLevel.INFO);
-        this.mobileSessionReplayConfiguration = new MobileSessionReplayConfiguration();
+        this.sessionReplayConfiguration = new SessionReplayConfiguration();
     }
 
     @Override
@@ -44,7 +44,7 @@ public class RemoteConfiguration implements HarvestLifecycleAware, HarvestConfig
             RemoteConfiguration rhs = (RemoteConfiguration) obj;
             return (this.applicationExitConfiguration.equals(rhs.applicationExitConfiguration) &&
                     this.logReportingConfiguration.equals(rhs.logReportingConfiguration) &&
-                    this.mobileSessionReplayConfiguration.equals(rhs.mobileSessionReplayConfiguration));
+                    this.sessionReplayConfiguration.equals(rhs.sessionReplayConfiguration));
         }
 
         return false;
@@ -66,12 +66,21 @@ public class RemoteConfiguration implements HarvestLifecycleAware, HarvestConfig
         this.applicationExitConfiguration = applicationExitConfiguration;
     }
 
-    public MobileSessionReplayConfiguration getMobileSessionReplayConfiguration() {
-        return mobileSessionReplayConfiguration;
+    public SessionReplayConfiguration getSessionReplayConfiguration() {
+        return sessionReplayConfiguration;
     }
 
-    public void setMobileSessionReplayConfiguration(MobileSessionReplayConfiguration mobileSessionReplayConfiguration) {
-        this.mobileSessionReplayConfiguration = mobileSessionReplayConfiguration;
+    public void setSessionReplayConfiguration(SessionReplayConfiguration sessionReplayConfiguration) {
+        this.sessionReplayConfiguration = sessionReplayConfiguration;
+    }
+
+    @Override
+    public String toString() {
+        return "RemoteConfiguration{" +
+                "applicationExitConfiguration=" + applicationExitConfiguration +
+                ", logReportingConfiguration=" + logReportingConfiguration +
+                ", mobileSessionReplayConfiguration=" + sessionReplayConfiguration +
+                '}';
     }
 
     @Override

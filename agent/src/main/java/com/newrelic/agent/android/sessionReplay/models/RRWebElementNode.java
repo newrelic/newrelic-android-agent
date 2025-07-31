@@ -12,7 +12,7 @@ public class RRWebElementNode implements RRWebNode {
 
     public int type = RRWEB_NODE_TYPE_ELEMENT;
     public String tagName;
-    public Attributes attributes  ;
+    public Attributes attributes;
     public List<RRWebNode> childNodes;
     public int id;
 

@@ -34,7 +34,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     private float density;
     private int currentTouchId = -1;
     private TouchTracker currentTouchTracker = null;
-    MobileSessionReplayConfiguration sessionReplayConfiguration;
+    SessionReplayConfiguration sessionReplayConfiguration;
     private final OnTouchRecordedListener onTouchRecordedListener;
 
     public SessionReplayActivityLifecycleCallbacks(OnTouchRecordedListener onTouchRecordedListener) {
@@ -63,7 +63,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
-        sessionReplayConfiguration = agentConfiguration.getMobileSessionReplayConfiguration();
+        sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
         boolean shouldMaskTouches = sessionReplayConfiguration.isMaskAllUserTouches();
         Log.d(TAG, "onActivityResumed: " + activity.getClass().getSimpleName());
         density = activity.getResources().getDisplayMetrics().density;
@@ -89,7 +89,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                         moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                         currentTouchTracker = new TouchTracker(moveTouch);
                     } else if (containingTouchViewId == -1) {
-                        Log.e(TAG, "TOUCH LOST: Unable to find originating View.");
+                        Log.d(TAG, "TOUCH LOST: Unable to find originating View.");
                     }
                 } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
                     if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {

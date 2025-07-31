@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.Typeface;
 import android.widget.EditText;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
@@ -20,14 +21,15 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
 
     public boolean shouldRecordSubviews = false;
     private String hint;
-    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view, MobileSessionReplayConfiguration sessionReplayConfiguration) {
-        super(viewDetails, view, sessionReplayConfiguration);
+
+    public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view, AgentConfiguration agentConfiguration) {
+        // Call the parent constructor to initialize common properties
+        super(viewDetails, view, agentConfiguration);
         this.viewDetails = viewDetails;
 
         // Get the raw text from the TextView
         String rawText = view.getHint() != null ? view.getHint().toString() : "";
-        boolean shouldMaskText = sessionReplayConfiguration.isMaskApplicationText() ||
-                (sessionReplayConfiguration.isMaskUserInputText() && view.getInputType() != 0);
+        boolean shouldMaskText =  view.getInputType() != 0 ? sessionReplayConfiguration.isMaskUserInputText(): sessionReplayConfiguration.isMaskApplicationText();
 
         // Apply masking if needed
         this.hint = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
@@ -53,17 +55,12 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
         return shouldRecordSubviews;
     }
 
-    @Override
-    public String getCssSelector() {
-        return viewDetails.getCssSelector();
-    }
 
     @SuppressLint("DefaultLocale")
     @Override
     public String generateCssDescription() {
 
-        StringBuilder cssBuilder = new StringBuilder(super.generateCssDescription())
-                .append(" }");
+        StringBuilder cssBuilder = new StringBuilder(super.generateCssDescription());
         return cssBuilder.toString();
     }
 
@@ -103,6 +100,7 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
             styleDifferences.put("top", other.getViewDetails().frame.top + "px");
             styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
             styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
+            styleDifferences.put("line-height", other.getViewDetails().frame.height() + "px");
         }
 
         // Compare background colors if available

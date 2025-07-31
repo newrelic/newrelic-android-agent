@@ -30,7 +30,6 @@ import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
-import com.newrelic.agent.android.sessionReplay.SessionReplayActivityLifecycleCallbacks;
 import com.newrelic.agent.android.sessionReplay.TextMaskingStrategy;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -62,8 +61,6 @@ public final class NewRelic {
     protected static final AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
     protected static boolean started = false;
     protected static boolean isShutdown = false;
-    SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
-
 
     boolean loggingEnabled = true;
     int logLevel = AgentLog.INFO;
@@ -1279,7 +1276,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().setTextMaskingStrategy(strategy);
+            agentConfiguration.getSessionReplayLocalConfiguration().setTextMaskingStrategy(strategy);
             return true;
         }
 
@@ -1303,7 +1300,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "setSessionReplayMaskUserTouches"));
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().setMaskAllUserTouches(maskTouches);
+            agentConfiguration.getSessionReplayLocalConfiguration().setMaskAllUserTouches(maskTouches);
             return true;
         }
 
@@ -1313,8 +1310,6 @@ public final class NewRelic {
 
     /**
      * Adds a view class to be masked during session replay.
-
-
 
     /**
      * Adds a view class to be masked during session replay.
@@ -1335,7 +1330,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().addMaskViewClass(viewClassName);
+            agentConfiguration.getSessionReplayLocalConfiguration().addMaskViewClass(viewClassName);
             return true;
         }
 
@@ -1361,7 +1356,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().addUnmaskViewClass(viewClassName);
+            agentConfiguration.getSessionReplayLocalConfiguration().addUnmaskViewClass(viewClassName);
             return true;
         }
 
@@ -1387,7 +1382,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().addMaskViewTag(viewTag);
+            agentConfiguration.getSessionReplayLocalConfiguration().addMaskViewTag(viewTag);
             return true;
         }
 
@@ -1413,7 +1408,7 @@ public final class NewRelic {
         }
 
         if (agentConfiguration != null) {
-            agentConfiguration.getMobileSessionReplayConfiguration().addUnmaskViewTag(viewTag);
+            agentConfiguration.getSessionReplayLocalConfiguration().addUnmaskViewTag(viewTag);
             return true;
         }
 
