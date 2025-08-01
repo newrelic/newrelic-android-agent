@@ -68,7 +68,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
 
     @Override
     public String generateInlineCss() {
-        StringBuilder cssBuilder = new StringBuilder();
+        StringBuilder cssBuilder = new StringBuilder(viewDetails.generateInlineCSS());
         cssBuilder.append(" ");
         generateImageCss(cssBuilder);
         return cssBuilder.toString();
