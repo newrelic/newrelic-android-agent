@@ -30,6 +30,8 @@ public class ActivityClassVisitor extends AgentDelegateClassVisitor {
 
     static final Type agentDelegateClassType = Type.getObjectType(Constants.ASM_CLASS_NAME);
 
+    private boolean defaultInteractionsEnabled = false;
+
     /**
      * This set should include the names of all Android SDK classes that would be base classes
      * of an instrumented client class
@@ -69,9 +71,10 @@ public class ActivityClassVisitor extends AgentDelegateClassVisitor {
     );
 
 
-    public ActivityClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log) {
+    public ActivityClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log,boolean defaultInteractionsEnabled) {
         super(cv, context, log, ACTIVITY_CLASSES, methodDelegateMap, methodAccessMap);
         this.access = 0;
+        this.defaultInteractionsEnabled = defaultInteractionsEnabled;
     }
 
     @Override
@@ -114,7 +117,7 @@ public class ActivityClassVisitor extends AgentDelegateClassVisitor {
         if (context.isSkippedMethod(methodName, desc)) {
             log.debug("[ActivityClassVisitor] @SkipTrace applied to method [" + methodName + ", " + desc + "]");
 
-        } else if (instrument) {
+        } else if (instrument && this.defaultInteractionsEnabled) {
             if (tracedMethodsMap.containsKey(methodName) && tracedMethodsMap.get(methodName).equals(desc)) {
                 log.info("[ActivityClassVisitor] Tracing method [" + methodName + "]");
                 MethodVisitor methodVisitor = super.visitMethod(access, methodName, desc, signature, exceptions);
@@ -134,7 +137,7 @@ public class ActivityClassVisitor extends AgentDelegateClassVisitor {
 
     @Override
     public void visitEnd() {
-        if (instrument) {
+        if (instrument && this.defaultInteractionsEnabled) {
             TraceClassDecorator decorator = new TraceClassDecorator(this);
             decorator.addTraceField();
             log.debug("[ActivityClassVisitor] Added Trace object to " + context.getClassName());

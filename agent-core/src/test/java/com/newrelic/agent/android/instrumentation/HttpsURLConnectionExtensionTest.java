@@ -10,6 +10,7 @@ import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.distributedtracing.TraceParent;
 import com.newrelic.agent.android.distributedtracing.TracePayload;
 import com.newrelic.agent.android.distributedtracing.TraceState;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -35,11 +36,12 @@ public class HttpsURLConnectionExtensionTest {
     @Test
     public void testInjectDistributedTracePayload() {
         FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
-
+        HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("12345");
         try {
             URL url = new URL(requestUrl);
             HttpsURLConnection urlConnection = (HttpsURLConnection) url.openConnection();
             final HttpsURLConnectionExtension instrumentedConnection = new HttpsURLConnectionExtension(urlConnection);
+
 
             TransactionState transactionState = instrumentedConnection.getTransactionState();
             Assert.assertNotNull(transactionState.getTrace());
@@ -48,6 +50,8 @@ public class HttpsURLConnectionExtensionTest {
             Assert.assertTrue(requestPayload.containsKey(TracePayload.TRACE_PAYLOAD_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceState.TRACE_STATE_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceParent.TRACE_PARENT_HEADER));
+            HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("");
+
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         }

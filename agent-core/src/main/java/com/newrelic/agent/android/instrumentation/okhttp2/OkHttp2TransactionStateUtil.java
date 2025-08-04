@@ -10,6 +10,7 @@ import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceHeader;
+import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.instrumentation.TransactionStateUtil;
 import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
@@ -193,7 +194,7 @@ public class OkHttp2TransactionStateUtil extends TransactionStateUtil {
     }
 
     public static Request setDistributedTraceHeaders(TransactionState transactionState, Request request) {
-        if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
+        if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing) && !HarvestConfiguration.getDefaultHarvestConfiguration().getAccount_id().isEmpty() ) {
             try {
                 Request.Builder builder = request.newBuilder();
 
@@ -217,7 +218,7 @@ public class OkHttp2TransactionStateUtil extends TransactionStateUtil {
     }
 
     public static Response setDistributedTraceHeaders(TransactionState transactionState, Response response) {
-        if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
+        if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing) && !HarvestConfiguration.getDefaultHarvestConfiguration().getAccount_id().isEmpty()) {
             try {
                 Response.Builder builder = response.newBuilder();
                 TraceContext traceContext = transactionState.getTrace();

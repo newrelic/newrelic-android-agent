@@ -88,6 +88,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_LOG_EXPIRED = SUPPORTABILITY_LOG_REPORTING + "Expired";
     public static final String SUPPORTABILITY_LOG_SAMPLED = SUPPORTABILITY_LOG_REPORTING + "Sampled/";
 
+
     public static final String SUPPORTABILITY_AEI = SUPPORTABILITY_AGENT + "ApplicationExitInfo/";
     public static final String SUPPORTABILITY_AEI_UNSUPPORTED_OS = SUPPORTABILITY_AEI + "unsupportedOS/";
     public static final String SUPPORTABILITY_AEI_EXIT_STATUS = SUPPORTABILITY_AEI + "status/";
@@ -134,4 +135,17 @@ public class MetricNames {
     public static final String TAG_FRAMEWORK_VERSION = "<frameworkVersion>";
     public static final String TAG_DESTINATION = "<destination>";
     public static final String TAG_SUBDESTINATION = "<subdestination>";
+
+    public static final String SUPPORTABILITY_SESSION_REPLAY = SUPPORTABILITY_AGENT + "SessionReplay/";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_INIT = SUPPORTABILITY_SESSION_REPLAY + "Init";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIME = SUPPORTABILITY_SESSION_REPLAY + "UploadTime";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIMEOUT = SUPPORTABILITY_SESSION_REPLAY + "UploadTimeOut";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_UPLOAD_THROTTLED = SUPPORTABILITY_SESSION_REPLAY + "UploadThrottled";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_UPLOAD_REJECTED = SUPPORTABILITY_SESSION_REPLAY + "UploadRejected";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD = SUPPORTABILITY_SESSION_REPLAY + "FailedUpload";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED = SUPPORTABILITY_SESSION_REPLAY + "Size/Uncompressed";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_SAMPLED = SUPPORTABILITY_SESSION_REPLAY + "Sampled/";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_COMPRESSED = SUPPORTABILITY_SESSION_REPLAY + "Size/Compressed";
+
+
 }

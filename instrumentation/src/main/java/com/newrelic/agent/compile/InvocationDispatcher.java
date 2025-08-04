@@ -147,15 +147,15 @@ public class InvocationDispatcher {
                     // cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidSDKPackage(className)) {
                     if(defaultInteractionsEnabled) {
-                        cv = new ActivityClassVisitor(cv, instrumentationContext, log);
+                        cv = new ActivityClassVisitor(cv, instrumentationContext, log,defaultInteractionsEnabled);
                     }
                 } else if (isExcludedPackage(className)) {
                     // log.debug("[InvocationDispatcher] Excluding class [" + className + "]");
                     return null;
                 } else {
                     cv = new AnnotatingClassVisitor(cv, instrumentationContext, log);
+                    cv = new ActivityClassVisitor(cv, instrumentationContext, log,defaultInteractionsEnabled);
                     if(defaultInteractionsEnabled) {
-                        cv = new ActivityClassVisitor(cv, instrumentationContext, log);
                         cv = new FragmentClassVisitor(cv, instrumentationContext, log);
                     }
                     cv = new AsyncTaskClassVisitor(cv, instrumentationContext, log);

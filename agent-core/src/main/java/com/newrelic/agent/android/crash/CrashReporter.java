@@ -10,11 +10,11 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.Harvest;
-import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.payload.PayloadSender;
+import com.newrelic.agent.android.sessionReplay.CrashSessionReplayHandler;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
@@ -30,6 +30,7 @@ public class CrashReporter extends PayloadReporter {
 
     private final UncaughtExceptionHandler uncaughtExceptionHandler;
     protected final CrashStore crashStore;
+    private final CrashSessionReplayHandler sessionReplayHandler;
 
     public static CrashReporter getInstance() {
         return instance.get();
@@ -73,6 +74,7 @@ public class CrashReporter extends PayloadReporter {
         super(agentConfiguration);
         this.uncaughtExceptionHandler = new UncaughtExceptionHandler(this);
         this.crashStore = agentConfiguration.getCrashStore();
+        this.sessionReplayHandler = new CrashSessionReplayHandler(agentConfiguration);
         this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.CrashReporting));
     }
 
@@ -115,6 +117,11 @@ public class CrashReporter extends PayloadReporter {
 
     protected Future reportCrash(final Crash crash) {
         if (crash != null) {
+
+            if (agentConfiguration.getSessionReplayConfiguration().isEnabled()) {
+                sessionReplayHandler.handleCrashSessionReplay(crash);
+            }
+
             final boolean hasValidDataToken = crash.getDataToken().isValid();
 
             if (isEnabled()) {

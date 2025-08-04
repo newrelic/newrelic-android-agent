@@ -12,6 +12,8 @@ import android.content.SharedPreferences;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
+import com.newrelic.agent.android.harvest.AgentHealth;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.ConnectInformation;
 import com.newrelic.agent.android.harvest.DataToken;
@@ -28,6 +30,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONTokener;
 
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -201,7 +204,8 @@ public class SavedState extends HarvestAdapter {
         if (has(PREF_REQUEST_HEADERS_MAP)) {
             String requestHeadersAsJson = getString(PREF_REQUEST_HEADERS_MAP);
             try {
-                Map<String, String> requestHeadersMap = gson.fromJson(requestHeadersAsJson, Map.class);
+                Type mapType = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> requestHeadersMap = gson.fromJson(requestHeadersAsJson, mapType);
                 configuration.setRequest_headers_map(requestHeadersMap);
             } catch (JsonSyntaxException e) {
                 log.error("Failed to deserialize request header configuration: " + e);
@@ -470,9 +474,6 @@ public class SavedState extends HarvestAdapter {
 
         try {
             JSONTokener tokener = new JSONTokener(dataTokenString);
-            if (tokener == null) {
-                return null;
-            }
 
             JSONArray array = (JSONArray) tokener.nextValue();
             if (array == null) {
@@ -485,7 +486,7 @@ public class SavedState extends HarvestAdapter {
             return dataToken;
 
         } catch (JSONException e) {
-            e.printStackTrace();
+            AgentHealth.noticeException(e);
         }
 
         return null;
@@ -634,6 +635,7 @@ public class SavedState extends HarvestAdapter {
         try {
             applicationFramework = ApplicationFramework.valueOf(getString(PREF_PLATFORM));
         } catch (IllegalArgumentException e) {
+            log.error("Invalid application framework: " + getString(PREF_PLATFORM));
         }
         return applicationFramework;
     }

@@ -65,7 +65,8 @@ public class Constants {
 
         // 3rd party exclusions
         add("com/google/firebase/perf/network");    // Firebase network instrumentation
-        add("com/here/sdk/hacwrapper");             // HERE sdk
+        add("com/here/sdk/hacwrapper");// HERE sdk
+
     }};
 
     /**

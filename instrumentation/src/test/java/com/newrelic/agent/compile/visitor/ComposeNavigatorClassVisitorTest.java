@@ -39,7 +39,7 @@ public class ComposeNavigatorClassVisitorTest {
     @Before
     public void setUp() throws Exception {
         testContext = new TestContext();
-        cv = new ActivityClassVisitor(testContext.classWriter, testContext.instrumentationContext, InstrumentationAgent.LOGGER);
+        cv = new ActivityClassVisitor(testContext.classWriter, testContext.instrumentationContext, InstrumentationAgent.LOGGER,true);
         cv = Mockito.spy(cv);
         classBytes = testContext.classBytesFromResource("/ComposeNavigation.class");
     }

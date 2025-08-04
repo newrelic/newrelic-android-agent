@@ -89,7 +89,15 @@ public class Streams {
      * @throws IOException
      */
     public static String slurpString(final InputStream in, final String encoding) throws IOException {
-        return new String(slurpBytes(in), (null == encoding || encoding.isEmpty()) ? StandardCharsets.UTF_8.name() : encoding);
+        String result = "";
+        try {
+            result = new String(slurpBytes(in), (null == encoding || encoding.isEmpty()) ? StandardCharsets.UTF_8.name() : encoding);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        } finally {
+            in.close();
+        }
+        return result;
     }
 
     /**
@@ -150,7 +158,17 @@ public class Streams {
      * @throws IOException
      */
     public static byte[] readAllBytes(File file) throws IOException {
-        return slurpBytes(new FileInputStream(file));
+        FileInputStream in = null;
+        byte[] result = null;
+        try {
+            in = new FileInputStream(file);
+            result = slurpBytes(in);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        } finally {
+            in.close();
+        }
+        return result;
     }
 
     /**

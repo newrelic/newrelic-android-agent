@@ -16,6 +16,35 @@
     },
     "application_exit_info": {
       "enabled": false
+    },
+    "session_replay": {
+      "enabled": true,
+      "mode": "default",
+      "sampling_rate": 50.5,
+      "error_sampling_rate": 25,
+      "mask_application_text": true,
+      "mask_user_input_text": true,
+      "mask_all_user_touches": false,
+      "mask_all_images": false,
+      "custom_masking_rules": [
+        {
+          "type": "mask",
+          "operator": "equals",
+          "name": [
+            "test-1",
+            "test-2"
+          ],
+          "identifier": "test-identifier-1"
+        },
+        {
+          "type": "unmask",
+          "operator": "contains",
+          "name": [
+            "test-1"
+          ],
+          "identifier": "test-identifier-2"
+        }
+      ]
     }
   }
 }

@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android;
 
+
 import android.content.Context;
 import android.text.TextUtils;
 
@@ -29,6 +30,7 @@ import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
+import com.newrelic.agent.android.sessionReplay.TextMaskingStrategy;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.tracing.TracingInactiveException;
@@ -36,7 +38,6 @@ import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.NetworkFailure;
 import com.newrelic.agent.android.util.OfflineStorage;
 
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -49,7 +50,6 @@ import java.util.Objects;
 /**
  * To bootstrap the New Relic Android agent, add the following line to your
  * application's initialization (usually your main activity's onCreate callback):
- *
  * <code>
  * NewRelic.withApplicationToken("{your mobile app token}").start(this.getApplication());
  * </code>
@@ -281,6 +281,7 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "start"));
 
+
         if (isShutdown) {
             log.error("NewRelic agent has shut down, relaunch your application to restart the agent.");
             return;
@@ -292,6 +293,8 @@ public final class NewRelic {
         }
 
         try {
+//            sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
+//            ((Application) context.getApplicationContext()).registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
             log.setLevel(logLevel);
 
@@ -450,7 +453,6 @@ public final class NewRelic {
      * Note that slashes will be converted to periods in the name.
      *
      * @param actionName The name for this custom method interaction trace.
-     * @return The id of the interaction.
      */
     public static void startMethodTrace(String actionName) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -510,7 +512,7 @@ public final class NewRelic {
     /**
      * Record HTTP transaction passing arguments as a map of attributes
      *
-     * @param attributes
+     * @param attributes Map of attributes
      */
     @SuppressWarnings("unchecked")
     public static void noticeHttpTransaction(Map<String, Object> attributes) {
@@ -695,10 +697,6 @@ public final class NewRelic {
     }
 
     /**
-     * Distributed Tracing
-     */
-
-    /**
      * Create a trace context in preparation for un-instrumented network transactions and errors.
      * Clients should use the headers provided by the trace context:
      * <p>
@@ -736,7 +734,7 @@ public final class NewRelic {
     private static void checkEmpty(String string, String message) {
         checkNull(string, message);
 
-        if (string.length() == 0) {
+        if (string.isEmpty()) {
             throw new IllegalArgumentException(message);
         }
     }
@@ -751,10 +749,6 @@ public final class NewRelic {
         }
         return false;
     }
-
-    /**
-     *  Crash reporting related methods
-     */
 
     /**
      * Crashes the currently running app for crash reporting demonstration purposes.
@@ -778,10 +772,6 @@ public final class NewRelic {
         throw new RuntimeException(message);
     }
 
-
-    /**
-     * Custom Event and Attribute methods
-     */
 
     /**
      * Sets a string attribute value.
@@ -1056,7 +1046,7 @@ public final class NewRelic {
      * Set the maximum size of the event buffer.  When the limit is reached, the agent will transmit
      * the queue contents on the next harvest cycle.
      *
-     * @param maxSize
+     * @param maxSize Maximum event buffer size
      */
     public static void setMaxEventPoolSize(int maxSize) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -1070,7 +1060,7 @@ public final class NewRelic {
      * Once the oldest event in the queue exceeds this age, the entire queue will be transmitted
      * on the following harvest cycle.
      *
-     * @param maxBufferTimeInSec
+     * @param maxBufferTimeInSec Maximum Buffer time in seconds
      */
     public static void setMaxEventBufferTime(int maxBufferTimeInSec) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -1106,7 +1096,7 @@ public final class NewRelic {
     /**
      * Records a JSError exception.
      *
-     * @param stackTrace
+     * @param stackTrace Stack trace of the exception
      */
     public static boolean recordJSErrorException(StackTrace stackTrace) {
         return DataController.sendAgentData(stackTrace);
@@ -1254,7 +1244,7 @@ public final class NewRelic {
     /**
      * Set the maximum size of the offline storage.  When the limit is reached, the agent will stop collecting offline data
      *
-     * @param maxSize
+     * @param maxSize The maximum size of the offline storage
      */
     public static void setMaxOfflineStorageSize(int maxSize) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
@@ -1262,4 +1252,167 @@ public final class NewRelic {
 
         OfflineStorage.setMaxOfflineStorageSize(maxSize);
     }
+
+    /**
+     * Sets the text masking strategy for session replay.
+     * <p>
+     * This controls how text is masked in captured screens:
+     * <ul>
+     *   <li>MASK_ALL_TEXT: Masks all text in the application, regardless of source or context</li>
+     *   <li>MASK_USER_INPUT_TEXT: Only masks text that was input by the user (e.g., text fields, search bars)</li>
+     *   <li>MASK_NO_TEXT: No masking is applied, all text is captured as-is</li>
+     * </ul>
+     *
+     * @param strategy The text masking strategy to apply
+     * @return true if the strategy was successfully set
+     */
+    public static boolean setSessionReplayTextMaskingStrategy(TextMaskingStrategy strategy) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setSessionReplayTextMaskingStrategy"));
+
+        if (strategy == null) {
+            log.error("setSessionReplayTextMaskingStrategy: strategy must not be null");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getSessionReplayLocalConfiguration().setTextMaskingStrategy(strategy);
+            return true;
+        }
+
+        return false;
+    }
+
+
+    /**
+     * Sets whether user touches should be masked during session replay.
+     * <p>
+     * When enabled, touch locations will be obscured in the session replay to protect
+     * user privacy, especially when interacting with sensitive UI elements.
+     * <p>
+     * Example: setSessionReplayMaskUserTouches(true)
+     *
+     * @param maskTouches true to mask user touches, false to show them
+     * @return true if the setting was successfully applied
+     */
+    public static boolean setSessionReplayMaskUserTouches(boolean maskTouches) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setSessionReplayMaskUserTouches"));
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getSessionReplayLocalConfiguration().setMaskAllUserTouches(maskTouches);
+            return true;
+        }
+
+        return false;
+    }
+
+
+    /**
+     * Adds a view class to be masked during session replay.
+
+    /**
+     * Adds a view class to be masked during session replay.
+     * All instances of the specified class and its subclasses will have their text content masked.
+     * <p>
+     * Example: addSessionReplayMaskViewClass("android.widget.TextView")
+     *
+     * @param viewClassName The fully qualified class name of the view to mask
+     * @return true if the view class was successfully added to the mask list
+     */
+    public static boolean addSessionReplayMaskViewClass(String viewClassName) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "addSessionReplayMaskViewClass"));
+
+        if (viewClassName == null || viewClassName.isEmpty()) {
+            log.error("addSessionReplayMaskViewClass: viewClassName must not be null or empty");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getSessionReplayLocalConfiguration().addMaskViewClass(viewClassName);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Adds a view class to be explicitly unmasked during session replay.
+     * This is useful for excluding specific subclasses from a broader masking rule.
+     * <p>
+     * Example: addSessionReplayUnmaskViewClass("android.widget.RadioButton")
+     *
+     * @param viewClassName The fully qualified class name of the view to unmask
+     * @return true if the view class was successfully added to the unmask list
+     */
+    public static boolean addSessionReplayUnmaskViewClass(String viewClassName) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "addSessionReplayUnmaskViewClass"));
+
+        if (viewClassName == null || viewClassName.isEmpty()) {
+            log.error("addSessionReplayUnmaskViewClass: viewClassName must not be null or empty");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getSessionReplayLocalConfiguration().addUnmaskViewClass(viewClassName);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Adds a view tag to be masked during session replay.
+     * All views with the specified tag will have their text content masked.
+     * <p>
+     * Example: addSessionReplayMaskViewTag("sensitive_data")
+     *
+     * @param viewTag The tag value to mask
+     * @return true if the view tag was successfully added to the mask list
+     */
+    public static boolean addSessionReplayMaskViewTag(String viewTag) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "addSessionReplayMaskViewTag"));
+
+        if (viewTag == null || viewTag.isEmpty()) {
+            log.error("addSessionReplayMaskViewTag: viewTag must not be null or empty");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getSessionReplayLocalConfiguration().addMaskViewTag(viewTag);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Adds a view tag to be explicitly unmasked during session replay.
+     * This is useful for excluding specific views from a broader masking rule.
+     * <p>
+     * Example: addSessionReplayUnmaskViewTag("public_info")
+     *
+     * @param viewTag The tag value to unmask
+     * @return true if the view tag was successfully added to the unmask list
+     */
+    public static boolean addSessionReplayUnmaskViewTag(String viewTag) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "addSessionReplayUnmaskViewTag"));
+
+        if (viewTag == null || viewTag.isEmpty()) {
+            log.error("addSessionReplayUnmaskViewTag: viewTag must not be null or empty");
+            return false;
+        }
+
+        if (agentConfiguration != null) {
+            agentConfiguration.getSessionReplayLocalConfiguration().addUnmaskViewTag(viewTag);
+            return true;
+        }
+
+        return false;
+    }
+
 }

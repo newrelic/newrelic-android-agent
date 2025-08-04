@@ -127,7 +127,7 @@ public class AEISessionMapper {
         currentKeySet.stream()
                 .filter(pid -> !pidSet.contains(pid))
                 .collect(Collectors.toSet())
-                .forEach(pid -> mapper.remove(pid));
+                .forEach(mapper::remove);
     }
 
     public static class AEISessionMeta {
@@ -140,7 +140,7 @@ public class AEISessionMapper {
         }
 
         public boolean isValid() {
-            return !(sessionId == null || sessionId.isEmpty() || realAgentId == 0);
+            return !(sessionId.isEmpty() || realAgentId == 0);
         }
     }
 }

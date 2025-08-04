@@ -58,13 +58,29 @@ public class PersistentUUID {
 
     @SuppressLint("MissingPermission")
     private String generateUniqueID(Context context) {
-        String hardwareDeviceId = Build.SERIAL;
-        String androidDeviceId = Build.ID;
+        String hardwareDeviceId;
+        String androidDeviceId;
         String uuid;
+
+        // Get hardware serial using the appropriate API based on Android version
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // For Android 8.0 (API 26) and above, use getSerial() which requires READ_PHONE_STATE permission
+            try {
+                hardwareDeviceId = Build.getSerial();
+            } catch (SecurityException e) {
+                // Permission not granted, fall back to a combination of hardware identifiers
+                hardwareDeviceId = Build.HARDWARE + Build.DEVICE + Build.BOARD + Build.BRAND;
+                log.debug("Unable to access device serial: " + e.getMessage());
+            }
+        } else {
+            // For older versions, use the deprecated SERIAL field
+            @SuppressWarnings("deprecation")
+            String serial = Build.SERIAL;
+            hardwareDeviceId = serial;
+        }
 
         // get internal android id
         try {
-
             androidDeviceId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
 
             // build up the uuid
@@ -77,8 +93,22 @@ public class PersistentUUID {
                     // if app already uses READ_PHONE, use the telephony device id
                     final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
                     if (tm != null) {
-                        //noinspection
-                        hardwareDeviceId = tm.getDeviceId();
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            try {
+                                // For Android 8.0+ use getImei() which requires READ_PHONE_STATE permission
+                                hardwareDeviceId = tm.getImei();
+                            } catch (SecurityException e) {
+                                // Permission not granted, keep existing hardwareDeviceId
+                                log.debug("Unable to access device IMEI: " + e.getMessage());
+                            }
+                        } else {
+                            // For older versions, use the deprecated getDeviceId()
+                            @SuppressWarnings("deprecation")
+                            String deviceId = tm.getDeviceId();
+                            if (!TextUtils.isEmpty(deviceId)) {
+                                hardwareDeviceId = deviceId;
+                            }
+                        }
                     }
                 } catch (Exception e) {
                     hardwareDeviceId = "badf00d";
@@ -122,14 +152,14 @@ public class PersistentUUID {
         int count = 0;
         for (int i = string.length() - 1; i >= 0; i--) {
             count++;
-            result = string.substring(i, i + 1) + result;
+            result = string.charAt(i) + result;
             if (0 == (count % sublen)) {
                 result = "-" + result;
             }
         }
 
         if (result.startsWith("-")) {
-            result = result.substring(1, result.length());
+            result = result.substring(1);
         }
 
         return result;
@@ -140,11 +170,7 @@ public class PersistentUUID {
      */
     protected void noticeUUIDMetric(final String tag) {
         final StatsEngine statsEngine = StatsEngine.get();
-        if (statsEngine != null) {
-            statsEngine.inc(MetricNames.METRIC_MOBILE + tag);
-        } else {
-            log.error("StatsEngine is null. " + tag + "  not recorded.");
-        }
+        statsEngine.inc(MetricNames.METRIC_MOBILE + tag);
     }
 
 
@@ -194,18 +220,12 @@ public class PersistentUUID {
         String uuid = null;
 
         if (UUID_FILE.exists()) {
-            BufferedReader in = null;
+            BufferedReader in;
             try {
                 in = new BufferedReader(new FileReader(UUID_FILE));
                 String uuidJson = in.readLine();
                 uuid = new JSONObject(uuidJson).getString(UUID_KEY);
-            } catch (FileNotFoundException e) {
-                log.error(e.getMessage());
-            } catch (IOException e) {
-                log.error(e.getMessage());
-            } catch (JSONException e) {
-                log.error(e.getMessage());
-            } catch (NullPointerException e) {
+            } catch (IOException | JSONException | NullPointerException e) {
                 log.error(e.getMessage());
             }
         }
@@ -222,10 +242,15 @@ public class PersistentUUID {
     protected void putUUIDToFileStore(final String uuid) {
         JSONObject jsonObject = new JSONObject();
 
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(UUID_FILE))) {
+
+        try {
+            FileWriter fw = new FileWriter(UUID_FILE);
+            BufferedWriter out = new BufferedWriter(fw);
             jsonObject.put(UUID_KEY, uuid);
             out.write(jsonObject.toString());
             out.flush();
+            out.close();
+            fw.close();
         } catch (Exception e) {
             log.error(e.getMessage());
         }

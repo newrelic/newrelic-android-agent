@@ -14,6 +14,7 @@ import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.sessionReplay.SessionReplayReporter;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.NamedThreadFactory;
@@ -86,6 +87,13 @@ public class PayloadController implements HarvestLifecycleAware {
                 log.warn("PayloadController: No payload reporter - payload reporting will be disabled");
             }
 
+            SessionReplayReporter sessionReplayReporter = SessionReplayReporter.initialize(agentConfiguration);
+            if(sessionReplayReporter != null){
+                sessionReplayReporter.start();
+            }else{
+                log.warn("SessionReplayController: No session replay reporter - session replay reporting will be disabled");
+            }
+
             Harvest.addHarvestListener(instance.get());
         }
 
@@ -115,6 +123,7 @@ public class PayloadController implements HarvestLifecycleAware {
                         }
                         AgentDataReporter.shutdown();
                         CrashReporter.shutdown();
+                        SessionReplayReporter.shutdown();
 
                     } catch (InterruptedException e) {
                         log.error("PayloadController.shutdown(): " + e);

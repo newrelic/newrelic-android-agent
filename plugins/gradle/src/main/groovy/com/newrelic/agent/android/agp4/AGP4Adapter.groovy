@@ -95,7 +95,7 @@ class AGP4Adapter extends VariantAdapter {
         try {
             def buildConfigProvider = variant.getGenerateBuildConfigProvider()
             if (buildConfigProvider?.isPresent()) {
-                def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.dirName}")
+                def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.name}")
 
                 try {
                     variant.registerJavaGeneratingTask(configTaskProvider, genSrcFolder.get().asFile)
@@ -162,7 +162,7 @@ class AGP4Adapter extends VariantAdapter {
         if (variantConfiguration && variantConfiguration?.mappingFile) {
             def variantMappingFilePath = variantConfiguration.mappingFile.getAbsolutePath()
                     .replace("<name>", variant.name)
-                    .replace("<dirName>", variant.dirName)
+                    .replace("<dirName>", variant.name)
 
             return objectFactory.fileProperty().fileValue(buildHelper.project.file(variantMappingFilePath))
         }
@@ -177,7 +177,7 @@ class AGP4Adapter extends VariantAdapter {
         }
 
         // If all else fails, default to default map locations
-        def f = buildHelper.project.layout.buildDirectory.file("outputs/mapping/${variant.dirName}/mapping.txt")
+        def f = buildHelper.project.layout.buildDirectory.file("outputs/mapping/${variant.name}/mapping.txt")
         return objectFactory.fileProperty().value(f)
     }
 
