@@ -30,7 +30,6 @@ import java.util.zip.GZIPOutputStream;
 public class SessionReplayReporter extends PayloadReporter {
     protected static final AtomicReference<SessionReplayReporter> instance = new AtomicReference<>(null);
     protected final SessionReplayStore sessionReplayStore;
-    private Boolean isFirstChunk = true;
     private Boolean hasMeta = true;
 
     protected final Callable reportCachedSessionReplayDataCallable = new Callable() {
@@ -127,7 +126,6 @@ public class SessionReplayReporter extends PayloadReporter {
 
     public Future reportSessionReplayData(Payload payload, Map<String, Object> attributes) throws IOException {
 
-        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
         attributes.put(Constants.SessionReplay.HAS_META, hasMeta);
         attributes.put(Constants.SessionReplay.DECOMPRESSED_BYTES, payload.getBytes().length);
 
@@ -144,7 +142,6 @@ public class SessionReplayReporter extends PayloadReporter {
         Payload compressedPayload = new Payload(compressedBytes);
         PayloadSender payloadSender = new SessionReplaySender(compressedPayload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(), attributes);
 
-        isFirstChunk = false; // Set to false after the first chunk is sent
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {

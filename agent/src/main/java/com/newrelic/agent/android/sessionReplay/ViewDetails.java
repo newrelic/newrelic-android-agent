@@ -19,12 +19,9 @@ public class ViewDetails {
     private final float alpha;
     private final boolean isHidden;
     private final Drawable backgroundDrawable; // Equivalent to UIImage in Swift
-//    private final SessionReplayIdentifier sessionReplayIdentifier; // Assuming this is a unique identifier for the view
-//    private final float cornerRadius; // Corresponds to cornerRadius
-//    private final float borderWidth; // Corresponds to borderWidth
-//    private final Integer borderColor; // Using Integer to allow for null (optional in Swift)
     private final String viewName;
-    private  float density;; // CSS selector for the view
+    private  float density;
+
 
     // Computed property: cssSelector
     public String getCssSelector() {
@@ -130,6 +127,9 @@ public class ViewDetails {
                 .append(frame.width())
                 .append("px;")
                 .append("height: ")
+                .append(frame.height())
+                .append("px;")
+                .append("line-height: ")
                 .append(frame.height())
                 .append("px;");
 

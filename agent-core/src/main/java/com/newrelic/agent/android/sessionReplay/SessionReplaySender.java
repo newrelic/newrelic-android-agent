@@ -7,6 +7,7 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.ApplicationFramework;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
@@ -51,7 +52,7 @@ public class SessionReplaySender extends PayloadSender {
 
         Map<String, String> attributes = new HashMap<>();
         attributes.put(Constants.SessionReplay.ENTITY_GUID, AgentConfiguration.getInstance().getEntityGuid());
-        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, true + "");
+        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, replayDataMap.get(Constants.SessionReplay.IS_FIRST_CHUNK) + "");
         attributes.put(Constants.SessionReplay.RRWEB_VERSION, Constants.SessionReplay.RRWEB_VERSION_VALUE);
         attributes.put(Constants.SessionReplay.DECOMPRESSED_BYTES, replayDataMap.get(Constants.SessionReplay.DECOMPRESSED_BYTES) + "");
         attributes.put(Constants.SessionReplay.PAYLOAD_TYPE, Constants.SessionReplay.PAYLOAD_TYPE_STANDARD);
@@ -59,6 +60,10 @@ public class SessionReplaySender extends PayloadSender {
         attributes.put(Constants.SessionReplay.REPLAY_LAST_TIMESTAMP, replayDataMap.get("lastTimestamp") + "");
         attributes.put(Constants.SessionReplay.CONTENT_ENCODING, Constants.SessionReplay.CONTENT_ENCODING_GZIP);
         attributes.put(Constants.SessionReplay.APP_VERSION, Agent.getApplicationInformation().getAppVersion());
+        attributes.put(Constants.INSTRUMENTATION_PROVIDER, Constants.INSTRUMENTATION_PROVIDER_ATTRIBUTE);
+        attributes.put(Constants.INSTRUMENTATION_NAME, AgentConfiguration.getInstance().getApplicationFramework().equals(ApplicationFramework.Native) ? Constants.INSTRUMENTATION_ANDROID_NAME : AgentConfiguration.getInstance().getApplicationFramework().name());
+        attributes.put(Constants.INSTRUMENTATION_VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
+        attributes.put(Constants.INSTRUMENTATION_COLLECTOR_NAME, Constants.INSTRUMENTATION_ANDROID_NAME);
 
         for (AnalyticsAttribute analyticsAttribute : controller.getSessionAttributes()) {
             attributes.put(analyticsAttribute.getName(), analyticsAttribute.asJsonElement().getAsString());

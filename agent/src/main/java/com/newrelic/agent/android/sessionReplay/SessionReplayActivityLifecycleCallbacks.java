@@ -89,7 +89,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                         moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                         currentTouchTracker = new TouchTracker(moveTouch);
                     } else if (containingTouchViewId == -1) {
-                        Log.e(TAG, "TOUCH LOST: Unable to find originating View.");
+                        Log.d(TAG, "TOUCH LOST: Unable to find originating View.");
                     }
                 } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
                     if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {

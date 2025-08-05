@@ -7,6 +7,14 @@ package com.newrelic.agent.android.util;
 
 public final class Constants {
 
+    public static final String INSTRUMENTATION_PROVIDER = "instrumentation.provider";
+    public static final String INSTRUMENTATION_VERSION = "instrumentation.version";
+    public static final String INSTRUMENTATION_NAME = "instrumentation.name";
+    public static final String INSTRUMENTATION_COLLECTOR_NAME = "collector.name";
+    public static final String INSTRUMENTATION_PROVIDER_ATTRIBUTE = "mobile";
+    public static final String INSTRUMENTATION_ANDROID_NAME = "AndroidAgent";
+
+
     public final class Transactions {
         public static final String CONTENT_LENGTH = "content_length";
         public static final String CONTENT_TYPE = "content_type";
