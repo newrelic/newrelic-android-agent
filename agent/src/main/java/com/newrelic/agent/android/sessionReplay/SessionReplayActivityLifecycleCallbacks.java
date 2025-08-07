@@ -13,32 +13,28 @@ import android.view.Window;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.google.gson.Gson;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.internal.Curtains;
 import com.newrelic.agent.android.sessionReplay.internal.OnTouchEventListener;
 import com.newrelic.agent.android.sessionReplay.internal.WindowCallbackWrapper;
 import com.newrelic.agent.android.sessionReplay.models.RecordedTouchData;
-import com.newrelic.agent.android.sessionReplay.models.SessionReplayRoot;
 
-import java.util.ArrayList;
 import java.util.Set;
 
-
 public class SessionReplayActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
-    ArrayList<SessionReplayRoot> sessionReplayRoots = new ArrayList<>();
-
-    private final AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
     private static final String TAG = "SessionReplayActivityLifecycleCallbacks";
-    private float density;
+    private final float density;
     private int currentTouchId = -1;
     private TouchTracker currentTouchTracker = null;
     SessionReplayConfiguration sessionReplayConfiguration;
     private final OnTouchRecordedListener onTouchRecordedListener;
 
-    public SessionReplayActivityLifecycleCallbacks(OnTouchRecordedListener onTouchRecordedListener) {
+    public SessionReplayActivityLifecycleCallbacks(OnTouchRecordedListener onTouchRecordedListener,Application application) {
         this.onTouchRecordedListener = onTouchRecordedListener;
+        AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
+        sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
+        density = application.getApplicationContext().getResources().getDisplayMetrics().density;
     }
 
 
@@ -54,61 +50,59 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
     @Override
     public void onActivityPrePaused(@NonNull Activity activity) {
-
-        Gson gson = new Gson();
-        String json = gson.toJson(sessionReplayRoots);
-        Log.d(TAG, "onActivityPrePaused: " + json);
         Application.ActivityLifecycleCallbacks.super.onActivityPrePaused(activity);
     }
 
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
-        sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
-        boolean shouldMaskTouches = sessionReplayConfiguration.isMaskAllUserTouches();
         Log.d(TAG, "onActivityResumed: " + activity.getClass().getSimpleName());
-        density = activity.getResources().getDisplayMetrics().density;
-        Curtains.getOnRootViewsChangedListeners().add((view, added) -> {
-            Log.d(TAG, "Root View Changed in Listener");
-            Windows.WindowType windowType = Windows.getWindowType(view);
-            if (windowType == Windows.WindowType.POPUP_WINDOW) {
-                return;
-            }
-            Window window = Windows.getPhoneWindowForView(view);
-            WindowCallbackWrapper.getListeners(window).getTouchEventInterceptors().add((OnTouchEventListener) motionEvent -> {
-                long timestamp = System.currentTimeMillis();
-                MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
-                motionEvent.getPointerCoords(0, pointerCoords);
-                RecordedTouchData moveTouch;
-                if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                    View containingView = findViewAtCoords(view, (int)pointerCoords.x, (int)pointerCoords.y);
-                    View maskView = getMaskedViewIfNeeded(containingView,  shouldMaskTouches);
-                    int containingTouchViewId = getStableId(maskView);
-                    if (currentTouchTracker == null && containingTouchViewId != -1) {
-                        Log.d(TAG, "Adding Start Event");
-                        currentTouchId = containingTouchViewId;
-                        moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
-                        currentTouchTracker = new TouchTracker(moveTouch);
-                    } else if (containingTouchViewId == -1) {
-                        Log.d(TAG, "TOUCH LOST: Unable to find originating View.");
-                    }
-                } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
-                    if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
-                        Log.d(TAG, "Adding Move Event");
-                        moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
-                        SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
-                    }
-                } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
-                    Log.d(TAG, "Adding End Event");
-                    moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
-                    currentTouchTracker.addEndTouch(moveTouch);
-                    SessionReplayActivityLifecycleCallbacks.this.onTouchRecordedListener.onTouchRecorded(currentTouchTracker);
-                    currentTouchTracker = null;
-                    currentTouchId = -1;
+
+        Curtains.getOnRootViewsChangedListeners().add((view, added) -> setupTouchInterceptorForWindow(view));
+    }
+
+    public void setupTouchInterceptorForWindow(View view) {
+        boolean shouldMaskTouches = sessionReplayConfiguration.isMaskAllUserTouches();
+        Log.d(TAG, "Root View Changed in Listener");
+        Windows.WindowType windowType = Windows.getWindowType(view);
+        if (windowType == Windows.WindowType.POPUP_WINDOW) {
+            return;
+        }
+        Window window = Windows.getPhoneWindowForView(view);
+        if (window == null) {
+            Log.d(TAG, "Window is null for view: " + view.getClass().getSimpleName());
+            return;
+        }
+        WindowCallbackWrapper.getListeners(window).getTouchEventInterceptors().add((OnTouchEventListener) motionEvent -> {
+            long timestamp = System.currentTimeMillis();
+            MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
+            motionEvent.getPointerCoords(0, pointerCoords);
+            RecordedTouchData moveTouch;
+            if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                View containingView = findViewAtCoords(view, (int)pointerCoords.x, (int)pointerCoords.y);
+                View maskView = getMaskedViewIfNeeded(containingView, shouldMaskTouches);
+                int containingTouchViewId = getStableId(maskView);
+                if (currentTouchTracker == null && containingTouchViewId != -1) {
+                    Log.d(TAG, "Adding Start Event");
+                    currentTouchId = containingTouchViewId;
+                    moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
+                    currentTouchTracker = new TouchTracker(moveTouch);
+                } else if (containingTouchViewId == -1) {
+                    Log.d(TAG, "TOUCH LOST: Unable to find originating View.");
                 }
+            } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
+                if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
+                    Log.d(TAG, "Adding Move Event");
+                    moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
+                    SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
+                }
+            } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
+                Log.d(TAG, "Adding End Event");
+                moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
+                currentTouchTracker.addEndTouch(moveTouch);
+                SessionReplayActivityLifecycleCallbacks.this.onTouchRecordedListener.onTouchRecorded(currentTouchTracker);
+                currentTouchTracker = null;
+                currentTouchId = -1;
             }
-
-            );
-
         });
     }
 

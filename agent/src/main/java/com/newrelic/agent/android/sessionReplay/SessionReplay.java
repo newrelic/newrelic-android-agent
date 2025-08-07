@@ -66,11 +66,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         SessionReplay.application = application;
         SessionReplay.uiThreadHandler = uiThreadHandler;
 
-        sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance);
+        sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application);
         viewDrawInterceptor = new ViewDrawInterceptor(instance,agentConfiguration);
         processor = new SessionReplayProcessor();
         // Initialize file manager
-        instance.fileManager = new SessionReplayFileManager(instance.processor);
+        instance.fileManager = new SessionReplayFileManager(processor);
         SessionReplayFileManager.initialize(application);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INIT);
 
@@ -180,6 +180,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         uiThreadHandler.post(() -> {
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
             viewDrawInterceptor.Intercept(decorViews);
+            sessionReplayActivityLifecycleCallbacks.setupTouchInterceptorForWindow(decorViews[0]);
         });
 
         Curtains.getOnRootViewsChangedListeners().add((view, added) -> {
