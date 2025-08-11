@@ -7,6 +7,9 @@ package com.newrelic.agent.android.stores;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+
+import androidx.datastore.preferences.core.Preferences;
+
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.AnalyticsEventStore;
@@ -19,15 +22,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class SharedPrefsEventStore extends SharedPrefsStore implements AnalyticsEventStore {
+public class EventDataStore extends DataStoreHelpler implements AnalyticsEventStore {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final String STORE_FILE = "NREventStore";
 
-    public SharedPrefsEventStore(Context context) {
+    public EventDataStore(Context context) {
         this(context, STORE_FILE);
     }
 
-    public SharedPrefsEventStore(Context context, String storeFilename) {
+    public EventDataStore(Context context, String storeFilename) {
         super(context, storeFilename);
     }
 
@@ -39,11 +42,10 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
                 String eventJson = jsonObj.toString();
 
                 // events should be stored synchronously, since the app is terminating
-                SharedPreferences.Editor editor = this.sharedPrefs.edit();
-                editor.putString(event.getEventUUID(), eventJson);
+                putStringValue(event.getEventUUID(), eventJson);
 
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED, eventJson.length());
-                return applyOrCommitEditor(editor);
+                return true;
             } catch (Exception e) {
                 log.error("SharedPrefsStore.store(String, String): ", e);
             }
@@ -54,11 +56,11 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
     @Override
     public List<AnalyticsEvent> fetchAll() {
         final List<AnalyticsEvent> events = new ArrayList<AnalyticsEvent>();
-        Map<String, ?> objectStrings = sharedPrefs.getAll();
-        for (Map.Entry<String, ?> entry : objectStrings.entrySet()) {
+        Map<Preferences.Key<?>, Object> objectStrings = dataStoreRX.data().firstOrError().blockingGet().asMap();
+        for (Map.Entry<Preferences.Key<?>, Object> entry : objectStrings.entrySet()) {
             if (entry.getValue() instanceof String) {
                 try {
-                    events.add(AnalyticsEvent.eventFromJsonString(entry.getKey(), (String) entry.getValue()));
+                    events.add(AnalyticsEvent.eventFromJsonString(entry.getKey().toString(), (String) entry.getValue()));
                 } catch (Exception e) {
                     log.error("Exception encountered while deserializing event", e);
                 }
@@ -71,8 +73,7 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
     public void delete(AnalyticsEvent event) {
         try {
             synchronized (this) {
-                final SharedPreferences.Editor editor = sharedPrefs.edit();
-                editor.remove(event.getEventUUID()).apply();
+                super.delete(event.getEventUUID());
             }
         } catch (Exception e) {
             log.error("SharedPrefsEventStore.delete(): ", e);

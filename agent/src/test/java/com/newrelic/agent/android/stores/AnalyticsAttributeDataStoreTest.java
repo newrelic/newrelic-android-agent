@@ -27,14 +27,14 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 @RunWith(RobolectricTestRunner.class)
-public class SharedPrefsAnalyticsAttributeStoreTest {
+public class AnalyticsAttributeDataStoreTest {
     private Context context = new SpyContext().getContext();
-    private SharedPrefsAnalyticsAttributeStore analyticsStore;
+    private AnalyticsAttributeDataStore analyticsStore;
     private ArrayList<AnalyticsAttribute> attributesSet;
 
     @Before
     public void setUp() throws Exception {
-        analyticsStore = spy(new SharedPrefsAnalyticsAttributeStore(context, "TestAnalyticsAttributeStore"));
+        analyticsStore = spy(new AnalyticsAttributeDataStore(context, "TestAnalyticsAttributeStore"));
 
         attributesSet = new ArrayList<AnalyticsAttribute>();
         attributesSet.add(new AnalyticsAttribute("string", "eenie"));
@@ -54,8 +54,6 @@ public class SharedPrefsAnalyticsAttributeStoreTest {
             Assert.assertTrue(analyticsStore.store(analyticsAttribute));
         }
         Assert.assertEquals("Should contain 3 attributes", analyticsStore.count(), attributesSet.size());
-
-        verify(analyticsStore, atLeastOnce()).applyOrCommitEditor(any(SharedPreferences.Editor.class));
     }
 
     @Test

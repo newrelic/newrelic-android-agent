@@ -27,18 +27,18 @@ import org.robolectric.RobolectricTestRunner;
 import java.util.List;
 
 @RunWith(RobolectricTestRunner.class)
-public class SharedPrefsEventStoreTest implements EventListener {
-    private SharedPrefsEventStore eventStore;
+public class EventDataStoreTest implements EventListener {
+    private EventDataStore eventStore;
     private Context context = new SpyContext().getContext();
     private AgentConfiguration agentConfiguration;
     private EventManagerImpl manager = null;
 
     @Before
     public void setUp() throws Exception {
-        eventStore = spy(new SharedPrefsEventStore(context));
+        eventStore = spy(new EventDataStore(context));
 
         agentConfiguration = new AgentConfiguration();
-        agentConfiguration.setApplicationToken(SharedPrefsEventStoreTest.class.getSimpleName());
+        agentConfiguration.setApplicationToken(EventDataStoreTest.class.getSimpleName());
         agentConfiguration.setEventStore(eventStore);
         agentConfiguration.setEnableAnalyticsEvents(true);
 

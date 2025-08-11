@@ -65,10 +65,10 @@ import com.newrelic.agent.android.sample.Sampler;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.stats.StatsEngine;
-import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
-import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
-import com.newrelic.agent.android.stores.SharedPrefsEventStore;
-import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
+import com.newrelic.agent.android.stores.AnalyticsAttributeDataStore;
+import com.newrelic.agent.android.stores.CrashDataStore;
+import com.newrelic.agent.android.stores.EventDataStore;
+import com.newrelic.agent.android.stores.PayloadDataStore;
 import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
@@ -136,10 +136,10 @@ public class AndroidAgentImpl implements
         // Register ourselves with the TraceMachine
         TraceMachine.setTraceMachineInterface(this);
 
-        agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
-        agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
-        agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
-        agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
+        agentConfiguration.setCrashStore(new CrashDataStore(context));
+        agentConfiguration.setPayloadStore(new PayloadDataStore(context));
+        agentConfiguration.setAnalyticsAttributeStore(new AnalyticsAttributeDataStore(context));
+        agentConfiguration.setEventStore(new EventDataStore(context));
         agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);

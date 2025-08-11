@@ -17,14 +17,14 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
-public class SharedPrefsPayloadStore extends SharedPrefsStore implements PayloadStore<Payload> {
+public class PayloadDataStore extends DataStoreHelpler implements PayloadStore<Payload> {
     public static final String STORE_FILE = "NRPayloadStore";
 
-    public SharedPrefsPayloadStore(Context context) {
+    public PayloadDataStore(Context context) {
         this(context, STORE_FILE);
     }
 
-    public SharedPrefsPayloadStore(Context context, String storeFilename) {
+    public PayloadDataStore(Context context, String storeFilename) {
         super(context, storeFilename);
     }
 
