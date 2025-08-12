@@ -45,9 +45,13 @@ public class BaseMeasurementProducer implements MeasurementProducer {
         synchronized (producedMeasurements) {
             if (measurements != null) {
                 producedMeasurements.addAll(measurements);
+
                 // filter out any null measurements
-                while (producedMeasurements.remove(null))
-                    ;
+                for (Measurement filterMeasurement : producedMeasurements) {
+                    if(filterMeasurement == null) {
+                        producedMeasurements.remove(null);
+                    }
+                }
             }
         }
     }
