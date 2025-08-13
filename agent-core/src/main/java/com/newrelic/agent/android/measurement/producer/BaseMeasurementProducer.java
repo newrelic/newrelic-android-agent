@@ -13,6 +13,7 @@ import com.newrelic.agent.android.measurement.MeasurementType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 
 /**
  * The base implementation of the {@link MeasurementProducer} interface. This implementation maintains
@@ -47,9 +48,11 @@ public class BaseMeasurementProducer implements MeasurementProducer {
                 producedMeasurements.addAll(measurements);
 
                 // filter out any null measurements
-                for (Measurement filterMeasurement : producedMeasurements) {
-                    if(filterMeasurement == null) {
-                        producedMeasurements.remove(null);
+                Iterator<Measurement> iterator = producedMeasurements.iterator();
+                while (iterator.hasNext()) {
+                    Measurement filterMeasurement = iterator.next();
+                    if (filterMeasurement == null) {
+                        iterator.remove(); // Safe way to remove during iteration
                     }
                 }
             }
