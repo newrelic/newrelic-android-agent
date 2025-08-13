@@ -21,9 +21,4 @@ public class DataStoreSingleton {
     public RxDataStore<Preferences> getDataStore() {
         return datastore;
     }
-
-    //For unit testing purpose ONLY
-    public static void resetInstanceForTesting() {
-        ourInstance = null;
-    }
 }

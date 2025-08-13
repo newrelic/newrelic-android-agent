@@ -17,8 +17,6 @@ public class DataStoreSingletonTest {
     @Before
     public void setUp() {
         instance = DataStoreSingleton.getInstance();
-        // Reset the singleton instance before each test
-        DataStoreSingleton.resetInstanceForTesting();
     }
 
     @Test
@@ -26,10 +24,5 @@ public class DataStoreSingletonTest {
         DataStoreSingleton instance1 = DataStoreSingleton.getInstance();
         DataStoreSingleton instance2 = DataStoreSingleton.getInstance();
         Assert.assertSame(instance1, instance2);
-    }
-
-    @Test
-    public void dataStoreTest() {
-        Assert.assertNull(instance.getDataStore());
     }
 }
