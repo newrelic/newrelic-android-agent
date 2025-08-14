@@ -11,7 +11,10 @@ import android.view.View;
 import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.NewRelic;
 import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.background.ApplicationStateListener;
 import com.newrelic.agent.android.harvest.Harvest;
@@ -43,6 +46,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private final ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
     private final ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
     private static boolean isFirstChunk = true;
+    private JsonArray jsonArray = new JsonArray();
 
     /**
      * Initializes the SessionReplay system.
@@ -76,6 +80,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         registerCallbacks();
         startRecording();
+
+
         isFirstChunk = true;
 
         Log.d("SessionReplay", "Session replay initialized successfully");
@@ -98,11 +104,15 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         instance.rawFrames.clear();
         instance.rrWebEvents.clear();
         instance.touchTrackers.clear();
-
+        instance.jsonArray = new JsonArray();
         // Shutdown file manager
         SessionReplayFileManager.shutdown();
 
         log.debug("Session replay deinitialized");
+    }
+
+    public static SessionReplay getInstance() {
+        return instance;
     }
 
     @Override
@@ -141,7 +151,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         attributes.put(FIRST_TIMESTAMP, rawFrames.get(0).timestamp);
         attributes.put(LAST_TIMESTAMP, rawFrames.get(rawFrames.size() - 1).timestamp);
         attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
+        if(jsonArray.size() > 0) {
+            SessionReplayReporter.reportSessionReplayData(jsonArray.toString().getBytes(), attributes);
+        } else {
         SessionReplayReporter.reportSessionReplayData(json.getBytes(), attributes);
+        }
 
         rrWebEvents.clear();
         rawFrames.clear();
@@ -225,5 +239,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         if (fileManager != null) {
             fileManager.clearWorkingFile();
         }
+    }
+
+    public void recordSessionReplayEvent(String jsonString) {
+
+        JsonObject jsonObject = new Gson().fromJson(jsonString, JsonObject.class);
+        jsonArray.add(jsonObject);
     }
 }
