@@ -28,20 +28,20 @@ import java.util.UUID;
 import static org.mockito.Mockito.spy;
 
 @RunWith(RobolectricTestRunner.class)
-public class SharedPrefsCrashStoreTest {
+public class CrashDataStoreTest {
     private static final String UUID_STATIC = "ab20dfe5-96d2-4c6d-b975-3fe9d8778dfc";
 
     @Spy
-    private SharedPrefsCrashStore crashStore;
+    private CrashDataStore crashStore;
     private Context context = new SpyContext().getContext();
     private AgentConfiguration agentConfiguration;
 
     @Before
     public void setUp() throws Exception {
-        crashStore = spy(new SharedPrefsCrashStore(context));
+        crashStore = spy(new CrashDataStore(context));
 
         agentConfiguration = new AgentConfiguration();
-        agentConfiguration.setApplicationToken(SharedPrefsCrashStoreTest.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashDataStoreTest.class.getSimpleName());
         agentConfiguration.setCrashStore(crashStore);
         agentConfiguration.setReportCrashes(true);
         agentConfiguration.setEnableAnalyticsEvents(true);

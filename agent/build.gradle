@@ -102,6 +102,9 @@ android {
 
 dependencies {
     implementation project(path: ':agent-core', configuration: 'fat')
+    implementation "androidx.datastore:datastore-preferences:1.1.7"
+    implementation "androidx.datastore:datastore-preferences-rxjava2:1.1.7"
+    implementation "androidx.datastore:datastore-preferences-rxjava3:1.1.7"
 
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk

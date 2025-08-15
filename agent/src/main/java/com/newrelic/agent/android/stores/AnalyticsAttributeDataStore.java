@@ -8,6 +8,8 @@ package com.newrelic.agent.android.stores;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import androidx.datastore.preferences.core.Preferences;
+
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -17,15 +19,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class SharedPrefsAnalyticsAttributeStore extends SharedPrefsStore implements AnalyticsAttributeStore {
+public class AnalyticsAttributeDataStore extends DataStoreHelpler implements AnalyticsAttributeStore {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final String STORE_FILE = "NRAnalyticsAttributeStore";
 
-    public SharedPrefsAnalyticsAttributeStore(Context context) {
+    public AnalyticsAttributeDataStore(Context context) {
         super(context, STORE_FILE);
     }
 
-    public SharedPrefsAnalyticsAttributeStore(Context context, String storeFilename) {
+    public AnalyticsAttributeDataStore(Context context, String storeFilename) {
         super(context, storeFilename);
     }
 
@@ -33,27 +35,25 @@ public class SharedPrefsAnalyticsAttributeStore extends SharedPrefsStore impleme
     public boolean store(AnalyticsAttribute attribute) {
         synchronized (this) {
             if (attribute.isPersistent()) {
-                SharedPreferences.Editor editor = sharedPrefs.edit();
-
                 switch (attribute.getAttributeDataType()) {
                     case STRING:
                         log.audit("SharedPrefsAnalyticsAttributeStore.store(" + attribute + ")");
-                        editor.putString(attribute.getName(), attribute.getStringValue());
+                        putStringValue(attribute.getName(), attribute.getStringValue());
                         break;
                     case DOUBLE:
                         log.audit("SharedPrefsAnalyticsAttributeStore.store(" + attribute + ")");
-                        editor.putLong(attribute.getName(), Double.doubleToLongBits(attribute.getDoubleValue()));
+                        putLongValue(attribute.getName(), Double.doubleToLongBits(attribute.getDoubleValue()));
                         break;
                     case BOOLEAN:
                         log.audit("SharedPrefsAnalyticsAttributeStore.store(" + attribute + ")");
-                        editor.putBoolean(attribute.getName(), attribute.getBooleanValue());
+                        putBooleanValue(attribute.getName(), attribute.getBooleanValue());
                         break;
                     default:
                         log.error("SharedPrefsAnalyticsAttributeStore.store - unsupported analytic attribute data type" + attribute.getName());
                         return false;
                 }
 
-                return applyOrCommitEditor(editor);
+                return true;
             }
         }
 
@@ -63,7 +63,7 @@ public class SharedPrefsAnalyticsAttributeStore extends SharedPrefsStore impleme
     @Override
     public List<AnalyticsAttribute> fetchAll() {
         ArrayList<AnalyticsAttribute> analyticsAttributeArrayList = new ArrayList<AnalyticsAttribute>();
-        Map<String, ?> storedAttributes = sharedPrefs.getAll();
+        Map<Preferences.Key<?>, Object> storedAttributes = dataStoreRX.data().firstOrError().blockingGet().asMap();
 
         for (Map.Entry entry : storedAttributes.entrySet()) {
             log.audit("SharedPrefsAnalyticsAttributeStore contains attribute [" + entry.getKey() + "=" + entry.getValue() + "]");

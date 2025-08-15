@@ -20,7 +20,7 @@ import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
-import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
+import com.newrelic.agent.android.stores.AnalyticsAttributeDataStore;
 
 import org.junit.Assert;
 
@@ -63,7 +63,7 @@ public class PersistentUUIDTest {
     public void setUpAnalytics() throws Exception {
         agentConfiguration = new AgentConfiguration();
         agentConfiguration.setEnableAnalyticsEvents(true);
-        agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
+        agentConfiguration.setAnalyticsAttributeStore(new AnalyticsAttributeDataStore(context));
         agentConfiguration.setDeviceID(UUID_STATIC);
         AnalyticsControllerImpl.shutdown();
         AnalyticsControllerImpl.initialize(agentConfiguration, new NullAgentImpl());

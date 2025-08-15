@@ -18,14 +18,14 @@ import com.newrelic.agent.android.util.SafeJsonPrimitive;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SharedPrefsCrashStore extends SharedPrefsStore implements CrashStore {
+public class CrashDataStore extends DataStoreHelpler implements CrashStore {
     private static final String STORE_FILE = "NRCrashStore";
 
-    public SharedPrefsCrashStore(Context context) {
+    public CrashDataStore(Context context) {
         this(context, STORE_FILE);
     }
 
-    public SharedPrefsCrashStore(Context context, String storeFilename) {
+    public CrashDataStore(Context context, String storeFilename) {
         super(context, storeFilename);
     }
 
@@ -39,12 +39,11 @@ public class SharedPrefsCrashStore extends SharedPrefsStore implements CrashStor
                 String crashJson = jsonObj.toString();
 
                 // crashes should be stored synchronously, since the app is terminating
-                SharedPreferences.Editor editor = this.sharedPrefs.edit();
-                editor.putString(crash.getUuid().toString(), crashJson);
+                putStringValue(crash.getUuid().toString(), crashJson);
 
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_SIZE_UNCOMPRESSED, crashJson.length());
 
-                return editor.commit();
+                return true;
 
             } catch (Exception e) {
                 log.error("SharedPrefsStore.store(String, String): ", e);
@@ -74,8 +73,7 @@ public class SharedPrefsCrashStore extends SharedPrefsStore implements CrashStor
     public void delete(Crash crash) {
         try {
             synchronized (this) {
-                final SharedPreferences.Editor editor = sharedPrefs.edit();
-                editor.remove(crash.getUuid().toString()).commit();
+                super.delete(crash.getUuid().toString());
             }
         } catch (Exception e) {
             log.error("SharedPrefsCrashStore.delete(): ", e);
