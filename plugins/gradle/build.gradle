@@ -16,8 +16,7 @@ import org.gradle.api.internal.classpath.ModuleRegistry
 import org.gradle.api.internal.project.ProjectInternal
 
 
-//group = 'com.newrelic.agent.android'
-group = 'io.github.ywang-nr'
+group = 'com.newrelic.agent.android'
 version = project.versions.agent
 
 sourceSets {
