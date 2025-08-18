@@ -139,6 +139,11 @@ public class SessionReplaySender extends PayloadSender {
                 StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIMEOUT,timer.peek());
                 break;
 
+            case HttpURLConnection.HTTP_REQ_TOO_LONG:
+                onFailedUpload("The request URL to submit the payload [" + payload.getUuid() + "] is to large (will try again later) - Response code [" + responseCode + "]");
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_URL_SIZE_LIMIT_EXCEEDED);
+                break;
+
             case 429: // 'Too Many Requests' not defined by HttpURLConnection
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] was throttled (will try again later) - Response code [" + responseCode + "]");
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_THROTTLED);
@@ -148,6 +153,7 @@ public class SessionReplaySender extends PayloadSender {
                 StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_REJECTED);
                 onFailedUpload("Session Replay Blob upload requests have been throttled (will try again later) - Response code [" + responseCode + "]");
                 break;
+
             case HttpURLConnection.HTTP_FORBIDDEN:
                 onFailedUpload("The data payload [" + payload.getUuid() + "] was rejected and will be deleted - Response code [" + responseCode + "]");
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD, timer.peek());
