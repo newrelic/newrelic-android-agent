@@ -62,7 +62,7 @@ signing {
 }
 
 project.tasks.register("install") {
-    dependsOn publishMavenJavaPublicationToMavenLocal
+    dependsOn publishLibraryProjectPublicationToMavenLocal
     description "Publishes all Maven publications produced by this project to the local Maven cache. " +
             "Replacement for the legacy 'maven' plugin task."
     group "publishing"
