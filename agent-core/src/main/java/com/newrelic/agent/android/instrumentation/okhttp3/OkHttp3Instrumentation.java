@@ -33,6 +33,7 @@ import okhttp3.internal.Internal;
 
 public class OkHttp3Instrumentation {
     private static final AgentLog log = AgentLogManager.getAgentLog();
+    static NewRelicWebSocketListener webSocketListener = new NewRelicWebSocketListener();
 
     private OkHttp3Instrumentation() {
     }
@@ -46,6 +47,8 @@ public class OkHttp3Instrumentation {
     public static Call newCall(OkHttpClient client, Request request) {
         TransactionState transactionState = new TransactionState();
         addHeadersAsCustomAttribute(transactionState, request);
+        // Websocket Listeners
+        setWebSocketListener(client,request);
         if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
             try {
                 // start the trace with a new call
@@ -60,6 +63,10 @@ public class OkHttp3Instrumentation {
             }
         }
         return new CallExtension(client, request, client.newCall(request), transactionState);
+    }
+
+    private static void setWebSocketListener(OkHttpClient client,Request request) {
+        client.newWebSocket(request,webSocketListener) ;
     }
 
     private static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
