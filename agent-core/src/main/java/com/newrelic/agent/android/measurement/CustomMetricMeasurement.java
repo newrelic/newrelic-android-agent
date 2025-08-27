@@ -19,9 +19,12 @@ public class CustomMetricMeasurement extends CategorizedMeasurement {
         setName(name);
         customMetric = new Metric(name);
 
-        // Call sample so that min, max and sos get updated. Then reset count to the provided value.
-        customMetric.sample(totalValue);
+        // set customMetric value one by one
         customMetric.setCount(count);
+        customMetric.setTotal(totalValue);
+        customMetric.setSumOfSquares(totalValue * totalValue);
+        customMetric.setMin(totalValue);
+        customMetric.setMax(totalValue);
         customMetric.setExclusive(exclusiveValue);
     }
 
