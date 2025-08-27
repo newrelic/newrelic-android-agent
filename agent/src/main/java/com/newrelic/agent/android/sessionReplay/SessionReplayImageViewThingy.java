@@ -13,8 +13,11 @@ import android.os.Build;
 import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.util.LruCache;
 import android.widget.ImageView;
 
+
+import androidx.annotation.WorkerThread;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
@@ -35,12 +38,22 @@ import java.util.Set;
 
 public class SessionReplayImageViewThingy implements SessionReplayViewThingyInterface {
     private static final String LOG_TAG = "SessionReplayImageViewThingy";
+    
+    // Static cache shared across all instances
+    private static final LruCache<String, String> imageCache = new LruCache<String, String>(50) {
+        @Override
+        protected int sizeOf(String key, String value) {
+            // Return the size in KB (approximate)
+            return value.length() / 1024;
+        }
+    };
+    
     private List<? extends SessionReplayViewThingyInterface> subviews = new ArrayList<>();
-    private ViewDetails viewDetails;
+    private final ViewDetails viewDetails;
 
     public boolean shouldRecordSubviews = false;
-    private ImageView.ScaleType scaleType;
-    private String backgroundColor;
+    private final ImageView.ScaleType scaleType;
+    private final String backgroundColor;
     private String imageData; // Base64 encoded image data
     protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
     protected SessionReplayConfiguration sessionReplayConfiguration;
@@ -61,11 +74,22 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
      * @param imageView The ImageView to extract the image from
      * @return Base64 encoded image data or null if no image is available
      */
+    @WorkerThread
     private String getImageFromImageView(ImageView imageView) {
         try {
             Drawable drawable = imageView.getDrawable();
             if (drawable == null) {
                 return null;
+            }
+
+            // Generate a cache key based on drawable properties
+            String cacheKey = generateCacheKey(drawable, imageView);
+            
+            // Check cache first
+            String cachedData = imageCache.get(cacheKey);
+            if (cachedData != null) {
+                Log.d(LOG_TAG, "Cache hit for image: " + cacheKey);
+                return cachedData;
             }
 
             Bitmap bitmap = null;
@@ -74,27 +98,24 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             if (drawable instanceof BitmapDrawable) {
                 bitmap = ((BitmapDrawable) drawable).getBitmap();
             } else if (drawable instanceof LayerDrawable){
-
                 Drawable drawable1 = getFirstDrawable((LayerDrawable) drawable);
                 try{
-                if (drawable1 instanceof BitmapDrawable) {
-                    bitmap = ((BitmapDrawable) drawable1).getBitmap();
-                } } catch (Exception e) {
-                    // Log error if needed, but don't crash
-                    Log.e(LOG_TAG, "Error extracting bitmap from InsetDrawable", e);
+                    if (drawable1 instanceof BitmapDrawable) {
+                        bitmap = ((BitmapDrawable) drawable1).getBitmap();
+                    } 
+                } catch (Exception e) {
+                    Log.e(LOG_TAG, "Error extracting bitmap from LayerDrawable", e);
                 }
-
-
-            }else if (drawable instanceof InsetDrawable){
+            } else if (drawable instanceof InsetDrawable){
                 try {
                     Drawable drawable1 = ((InsetDrawable) drawable).getDrawable();
-                    if(drawable1 != null)
-                      bitmap = ((BitmapDrawable) drawable1).getBitmap();
+                    if(drawable1 != null && drawable1 instanceof BitmapDrawable) {
+                        bitmap = ((BitmapDrawable) drawable1).getBitmap();
+                    }
                 } catch (Exception e) {
                     Log.e(LOG_TAG, "Error extracting bitmap from InsetDrawable", e);
                 }
-            }
-            else {
+            } else {
                 // For other drawable types, draw it onto a canvas to create a bitmap
                 int width = drawable.getIntrinsicWidth();
                 int height = drawable.getIntrinsicHeight();
@@ -108,8 +129,9 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
                 if (width <= 0 || height <= 0) {
                     return null; // Can't create bitmap with invalid dimensions
                 }
+                
                 DisplayMetrics displayMetrics = imageView.getContext().getResources().getDisplayMetrics();
-                bitmap = Bitmap.createBitmap(displayMetrics,width, height, Bitmap.Config.ARGB_8888);
+                bitmap = Bitmap.createBitmap(displayMetrics, width, height, Bitmap.Config.ARGB_8888);
                 Canvas canvas = new Canvas(bitmap);
                 canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.MULTIPLY);
                 drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
@@ -117,14 +139,46 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             }
 
             if (bitmap != null && !bitmap.isRecycled()) {
-                return bitmapToBase64(bitmap);
+                String base64Data = bitmapToBase64(bitmap);
+                if (base64Data != null) {
+                    // Cache the result
+                    imageCache.put(cacheKey, base64Data);
+                    Log.d(LOG_TAG, "Cached image data for key: " + cacheKey);
+                }
+                return base64Data;
             }
         } catch (Exception e) {
-            // Log error if needed, but don't crash
+            Log.e(LOG_TAG, "Error processing image", e);
             return null;
         }
         
         return null;
+    }
+
+    /**
+     * Generates a cache key based on drawable properties
+     */
+    private String generateCacheKey(Drawable drawable, ImageView imageView) {
+        StringBuilder keyBuilder = new StringBuilder();
+        
+        // Include drawable type and hash
+        keyBuilder.append(drawable.getClass().getSimpleName());
+        keyBuilder.append("_");
+        keyBuilder.append(drawable.hashCode());
+        
+        // Include dimensions
+        int width = drawable.getIntrinsicWidth();
+        int height = drawable.getIntrinsicHeight();
+        if (width <= 0 || height <= 0) {
+            width = imageView.getWidth();
+            height = imageView.getHeight();
+        }
+        keyBuilder.append("_").append(width).append("x").append(height);
+        
+        // Include scale type
+        keyBuilder.append("_").append(scaleType.name());
+        
+        return keyBuilder.toString();
     }
 
     /**
@@ -147,19 +201,34 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
      * @param bitmap The bitmap to convert
      * @return Base64 encoded string representation of the bitmap
      */
+
+
+    @WorkerThread
     private String bitmapToBase64(Bitmap bitmap) {
-        try {
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 10, byteArrayOutputStream);
-            } else {
-                bitmap.compress(Bitmap.CompressFormat.WEBP, 10, byteArrayOutputStream);
+        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+            try {
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // API 30+: Use the new specific WEBP formats
+                    bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 10, byteArrayOutputStream);
+                } else {
+                    // API 18-29: Use the deprecated WEBP (but suppress the warning since it's intentional)
+                    @SuppressWarnings("deprecation")
+                    Bitmap.CompressFormat format = Bitmap.CompressFormat.WEBP;
+                    bitmap.compress(format, 10, byteArrayOutputStream);
+                }
+
+                byte[] byteArray = byteArrayOutputStream.toByteArray();
+                return Base64.encodeToString(byteArray, Base64.NO_WRAP);
+            } catch (Exception e) {
+                Log.e(LOG_TAG, "Error converting bitmap to Base64", e);
+                return null;
             }
-            byte[] byteArray = byteArrayOutputStream.toByteArray();
-            return Base64.encodeToString(byteArray, Base64.NO_WRAP);
-        } catch (Exception e) {
-            return null;
+        } catch (Exception ignored) {
+            // Ignore cleanup errors
         }
+        // Clean up the output stream
+        return "";
     }
 
     /**
@@ -168,7 +237,10 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
      */
     public String getImageDataUrl() {
         if (imageData != null) {
-            return "data:image/webp;base64," + imageData;
+            // Determine the MIME type based on the Android version used for compression
+            String mimeType;
+            mimeType = "image/webp";
+            return "data:" + mimeType + ";base64," + imageData;
         }
         return null;
     }
@@ -179,6 +251,22 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
      */
     public String getImageData() {
         return imageData;
+    }
+
+    /**
+     * Clears the image cache (useful for memory management)
+     */
+    public static void clearImageCache() {
+        imageCache.evictAll();
+        Log.d(LOG_TAG, "Image cache cleared");
+    }
+
+    /**
+     * Gets cache statistics for debugging
+     */
+    public static String getCacheStats() {
+        return String.format("Cache stats - Size: %d, Hits: %d, Misses: %d", 
+                imageCache.size(), imageCache.hitCount(), imageCache.missCount());
     }
 
     @Override
@@ -211,8 +299,6 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     public String generateCssDescription() {
         StringBuilder cssBuilder = new StringBuilder(viewDetails.generateCssDescription());
         generateImageCss(cssBuilder);
-        cssBuilder.append("}");
-
         return cssBuilder.toString();
     }
 
@@ -228,14 +314,14 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         cssBuilder.append("background-color: ");
         cssBuilder.append(this.backgroundColor);
         cssBuilder.append("; ");
-        
+
         // If we have image data, use it as background image
         if (imageData != null) {
             cssBuilder.append("background-image: url(");
             cssBuilder.append(getImageDataUrl());
             cssBuilder.append("); ");
         }
-        
+
         cssBuilder.append("background-size: ");
         cssBuilder.append(getBackgroundSizeFromScaleType());
         cssBuilder.append("; ");
