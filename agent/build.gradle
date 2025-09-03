@@ -9,6 +9,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     id("com.github.johnrengelman.shadow")
     id("com.android.library")
+    id("org.jetbrains.kotlin.android")
 }
 
 apply from: "$project.rootDir/jacoco.gradle"
@@ -101,10 +102,16 @@ android {
 
 
 dependencies {
-    implementation project(path: ':agent-core', configuration: 'fat')
     implementation "androidx.datastore:datastore-preferences:1.1.7"
-    implementation "androidx.datastore:datastore-preferences-rxjava2:1.1.7"
-    implementation "androidx.datastore:datastore-preferences-rxjava3:1.1.7"
+    // Kotlin Standard Library (essential for Kotlin code)
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:${versions.java.kotlin}")
+    // Kotlin Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    // For bridging Kotlin Coroutines to Java CompletableFuture
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3")
+
+    implementation project(path: ':agent-core', configuration: 'fat')
 
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk

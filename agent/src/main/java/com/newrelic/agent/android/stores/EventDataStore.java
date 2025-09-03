@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.stores;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 
 import androidx.datastore.preferences.core.Preferences;
 
@@ -56,15 +55,19 @@ public class EventDataStore extends DataStoreHelpler implements AnalyticsEventSt
     @Override
     public List<AnalyticsEvent> fetchAll() {
         final List<AnalyticsEvent> events = new ArrayList<AnalyticsEvent>();
-        Map<Preferences.Key<?>, Object> objectStrings = dataStoreRX.data().firstOrError().blockingGet().asMap();
-        for (Map.Entry<Preferences.Key<?>, Object> entry : objectStrings.entrySet()) {
-            if (entry.getValue() instanceof String) {
-                try {
-                    events.add(AnalyticsEvent.eventFromJsonString(entry.getKey().toString(), (String) entry.getValue()));
-                } catch (Exception e) {
-                    log.error("Exception encountered while deserializing event", e);
+        try {
+            Map<Preferences.Key<?>, Object> objectStrings = dataStoreBridge.getAllPreferences().get();
+            for (Map.Entry<Preferences.Key<?>, Object> entry : objectStrings.entrySet()) {
+                if (entry.getValue() instanceof String) {
+                    try {
+                        events.add(AnalyticsEvent.eventFromJsonString(entry.getKey().toString(), (String) entry.getValue()));
+                    } catch (Exception e) {
+                        log.error("Exception encountered while deserializing event", e);
+                    }
                 }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return events;
     }

@@ -7,16 +7,12 @@ package com.newrelic.agent.android.stores;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Base64;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.datastore.preferences.core.MutablePreferences;
+import androidx.datastore.core.DataStore;
 import androidx.datastore.preferences.core.Preferences;
-import androidx.datastore.preferences.core.PreferencesKeys;
-import androidx.datastore.preferences.rxjava2.RxPreferenceDataStoreBuilder;
-import androidx.datastore.rxjava2.RxDataStore;
 
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -27,16 +23,23 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
-import io.reactivex.Single;
+import kotlinx.coroutines.CompletableJob;
+import kotlinx.coroutines.CoroutineScope;
+import kotlinx.coroutines.CoroutineScopeKt;
+import kotlinx.coroutines.Dispatchers;
 
 @SuppressLint("NewApi")
 public class DataStoreHelpler {
     protected static final AgentLog log = AgentLogManager.getAgentLog();
     protected static final Charset ENCODING = Charset.forName("ISO-8859-1");
 
-    protected final String storeFilename;
-    protected final RxDataStore<Preferences> dataStoreRX;
+    private final String storeFilename;
+    private final DataStore<Preferences> dataStore;
+
+    final DataStoreBridge dataStoreBridge;
+    private final CoroutineScope serviceScope; // Managed by this singleton
     Preferences pref_error = new Preferences() {
         @Nullable
         @Override
@@ -64,94 +67,44 @@ public class DataStoreHelpler {
     public DataStoreHelpler(Context context, String storeFilename) {
         DataStoreSingleton dataStoreSingleton = DataStoreSingleton.getInstance();
         if (dataStoreSingleton.getDataStore() == null) {
-            dataStoreRX = new RxPreferenceDataStoreBuilder(context, storeFilename).build();
+            dataStore = DataStorePreference.getNamedDataStorePreference(context, storeFilename);
         } else {
-            dataStoreRX = dataStoreSingleton.getDataStore();
+            dataStore = dataStoreSingleton.getDataStore();
         }
-        dataStoreSingleton.setDataStore(dataStoreRX);
+        dataStoreSingleton.setDataStore(dataStore);
 
         this.storeFilename = storeFilename;
+
+        // Create a long-lived scope for this service.
+        CompletableJob supervisor = DataStorePreference.createSupervisorJob();
+        this.serviceScope = CoroutineScopeKt.CoroutineScope(Dispatchers.getIO().plus(supervisor));
+        this.dataStoreBridge = new DataStoreBridge(context.getApplicationContext(), serviceScope);
     }
 
     public String getStoreFilename() {
         return storeFilename;
     }
 
-    public boolean putStringValue(String Key, String value) {
-        boolean returnValue;
-        Preferences.Key<String> PREF_KEY = PreferencesKeys.stringKey(Key);
-        Single<Preferences> updateResult = dataStoreRX.updateDataAsync(prefsIn -> {
-            MutablePreferences mutablePreferences = prefsIn.toMutablePreferences();
-            mutablePreferences.set(PREF_KEY, value);
-            return Single.just(mutablePreferences);
-        }).onErrorReturnItem(pref_error);
-        returnValue = updateResult.blockingGet() != pref_error;
-        return returnValue;
+    public void shutdown() {
+        CoroutineScopeKt.cancel(serviceScope, "DataStoreHelper is shutting down.", null);
     }
 
-    public boolean putLongValue(String Key, Long value) {
-        boolean returnValue;
-        Preferences.Key<Long> PREF_KEY = PreferencesKeys.longKey(Key);
-        Single<Preferences> updateResult = dataStoreRX.updateDataAsync(prefsIn -> {
-            MutablePreferences mutablePreferences = prefsIn.toMutablePreferences();
-            mutablePreferences.set(PREF_KEY, value);
-            return Single.just(mutablePreferences);
-        }).onErrorReturnItem(pref_error);
-        returnValue = updateResult.blockingGet() != pref_error;
-        return returnValue;
+    public CompletableFuture<Void> putStringValue(String key, String value) {
+        return dataStoreBridge.saveStringValue(key, value);
     }
 
-    public boolean putBooleanValue(String Key, Boolean value) {
-        boolean returnValue;
-        Preferences.Key<Boolean> PREF_KEY = PreferencesKeys.booleanKey(Key);
-        Single<Preferences> updateResult = dataStoreRX.updateDataAsync(prefsIn -> {
-            MutablePreferences mutablePreferences = prefsIn.toMutablePreferences();
-            mutablePreferences.set(PREF_KEY, value);
-            return Single.just(mutablePreferences);
-        }).onErrorReturnItem(pref_error);
-        returnValue = updateResult.blockingGet() != pref_error;
-        return returnValue;
+    public CompletableFuture<Void> putLongValue(String key, Long value) {
+        return dataStoreBridge.saveLongValue(key, value);
     }
 
-    public boolean putStringSetValue(String Key, Set<String> value) {
-        boolean returnValue;
-        Preferences.Key<Set<String>> PREF_KEY = PreferencesKeys.stringSetKey(Key);
-        Single<Preferences> updateResult = dataStoreRX.updateDataAsync(prefsIn -> {
-            MutablePreferences mutablePreferences = prefsIn.toMutablePreferences();
-            mutablePreferences.set(PREF_KEY, value);
-            return Single.just(mutablePreferences);
-        }).onErrorReturnItem(pref_error);
-        returnValue = updateResult.blockingGet() != pref_error;
-        return returnValue;
-    }
-
-    public String getStringValue(String Key) {
-        Preferences.Key<String> PREF_KEY = PreferencesKeys.stringKey(Key);
-        Single<String> value = dataStoreRX.data().firstOrError().map(prefs -> prefs.get(PREF_KEY)).onErrorReturnItem("null");
-        return value.blockingGet();
-    }
-
-    public Set<String> getStringSetValue(String Key) {
-        Preferences.Key<Set<String>> PREF_KEY = PreferencesKeys.stringSetKey(Key);
-        Single<Set<String>> value = dataStoreRX.data().firstOrError().map(prefs -> prefs.get(PREF_KEY)).onErrorReturnItem(Collections.emptySet());
-        return value.blockingGet();
-    }
-
-    public long getLongSetValue(String Key) {
-        Preferences.Key<Long> PREF_KEY = PreferencesKeys.longKey(Key);
-        Single<Long> value = dataStoreRX.data().firstOrError().map(prefs -> prefs.get(PREF_KEY)).onErrorReturnItem(Long.valueOf(-1));
-        return value.blockingGet();
-    }
-
-    public boolean getBooleanSetValue(String Key) {
-        Preferences.Key<Boolean> PREF_KEY = PreferencesKeys.booleanKey(Key);
-        Single<Boolean> value = dataStoreRX.data().firstOrError().map(prefs -> prefs.get(PREF_KEY)).onErrorReturnItem(false);
-        return value.blockingGet();
+    public CompletableFuture<Void> putBooleanValue(String key, Boolean value) {
+        return dataStoreBridge.saveBooleanValue(key, value);
     }
 
     public boolean store(String uuid, byte[] bytes) {
         try {
-            return putStringValue(uuid, decodeBytesToString(bytes));
+            putStringValue(uuid, decodeBytesToString(bytes));
+            return true;
         } catch (Exception e) {
             log.error("DataStoreHelper.store(String, byte[]): ", e);
         }
@@ -161,7 +114,8 @@ public class DataStoreHelpler {
 
     public boolean store(String uuid, Set<String> stringSet) {
         try {
-            return putStringSetValue(uuid, stringSet);
+            //TODO: THIS FUNCTION
+//            return putStringSetValue(uuid, stringSet);
         } catch (Exception e) {
             log.error("DataStoreHelper.store(String, Set<String>): ", e);
         }
@@ -171,7 +125,8 @@ public class DataStoreHelpler {
 
     public boolean store(String uuid, String string) {
         try {
-            return putStringValue(uuid, string);
+            dataStoreBridge.saveStringValue(uuid, string);
+            return true;
         } catch (Exception e) {
             log.error("DataStoreHelper.store(String, String): ", e);
         }
@@ -184,7 +139,7 @@ public class DataStoreHelpler {
 
         try {
             synchronized (this) {
-                Map<Preferences.Key<?>, Object> objectStrings = dataStoreRX.data().firstOrError().blockingGet().asMap();
+                Map<Preferences.Key<?>, Object> objectStrings = dataStoreBridge.getAllPreferences().get();
                 objectList.addAll(objectStrings.values());
             }
         } catch (Exception e) {
@@ -196,9 +151,8 @@ public class DataStoreHelpler {
 
     public int count() {
         try {
-            synchronized (dataStoreRX) {
-                Map<Preferences.Key<?>, Object> objectStrings = dataStoreRX.data().firstOrError().blockingGet().asMap();
-                return objectStrings.size();
+            synchronized (dataStore) {
+                return dataStoreBridge.countPreferences().get();
             }
         } catch (Exception e) {
             log.error("DataStoreHelper.count(): ", e);
@@ -212,11 +166,7 @@ public class DataStoreHelpler {
     public void clear() {
         try {
             synchronized (this) {
-                dataStoreRX.updateDataAsync(preferences -> {
-                    MutablePreferences mutablePreferences = preferences.toMutablePreferences();
-                    mutablePreferences.clear();
-                    return Single.just(mutablePreferences);
-                }).blockingGet();
+                dataStoreBridge.clearAllPreferences();
             }
         } catch (Exception e) {
             log.error("DataStoreHelper.clear(): ", e);
@@ -226,14 +176,8 @@ public class DataStoreHelpler {
     public void delete(String uuid) {
         try {
             synchronized (this) {
-                dataStoreRX.updateDataAsync(preferences -> {
-                    Map<Preferences.Key<?>, Object> test1 = dataStoreRX.data().firstOrError().blockingGet().asMap();
-                    MutablePreferences mutablePreferences = preferences.toMutablePreferences();
-                    Preferences.Key<String> key = PreferencesKeys.stringKey(uuid); // Or other type, e.g., intKey, booleanKey
-                    mutablePreferences.remove(key);
-                    Map<Preferences.Key<?>, Object> test2 = dataStoreRX.data().firstOrError().blockingGet().asMap();
-                    return Single.just(mutablePreferences);
-                }).blockingGet();
+                //TODO: VALUE TYPE
+                dataStoreBridge.deleteStringValue(uuid);
             }
         } catch (Exception e) {
             log.error("DataStoreHelper.delete(): ", e);

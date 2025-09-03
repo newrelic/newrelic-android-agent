@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.stores;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 
 import androidx.datastore.preferences.core.Preferences;
 
@@ -63,21 +62,25 @@ public class AnalyticsAttributeDataStore extends DataStoreHelpler implements Ana
     @Override
     public List<AnalyticsAttribute> fetchAll() {
         ArrayList<AnalyticsAttribute> analyticsAttributeArrayList = new ArrayList<AnalyticsAttribute>();
-        Map<Preferences.Key<?>, Object> storedAttributes = dataStoreRX.data().firstOrError().blockingGet().asMap();
+        try {
+            Map<Preferences.Key<?>, Object> storedAttributes = dataStoreBridge.getAllPreferences().get();
 
-        for (Map.Entry entry : storedAttributes.entrySet()) {
-            log.audit("SharedPrefsAnalyticsAttributeStore contains attribute [" + entry.getKey() + "=" + entry.getValue() + "]");
-            if (entry.getValue() instanceof String) {
-                analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), entry.getValue().toString(), true));
-            } else if (entry.getValue() instanceof Float) { // keep  the float unwrap around to handled deprecated agent storage method
-                analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), Double.valueOf(entry.getValue().toString()), true));
-            } else if (entry.getValue() instanceof Long) {
-                analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), Double.longBitsToDouble(Long.valueOf(entry.getValue().toString())), true));
-            } else if (entry.getValue() instanceof Boolean) {
-                analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), Boolean.valueOf(entry.getValue().toString()), true));
-            } else {
-                log.error("SharedPrefsAnalyticsAttributeStore.fetchAll(): unsupported attribute [" + entry.getKey() + "=" + entry.getValue() + "]");
+            for (Map.Entry entry : storedAttributes.entrySet()) {
+                log.audit("SharedPrefsAnalyticsAttributeStore contains attribute [" + entry.getKey() + "=" + entry.getValue() + "]");
+                if (entry.getValue() instanceof String) {
+                    analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), entry.getValue().toString(), true));
+                } else if (entry.getValue() instanceof Float) { // keep  the float unwrap around to handled deprecated agent storage method
+                    analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), Double.valueOf(entry.getValue().toString()), true));
+                } else if (entry.getValue() instanceof Long) {
+                    analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), Double.longBitsToDouble(Long.valueOf(entry.getValue().toString())), true));
+                } else if (entry.getValue() instanceof Boolean) {
+                    analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), Boolean.valueOf(entry.getValue().toString()), true));
+                } else {
+                    log.error("SharedPrefsAnalyticsAttributeStore.fetchAll(): unsupported attribute [" + entry.getKey() + "=" + entry.getValue() + "]");
+                }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         return analyticsAttributeArrayList;
