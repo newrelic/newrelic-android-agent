@@ -30,7 +30,6 @@ import com.newrelic.agent.android.util.Streams;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
@@ -281,7 +280,7 @@ public class LogReporter extends PayloadReporter {
 
         Set<File> mergedFiles = new HashSet<>();
         try {
-            workingFileLock.lock();
+//            workingFileLock.lock();
 
             JsonArray jsonArray = new JsonArray();
 
@@ -320,7 +319,7 @@ public class LogReporter extends PayloadReporter {
             log.error(e.toString());
 
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
         }
 
         return null;
@@ -333,7 +332,9 @@ public class LogReporter extends PayloadReporter {
                 ((HarvestLifecycleAware) logger).onHarvest();
             }
 
-            workingFileLock.lock();
+//            if(!workingFileLock.isLocked()) {
+//                workingFileLock.lock();
+//            }
 
             // roll the log only if data has been added to the working file
             workingLogfileWriter.get().flush();
@@ -344,7 +345,7 @@ public class LogReporter extends PayloadReporter {
             log.error("LogReporter: " + e);
 
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
 
         }
 
@@ -538,7 +539,9 @@ public class LogReporter extends PayloadReporter {
      */
     void finalizeWorkingLogfile() {
         try {
-            workingFileLock.lock();
+//            if(!workingFileLock.isLocked()) {
+//                workingFileLock.lock();
+//            }
             workingLogfileWriter.get().flush();
             workingLogfileWriter.get().close();
             workingLogfileWriter.set(null);
@@ -546,7 +549,7 @@ public class LogReporter extends PayloadReporter {
         } catch (Exception e) {
             log.error(e.toString());
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
         }
     }
 
@@ -561,7 +564,10 @@ public class LogReporter extends PayloadReporter {
         File closedLogfile;
 
         try {
-            workingFileLock.lock();
+//            if(!workingFileLock.isLocked()) {
+//
+//                workingFileLock.lock();
+//            }
             closedLogfile = rollLogfile(workingLogfile);
             workingLogfile = getWorkingLogfile();
             resetWorkingLogfile();
@@ -575,7 +581,7 @@ public class LogReporter extends PayloadReporter {
             log.debug("LogReporter: Finalized log data to [" + closedLogfile.getAbsolutePath() + "]");
 
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
         }
 
         return closedLogfile;
@@ -628,7 +634,7 @@ public class LogReporter extends PayloadReporter {
      */
     public void appendToWorkingLogfile(Map<String, Object> logDataMap) throws IOException {
         try {
-            workingFileLock.lock();
+//            workingFileLock.lock();
             try (RandomAccessFile raf = new RandomAccessFile(workingLogfile, "rw");
                  FileChannel channel = raf.getChannel();
                  FileLock lock = channel.lock()) {
@@ -649,7 +655,7 @@ public class LogReporter extends PayloadReporter {
         } catch(Exception ex) {
           ex.printStackTrace();
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
         }
     }
 
