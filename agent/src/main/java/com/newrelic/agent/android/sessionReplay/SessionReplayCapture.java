@@ -30,16 +30,17 @@ public class SessionReplayCapture {
                     continue;
                 }
 
-                if(shouldAddMask) {
+                boolean shouldAddMask1 = (child.getTag(R.id.newrelic_privacy) != null && child.getTag(R.id.newrelic_privacy).equals("nr-mask")) || (child.getTag() != null && child.getTag().equals("nr-mask"));
+                boolean shouldAddUnMask1 = child.getTag(R.id.newrelic_privacy) != null && child.getTag(R.id.newrelic_privacy).equals("nr-unmask") || (child.getTag() != null && child.getTag().equals("nr-unmask"));
+
+
+                if(shouldAddMask &&  !shouldAddUnMask1 ) {
                     child.setTag(R.id.newrelic_privacy,"nr-mask");
                 }
 
-                if(shouldAddUnMask) {
+                if(shouldAddUnMask && !shouldAddMask1) {
                     child.setTag(R.id.newrelic_privacy,"nr-unmask");
                 }
-
-                boolean shouldAddMask1 = (child.getTag(R.id.newrelic_privacy) != null && child.getTag(R.id.newrelic_privacy).equals("nr-mask")) || (child.getTag() != null && child.getTag().equals("nr-mask"));
-                boolean shouldAddUnMask1 = child.getTag(R.id.newrelic_privacy) != null && child.getTag(R.id.newrelic_privacy).equals("nr-unmask") || (child.getTag() != null && child.getTag().equals("nr-unmask"));
 
                 childThingies.add(recursivelyCapture(((ViewGroup) rootView).getChildAt(i), shouldAddMask1, shouldAddUnMask1));
             }
