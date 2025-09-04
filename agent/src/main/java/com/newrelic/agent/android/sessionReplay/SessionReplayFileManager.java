@@ -4,7 +4,7 @@ import static com.newrelic.agent.android.util.Constants.SessionReplay.SESSION_RE
 import static com.newrelic.agent.android.util.Constants.SessionReplay.SESSION_REPLAY_FILE_MASK;
 
 import android.app.Application;
-import android.util.Log;
+
 
 import com.google.gson.Gson;
 import com.newrelic.agent.android.AgentConfiguration;
@@ -110,6 +110,8 @@ public class SessionReplayFileManager {
             public Void call() throws Exception {
                 try {
                     if (workingSessionReplayFileWriter.get() != null) {
+                        workingSessionReplayFileWriter.get().write(new Gson().toJson(processor.createMetaEvent(newFrame)));
+                        workingSessionReplayFileWriter.get().newLine();
                         workingSessionReplayFileWriter.get().write(new Gson().toJson(processor.processFullFrame(newFrame)));
                         workingSessionReplayFileWriter.get().newLine();
                     }
@@ -132,14 +134,22 @@ public class SessionReplayFileManager {
      *
      * @param touchTracker The touch tracker containing touch data
      */
-    public void addTouchToFile(final TouchTracker touchTracker) {
+    public void  addTouchToFile(final TouchTracker touchTracker) {
         Callable<Void> fileWriteTask = new Callable<Void>() {
             @Override
             public Void call() throws Exception {
                 try {
                     if (workingSessionReplayFileWriter.get() != null) {
-                        workingSessionReplayFileWriter.get().write(new Gson().toJson(touchTracker.processTouchData()));
-                        workingSessionReplayFileWriter.get().newLine();
+
+                        touchTracker.processTouchData().forEach(position -> {
+                            try {
+                                workingSessionReplayFileWriter.get().write(new Gson().toJson(position));
+                                workingSessionReplayFileWriter.get().newLine();
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+
                     }
                     BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
                     if (currentWriter != null) {

@@ -139,14 +139,14 @@ public class CrashSessionReplayHandler {
      * @param sessionAttributes Base session attributes
      */
     private void processSessionReplayFile(File file, Map<String, Object> sessionAttributes) {
-        JsonArray logsJsonArray = new JsonArray();
+        JsonArray replayJsonArray = new JsonArray();
         AtomicReference<Long> firstTimestamp = new AtomicReference<>(0L);
         AtomicReference<Long> lastTimestamp = new AtomicReference<>(0L);
         
         try (BufferedReader reader = Streams.newBufferedFileReader(file)) {
             reader.lines().forEach(line -> {
                 if (line != null && !line.isEmpty()) {
-                    processSessionReplayLine(line, logsJsonArray, firstTimestamp, lastTimestamp);
+                    processSessionReplayLine(line, replayJsonArray, firstTimestamp, lastTimestamp);
                 }
             });
         } catch (IOException e) {
@@ -154,14 +154,14 @@ public class CrashSessionReplayHandler {
             return;
         }
         
-        if (!logsJsonArray.isEmpty()) {
+        if (!replayJsonArray.isEmpty()) {
             // Add timestamp attributes
             Map<String, Object> enhancedAttributes = new HashMap<>(sessionAttributes);
             enhancedAttributes.put(FIRST_TIMESTAMP, firstTimestamp.get());
             enhancedAttributes.put(LAST_TIMESTAMP, lastTimestamp.get());
             
             // Upload the session replay data
-            SessionReplayReporter.reportSessionReplayData(logsJsonArray.toString().getBytes(), enhancedAttributes);
+            SessionReplayReporter.reportSessionReplayData(replayJsonArray.toString().getBytes(), enhancedAttributes);
         }
     }
     
@@ -169,24 +169,20 @@ public class CrashSessionReplayHandler {
      * Processes a single line from a session replay file.
      * 
      * @param line The line to process
-     * @param logsJsonArray The array to add processed data to
+     * @param replayJsonArray The array to add processed data to
      * @param firstTimestamp Reference to track first timestamp
      * @param lastTimestamp Reference to track last timestamp
      */
-    private void processSessionReplayLine(String line, JsonArray logsJsonArray, 
+    private void processSessionReplayLine(String line, JsonArray replayJsonArray,
                                         AtomicReference<Long> firstTimestamp, 
                                         AtomicReference<Long> lastTimestamp) {
         try {
-            JsonArray messageAsJson = new Gson().fromJson(line, JsonArray.class);
-            for (int i = 0; i < messageAsJson.size(); i++) {
-                JsonObject frame = messageAsJson.get(i).getAsJsonObject();
-                
-                if (frame.has("type") && frame.get("type").getAsInt() == 2) {
-                    updateTimestamps(frame, firstTimestamp, lastTimestamp);
-                }
-                
-                logsJsonArray.add(messageAsJson.get(i));
+            JsonObject frame = new Gson().fromJson(line, JsonObject.class);
+            if (frame.has("type") && frame.get("type").getAsInt() == 2) {
+                updateTimestamps(frame, firstTimestamp, lastTimestamp);
             }
+            replayJsonArray.add(frame);
+
         } catch (JsonSyntaxException e) {
             log.error("Invalid JSON entry skipped [" + line + "]", e);
         }
@@ -212,6 +208,8 @@ public class CrashSessionReplayHandler {
             lastTimestamp.set(timestamp);
         } else if (timestamp > lastTimestamp.get()) {
             lastTimestamp.set(timestamp);
+        } else if (timestamp < firstTimestamp.get()) {
+            firstTimestamp.set(timestamp);
         }
     }
     

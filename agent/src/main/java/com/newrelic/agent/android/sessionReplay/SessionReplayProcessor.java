@@ -30,28 +30,14 @@ public class SessionReplayProcessor {
         for(SessionReplayFrame rawFrame : rawFrames) {
             // We need to come up with a way to tell if the activity or fragment is different.
             if(lastFrame == null)  {
-                RRWebMetaEvent metaEvent = new RRWebMetaEvent(
-                        new RRWebMetaEvent.RRWebMetaEventData(
-                                "https://newrelic.com",
-                                rawFrame.width,
-                                rawFrame.height
-                        ),
-                        rawFrame.timestamp
-                );
+                RRWebMetaEvent metaEvent = createMetaEvent(rawFrame);
                 snapshot.add(metaEvent);
                 snapshot.add(processFullFrame(rawFrame));
             } else {
                 if(rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
                     snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
                 } else if (rawFrame.width != lastFrame.width || rawFrame.height != lastFrame.height) {
-                    RRWebMetaEvent metaEvent = new RRWebMetaEvent(
-                            new RRWebMetaEvent.RRWebMetaEventData(
-                                    "https://newrelic.com",
-                                    rawFrame.width,
-                                    rawFrame.height
-                            ),
-                            rawFrame.timestamp
-                    );
+                    RRWebMetaEvent metaEvent = createMetaEvent(rawFrame);
                     snapshot.add(metaEvent);
                     snapshot.add(processFullFrame(rawFrame));
                 } else {
@@ -184,6 +170,17 @@ public class SessionReplayProcessor {
         }
 
         return thingies;
+    }
+
+     RRWebMetaEvent createMetaEvent(SessionReplayFrame frame) {
+        return new RRWebMetaEvent(
+                new RRWebMetaEvent.RRWebMetaEventData(
+                        "https://newrelic.com",
+                        frame.width,
+                        frame.height
+                ),
+                frame.timestamp
+        );
     }
 
     public void onNewScreen() {
