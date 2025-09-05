@@ -6,9 +6,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.View; // Use Android's View class
 import android.view.ViewGroup;
-//import com.newrelic.agent.android.sessionReplay.gestures.SessionReplayIdentifier; // Assuming this class exists for managing view IDs
 import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
-//import com.newrelic.agent.android.sessionReplay.models.NewRelicIdGenerator; // Assuming this class exists for generating IDs
 
 import java.lang.reflect.Field;
 import java.util.Objects; // For hashCode and equals

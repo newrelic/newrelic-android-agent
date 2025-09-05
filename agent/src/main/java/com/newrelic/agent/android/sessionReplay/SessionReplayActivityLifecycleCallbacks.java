@@ -15,12 +15,17 @@ import androidx.annotation.Nullable;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
-import com.newrelic.agent.android.sessionReplay.internal.Curtains;
-import com.newrelic.agent.android.sessionReplay.internal.OnTouchEventListener;
-import com.newrelic.agent.android.sessionReplay.internal.WindowCallbackWrapper;
 import com.newrelic.agent.android.sessionReplay.models.RecordedTouchData;
 
+
 import java.util.Set;
+
+import curtains.Curtains;
+import curtains.DispatchState;
+import curtains.OnTouchEventListener;
+import curtains.TouchEventInterceptor;
+import curtains.internal.WindowCallbackWrapper;
+import kotlin.jvm.functions.Function1;
 
 public class SessionReplayActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
     private static final String TAG = "SessionReplayActivityLifecycleCallbacks";
@@ -72,7 +77,17 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
             Log.d(TAG, "Window is null for view: " + view.getClass().getSimpleName());
             return;
         }
-        WindowCallbackWrapper.getListeners(window).getTouchEventInterceptors().add((OnTouchEventListener) motionEvent -> {
+
+        OnTouchEventListener touchEventInterceptor = new OnTouchEventListener() {
+
+            @NonNull
+            @Override
+            public DispatchState intercept(@NonNull MotionEvent motionEvent, @NonNull Function1<? super MotionEvent, ? extends DispatchState> function1) {
+                return null;
+            }
+
+            @Override
+            public void onTouchEvent(@NonNull MotionEvent motionEvent) {
             long timestamp = System.currentTimeMillis();
             MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
             motionEvent.getPointerCoords(0, pointerCoords);
@@ -103,7 +118,10 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 currentTouchTracker = null;
                 currentTouchId = -1;
             }
-        });
+            }
+        };
+
+        WindowCallbackWrapper.Companion.getListeners(window).getTouchEventInterceptors().add(touchEventInterceptor);
     }
 
     private int getStableId(View child) {
