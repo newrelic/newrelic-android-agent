@@ -83,7 +83,10 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
             @NonNull
             @Override
             public DispatchState intercept(@NonNull MotionEvent motionEvent, @NonNull Function1<? super MotionEvent, ? extends DispatchState> function1) {
-                return null;
+
+                onTouchEvent(motionEvent);
+                // Call the dispatch function and return its result
+                return function1.invoke(motionEvent);
             }
 
             @Override

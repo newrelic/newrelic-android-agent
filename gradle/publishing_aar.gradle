@@ -43,6 +43,20 @@ publishing {
                     url = 'scm:git:https://github.com/newrelic/newrelic-android-agent.git'
                     connection = 'scm:git:https://github.com/newrelic/newrelic-android-agent.git'
                 }
+
+                withXml {
+                    def dependenciesNode = asNode().appendNode('dependencies')
+
+                    project.configurations.implementation.allDependencies.each { dependency ->
+                        if (dependency.group != null && dependency.name != null && dependency.version != null && !dependency.name.contains("agent-core")) {
+                            def dependencyNode = dependenciesNode.appendNode('dependency')
+                            dependencyNode.appendNode('groupId', dependency.group)
+                            dependencyNode.appendNode('artifactId', dependency.name)
+                            dependencyNode.appendNode('version', dependency.version)
+                            dependencyNode.appendNode('scope', 'runtime')
+                        }
+                    }
+                }
             }
         }
     }
