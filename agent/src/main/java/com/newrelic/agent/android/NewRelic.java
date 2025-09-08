@@ -889,7 +889,10 @@ public final class NewRelic {
 
                 }
             }
-            controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
+
+            if (userId != null && !userId.isEmpty()) {
+                controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
+            }
         };
         harvest.run();
         return true;
