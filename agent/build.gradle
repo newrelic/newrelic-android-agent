@@ -183,6 +183,15 @@ def toFatJarTask(def variant) {
         }
         exclude '**/META-INF/**'
         exclude '**/module-info.class'
+        exclude 'AndroidManifest.xml'
+        exclude 'kotlin/**'
+        exclude 'kotlinx/**'
+        exclude 'org/**'
+        exclude '_COROUTINE/**'
+        exclude 'android/**'
+        exclude 'androidx/**'
+        exclude 'jni/**'
+        exclude 'okio/**'
         duplicatesStrategy = DuplicatesStrategy.INHERIT
         from unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
         from shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
