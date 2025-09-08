@@ -155,7 +155,7 @@ The agent uses JUnit, Mockito and Robolectric to mock and test agent functionali
 The simplest way to debug the agent is at runtime through its [test app](https://github.com/newrelic/newrelic-android-agent/tree/main/samples/agent-test-app).
 
 * Create a test app that has been configured to use the agent.
-* Run a debugging session of the test app, but before you start execution, browse the `External Libraries` dependencies from the AS `Project` pane (all the way at the bottom).
+* Use Android Studio to run a debugging session of the test app, but before you start execution, browse the `External Libraries` dependencies `Project` pane (all the way at the bottom).
 * Drill down to `External Libraries/android-agent-{version}/android-agent-{version}.jar/com/newrelic/agent/android/NewRelic`
 * Open the file, and set a break point just inside the start() method. Now debug the app and execution will break inside the agent.
 
