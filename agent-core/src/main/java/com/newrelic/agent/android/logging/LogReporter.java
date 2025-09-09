@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2023. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
@@ -46,6 +47,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
@@ -58,6 +61,8 @@ import javax.net.ssl.HttpsURLConnection;
 
 
 public class LogReporter extends PayloadReporter {
+    // Add this field at the class level
+    private static final ExecutorService cleanupExecutor = Executors.newSingleThreadExecutor();
 
     protected static final Type gtype = new TypeToken<Map<String, Object>>() {
     }.getType();
@@ -516,20 +521,26 @@ public class LogReporter extends PayloadReporter {
 
     /**
      * Remove log data files that have been "deleted" by other operations. We don't really delete files once
-     * used, but rather rename them as a backup. This gives us a window where data can be salvaged as neccesary.
+     * used, but rather rename them as a backup. This gives us a window where data can be salvaged as neccessary.
      * This sweep should only be run once in a while.
      */
     Set<File> cleanup() {
         Set<File> expiredFiles = getCachedLogReports(LogReportState.EXPIRED);
         Set<File> closedFiles = getCachedLogReports(LogReportState.CLOSED);
         expiredFiles.addAll(closedFiles);
-        expiredFiles.forEach(logReport -> {
-            if (logReport.delete()) {
-                log.debug("LogReporter: Log data [" + logReport.getName() + "] removed.");
-            } else {
-                log.warn("LogReporter: Log data [" + logReport.getName() + "] not removed!");
-            }
-        });
+        
+        // Submit file deletion task to background executor
+        if (!expiredFiles.isEmpty()) {
+            cleanupExecutor.submit(() -> {
+                expiredFiles.forEach(logReport -> {
+                    if (logReport.delete()) {
+                        log.debug("LogReporter: Log data [" + logReport.getName() + "] removed.");
+                    } else {
+                        log.warn("LogReporter: Log data [" + logReport.getName() + "] not removed!");
+                    }
+                });
+            });
+        }
 
         return expiredFiles;
     }
