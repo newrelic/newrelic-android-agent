@@ -40,6 +40,8 @@ import static com.newrelic.agent.android.harvest.type.HarvestErrorCodes.NSURLErr
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.when;
 
 
 public class OkHttp3TransactionStateUtilTest {
@@ -333,6 +335,53 @@ public class OkHttp3TransactionStateUtilTest {
 
         Assert.assertNotNull(transactionState.getParams());
 
+    }
+
+    @Test
+    public void testInterceptedRequestWhenItThrowsError() throws IOException {
+        Request request = providePostRequest();
+        OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(new Interceptor() {
+                    @Override
+                    public Response intercept(Chain chain) throws IOException {
+                        Request request = chain.request();
+                        Assert.assertEquals(request.url().toString(), transactionState.getUrl());
+                        return chain.proceed(request);
+                    }
+                })
+                .addInterceptor(new Interceptor() {
+                    @Override
+                    public Response intercept(Chain chain) throws IOException {
+                        Request request = chain.request();
+                        Assert.assertEquals(request.url().toString(), transactionState.getUrl());
+
+                        HttpUrl newUrl = request.url().newBuilder()
+                                .scheme("https")
+                                .host("httpbin.org")
+                                .addPathSegment("anything")
+                                .build();
+
+                        request = request.newBuilder()
+                                .url(newUrl)
+                                .build();
+
+                        return chain.proceed(request);
+                    }
+                })
+                .build();
+
+        Assert.assertEquals("http://httpstat.us/200", transactionState.getUrl());
+
+        CallExtension call = (CallExtension) OkHttp3Instrumentation.newCall(client, request);
+        transactionState = call.getTransactionState();
+
+        try {
+            call.execute();
+            throw new IOException("Request failed");
+        } catch (Exception e) {
+            // ignore
+            Assert.assertEquals("https://httpbin.org/anything", transactionState.getUrl());
+        }
     }
 
     @Test
