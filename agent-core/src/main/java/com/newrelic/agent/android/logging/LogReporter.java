@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2023. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
@@ -30,7 +31,6 @@ import com.newrelic.agent.android.util.Streams;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
@@ -47,6 +47,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
@@ -59,6 +61,8 @@ import javax.net.ssl.HttpsURLConnection;
 
 
 public class LogReporter extends PayloadReporter {
+    // Add this field at the class level
+    private static final ExecutorService cleanupExecutor = Executors.newSingleThreadExecutor();
 
     protected static final Type gtype = new TypeToken<Map<String, Object>>() {
     }.getType();
@@ -281,7 +285,7 @@ public class LogReporter extends PayloadReporter {
 
         Set<File> mergedFiles = new HashSet<>();
         try {
-            workingFileLock.lock();
+//            workingFileLock.lock();
 
             JsonArray jsonArray = new JsonArray();
 
@@ -320,7 +324,7 @@ public class LogReporter extends PayloadReporter {
             log.error(e.toString());
 
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
         }
 
         return null;
@@ -333,7 +337,9 @@ public class LogReporter extends PayloadReporter {
                 ((HarvestLifecycleAware) logger).onHarvest();
             }
 
-            workingFileLock.lock();
+//            if(!workingFileLock.isLocked()) {
+//                workingFileLock.lock();
+//            }
 
             // roll the log only if data has been added to the working file
             workingLogfileWriter.get().flush();
@@ -344,7 +350,7 @@ public class LogReporter extends PayloadReporter {
             log.error("LogReporter: " + e);
 
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
 
         }
 
@@ -515,20 +521,26 @@ public class LogReporter extends PayloadReporter {
 
     /**
      * Remove log data files that have been "deleted" by other operations. We don't really delete files once
-     * used, but rather rename them as a backup. This gives us a window where data can be salvaged as neccesary.
+     * used, but rather rename them as a backup. This gives us a window where data can be salvaged as neccessary.
      * This sweep should only be run once in a while.
      */
     Set<File> cleanup() {
         Set<File> expiredFiles = getCachedLogReports(LogReportState.EXPIRED);
         Set<File> closedFiles = getCachedLogReports(LogReportState.CLOSED);
         expiredFiles.addAll(closedFiles);
-        expiredFiles.forEach(logReport -> {
-            if (logReport.delete()) {
-                log.debug("LogReporter: Log data [" + logReport.getName() + "] removed.");
-            } else {
-                log.warn("LogReporter: Log data [" + logReport.getName() + "] not removed!");
-            }
-        });
+        
+        // Submit file deletion task to background executor
+        if (!expiredFiles.isEmpty()) {
+            cleanupExecutor.submit(() -> {
+                expiredFiles.forEach(logReport -> {
+                    if (logReport.delete()) {
+                        log.debug("LogReporter: Log data [" + logReport.getName() + "] removed.");
+                    } else {
+                        log.warn("LogReporter: Log data [" + logReport.getName() + "] not removed!");
+                    }
+                });
+            });
+        }
 
         return expiredFiles;
     }
@@ -538,7 +550,9 @@ public class LogReporter extends PayloadReporter {
      */
     void finalizeWorkingLogfile() {
         try {
-            workingFileLock.lock();
+//            if(!workingFileLock.isLocked()) {
+//                workingFileLock.lock();
+//            }
             workingLogfileWriter.get().flush();
             workingLogfileWriter.get().close();
             workingLogfileWriter.set(null);
@@ -546,7 +560,7 @@ public class LogReporter extends PayloadReporter {
         } catch (Exception e) {
             log.error(e.toString());
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
         }
     }
 
@@ -561,7 +575,10 @@ public class LogReporter extends PayloadReporter {
         File closedLogfile;
 
         try {
-            workingFileLock.lock();
+//            if(!workingFileLock.isLocked()) {
+//
+//                workingFileLock.lock();
+//            }
             closedLogfile = rollLogfile(workingLogfile);
             workingLogfile = getWorkingLogfile();
             resetWorkingLogfile();
@@ -575,7 +592,7 @@ public class LogReporter extends PayloadReporter {
             log.debug("LogReporter: Finalized log data to [" + closedLogfile.getAbsolutePath() + "]");
 
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
         }
 
         return closedLogfile;
@@ -628,7 +645,7 @@ public class LogReporter extends PayloadReporter {
      */
     public void appendToWorkingLogfile(Map<String, Object> logDataMap) throws IOException {
         try {
-            workingFileLock.lock();
+//            workingFileLock.lock();
             try (RandomAccessFile raf = new RandomAccessFile(workingLogfile, "rw");
                  FileChannel channel = raf.getChannel();
                  FileLock lock = channel.lock()) {
@@ -649,7 +666,7 @@ public class LogReporter extends PayloadReporter {
         } catch(Exception ex) {
           ex.printStackTrace();
         } finally {
-            workingFileLock.unlock();
+//            workingFileLock.unlock();
         }
     }
 

@@ -137,6 +137,7 @@ public class MetricNames {
     public static final String TAG_SUBDESTINATION = "<subdestination>";
 
     public static final String SUPPORTABILITY_SESSION_REPLAY = SUPPORTABILITY_AGENT + "SessionReplay/";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_URL_SIZE_LIMIT_EXCEEDED = SUPPORTABILITY_SESSION_REPLAY + "UrlTooLarge";
     public static final String SUPPORTABILITY_SESSION_REPLAY_INIT = SUPPORTABILITY_SESSION_REPLAY + "Init";
     public static final String SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIME = SUPPORTABILITY_SESSION_REPLAY + "UploadTime";
     public static final String SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIMEOUT = SUPPORTABILITY_SESSION_REPLAY + "UploadTimeOut";
