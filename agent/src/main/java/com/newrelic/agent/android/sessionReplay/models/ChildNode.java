@@ -7,6 +7,7 @@ public class ChildNode{
     public int id;
     public String tagName;
     public int type;
+
     public Attributes attributes;
     public String textContent;
     public boolean isStyle;

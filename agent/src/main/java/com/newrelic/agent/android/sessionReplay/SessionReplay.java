@@ -19,7 +19,6 @@ import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
-import com.newrelic.agent.android.sessionReplay.internal.Curtains;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -30,18 +29,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import curtains.Curtains;
+
 public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAware, OnTouchRecordedListener, ApplicationStateListener {
     private static Application application;
     private static Handler uiThreadHandler;
     private static SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
-    private final SessionReplayProcessor processor = new SessionReplayProcessor();
+    private static SessionReplayProcessor processor;
     private static ViewDrawInterceptor viewDrawInterceptor;
     private final List<TouchTracker> touchTrackers = new ArrayList<>();
     private static final SessionReplay instance = new SessionReplay();
     private SessionReplayFileManager fileManager;
     protected static final AgentLog log = AgentLogManager.getAgentLog();
     private final ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
-    private final ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
+    private final List<RRWebEvent> rrWebEvents = new ArrayList<>();
     private static boolean isFirstChunk = true;
 
     /**
@@ -66,11 +67,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         SessionReplay.application = application;
         SessionReplay.uiThreadHandler = uiThreadHandler;
 
-        sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance);
+        sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application);
         viewDrawInterceptor = new ViewDrawInterceptor(instance,agentConfiguration);
-
+        processor = new SessionReplayProcessor();
         // Initialize file manager
-        instance.fileManager = new SessionReplayFileManager(instance.processor);
+        instance.fileManager = new SessionReplayFileManager(processor);
         SessionReplayFileManager.initialize(application);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INIT);
 
@@ -118,21 +119,14 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return;
         }
 
-        Log.d("SessionReplay","Processing"+rawFrames.size() +  "frame data");
-
-        // Start timing frame processing
-        long frameProcessingStart = System.currentTimeMillis();
-        rrWebEvents.addAll(processor.processFrames(rawFrames));
-        long frameProcessingTime = System.currentTimeMillis() - frameProcessingStart;
-
-        Log.d("SessionReplay","Frame processing took: " + frameProcessingTime + "ms for " + rawFrames.size() + " frames");
-
         ArrayList<RRWebEvent> totalTouches = new ArrayList<>();
         for (TouchTracker touchTracker : touchTrackers) {
             totalTouches.addAll(touchTracker.processTouchData());
         }
 
         rrWebEvents.addAll(totalTouches);
+
+        rrWebEvents.sort((event1, event2) -> Long.compare(getEventTimestamp(event1), getEventTimestamp(event2)));
 
         String json = new Gson().toJson(rrWebEvents);
         Map<String, Object> attributes = new HashMap<>();
@@ -144,7 +138,25 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         rrWebEvents.clear();
         rawFrames.clear();
         touchTrackers.clear();
+        fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
+    }
+
+    /**
+     * Extracts timestamp from different RRWebEvent types
+     */
+    private long getEventTimestamp(RRWebEvent event) {
+        if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent) {
+            return ((com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent) event).timestamp;
+        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent) {
+            return ((com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent) event).timestamp;
+        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebTouch) {
+            return ((com.newrelic.agent.android.sessionReplay.models.RRWebTouch) event).timestamp;
+        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent) {
+            return ((com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent) event).timestamp;
+        }
+        // Default fallback - should not happen if all event types have timestamp
+        return 0;
     }
 
 
@@ -161,6 +173,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         uiThreadHandler.post(() -> {
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
             viewDrawInterceptor.Intercept(decorViews);
+            sessionReplayActivityLifecycleCallbacks.setupTouchInterceptorForWindow(decorViews[0]);
         });
 
         Curtains.getOnRootViewsChangedListeners().add((view, added) -> {
@@ -180,8 +193,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         rawFrames.add(newFrame);
+        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)));
+        rrWebEvents.addAll(events);
         if (fileManager != null) {
-            fileManager.addFrameToFile(newFrame);
+            fileManager.addFrameToFile(events);
         }
     }
 

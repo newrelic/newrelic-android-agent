@@ -24,12 +24,12 @@ public class ViewDrawInterceptor  {
     private long lastCaptureTime = 0;
     private AgentConfiguration agentConfiguration;
     private Debouncer captureDebouncer;
-    private static final long DEBOUNCE_DELAY = 250; // ~60 FPS (16ms per frame)
+    private static final long DEBOUNCE_DELAY = 1000; // ~60 FPS (16ms per frame)
 
     public ViewDrawInterceptor(OnFrameTakenListener listener, AgentConfiguration agentConfiguration) {
         this.listener = listener;
         this.agentConfiguration = agentConfiguration;
-        this.captureDebouncer = new Debouncer(DEBOUNCE_DELAY);
+        this.captureDebouncer = new Debouncer(true);
     }
 
 
