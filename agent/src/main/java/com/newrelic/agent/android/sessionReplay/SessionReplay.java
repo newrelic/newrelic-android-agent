@@ -42,7 +42,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private SessionReplayFileManager fileManager;
     protected static final AgentLog log = AgentLogManager.getAgentLog();
     private final ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
-    private final ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
+    private final List<RRWebEvent> rrWebEvents = new ArrayList<>();
     private static boolean isFirstChunk = true;
 
     /**
@@ -119,15 +119,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return;
         }
 
-        Log.d("SessionReplay","Processing"+rawFrames.size() +  "frame data");
-
-        // Start timing frame processing
-        long frameProcessingStart = System.currentTimeMillis();
-        rrWebEvents.addAll(processor.processFrames(rawFrames));
-        long frameProcessingTime = System.currentTimeMillis() - frameProcessingStart;
-
-        Log.d("SessionReplay","Frame processing took: " + frameProcessingTime + "ms for " + rawFrames.size() + " frames");
-
         ArrayList<RRWebEvent> totalTouches = new ArrayList<>();
         for (TouchTracker touchTracker : touchTrackers) {
             totalTouches.addAll(touchTracker.processTouchData());
@@ -147,6 +138,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         rrWebEvents.clear();
         rawFrames.clear();
         touchTrackers.clear();
+        fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
     }
 
@@ -201,8 +193,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         rawFrames.add(newFrame);
+        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)));
+        rrWebEvents.addAll(events);
         if (fileManager != null) {
-            fileManager.addFrameToFile(newFrame);
+            fileManager.addFrameToFile(events);
         }
     }
 

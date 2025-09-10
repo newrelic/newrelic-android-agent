@@ -178,7 +178,7 @@ public class CrashSessionReplayHandler {
                                         AtomicReference<Long> lastTimestamp) {
         try {
             JsonObject frame = new Gson().fromJson(line, JsonObject.class);
-            if (frame.has("type") && frame.get("type").getAsInt() == 2) {
+            if (frame.has("type") && (frame.get("type").getAsInt() == 2 || frame.get("type").getAsInt() == 3)) {
                 updateTimestamps(frame, firstTimestamp, lastTimestamp);
             }
             replayJsonArray.add(frame);
