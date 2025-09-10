@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.LayerDrawable;
@@ -40,7 +41,8 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     private static final String LOG_TAG = "SessionReplayImageViewThingy";
     
     // Static cache shared across all instances
-    private static final LruCache<String, String> imageCache = new LruCache<String, String>(50) {
+    // Increased cache size to 1MB for better performance
+    private static final LruCache<String, String> imageCache = new LruCache<String, String>(1024) {
         @Override
         protected int sizeOf(String key, String value) {
             // Return the size in KB (approximate)
@@ -82,66 +84,19 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
                 return null;
             }
 
-            // Generate a cache key based on drawable properties
             String cacheKey = generateCacheKey(drawable, imageView);
             
-            // Check cache first
             String cachedData = imageCache.get(cacheKey);
             if (cachedData != null) {
                 Log.d(LOG_TAG, "Cache hit for image: " + cacheKey);
                 return cachedData;
             }
 
-            Bitmap bitmap = null;
-            
-            // If it's already a BitmapDrawable, extract the bitmap directly
-            if (drawable instanceof BitmapDrawable) {
-                bitmap = ((BitmapDrawable) drawable).getBitmap();
-            } else if (drawable instanceof LayerDrawable){
-                Drawable drawable1 = getFirstDrawable((LayerDrawable) drawable);
-                try{
-                    if (drawable1 instanceof BitmapDrawable) {
-                        bitmap = ((BitmapDrawable) drawable1).getBitmap();
-                    } 
-                } catch (Exception e) {
-                    Log.e(LOG_TAG, "Error extracting bitmap from LayerDrawable", e);
-                }
-            } else if (drawable instanceof InsetDrawable){
-                try {
-                    Drawable drawable1 = ((InsetDrawable) drawable).getDrawable();
-                    if(drawable1 != null && drawable1 instanceof BitmapDrawable) {
-                        bitmap = ((BitmapDrawable) drawable1).getBitmap();
-                    }
-                } catch (Exception e) {
-                    Log.e(LOG_TAG, "Error extracting bitmap from InsetDrawable", e);
-                }
-            } else {
-                // For other drawable types, draw it onto a canvas to create a bitmap
-                int width = drawable.getIntrinsicWidth();
-                int height = drawable.getIntrinsicHeight();
-                
-                // Handle cases where drawable doesn't have intrinsic dimensions
-                if (width <= 0 || height <= 0) {
-                    width = imageView.getWidth();
-                    height = imageView.getHeight();
-                }
-                
-                if (width <= 0 || height <= 0) {
-                    return null; // Can't create bitmap with invalid dimensions
-                }
-                
-                DisplayMetrics displayMetrics = imageView.getContext().getResources().getDisplayMetrics();
-                bitmap = Bitmap.createBitmap(displayMetrics, width, height, Bitmap.Config.ARGB_8888);
-                Canvas canvas = new Canvas(bitmap);
-                canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.MULTIPLY);
-                drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-                drawable.draw(canvas);
-            }
+            Bitmap bitmap = drawableToBitmap(drawable, imageView);
 
             if (bitmap != null && !bitmap.isRecycled()) {
                 String base64Data = bitmapToBase64(bitmap);
                 if (base64Data != null) {
-                    // Cache the result
                     imageCache.put(cacheKey, base64Data);
                     Log.d(LOG_TAG, "Cached image data for key: " + cacheKey);
                 }
@@ -155,18 +110,60 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         return null;
     }
 
+    private Bitmap drawableToBitmap(Drawable drawable, ImageView imageView) {
+        if (drawable instanceof BitmapDrawable) {
+            return ((BitmapDrawable) drawable).getBitmap();
+        }
+
+        if (drawable instanceof LayerDrawable) {
+            Drawable foundDrawable = getFirstBitmapDrawable((LayerDrawable) drawable);
+            if (foundDrawable instanceof BitmapDrawable) {
+                return ((BitmapDrawable) foundDrawable).getBitmap();
+            }
+        }
+
+        if (drawable instanceof InsetDrawable) {
+            Drawable insetDrawable = ((InsetDrawable) drawable).getDrawable();
+            if (insetDrawable instanceof BitmapDrawable) {
+                return ((BitmapDrawable) insetDrawable).getBitmap();
+            }
+        }
+
+        return createBitmapFromDrawable(drawable, imageView);
+    }
+
+    private Bitmap createBitmapFromDrawable(Drawable drawable, ImageView imageView) {
+        int width = drawable.getIntrinsicWidth();
+        int height = drawable.getIntrinsicHeight();
+
+        if (width <= 0 || height <= 0) {
+            width = imageView.getWidth();
+            height = imageView.getHeight();
+        }
+        
+        if (width <= 0 || height <= 0) {
+            return null; // Can't create bitmap with invalid dimensions
+        }
+        
+        DisplayMetrics displayMetrics = imageView.getContext().getResources().getDisplayMetrics();
+        Bitmap bitmap = Bitmap.createBitmap(displayMetrics, width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.MULTIPLY);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+        return bitmap;
+    }
+
     /**
      * Generates a cache key based on drawable properties
      */
     private String generateCacheKey(Drawable drawable, ImageView imageView) {
         StringBuilder keyBuilder = new StringBuilder();
         
-        // Include drawable type and hash
         keyBuilder.append(drawable.getClass().getSimpleName());
         keyBuilder.append("_");
         keyBuilder.append(drawable.hashCode());
         
-        // Include dimensions
         int width = drawable.getIntrinsicWidth();
         int height = drawable.getIntrinsicHeight();
         if (width <= 0 || height <= 0) {
@@ -175,21 +172,18 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         }
         keyBuilder.append("_").append(width).append("x").append(height);
         
-        // Include scale type
         keyBuilder.append("_").append(scaleType.name());
         
         return keyBuilder.toString();
     }
 
     /**
-     * Gets the first non-null drawable from a LayerDrawable
-     * @param layerDrawable The LayerDrawable to search
-     * @return The first non-null Drawable, or null if none found
+     * Gets the first non-null BitmapDrawable from a LayerDrawable
      */
-    private static Drawable getFirstDrawable(LayerDrawable layerDrawable) {
+    private static Drawable getFirstBitmapDrawable(LayerDrawable layerDrawable) {
         for (int i = 0; i < layerDrawable.getNumberOfLayers(); i++) {
             Drawable drawable = layerDrawable.getDrawable(i);
-            if (drawable != null) {
+            if (drawable instanceof BitmapDrawable) {
                 return drawable;
             }
         }
@@ -198,21 +192,14 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
 
     /**
      * Converts a bitmap to a Base64 encoded string
-     * @param bitmap The bitmap to convert
-     * @return Base64 encoded string representation of the bitmap
      */
-
-
     @WorkerThread
     private String bitmapToBase64(Bitmap bitmap) {
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
             try {
-
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    // API 30+: Use the new specific WEBP formats
                     bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 10, byteArrayOutputStream);
                 } else {
-                    // API 18-29: Use the deprecated WEBP (but suppress the warning since it's intentional)
                     @SuppressWarnings("deprecation")
                     Bitmap.CompressFormat format = Bitmap.CompressFormat.WEBP;
                     bitmap.compress(format, 10, byteArrayOutputStream);
@@ -227,43 +214,28 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         } catch (Exception ignored) {
             // Ignore cleanup errors
         }
-        // Clean up the output stream
         return "";
     }
 
     /**
      * Gets the image data as a data URL for use in CSS or HTML
-     * @return Data URL string or null if no image data is available
      */
     public String getImageDataUrl() {
         if (imageData != null) {
-            // Determine the MIME type based on the Android version used for compression
-            String mimeType;
-            mimeType = "image/webp";
-            return "data:" + mimeType + ";base64," + imageData;
+            return "data:image/webp;base64," + imageData;
         }
         return null;
     }
 
-    /**
-     * Gets the raw Base64 encoded image data
-     * @return Base64 encoded image string or null if no image data is available
-     */
     public String getImageData() {
         return imageData;
     }
 
-    /**
-     * Clears the image cache (useful for memory management)
-     */
     public static void clearImageCache() {
         imageCache.evictAll();
         Log.d(LOG_TAG, "Image cache cleared");
     }
 
-    /**
-     * Gets cache statistics for debugging
-     */
     public static String getCacheStats() {
         return String.format("Cache stats - Size: %d, Hits: %d, Misses: %d", 
                 imageCache.size(), imageCache.hitCount(), imageCache.missCount());
@@ -315,7 +287,6 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         cssBuilder.append(this.backgroundColor);
         cssBuilder.append("; ");
 
-        // If we have image data, use it as background image
         if (imageData != null) {
             cssBuilder.append("background-image: url(");
             cssBuilder.append(getImageDataUrl());
@@ -337,15 +308,12 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
 
     @Override
     public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
-        // Make sure this is not null and is of the same type
         if (!(other instanceof SessionReplayImageViewThingy)) {
             return null;
         }
 
-        // Create a map to store style differences
         Map<String, String> styleDifferences = new HashMap<>();
 
-        // Compare frames
         if (!viewDetails.frame.equals(other.getViewDetails().frame)) {
             styleDifferences.put("left", other.getViewDetails().frame.left + "px");
             styleDifferences.put("top", other.getViewDetails().frame.top + "px");
@@ -353,23 +321,14 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
         }
 
-        // Compare background colors if available
-        if (viewDetails.backgroundColor != null && other.getViewDetails().backgroundColor != null) {
-            if (!viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
-                styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
-            }
-        } else if (other.getViewDetails().backgroundColor != null) {
+        if (viewDetails.backgroundColor != null && !viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
             styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
         }
 
-        // Compare Image Data
-        if (this.getImageData() != null && ((SessionReplayImageViewThingy) other).getImageData() != null) {
-            if (!this.getImageData().equals(((SessionReplayImageViewThingy) other).getImageData())) {
-                styleDifferences.put("background-image"," url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
-            }
+        if (this.getImageData() != null && !this.getImageData().equals(((SessionReplayImageViewThingy) other).getImageData())) {
+            styleDifferences.put("background-image"," url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
         }
 
-        // Create and return a MutationRecord with the style differences
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
         attributes.setMetadata(styleDifferences);
         List<MutationRecord> mutations = new ArrayList<>();
@@ -398,8 +357,9 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
 
     private String getBackgroundColor(ImageView view) {
         Drawable background = view.getBackground();
-        if (background != null) {
-            return "#FF474C"; // Placeholder color, you might want to implement a method to extract actual color
+        if (background instanceof ColorDrawable) {
+            int color = ((ColorDrawable) background).getColor();
+            return String.format("#%06X", (0xFFFFFF & color));
         }
         return "#CCCCCC";
     }
@@ -419,23 +379,57 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     }
 
     protected boolean shouldMaskImage(ImageView view) {
-        // Check if view has tags that prevent masking
+        boolean hasMask = hasMaskingTag(view) || isMaskedByClass(view);
+        boolean hasUnMask = false;
+
+        if (Objects.equals(sessionReplayConfiguration.getMode(), "custom")) {
+             hasUnMask = hasUnmaskingTag(view) || isUnmaskedByClass(view);
+        }
+
+        return (sessionReplayConfiguration.isMaskAllImages() && !hasUnMask) ||
+               (!sessionReplayConfiguration.isMaskAllImages() && hasMask);
+    }
+
+    private boolean hasMaskingTag(ImageView view) {
         Object viewTag = view.getTag();
         Object privacyTag = view.getTag(R.id.newrelic_privacy);
-        boolean hasMask = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) || (view.getTag() != null && (sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString()) || sessionReplayLocalConfiguration.shouldMaskViewTag(view.getTag().toString()))) || checkMaskUnMaskViewClass(sessionReplayConfiguration.getMaskedViewClasses(),view) || checkMaskUnMaskViewClass(sessionReplayLocalConfiguration.getMaskedViewClasses(),view);
-        boolean hasUnMask = false;
-        if(Objects.equals(sessionReplayConfiguration.getMode(), "custom")) {
-             hasUnMask = ("nr-unmask".equals(viewTag) || "nr-unmask".equals(privacyTag)) || (view.getTag() != null && (sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString()) || sessionReplayLocalConfiguration.shouldUnmaskViewTag(view.getTag().toString()))) || checkMaskUnMaskViewClass(sessionReplayConfiguration.getUnmaskedViewClasses(), view) || checkMaskUnMaskViewClass(sessionReplayLocalConfiguration.getUnmaskedViewClasses(), view);
-        }
-        return  (sessionReplayConfiguration.isMaskAllImages() && !hasUnMask) || (!sessionReplayConfiguration.isMaskAllImages() && hasMask);
+
+        return "nr-mask".equals(viewTag) ||
+               "nr-mask".equals(privacyTag) ||
+               (view.getTag() != null &&
+                (sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString()) ||
+                 sessionReplayLocalConfiguration.shouldMaskViewTag(view.getTag().toString())));
+    }
+
+    private boolean hasUnmaskingTag(ImageView view) {
+        Object viewTag = view.getTag();
+        Object privacyTag = view.getTag(R.id.newrelic_privacy);
+
+        return "nr-unmask".equals(viewTag) ||
+               "nr-unmask".equals(privacyTag) ||
+               (view.getTag() != null &&
+                (sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString()) ||
+                 sessionReplayLocalConfiguration.shouldUnmaskViewTag(view.getTag().toString())));
+    }
+
+    private boolean isMaskedByClass(ImageView view) {
+        return checkMaskUnMaskViewClass(sessionReplayConfiguration.getMaskedViewClasses(), view) ||
+               checkMaskUnMaskViewClass(sessionReplayLocalConfiguration.getMaskedViewClasses(), view);
+    }
+
+    private boolean isUnmaskedByClass(ImageView view) {
+        return checkMaskUnMaskViewClass(sessionReplayConfiguration.getUnmaskedViewClasses(), view) ||
+               checkMaskUnMaskViewClass(sessionReplayLocalConfiguration.getUnmaskedViewClasses(), view);
     }
 
     private boolean checkMaskUnMaskViewClass(Set<String> viewClasses, ImageView view) {
+        if (viewClasses == null) {
+            return false;
+        }
 
-        Class clazz = view.getClass();
-
-        while (clazz!= null) {
-            if (viewClasses != null && viewClasses.contains(clazz.getName())) {
+        Class<?> clazz = view.getClass();
+        while (clazz != null) {
+            if (viewClasses.contains(clazz.getName())) {
                 return true;
             }
             clazz = clazz.getSuperclass();
