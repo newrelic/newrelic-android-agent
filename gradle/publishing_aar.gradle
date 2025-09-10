@@ -18,7 +18,8 @@ publishing {
         libraryProject(MavenPublication) {
             groupId 'com.newrelic.agent.android'
             version project.versions.agent
-
+            artifact javadocJar
+            artifact sourcesJar
             pom {
                 name = 'com.newrelic.agent.android'
                 description = 'The New Relic Android Agent provides run time performance monitoring for Android applications'
