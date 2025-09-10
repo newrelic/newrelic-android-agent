@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class AnalyticsAttributeDataStore extends DataStoreHelpler implements AnalyticsAttributeStore {
+public class AnalyticsAttributeDataStore extends DataStoreHelper implements AnalyticsAttributeStore {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final String STORE_FILE = "NRAnalyticsAttributeStore";
 

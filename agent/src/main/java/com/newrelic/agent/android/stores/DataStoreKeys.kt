@@ -1,34 +1,40 @@
 package com.newrelic.agent.android.stores
 
-import androidx.compose.ui.input.key.type
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import kotlin.jvm.javaClass
 
 // Still good to have an enum or sealed class for known types if possible
 enum class PreferenceType {
-    STRING, BOOLEAN, LONG // Add other types like LONG, FLOAT, STRING_SET as needed
+    STRING, BOOLEAN, LONG, SET// Add other types like LONG, FLOAT, STRING_SET as needed
 }
 
 object DataStoreKeys {
-    private val registeredKeys = mutableMapOf<String, Preferences.Key<*>>()
+    val registeredKeys = mutableMapOf<String, Preferences.Key<*>>()
 
     // Method to define/register a key
-    // This is more about ensuring a key is known and created correctly
-    // than truly defining it "on-the-fly" for every access,
-    // as you still need to know its type at definition time.
     fun <T : Any> defineKey(name: String, type: PreferenceType): Preferences.Key<T> {
-        if (registeredKeys.containsKey(name)) {
-            val existingKey = registeredKeys[name]
-            val expectedClass = when (type) {
-                PreferenceType.STRING -> String::class.java
-                PreferenceType.LONG -> Int::class.javaObjectType // Use object type for Int
-                PreferenceType.BOOLEAN -> Boolean::class.javaObjectType // Use object type for Boolean
+        val existingKey = registeredKeys[name];
+        if (existingKey != null) {
+            val canReuse = when (type) {
+                PreferenceType.STRING -> existingKey is Preferences.Key<*> && stringPreferencesKey("dummy").javaClass == existingKey.javaClass
+                PreferenceType.LONG -> existingKey is Preferences.Key<*> && intPreferencesKey("dummy").javaClass == existingKey.javaClass
+                PreferenceType.BOOLEAN -> existingKey is Preferences.Key<*> && booleanPreferencesKey("dummy").javaClass == existingKey.javaClass
+                PreferenceType.SET -> existingKey is Preferences.Key<*> && stringSetPreferencesKey("dummy").javaClass == existingKey.javaClass
+                // Add other types as needed
             }
 
-            if (existingKey != null && existingKey.javaClass.getDeclaredField("type").type == expectedClass) {
-
+            if (canReuse) {
+                try {
+                    return existingKey as Preferences.Key<T>
+                } catch (e: ClassCastException) {
+                    println("Warning: Key '$name' existed but could not be cast to the expected generic type T. Recreating.")
+                }
+            } else {
+                println("Warning: Key '$name' exists with a different type. Overwriting with new type: $type")
             }
         }
 
@@ -36,10 +42,15 @@ object DataStoreKeys {
             PreferenceType.STRING -> stringPreferencesKey(name) as Preferences.Key<T>
             PreferenceType.LONG -> intPreferencesKey(name) as Preferences.Key<T>
             PreferenceType.BOOLEAN -> booleanPreferencesKey(name) as Preferences.Key<T>
+            PreferenceType.SET -> stringSetPreferencesKey(name) as Preferences.Key<T>
             // Add other types as needed
         }
         registeredKeys[name] = newKey
         return newKey
+    }
+
+    internal fun clearRegisteredKeys() {
+        registeredKeys.clear()
     }
 
     // Method to get a previously defined key by name, with type checking
@@ -52,6 +63,7 @@ object DataStoreKeys {
             PreferenceType.STRING -> key.name == name && (key as? Preferences.Key<String>) != null // Check if it's a String key
             PreferenceType.LONG -> key.name == name && (key as? Preferences.Key<Int>) != null
             PreferenceType.BOOLEAN -> key.name == name && (key as? Preferences.Key<Boolean>) != null
+            PreferenceType.SET -> key.name == name && (key as? Preferences.Key<Set<String>>) != null
         }
 
         return if (actualKeyTypeMatches) {

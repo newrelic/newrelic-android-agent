@@ -17,7 +17,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
-public class PayloadDataStore extends DataStoreHelpler implements PayloadStore<Payload> {
+public class PayloadDataStore extends DataStoreHelper implements PayloadStore<Payload> {
     public static final String STORE_FILE = "NRPayloadStore";
 
     public PayloadDataStore(Context context) {

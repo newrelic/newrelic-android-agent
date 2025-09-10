@@ -1,7 +1,7 @@
 package com.newrelic.agent.android.stores
 
 import android.content.Context
-import android.util.Log
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -23,16 +23,20 @@ import java.util.concurrent.CompletableFuture
  * Kotlin bridge for DataStore, providing Java-friendly APIs.
  * Requires a CoroutineScope managed by the Java caller.
  */
-class DataStoreBridge( // Public class
+class DataStoreBridge(
     context: Context,
-    private val externalScope: CoroutineScope // Scope provided by Java
+    private val externalScope: CoroutineScope, // Scope provided by Java
+    dataStore : DataStore<Preferences>
 ) {
-    private val dataStore = context.applicationContext.dataStorePreference
-    private val TAG = "DataStoreBridge"
+    private val dataStore = dataStore
 
     // Create keys
     private fun createStringKey(keyName: String?): Preferences.Key<String> {
         return defineKey(keyName?: "default_string_key", PreferenceType.STRING)
+    }
+
+    private fun createStringSetKey(keyName: String?): Preferences.Key<Set<String>> {
+        return defineKey(keyName?: "default_string_set_key", PreferenceType.SET)
     }
 
     private fun createLongKey(keyName: String?): Preferences.Key<Long> {
@@ -59,6 +63,11 @@ class DataStoreBridge( // Public class
         return dataStore.data.map { preferences -> preferences[stringKey] }
     }
 
+    private fun readStringSetData(keyName: String?): Flow<Set<String>?> {
+        val stringKey = createStringSetKey(keyName)
+        return dataStore.data.map { preferences -> preferences[stringKey] }
+    }
+
     private fun readLongData(keyName: String?): Flow<Long?> {
         val longKey = createLongKey(keyName)
         return dataStore.data.map { preferences -> preferences[longKey] }
@@ -70,85 +79,132 @@ class DataStoreBridge( // Public class
     }
 
     // --- Write Data (CompletableFuture for Java) ---
-    fun saveStringValue(key: String?, value: String?): CompletableFuture<Void> {
+    fun saveStringValue(key: String?, value: String?): CompletableFuture<Boolean> {
         val stringKey: Preferences.Key<String> = defineKey(key?: "default_string_key", PreferenceType.STRING);
 
         return externalScope.future(Dispatchers.IO) {
-            dataStore.edit { settings ->
-                if (value == null) {
-                    settings.remove(stringKey)
-                } else {
-                    settings[stringKey] = value
+            try {
+                dataStore.edit { settings ->
+                    if (value == null) {
+                        settings.remove(stringKey)
+                    } else {
+                        settings[stringKey] = value
+                    }
                 }
+                true
+            }catch(e : Exception){
+                false
             }
-            null as Void// For CompletableFuture<Void>
         }
     }
 
-    fun saveLongValue(key: String?, value: Long?): CompletableFuture<Void> {
+    fun saveStringSetValue(key: String?, value: Set<String>?): CompletableFuture<Boolean> {
+        val stringSetKey: Preferences.Key<Set<String>> = defineKey(key?: "default_string_set_key", PreferenceType.SET);
+
+        return externalScope.future(Dispatchers.IO) {
+            try {
+                dataStore.edit { settings ->
+                    if (value == null) {
+                        settings.remove(stringSetKey)
+                    } else {
+                        settings[stringSetKey] = value
+                    }
+                }
+                true
+            }catch (e :Exception){
+                false
+            }
+        }
+    }
+
+    fun saveLongValue(key: String?, value: Long?): CompletableFuture<Boolean> {
         val longKey: Preferences.Key<Long> = defineKey(key?: "default_long_key", PreferenceType.LONG)
 
         return externalScope.future(Dispatchers.IO) {
-            dataStore.edit { settings ->
-                if (value == null) {
-                    settings.remove(longKey)
-                } else {
-                    settings[longKey] = value
+            try {
+                dataStore.edit { settings ->
+                    if (value == null) {
+                        settings.remove(longKey)
+                    } else {
+                        settings[longKey] = value
+                    }
                 }
+                true
+            }catch(e:Exception){
+                false
             }
-            null as Void // Necessary for CompletableFuture<Void>
         }
     }
 
-    fun saveBooleanValue(key: String?, value: Boolean?): CompletableFuture<Void> {
+    fun saveBooleanValue(key: String?, value: Boolean?): CompletableFuture<Boolean> {
         val booleanKey: Preferences.Key<Boolean> = defineKey(key?: "default_boolean_key", PreferenceType.BOOLEAN)
 
         return externalScope.future(Dispatchers.IO) {
-            dataStore.edit { settings ->
-                if (value == null) {
-                    settings.remove(booleanKey)
-                } else {
-                    settings[booleanKey] = value
+            try {
+                dataStore.edit { settings ->
+                    if (value == null) {
+                        settings.remove(booleanKey)
+                    } else {
+                        settings[booleanKey] = value
+                    }
                 }
+                true
+            }catch(e:Exception){
+                false
             }
-            null as Void // Necessary for CompletableFuture<Void>
         }
     }
 
-    fun deleteStringValue(keyName: String): CompletableFuture<Void> { // Example generic clear
+    fun deleteStringValue(keyName: String): CompletableFuture<Boolean> {
         return externalScope.future(Dispatchers.IO) {
-            dataStore.edit { settings ->
-                val stringKey = createStringKey(keyName)
-                settings.remove(stringKey)
+            try {
+                dataStore.edit { settings ->
+                    val stringKey = createStringKey(keyName)
+                    settings.remove(stringKey)
+                }
+                true
+            }catch(e:Exception){
+                false
             }
-            null as Void
         }
     }
 
-    fun deleteLongValue(keyName: String): CompletableFuture<Void> { // Example generic clear
+    fun deleteLongValue(keyName: String): CompletableFuture<Boolean> {
         return externalScope.future(Dispatchers.IO) {
-            dataStore.edit { settings ->
-                val longKey = createLongKey(keyName)
-                settings.remove(longKey)
+            try {
+                dataStore.edit { settings ->
+                    val longKey = createLongKey(keyName)
+                    settings.remove(longKey)
+                }
+                true
+            }catch(e:Exception){
+                false
             }
-            null as Void
         }
     }
 
-    fun deleteBooleanValue(keyName: String): CompletableFuture<Void> { // Example generic clear
+    fun deleteBooleanValue(keyName: String): CompletableFuture<Boolean> {
         return externalScope.future(Dispatchers.IO) {
-            dataStore.edit { settings ->
-                val booleanKey = createBooleanKey(keyName)
-                settings.remove(booleanKey)
+            try {
+                dataStore.edit { settings ->
+                    val booleanKey = createBooleanKey(keyName)
+                    settings.remove(booleanKey)
+                }
+                true
+            }catch(e:Exception){
+                false
             }
-            null as Void
         }
     }
 
-    fun clearAllPreferences(): CompletableFuture<Void> {
+    fun clearAllPreferences(): CompletableFuture<Boolean> {
         return externalScope.future(Dispatchers.IO) {
-            dataStore.edit { it.clear() }
-            null as Void
+            try {
+                dataStore.edit { it.clear() }
+                true
+            }catch(e:Exception){
+                false
+            }
         }
     }
 
@@ -168,45 +224,42 @@ class DataStoreBridge( // Public class
     private fun Flow<Preferences>.handleErrors(flowName: String): Flow<Preferences> {
         return this.catch { exception ->
             if (exception is IOException) {
-                Log.e(TAG, "IOException in $flowName. Emitting empty preferences.", exception)
                 emit(emptyPreferences())
             } else {
-                Log.e(TAG, "Unexpected error in $flowName.", exception)
                 throw exception // Rethrow other critical exceptions
             }
         }
     }
 
-    /**
-     * Suspends until the first user token value is available from the Flow.
-     * To be called from a coroutine or another suspend function.
-     */
+    // --- Kotlin-idiomatic way to get value once ---
     private suspend fun getStringOnceSuspend(key: String): String? {
         return readStringData(key).firstOrNull()
     }
 
-    /**
-     * Kotlin-idiomatic way to get items count once.
-     */
+    private suspend fun getStringSetOnceSuspend(key: String): Set<String>? {
+        return readStringSetData(key).firstOrNull()
+    }
+
     private suspend fun getLongOnceSuspend(key: String): Long {
-        // itemsCountFlow provides a default, so it should not be null
         return readLongData(key).firstOrNull() ?: 0
     }
 
-    /**
-     * Kotlin-idiomatic way to check if it's the first launch.
-     */
     private suspend fun getBooleanOnceSuspend(key: String): Boolean {
-        // isFirstLaunchFlow provides a default, so it should not be null
         return readBooleanData(key).firstOrNull() ?: true
     }
 
     // --- Bridging suspend functions to CompletableFuture for Java (Optional but good for your SettingsService) ---
     // These will use the `externalScope` passed to DataStoreBridge
 
-    fun getStringOnceAsync(key: String): CompletableFuture<String?> { // Note: Return type is CompletableFuture<String?>
-        return externalScope.future(Dispatchers.IO) { // You can choose the dispatcher; IO is good for DataStore
-            getStringOnceSuspend(key) // Call the suspend function
+    fun getStringOnceAsync(key: String): CompletableFuture<String?> {
+        return externalScope.future(Dispatchers.IO) {
+            getStringOnceSuspend(key)
+        }
+    }
+
+    fun getStringSetOnceAsync(key: String): CompletableFuture<Set<String>?> {
+        return externalScope.future(Dispatchers.IO) {
+            getStringSetOnceSuspend(key)
         }
     }
 

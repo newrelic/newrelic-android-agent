@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.stores;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.crash.Crash;
@@ -18,7 +17,7 @@ import com.newrelic.agent.android.util.SafeJsonPrimitive;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CrashDataStore extends DataStoreHelpler implements CrashStore {
+public class CrashDataStore extends DataStoreHelper implements CrashStore {
     private static final String STORE_FILE = "NRCrashStore";
 
     public CrashDataStore(Context context) {

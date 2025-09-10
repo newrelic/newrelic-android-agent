@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class EventDataStore extends DataStoreHelpler implements AnalyticsEventStore {
+public class EventDataStore extends DataStoreHelper implements AnalyticsEventStore {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final String STORE_FILE = "NREventStore";
 
