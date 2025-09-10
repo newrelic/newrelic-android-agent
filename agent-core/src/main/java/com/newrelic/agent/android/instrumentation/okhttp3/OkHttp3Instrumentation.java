@@ -34,6 +34,7 @@ import okhttp3.internal.Internal;
 
 public class OkHttp3Instrumentation {
     private static final AgentLog log = AgentLogManager.getAgentLog();
+    static NewRelicWebSocketListener webSocketListener = new NewRelicWebSocketListener();
 
     private OkHttp3Instrumentation() {
     }
@@ -47,6 +48,8 @@ public class OkHttp3Instrumentation {
     public static Call newCall(OkHttpClient client, Request request) {
         TransactionState transactionState = new TransactionState();
         addHeadersAsCustomAttribute(transactionState, request);
+        // Websocket Listeners
+        setWebSocketListener(client,request);
         
         // Create a new client with New Relic interceptor added after existing interceptors
         OkHttpClient instrumentedClient = addNewRelicInterceptor(client, transactionState);
@@ -65,6 +68,10 @@ public class OkHttp3Instrumentation {
             }
         }
         return new CallExtension(instrumentedClient, request, instrumentedClient.newCall(request), transactionState);
+    }
+
+    private static void setWebSocketListener(OkHttpClient client,Request request) {
+        client.newWebSocket(request,webSocketListener) ;
     }
 
     private static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
