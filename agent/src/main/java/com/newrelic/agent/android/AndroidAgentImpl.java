@@ -169,8 +169,8 @@ public class AndroidAgentImpl implements
 
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
             LogReportingConfiguration logReportingConfiguration = agentConfiguration.getLogReportingConfiguration();
-            if (logReportingConfiguration.getLoggingEnabled() ) {
-                LogReportingConfiguration.reseed();
+            LogReportingConfiguration.reseed();
+             if (logReportingConfiguration.getLoggingEnabled() ) {
                 try {
                     /*
                        LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_

@@ -48,8 +48,6 @@ public class OkHttp3Instrumentation {
     public static Call newCall(OkHttpClient client, Request request) {
         TransactionState transactionState = new TransactionState();
         addHeadersAsCustomAttribute(transactionState, request);
-        // Websocket Listeners
-        setWebSocketListener(client,request);
         
         // Create a new client with New Relic interceptor added after existing interceptors
         OkHttpClient instrumentedClient = addNewRelicInterceptor(client, transactionState);
@@ -159,7 +157,8 @@ public class OkHttp3Instrumentation {
         @ReplaceCallSite
         public static Call newWebSocketCall(Internal internal, OkHttpClient client, Request request) {
             Call call = null;
-
+            //WebSocket Listner
+            setWebSocketListener(client,request);
             try {
                 // OkHttp 3.5.x : call = internal.newWebSocketCall(client, request);
                 Method newWebSocketCall = Internal.class.getMethod("newWebSocketCall", OkHttpClient.class, Request.class);
