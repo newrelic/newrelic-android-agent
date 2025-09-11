@@ -131,7 +131,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         String json = new Gson().toJson(rrWebEvents);
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(FIRST_TIMESTAMP, rawFrames.get(0).timestamp);
-        attributes.put(LAST_TIMESTAMP, rawFrames.get(rawFrames.size() - 1).timestamp);
+        // Use current time as last timestamp instead of last frame time to match with Mobile Session Event
+        attributes.put(LAST_TIMESTAMP, System.currentTimeMillis());
         attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
         SessionReplayReporter.reportSessionReplayData(json.getBytes(), attributes);
 
