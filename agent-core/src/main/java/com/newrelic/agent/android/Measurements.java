@@ -90,7 +90,9 @@ public class Measurements {
         removeMeasurementProducer(methodMeasurementProducer);
         removeMeasurementProducer(customMetricMeasurementProducer);
 
-        summaryMetricMeasurementConsumer.removeListener();
+        if (summaryMetricMeasurementConsumer != null) {
+            summaryMetricMeasurementConsumer.removeListener();
+        }
 
         removeMeasurementConsumer(httpTransactionHarvester);
         removeMeasurementConsumer(activityConsumer);
