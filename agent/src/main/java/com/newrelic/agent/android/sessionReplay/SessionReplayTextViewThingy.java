@@ -7,6 +7,8 @@ import android.widget.TextView;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
@@ -100,6 +102,11 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     @Override
+    public ViewDetails getViewDetails() {
+        return viewDetails;
+    }
+
+    @Override
     public boolean shouldRecordSubviews() {
         return shouldRecordSubviews;
     }
@@ -125,7 +132,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     @Override
-    public String getCSSSelector() {
+    public String getCssSelector() {
         return viewDetails.getCssSelector();
     }
 
@@ -134,6 +141,20 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     public String generateCssDescription() {
         StringBuilder cssBuilder = new StringBuilder(viewDetails.generateCssDescription());
         cssBuilder.append("");
+        generateTextCss(cssBuilder);
+
+        return cssBuilder.toString();
+    }
+
+    @Override
+    public String generateInlineCss() {
+        StringBuilder cssBuilder = new StringBuilder(viewDetails.generateInlineCSS());
+        cssBuilder.append(" ");
+        generateTextCss(cssBuilder);
+        return cssBuilder.toString();
+    }
+
+    private void generateTextCss(StringBuilder cssBuilder) {
         cssBuilder.append("white-space: pre-wrap;");
         cssBuilder.append("");
         cssBuilder.append("word-wrap: break-word;");
@@ -149,21 +170,124 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         cssBuilder.append("text-align: ");
         cssBuilder.append(this.textAlign);
         cssBuilder.append("; ");
-        cssBuilder.append("}");
-
-        return cssBuilder.toString();
     }
 
     @Override
     public RRWebElementNode generateRRWebNode() {
-        // Use classes from your project's models package
         RRWebTextNode textNode = new RRWebTextNode(this.labelText, false, NewRelicIdGenerator.generateId());
 
-        // Use classes from your project's models package
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
 
-        // Use classes from your project's models package
-        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.singletonList(textNode));
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, Collections.singletonList(textNode));
+    }
+
+    @Override
+    public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
+        // Make sure this is not null and is of the same type
+        if (!(other instanceof SessionReplayTextViewThingy)) {
+            return null;
+        }
+
+        // Create a map to store style differences
+        java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
+
+        // Compare frames
+        if (!viewDetails.frame.equals(other.getViewDetails().frame)) {
+            styleDifferences.put("left", other.getViewDetails().frame.left + "px");
+            styleDifferences.put("top", other.getViewDetails().frame.top + "px");
+            styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
+            styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
+            styleDifferences.put("line-height", other.getViewDetails().frame.height() + "px");
+        }
+
+        // Compare background colors if available
+        if (viewDetails.backgroundColor != null && other.getViewDetails().backgroundColor != null) {
+            if (!viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
+                styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+            }
+        } else if (other.getViewDetails().backgroundColor != null) {
+            styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+        }
+
+        // compare TextColor if available
+        if(this.textColor != null) {
+            String otherTextColor = ((SessionReplayTextViewThingy) other).getTextColor();
+            if (!this.textColor.equals(otherTextColor)) {
+                styleDifferences.put("color", '#'+otherTextColor);
+            }
+        }
+
+        if(this.fontFamily!= null) {
+            String otherFontFamily = ((SessionReplayTextViewThingy) other).getFontFamily();
+            if (!this.fontFamily.equals(otherFontFamily)) {
+                styleDifferences.put("font-family", otherFontFamily);
+            }
+        }
+
+
+        // Compare text alignment
+        if(this.textAlign != null) {
+            String otherTextAlign = ((SessionReplayTextViewThingy) other).textAlign;
+            if (!this.textAlign.equals(otherTextAlign)) {
+                styleDifferences.put("text-align", otherTextAlign);
+            }
+        }
+
+        if (this.fontSize != ((SessionReplayTextViewThingy) other).getFontSize()) {
+            styleDifferences.put("font-size", String.format("%.2fpx", ((SessionReplayTextViewThingy) other).getFontSize()));
+        }
+
+        // Create and return a MutationRecord with the style differences
+        Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+        attributes.setMetadata(styleDifferences);
+        List<MutationRecord> mutations = new ArrayList<>();
+        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+
+        // Check if label text has changed
+        if (!this.labelText.equals(((SessionReplayTextViewThingy) other).getLabelText())) {
+            mutations.add(new RRWebMutationData.TextRecord(viewDetails.viewId, ((SessionReplayTextViewThingy) other).getLabelText()));
+        }
+
+        return mutations;
+    }
+
+    @Override
+    public List<RRWebMutationData.AddRecord> generateAdditionNodes(int parentId) {
+        // We have to recreate the RRWebElementNode instead of calling the
+        // method because that method automatically adds the text node as a
+        // child. For adds, the text node should be it's own node.
+
+        Attributes attributes = new Attributes(viewDetails.getCssSelector());
+
+        RRWebElementNode viewNode =  new RRWebElementNode(
+                attributes,
+                RRWebElementNode.TAG_TYPE_DIV,
+                viewDetails.viewId,
+                new ArrayList<>());
+
+        viewNode.attributes.metadata.put("style", generateInlineCss());
+
+        RRWebTextNode textNode = new RRWebTextNode(this.labelText, false, NewRelicIdGenerator.generateId());
+
+        RRWebMutationData.AddRecord viewAddRecord = new RRWebMutationData.AddRecord(
+                parentId,
+                null,
+                viewNode);
+
+        RRWebMutationData.AddRecord textAddRecord = new RRWebMutationData.AddRecord(
+                viewDetails.viewId,
+                null,
+                textNode);
+
+        List<RRWebMutationData.AddRecord> adds = new ArrayList<>();
+        adds.add(viewAddRecord);
+        adds.add(textAddRecord);
+        return adds;
+    }
+
+    @Override
+    public int getViewId() {
+        return viewDetails.viewId;
     }
 
     private String getFontFamily(Typeface typeface) {

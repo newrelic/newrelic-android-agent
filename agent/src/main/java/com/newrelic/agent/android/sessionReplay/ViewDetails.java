@@ -5,22 +5,22 @@ import android.graphics.Rect; // Equivalent to CGRect for basic representation
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.View; // Use Android's View class
-//import com.newrelic.agent.android.sessionReplay.gestures.SessionReplayIdentifier; // Assuming this class exists for managing view IDs
+import android.view.ViewGroup;
 import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
-//import com.newrelic.agent.android.sessionReplay.models.NewRelicIdGenerator; // Assuming this class exists for generating IDs
 
 import java.lang.reflect.Field;
 import java.util.Objects; // For hashCode and equals
 
 public class ViewDetails {
-    private final int viewId;
-    private final Rect frame; // Using Rect as a simple equivalent to CGRect
-    private final String backgroundColor;
-    private final float alpha;
-    private final boolean isHidden;
-    private final Drawable backgroundDrawable; // Equivalent to UIImage in Swift
-    private final String viewName;
-    private  float density;
+    public final int viewId;
+    public final Rect frame;
+    public final String backgroundColor;
+    public final float alpha;
+    public final boolean isHidden;
+    public final Drawable backgroundDrawable;
+    public final int parentId;
+    public final String viewName;
+    public final float density;
 
 
     // Computed property: cssSelector
@@ -67,6 +67,15 @@ public class ViewDetails {
         this.viewName = view.getClass().getSimpleName(); // Gets the simple class name
 
         viewId = getStableId(view);
+
+        if (view.getParent() instanceof ViewGroup) {
+            // If the parent is a ViewGroup, we can get its ID
+            ViewGroup parent = (ViewGroup) view.getParent();
+            parentId = getStableId(parent);
+        } else {
+            // If the parent is not a ViewGroup, we can still get its ID
+            parentId = 0;
+        }
     }
 
     // Getters for the final properties
@@ -106,7 +115,14 @@ public class ViewDetails {
                 .append(cssSelector)
                 .append(" {")
                 .append(" ")
-                .append(generatePositionCss())
+                .append(generateInlineCSS());
+
+        return cssString.toString();
+    }
+
+    public String generateInlineCSS() {
+        StringBuilder cssString = new StringBuilder();
+        cssString.append(generatePositionCss())
                 .append(" ")
                 .append(generateBackgroundColorCss());
 
@@ -185,3 +201,4 @@ public class ViewDetails {
         return id;
     }
 }
+

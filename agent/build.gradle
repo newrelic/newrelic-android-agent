@@ -112,6 +112,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3")
 
     implementation project(path: ':agent-core', configuration: 'fat')
+    implementation( 'com.squareup.curtains:curtains:1.2.5')
 
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk
@@ -184,14 +185,17 @@ def toFatJarTask(def variant) {
         exclude '**/META-INF/**'
         exclude '**/module-info.class'
         exclude 'AndroidManifest.xml'
+        exclude 'curtains/**'
         exclude 'kotlin/**'
-        exclude 'kotlinx/**'
         exclude 'org/**'
+        exclude 'android/**'
+        exclude 'kotlinx/**'
         exclude '_COROUTINE/**'
         exclude 'android/**'
         exclude 'androidx/**'
         exclude 'jni/**'
         exclude 'okio/**'
+        exclude 'DebugProbesKt.bin'
         duplicatesStrategy = DuplicatesStrategy.INHERIT
         from unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
         from shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }

@@ -15,10 +15,10 @@ public class SessionReplayCapture {
 
     public SessionReplayViewThingyInterface capture(View rootView, AgentConfiguration agentConfiguration) {
         recorder = new SessionReplayThingyRecorder(rootView.getResources().getDisplayMetrics().density,agentConfiguration);
-        return recursivelyCapture(rootView,false);
+        return recursivelyCapture(rootView,false,false);
     }
 
-    private SessionReplayViewThingyInterface recursivelyCapture(View rootView,boolean shouldAddMask) {
+    private SessionReplayViewThingyInterface recursivelyCapture(View rootView,boolean shouldAddMask,boolean shouldAddUnMask) {
         ArrayList<SessionReplayViewThingyInterface> childThingies = new ArrayList<>();
 
         if(rootView instanceof ViewGroup) {
@@ -30,15 +30,19 @@ public class SessionReplayCapture {
                     continue;
                 }
 
-                if(shouldAddMask) {
+                boolean shouldAddMask1 = (child.getTag(R.id.newrelic_privacy) != null && child.getTag(R.id.newrelic_privacy).equals("nr-mask")) || (child.getTag() != null && child.getTag().equals("nr-mask"));
+                boolean shouldAddUnMask1 = child.getTag(R.id.newrelic_privacy) != null && child.getTag(R.id.newrelic_privacy).equals("nr-unmask") || (child.getTag() != null && child.getTag().equals("nr-unmask"));
+
+
+                if(shouldAddMask &&  !shouldAddUnMask1 ) {
                     child.setTag(R.id.newrelic_privacy,"nr-mask");
                 }
 
-                boolean shouldAddMask1;
-                shouldAddMask1 = child.getTag(R.id.newrelic_privacy) != null && child.getTag(R.id.newrelic_privacy).equals("nr-mask");
+                if(shouldAddUnMask && !shouldAddMask1) {
+                    child.setTag(R.id.newrelic_privacy,"nr-unmask");
+                }
 
-
-                childThingies.add(recursivelyCapture(((ViewGroup) rootView).getChildAt(i), shouldAddMask1));
+                childThingies.add(recursivelyCapture(((ViewGroup) rootView).getChildAt(i), shouldAddMask1, shouldAddUnMask1));
             }
         }
 

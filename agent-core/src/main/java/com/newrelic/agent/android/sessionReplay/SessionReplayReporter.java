@@ -137,6 +137,7 @@ public class SessionReplayReporter extends PayloadReporter {
                     .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
                     .replace(MetricNames.TAG_SUBDESTINATION,"SessionReplay");
             StatsEngine.SUPPORTABILITY.inc(name);
+            log.warn("SessionReplayReporter.reportSessionReplayData(Payload): Payload size exceeds maximum allowed size. Payload not sent.");
             return null;
         }
         Payload compressedPayload = new Payload(compressedBytes);

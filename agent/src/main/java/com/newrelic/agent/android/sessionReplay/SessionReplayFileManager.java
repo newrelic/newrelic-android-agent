@@ -4,17 +4,19 @@ import static com.newrelic.agent.android.util.Constants.SessionReplay.SESSION_RE
 import static com.newrelic.agent.android.util.Constants.SessionReplay.SESSION_REPLAY_FILE_MASK;
 
 import android.app.Application;
-import android.util.Log;
+
 
 import com.google.gson.Gson;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 import com.newrelic.agent.android.util.NamedThreadFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -102,16 +104,18 @@ public class SessionReplayFileManager {
     /**
      * Adds a frame to the working session replay file.
      *
-     * @param newFrame The frame to add
+     * @param rrWebEvents The frame to add
      */
-    public void addFrameToFile(final SessionReplayFrame newFrame) {
+    public void addFrameToFile(List<RRWebEvent> rrWebEvents) {
         Callable<Void> fileWriteTask = new Callable<Void>() {
             @Override
             public Void call() throws Exception {
                 try {
                     if (workingSessionReplayFileWriter.get() != null) {
-                        workingSessionReplayFileWriter.get().write(new Gson().toJson(processor.processFrame(newFrame)));
-                        workingSessionReplayFileWriter.get().newLine();
+                        for (RRWebEvent event : rrWebEvents) {
+                            workingSessionReplayFileWriter.get().write(new Gson().toJson(event));
+                            workingSessionReplayFileWriter.get().newLine();
+                        }
                     }
                     BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
                     if (currentWriter != null) {
@@ -132,14 +136,22 @@ public class SessionReplayFileManager {
      *
      * @param touchTracker The touch tracker containing touch data
      */
-    public void addTouchToFile(final TouchTracker touchTracker) {
+    public void  addTouchToFile(final TouchTracker touchTracker) {
         Callable<Void> fileWriteTask = new Callable<Void>() {
             @Override
             public Void call() throws Exception {
                 try {
                     if (workingSessionReplayFileWriter.get() != null) {
-                        workingSessionReplayFileWriter.get().write(new Gson().toJson(touchTracker.processTouchData()));
-                        workingSessionReplayFileWriter.get().newLine();
+
+                        touchTracker.processTouchData().forEach(position -> {
+                            try {
+                                workingSessionReplayFileWriter.get().write(new Gson().toJson(position));
+                                workingSessionReplayFileWriter.get().newLine();
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+
                     }
                     BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
                     if (currentWriter != null) {
@@ -153,6 +165,39 @@ public class SessionReplayFileManager {
         };
 
         submitFileWriteTask(fileWriteTask);
+    }
+
+    public void clearWorkingFileWhileRunningSession() {
+        Callable<Void> clearFileTask = new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                try {
+                    // Close the current writer if it exists
+                    BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
+                    if (currentWriter != null) {
+                        currentWriter.flush();
+                        workingSessionReplayFileWriter.set(null);
+                    }
+
+                    // Clear the file contents by creating a new empty file
+                    if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
+                        // Truncate the file by creating a new FileWriter in overwrite mode
+                        try (java.io.FileWriter fw = new java.io.FileWriter(workingSessionReplayFile, false)) {
+                            // Writing nothing effectively clears the file
+                        }
+                    }
+                    // Reinitialize the writer for new content
+                    if (workingSessionReplayFile != null) {
+                        workingSessionReplayFileWriter.set(new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile, true)));
+                    }
+                } catch (IOException e) {
+                    log.error("Error clearing working session replay file", e);
+                }
+                return null;
+            }
+        };
+
+        submitFileWriteTask(clearFileTask);
     }
 
     /**
