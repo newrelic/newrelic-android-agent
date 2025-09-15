@@ -102,6 +102,7 @@ android {
 
 dependencies {
     implementation project(path: ':agent-core', configuration: 'fat')
+    implementation( 'com.squareup.curtains:curtains:1.2.5')
 
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk
@@ -173,6 +174,11 @@ def toFatJarTask(def variant) {
         }
         exclude '**/META-INF/**'
         exclude '**/module-info.class'
+        exclude 'AndroidManifest.xml'
+        exclude 'curtains/**'
+        exclude 'kotlin/**'
+        exclude 'org/**'
+        exclude 'android/**'
         duplicatesStrategy = DuplicatesStrategy.INHERIT
         from unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
         from shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }

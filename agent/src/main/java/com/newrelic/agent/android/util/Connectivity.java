@@ -99,7 +99,7 @@ public final class Connectivity {
             
             return WanType.UNKNOWN;
         } catch (SecurityException e) {
-            log.warn("Cannot determine network state. Enable android.permission.ACCESS_NETWORK_STATE in your manifest.");
+            log.audit("Cannot determine network state. Enable android.permission.ACCESS_NETWORK_STATE in your manifest.");
             return WanType.UNKNOWN;
         }
     }
@@ -184,7 +184,7 @@ public final class Connectivity {
                 return telephonyManager.getDataNetworkType();
             } catch (SecurityException e) {
                 // Fall back to deprecated method if permission is not granted
-                log.warn("Cannot determine network type. Enable android.permission.READ_PHONE_STATE in your manifest.");
+                log.audit("Cannot determine network type. Enable android.permission.READ_PHONE_STATE in your manifest.");
                 return telephonyManager.getNetworkType();
             }
     }

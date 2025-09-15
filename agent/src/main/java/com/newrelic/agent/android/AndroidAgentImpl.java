@@ -143,7 +143,6 @@ public class AndroidAgentImpl implements
         agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
-        startLogReporter(context, agentConfiguration);
         // used to determine when app backgrounds
         final UiBackgroundListener backgroundListener;
         if (Agent.getMonoInstrumentationFlag().equals("YES")) {
@@ -169,11 +168,9 @@ public class AndroidAgentImpl implements
     }
 
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
-        if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-            LogReportingConfiguration.reseed();
-
             LogReportingConfiguration logReportingConfiguration = agentConfiguration.getLogReportingConfiguration();
-            if (logReportingConfiguration.getLoggingEnabled() ) {
+            LogReportingConfiguration.reseed();
+             if (logReportingConfiguration.getLoggingEnabled() ) {
                 try {
                     /*
                        LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
@@ -193,7 +190,6 @@ public class AndroidAgentImpl implements
                     log.warn("Agent log data will be forwarded with remote logs.");
                 }
             }
-        }
     }
 
     protected void initialize() {
@@ -211,7 +207,7 @@ public class AndroidAgentImpl implements
         Harvest.addHarvestListener(this);
 
         startLogReporter(context, agentConfiguration);
-
+        startSessionReplayRecorder(context, agentConfiguration);
         Measurements.initialize();
         log.info(MessageFormat.format("New Relic Agent v{0}", Agent.getVersion()));
         log.verbose(MessageFormat.format("Application token: {0}", agentConfiguration.getApplicationToken()));
@@ -667,8 +663,6 @@ public class AndroidAgentImpl implements
         try {
             Agent.setImpl(new AndroidAgentImpl(context, agentConfiguration));
             Agent.start();
-            startLogReporter(context, agentConfiguration);
-            startSessionReplayRecorder(context, agentConfiguration);
         } catch (AgentInitializationException e) {
             log.error("Failed to initialize the agent: " + e);
         }
@@ -727,8 +721,6 @@ public class AndroidAgentImpl implements
         }
         if (!NewRelic.isShutdown) {
             start();
-            startLogReporter(context, agentConfiguration);
-            startSessionReplayRecorder(context, agentConfiguration);
             AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME);
         }
     }

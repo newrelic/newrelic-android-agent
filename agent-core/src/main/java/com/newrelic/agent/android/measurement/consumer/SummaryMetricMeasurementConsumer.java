@@ -5,8 +5,7 @@
 
 package com.newrelic.agent.android.measurement.consumer;
 
-import com.newrelic.agent.android.background.ApplicationStateEvent;
-import com.newrelic.agent.android.background.ApplicationStateListener;
+
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.instrumentation.MetricCategory;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -28,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer implements TraceLifecycleAware, ApplicationStateListener {
+public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer implements TraceLifecycleAware {
     protected static final String METRIC_PREFIX = "Mobile/Summary/";
     protected static final String ACTIVITY_METRIC_PREFIX = "Mobile/Activity/Summary/Name/";
 
@@ -39,8 +38,6 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
     public SummaryMetricMeasurementConsumer() {
         super(MeasurementType.Any);
         recordUnscopedMetrics = false;
-
-        TraceMachine.addTraceListener(this);
     }
 
     @Override
@@ -58,6 +55,14 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
                     break;
             }
         }
+    }
+
+    public void addListener() {
+        TraceMachine.addTraceListener(this);
+    }
+
+    public void removeListener() {
+        TraceMachine.removeTraceListener(this);
     }
 
     void consumeMethodMeasurement(MethodMeasurement methodMeasurement) {
@@ -209,13 +214,4 @@ public class SummaryMetricMeasurementConsumer extends MetricMeasurementConsumer 
             completedTraces.add(activityTrace);
     }
 
-    @Override
-    public void applicationForegrounded(ApplicationStateEvent e) {
-
-    }
-
-    @Override
-    public void applicationBackgrounded(ApplicationStateEvent e) {
-        TraceMachine.removeTraceListener(this);
-    }
 }

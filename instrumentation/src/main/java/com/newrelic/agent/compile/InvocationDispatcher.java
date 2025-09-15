@@ -13,6 +13,7 @@ import com.newrelic.agent.compile.visitor.AsyncTaskClassVisitor;
 import com.newrelic.agent.compile.visitor.ContextInitializationClassVisitor;
 import com.newrelic.agent.compile.visitor.FragmentClassVisitor;
 import com.newrelic.agent.compile.visitor.NewRelicClassVisitor;
+import com.newrelic.agent.compile.visitor.WebViewMethodClassVisitor;
 import com.newrelic.agent.compile.visitor.PrefilterClassVisitor;
 import com.newrelic.agent.compile.visitor.TraceAnnotationClassVisitor;
 import com.newrelic.agent.compile.visitor.AgentMethodDelegateClassVisitor;
@@ -111,7 +112,7 @@ public class InvocationDispatcher {
         return visitClassBytesWithOptions(bytes, ClassWriter.COMPUTE_FRAMES);
     }
 
-    ClassData visitClassBytesWithOptions(byte[] bytes, int classWriterFlags) {
+    ClassData  visitClassBytesWithOptions(byte[] bytes, int classWriterFlags) {
         String className = "unknown";
 
         if (isInstrumentationDisabled()) {
@@ -147,7 +148,7 @@ public class InvocationDispatcher {
                     // cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidSDKPackage(className)) {
                     if(defaultInteractionsEnabled) {
-                        cv = new ActivityClassVisitor(cv, instrumentationContext, log,defaultInteractionsEnabled);
+                        cv = new ActivityClassVisitor(cv, instrumentationContext, log, true);
                     }
                 } else if (isExcludedPackage(className)) {
                     // log.debug("[InvocationDispatcher] Excluding class [" + className + "]");
@@ -161,6 +162,9 @@ public class InvocationDispatcher {
                     cv = new AsyncTaskClassVisitor(cv, instrumentationContext, log);
                     cv = new TraceAnnotationClassVisitor(cv, instrumentationContext, log);
                     cv = new AgentMethodDelegateClassVisitor(cv, instrumentationContext, log);
+
+//                    cv = new WebViewMethodClassVisitor(cv, instrumentationContext, log);
+
                 }
                 cv = new ContextInitializationClassVisitor(cv, instrumentationContext);
 

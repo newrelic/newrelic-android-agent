@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2022-present New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
@@ -33,6 +34,7 @@ import okhttp3.internal.Internal;
 
 public class OkHttp3Instrumentation {
     private static final AgentLog log = AgentLogManager.getAgentLog();
+    static NewRelicWebSocketListener webSocketListener = new NewRelicWebSocketListener();
 
     private OkHttp3Instrumentation() {
     }
@@ -46,6 +48,10 @@ public class OkHttp3Instrumentation {
     public static Call newCall(OkHttpClient client, Request request) {
         TransactionState transactionState = new TransactionState();
         addHeadersAsCustomAttribute(transactionState, request);
+        
+        // Create a new client with New Relic interceptor added after existing interceptors
+        OkHttpClient instrumentedClient = addNewRelicInterceptor(client, transactionState);
+        
         if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
             try {
                 // start the trace with a new call
@@ -53,13 +59,17 @@ public class OkHttp3Instrumentation {
                 transactionState.setTrace(trace);
 
                 Request instrumentedRequest = OkHttp3TransactionStateUtil.setDistributedTraceHeaders(transactionState, request);
-                return new CallExtension(client, instrumentedRequest, client.newCall(instrumentedRequest), transactionState);
+                return new CallExtension(instrumentedClient, instrumentedRequest, instrumentedClient.newCall(instrumentedRequest), transactionState);
 
             } catch (Exception e) {
                 log.error(e.getMessage());
             }
         }
-        return new CallExtension(client, request, client.newCall(request), transactionState);
+        return new CallExtension(instrumentedClient, request, instrumentedClient.newCall(request), transactionState);
+    }
+
+    private static void setWebSocketListener(OkHttpClient client,Request request) {
+        client.newWebSocket(request,webSocketListener) ;
     }
 
     private static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
@@ -147,7 +157,8 @@ public class OkHttp3Instrumentation {
         @ReplaceCallSite
         public static Call newWebSocketCall(Internal internal, OkHttpClient client, Request request) {
             Call call = null;
-
+            //WebSocket Listner
+            setWebSocketListener(client,request);
             try {
                 // OkHttp 3.5.x : call = internal.newWebSocketCall(client, request);
                 Method newWebSocketCall = Internal.class.getMethod("newWebSocketCall", OkHttpClient.class, Request.class);
@@ -181,5 +192,57 @@ public class OkHttp3Instrumentation {
         log.error("Unable to resolve method \"" + signature + "\"." + crlf +
                 "This is usually due to building the app with unsupported OkHttp versions." + crlf +
                 "Check your build configuration for compatibility.");
+    }
+    
+    private static OkHttpClient addNewRelicInterceptor(OkHttpClient originalClient, TransactionState transactionState) {
+        try {
+            // Check if our interceptor is already added to avoid duplicates
+            for (okhttp3.Interceptor interceptor : originalClient.interceptors()) {
+                if (interceptor instanceof NewRelicInterceptor) {
+                    log.debug("New Relic interceptor already present");
+                    return originalClient;
+                }
+            }
+            
+            // Create new client builder from existing client
+            OkHttpClient.Builder builder = originalClient.newBuilder();
+            
+            // Add New Relic interceptor after existing application interceptors  and only if there are existing interceptors
+            if(!builder.interceptors().isEmpty()) {
+                builder.addInterceptor(new NewRelicInterceptor(transactionState));
+                return builder.build();
+            }
+            
+            log.debug("Added New Relic interceptor after " + originalClient.interceptors().size() + " existing interceptors");
+            
+            return originalClient;
+        } catch (Exception e) {
+            log.error("Failed to add New Relic interceptor: " + e.getMessage());
+            return originalClient;
+        }
+    }
+
+    // New Relic interceptor class to capture URL changes and in future any such requests modifications
+    private static class NewRelicInterceptor implements okhttp3.Interceptor {
+        private final TransactionState transactionState;
+        
+        public NewRelicInterceptor(TransactionState transactionState) {
+            this.transactionState = transactionState;
+        }
+        
+        @Override
+        public Response intercept(Chain chain) throws java.io.IOException {
+            Request request = chain.request();
+            String finalUrl = request.url().toString();
+            
+            log.debug("New Relic interceptor capturing final URL: " + finalUrl);
+            
+            // Update transaction state with the final URL after all customer interceptors
+            if (transactionState != null) {
+                transactionState.setUrl(finalUrl);
+            }
+
+            return chain.proceed(request);
+        }
     }
 }

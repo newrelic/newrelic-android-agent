@@ -744,13 +744,17 @@ public class NewRelicTest {
 
     @Test
     public void testSetUserId() {
+        // When USER_ID_ATTRIBUTE is `empty` or `null`
+        AnalyticsAttribute attr = AnalyticsControllerImpl.getInstance().getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
         Assert.assertTrue("Should not set null user ID", NewRelic.setUserId(null));
         Assert.assertTrue("Should not set empty user ID", NewRelic.setUserId(""));
-        Assert.assertTrue("Should set valid user ID", NewRelic.setUserId("validUserId"));
+        Assert.assertNull("Should NOT contain a 'userId' attr", attr);
 
-        AnalyticsAttribute attr = AnalyticsControllerImpl.getInstance().getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
-        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
-        Assert.assertEquals("Should contain 'userId' value", "validUserId", attr.getStringValue());
+        // When USER_ID_ATTRIBUTE has a value.
+        Assert.assertTrue("Should set valid user ID", NewRelic.setUserId("validUserId"));
+        AnalyticsAttribute attr2 = AnalyticsControllerImpl.getInstance().getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        Assert.assertEquals("Should contain 'userId' attr", AnalyticsAttribute.USER_ID_ATTRIBUTE, attr2.getName());
+        Assert.assertEquals("Should contain 'userId' value", "validUserId", attr2.getStringValue());
     }
 
     @Test
