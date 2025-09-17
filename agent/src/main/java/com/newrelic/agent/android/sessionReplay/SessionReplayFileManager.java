@@ -37,6 +37,8 @@ public class SessionReplayFileManager {
 
     static int POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors() / 4);
 
+    // Gson for serialization
+    private static Gson gson;
     // ThreadPoolExecutor for file operations
     private static final ThreadPoolExecutor fileWriteExecutor = new ThreadPoolExecutor(
             2, // Core pool size
@@ -64,6 +66,8 @@ public class SessionReplayFileManager {
             return;
         }
 
+
+        gson = new Gson();
         File rootDir = application.getCacheDir();
         if (!rootDir.isDirectory() || !rootDir.exists() || !rootDir.canWrite()) {
             log.error("Cache directory is not available or writable");
@@ -113,7 +117,7 @@ public class SessionReplayFileManager {
                 try {
                     if (workingSessionReplayFileWriter.get() != null) {
                         for (RRWebEvent event : rrWebEvents) {
-                            workingSessionReplayFileWriter.get().write(new Gson().toJson(event));
+                            workingSessionReplayFileWriter.get().write(gson.toJson(event));
                             workingSessionReplayFileWriter.get().newLine();
                         }
                     }
@@ -145,7 +149,7 @@ public class SessionReplayFileManager {
 
                         touchTracker.processTouchData().forEach(position -> {
                             try {
-                                workingSessionReplayFileWriter.get().write(new Gson().toJson(position));
+                                workingSessionReplayFileWriter.get().write(gson.toJson(position));
                                 workingSessionReplayFileWriter.get().newLine();
                             } catch (IOException e) {
                                 throw new RuntimeException(e);

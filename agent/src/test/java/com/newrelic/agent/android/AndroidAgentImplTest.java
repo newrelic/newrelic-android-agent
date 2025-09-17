@@ -461,6 +461,7 @@ public class AndroidAgentImplTest {
         Mockito.when(loggingConfig.getLoggingEnabled()).thenReturn(true);
         agentConfig.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
         agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
+        agentImpl.initialize();
         Assert.assertTrue(log.getInstance() instanceof ForwardingAgentLog);
     }
 
