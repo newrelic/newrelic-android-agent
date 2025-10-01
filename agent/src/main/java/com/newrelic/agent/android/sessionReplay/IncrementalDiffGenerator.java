@@ -251,7 +251,7 @@ public class IncrementalDiffGenerator {
             deleteOffsets[index] = runningOffset;
             Entry entry = oldArrayEntries.get(index);
             if (entry.isSymbol) {
-                changes.add(Operation.remove(new Operation.RemoveChange(old.get(index).getViewDetails().parentId, old.get(index).getViewId())));
+                changes.add(Operation.remove(new Operation.RemoveChange(old.get(index).getParentViewId(), old.get(index).getViewId())));
                 runningOffset++;
             }
         }
@@ -262,7 +262,7 @@ public class IncrementalDiffGenerator {
         for (int index = 0; index < newArrayEntries.size(); index++) {
             Entry entry = newArrayEntries.get(index);
             if (entry.isSymbol) {
-                changes.add(Operation.add(new Operation.AddChange(newList.get(index).getViewDetails().parentId, newList.get(index).getViewId(), newList.get(index))));
+                changes.add(Operation.add(new Operation.AddChange(newList.get(index).getParentViewId(), newList.get(index).getViewId(), newList.get(index))));
                 runningOffset++;
             } else {
                 int indexInOld = entry.index;
@@ -273,8 +273,8 @@ public class IncrementalDiffGenerator {
                 if ((indexInOld - deleteOffset + runningOffset) != index) {
                     // If this doesn't get us back to where we currently are, then
                     // the thing was moved
-                    changes.add(Operation.remove(new Operation.RemoveChange(newElement.getViewDetails().parentId, newElement.getViewId())));
-                    changes.add(Operation.add(new Operation.AddChange(newElement.getViewDetails().parentId, newElement.getViewId(), newElement)));
+                    changes.add(Operation.remove(new Operation.RemoveChange(newElement.getParentViewId(), newElement.getViewId())));
+                    changes.add(Operation.add(new Operation.AddChange(newElement.getParentViewId(), newElement.getViewId(), newElement)));
                 } else if (newElement.getClass() == oldElement.getClass()) {
                     if (newElement.hashCode() != oldElement.hashCode()) {
                         changes.add(Operation.update(new Operation.UpdateChange(oldElement, newElement)));

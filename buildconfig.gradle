@@ -31,7 +31,7 @@ buildscript {
 
                 java   : [
                         minVersion : JavaVersion.VERSION_11,
-                        kotlin     : "1.6.10",
+                        kotlin     : "1.8.22",
                         gson       : '2.8.9',
                         guava      : '18.0',
                         commonsIO  : '2.12.0',
@@ -56,8 +56,8 @@ buildscript {
                         // https://developer.android.com/studio/releases/platforms
                         plugin       : '7.4.2', // using Gradle 7.6
                         minSdk       : 24,      // Android 7
-                        compileSdk   : 30,      // Android 11
-                        targetSdk    : 30,      // Android 11
+                        compileSdk   : 34,      // Android 11
+                        targetSdk    : 34,      // Android 11
                         buildTools   : '28.0.2',
                         gradleApi    : '7.4.2',
                         gradleTestKit: '7.4.2'

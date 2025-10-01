@@ -14,6 +14,10 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable; // Use androidx annotation
+import androidx.compose.ui.Modifier;
+import androidx.compose.ui.layout.Placeable;
+import androidx.compose.ui.node.LayoutNode;
+import androidx.compose.ui.semantics.SemanticsNode;
 
 import java.lang.reflect.Field;
 
@@ -54,7 +58,7 @@ public class ViewBackgroundHelper {
     private static String getDrawableColor(Drawable drawable) {
         if (drawable instanceof ColorDrawable) {
             int color = ((ColorDrawable) drawable).getColor();
-            return toRGBAHexString(color);
+            return Integer.toHexString(color).substring(2); // Remove the leading '#'
         } else if (drawable instanceof GradientDrawable) {
             GradientDrawable gradientDrawable = (GradientDrawable) drawable;
             // GradientDrawables can have multiple colors for gradients.
@@ -165,6 +169,79 @@ public class ViewBackgroundHelper {
             return null;
         }
     }
+
+    public static LayoutNode GetLayoutNode(SemanticsNode semanticsNode) {
+        try {
+            Field layoutNodeField = SemanticsNode.class.getDeclaredField("layoutNode");
+            layoutNodeField.setAccessible(true);
+            return (LayoutNode) layoutNodeField.get(semanticsNode);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static Placeable GetPlaceble(LayoutNode layoutNode) {
+        try {
+            Field innerLayerCoordinatorField = LayoutNode.class.getDeclaredField("_innerLayerCoordinator");
+            innerLayerCoordinatorField.setAccessible(true);
+            return (Placeable) innerLayerCoordinatorField.get(layoutNode);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static float getPaddingTop(Modifier modifier) throws ClassNotFoundException {
+        Class paddingClass = Class.forName("androidx.compose.foundation.layout.PaddingElement");
+        try {
+            Field topField = paddingClass.getDeclaredField("top");
+            topField.setAccessible(true);
+            return (float) topField.get(modifier);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public static float getPaddingBottom(Modifier modifier) throws ClassNotFoundException {
+        Class paddingClass = Class.forName("androidx.compose.foundation.layout.PaddingElement");
+        try {
+            Field bottomField = paddingClass.getDeclaredField("bottom");
+            bottomField.setAccessible(true);
+            return (float) bottomField.get(modifier);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public static float getPaddingStart(Modifier modifier) throws ClassNotFoundException {
+        Class paddingClass = Class.forName("androidx.compose.foundation.layout.PaddingElement");
+        try {
+            Field startField = paddingClass.getDeclaredField("start");
+            startField.setAccessible(true);
+            return (float) startField.get(modifier);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public static float getPaddingEnd(Modifier modifier) throws ClassNotFoundException {
+        Class paddingClass = Class.forName("androidx.compose.foundation.layout.PaddingElement");
+        try {
+            Field endField = paddingClass.getDeclaredField("end");
+            endField.setAccessible(true);
+            return (float) endField.get(modifier);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+
+
     private static float getPixel(float value, float density) {
         return  (value /density);
     }

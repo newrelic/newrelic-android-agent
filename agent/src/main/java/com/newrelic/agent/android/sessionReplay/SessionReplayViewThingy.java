@@ -4,10 +4,8 @@ import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
-import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class SessionReplayViewThingy implements SessionReplayViewThingyInterface {
@@ -56,9 +54,9 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
 
     @Override
     public RRWebElementNode generateRRWebNode() {
-        Attributes attribues = new Attributes(viewDetails.getCSSSelector());
-        return new RRWebElementNode(attribues, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId,
-                new ArrayList<RRWebNode>());
+        Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId,
+                new ArrayList<>());
     }
 
     @Override
@@ -71,17 +69,18 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
         // Create a map to store style differences
         java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
 
+        ViewDetails otherDetails = (ViewDetails) other.getViewDetails();
         // Compare frames
-        if (!viewDetails.frame.equals(other.getViewDetails().frame)) {
-            styleDifferences.put("left", other.getViewDetails().frame.left + "px");
-            styleDifferences.put("top", other.getViewDetails().frame.top + "px");
-            styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
-            styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
+        if (!viewDetails.frame.equals(otherDetails.frame)) {
+            styleDifferences.put("left", otherDetails.frame.left + "px");
+            styleDifferences.put("top", otherDetails.frame.top + "px");
+            styleDifferences.put("width", otherDetails.frame.width() + "px");
+            styleDifferences.put("height", otherDetails.frame.height() + "px");
         }
 
         // Compare background colors if available
-        if (!viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
-            styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+        if (!viewDetails.backgroundColor.equals(otherDetails.backgroundColor)) {
+            styleDifferences.put("background-color", otherDetails.backgroundColor);
         }
 
         // Create and return a MutationRecord with the style differences
@@ -110,5 +109,10 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
     @Override
     public int getViewId() {
         return viewDetails.viewId;
+    }
+
+    @Override
+    public int getParentViewId() {
+        return viewDetails.parentId;
     }
 }

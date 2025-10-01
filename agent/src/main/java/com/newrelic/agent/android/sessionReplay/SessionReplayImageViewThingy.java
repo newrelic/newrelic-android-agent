@@ -303,7 +303,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
-        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.emptyList());
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), new ArrayList<>());
     }
 
     @Override
@@ -314,15 +314,17 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
 
         Map<String, String> styleDifferences = new HashMap<>();
 
-        if (!viewDetails.frame.equals(other.getViewDetails().frame)) {
-            styleDifferences.put("left", other.getViewDetails().frame.left + "px");
-            styleDifferences.put("top", other.getViewDetails().frame.top + "px");
-            styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
-            styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
+        ViewDetails otherDetails = (ViewDetails) other.getViewDetails();
+
+        if (!viewDetails.frame.equals(otherDetails.frame)) {
+            styleDifferences.put("left", otherDetails.frame.left + "px");
+            styleDifferences.put("top", otherDetails.frame.top + "px");
+            styleDifferences.put("width", otherDetails.frame.width() + "px");
+            styleDifferences.put("height", otherDetails.frame.height() + "px");
         }
 
-        if (viewDetails.backgroundColor != null && !viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
-            styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+        if (viewDetails.backgroundColor != null && !viewDetails.backgroundColor.equals(otherDetails.backgroundColor)) {
+            styleDifferences.put("background-color", otherDetails.backgroundColor);
         }
 
         if (this.getImageData() != null && !this.getImageData().equals(((SessionReplayImageViewThingy) other).getImageData())) {
@@ -354,6 +356,12 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     public int getViewId() {
         return viewDetails.viewId;
     }
+
+    @Override
+    public int getParentViewId() {
+        return viewDetails.parentId;
+    }
+
 
     private String getBackgroundColor(ImageView view) {
         Drawable background = view.getBackground();

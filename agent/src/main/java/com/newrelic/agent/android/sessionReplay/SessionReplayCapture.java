@@ -5,16 +5,22 @@ import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.compose.ui.platform.AndroidComposeView;
+
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.sessionReplay.compose.ComposeTreeCapture;
+import com.newrelic.agent.android.util.ComposeChecker;
 
 import java.util.ArrayList;
 
 public class SessionReplayCapture {
     private SessionReplayThingyRecorder recorder;
+    private ComposeTreeCapture composeTreeCapture;
 
     public SessionReplayViewThingyInterface capture(View rootView, AgentConfiguration agentConfiguration) {
-        recorder = new SessionReplayThingyRecorder(rootView.getResources().getDisplayMetrics().density,agentConfiguration);
+        recorder = new SessionReplayThingyRecorder(agentConfiguration);
+        composeTreeCapture = new ComposeTreeCapture(recorder);
         return recursivelyCapture(rootView,false,false);
     }
 
@@ -22,8 +28,11 @@ public class SessionReplayCapture {
         ArrayList<SessionReplayViewThingyInterface> childThingies = new ArrayList<>();
 
         if(rootView instanceof ViewGroup) {
+            if(ComposeChecker.isComposeUsed(rootView.getContext()) && rootView instanceof AndroidComposeView) {
+                SessionReplayViewThingyInterface thingy = composeTreeCapture.captureComposeView((AndroidComposeView) rootView);
+                return thingy;
+            }
             for(int i = 0; i < ((ViewGroup) rootView).getChildCount(); i++) {
-
                 View child = ((ViewGroup) rootView).getChildAt(i);
 
                 if(!shouldRecordView(child)) {

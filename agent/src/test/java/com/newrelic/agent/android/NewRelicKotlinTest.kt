@@ -1,5 +1,6 @@
 package com.newrelic.agent.android
 
+import androidx.compose.ui.text.TextStyle
 import com.newrelic.agent.android.analytics.AnalyticsAttribute
 import com.newrelic.agent.android.analytics.AnalyticsAttributeStore
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl
@@ -30,6 +31,10 @@ class NewRelicKotlinTest {
     fun setUp() {
         spyContext = SpyContext()
 
+        var style = TextStyle()
+
+        style.fontSize
+
         NewRelic.started = false
         NewRelic.isShutdown = false
 
@@ -42,6 +47,7 @@ class NewRelicKotlinTest {
         NewRelic.enableFeature(FeatureFlag.AnalyticsEvents)
         NewRelic.enableFeature(FeatureFlag.InteractionTracing)
         NewRelic.enableFeature(FeatureFlag.DefaultInteractions)
+
     }
 
     @Before

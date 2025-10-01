@@ -178,7 +178,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
 
-        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, Collections.singletonList(textNode));
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, new ArrayList<>(Collections.singletonList(textNode)));
     }
 
     @Override
@@ -191,22 +191,23 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         // Create a map to store style differences
         java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
 
+        ViewDetails otherViewDetails = (ViewDetails) other.getViewDetails();
         // Compare frames
-        if (!viewDetails.frame.equals(other.getViewDetails().frame)) {
-            styleDifferences.put("left", other.getViewDetails().frame.left + "px");
-            styleDifferences.put("top", other.getViewDetails().frame.top + "px");
-            styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
-            styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
-            styleDifferences.put("line-height", other.getViewDetails().frame.height() + "px");
+        if (!viewDetails.frame.equals(otherViewDetails.frame)) {
+            styleDifferences.put("left", otherViewDetails.frame.left + "px");
+            styleDifferences.put("top", otherViewDetails.frame.top + "px");
+            styleDifferences.put("width", otherViewDetails.frame.width() + "px");
+            styleDifferences.put("height", otherViewDetails.frame.height() + "px");
+            styleDifferences.put("line-height", otherViewDetails.frame.height() + "px");
         }
 
         // Compare background colors if available
-        if (viewDetails.backgroundColor != null && other.getViewDetails().backgroundColor != null) {
-            if (!viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
-                styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+        if (viewDetails.backgroundColor != null && otherViewDetails.backgroundColor != null) {
+            if (!viewDetails.backgroundColor.equals(otherViewDetails.backgroundColor)) {
+                styleDifferences.put("background-color", otherViewDetails.backgroundColor);
             }
-        } else if (other.getViewDetails().backgroundColor != null) {
-            styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+        } else if (otherViewDetails.backgroundColor != null) {
+            styleDifferences.put("background-color", otherViewDetails.backgroundColor);
         }
 
         // compare TextColor if available
@@ -288,6 +289,11 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     @Override
     public int getViewId() {
         return viewDetails.viewId;
+    }
+
+    @Override
+    public int getParentViewId() {
+        return viewDetails.parentId;
     }
 
     private String getFontFamily(Typeface typeface) {

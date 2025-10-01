@@ -112,27 +112,29 @@ public class ViewDrawInterceptor  {
      * @return Point containing screen width (x) and height (y)
      */
     private Point getScreenDimensions(Context context) {
-        int width, height;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             // For API 30 (Android 11) and above
             WindowMetrics windowMetrics = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE))
                     .getCurrentWindowMetrics();
-            width = windowMetrics.getBounds().width();
-            height = windowMetrics.getBounds().height();
+            return new Point(windowMetrics.getBounds().width(), windowMetrics.getBounds().height());
         } else {
-            // For API 29 and below
-            WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-            @SuppressWarnings("deprecation")
-            Display display = wm.getDefaultDisplay();
-
-            // Use getRealSize instead of getSize to get the actual full screen size including system decorations
-            Point size = new Point();
-            display.getRealSize(size);
-
-            width = size.x;
-            height = size.y;
+            // For API 24-29
+            return getScreenDimensionsLegacy(context);
         }
-        return new Point(width, height);
+    }
+
+    /**
+     * Gets screen dimensions using legacy Display API for API 24-29
+     */
+    @SuppressWarnings("deprecation")
+    private Point getScreenDimensionsLegacy(Context context) {
+        WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        Display display = wm.getDefaultDisplay();
+        
+        Point size = new Point();
+        display.getRealSize(size); // Safe to use since minSdk is 24 (getRealSize available since API 17)
+        
+        return size;
     }
 
 

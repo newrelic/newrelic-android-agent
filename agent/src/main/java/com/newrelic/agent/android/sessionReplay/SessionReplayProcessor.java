@@ -29,21 +29,17 @@ public class SessionReplayProcessor {
 
         for(SessionReplayFrame rawFrame : rawFrames) {
             // We need to come up with a way to tell if the activity or fragment is different.
-            if(lastFrame == null)  {
-                RRWebMetaEvent metaEvent = createMetaEvent(rawFrame);
-                snapshot.add(metaEvent);
-                snapshot.add(processFullFrame(rawFrame));
-            } else {
-                if(rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
-                    snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
-                } else if (rawFrame.width != lastFrame.width || rawFrame.height != lastFrame.height) {
-                    RRWebMetaEvent metaEvent = createMetaEvent(rawFrame);
-                    snapshot.add(metaEvent);
-                    snapshot.add(processFullFrame(rawFrame));
-                } else {
-                    snapshot.add(processFullFrame(rawFrame));
-                }
-            }
+//            if(lastFrame == null)  {
+                addFullFrameSnapshot(snapshot, rawFrame);
+//            } else {
+//                if(rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
+//                    snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
+//                } else if (rawFrame.width != lastFrame.width || rawFrame.height != lastFrame.height) {
+//                    addFullFrameSnapshot(snapshot, rawFrame);
+//                } else {
+//                    addFullFrameSnapshot(snapshot, rawFrame);
+//                }
+//            }
             lastFrame = rawFrame;
         }
 
@@ -60,16 +56,16 @@ public class SessionReplayProcessor {
         // Generate boilerplate nodes
         // CSS node
         RRWebTextNode cssText = new RRWebTextNode(cssStyleBuilder.toString(), true, NewRelicIdGenerator.generateId());
-        RRWebElementNode cssNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_STYLE, NewRelicIdGenerator.generateId(), Collections.singletonList(cssText));
+        RRWebElementNode cssNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_STYLE, NewRelicIdGenerator.generateId(), new ArrayList<>(Collections.singletonList(cssText)));
 
         // Head Node
-        RRWebElementNode headNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_HEAD, NewRelicIdGenerator.generateId(), Collections.singletonList(cssNode));
+        RRWebElementNode headNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_HEAD, NewRelicIdGenerator.generateId(), new ArrayList<>(Collections.singletonList(cssNode)));
 
         // Body node
-        RRWebElementNode bodyNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_BODY, NewRelicIdGenerator.generateId(), Collections.singletonList(rootElement));
+        RRWebElementNode bodyNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_BODY, NewRelicIdGenerator.generateId(), new ArrayList<>(Collections.singletonList(rootElement)));
 
         // HTML node
-        RRWebElementNode htmlNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_HTML, NewRelicIdGenerator.generateId(), Arrays.asList(headNode, bodyNode));
+        RRWebElementNode htmlNode = new RRWebElementNode(null, RRWebElementNode.TAG_TYPE_HTML, NewRelicIdGenerator.generateId(), new ArrayList<>(Arrays.asList(headNode, bodyNode)));
 
         Node node = new Node(RRWebNode.RRWEB_NODE_TYPE_DOCUMENT, NewRelicIdGenerator.generateId(), Collections.singletonList(htmlNode));
 
@@ -186,5 +182,11 @@ public class SessionReplayProcessor {
     public void onNewScreen() {
         // Reset the last frame when a new screen is detected
         lastFrame = null;
+    }
+    
+    private void addFullFrameSnapshot(ArrayList<RRWebEvent> snapshot, SessionReplayFrame rawFrame) {
+        RRWebMetaEvent metaEvent = createMetaEvent(rawFrame);
+        snapshot.add(metaEvent);
+        snapshot.add(processFullFrame(rawFrame));
     }
 }

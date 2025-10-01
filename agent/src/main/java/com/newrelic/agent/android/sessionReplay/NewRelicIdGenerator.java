@@ -14,7 +14,7 @@ public class NewRelicIdGenerator {
      // For example, you could use AtomicInteger or UUIDs.
     static int counter = 0;
 
-     static int generateId() {
+     public static int generateId() {
          Log.d(TAG, "generateId: " + counter);
         return counter++;
     }

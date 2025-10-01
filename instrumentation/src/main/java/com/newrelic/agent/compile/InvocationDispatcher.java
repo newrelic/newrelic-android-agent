@@ -144,8 +144,8 @@ public class InvocationDispatcher {
                 if (className.equals(Constants.NEWRELIC_CLASS_NAME)) {
                     cv = new NewRelicClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidJetpackPackage(className)) {
-                    // cv = new ComposeNavigatorClassVisitor(cv, instrumentationContext, log);
-                    // cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
+//                     cv = new ComposeNavigatorClassVisitor(cv, instrumentationContext, log);
+//                     cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidSDKPackage(className)) {
                     if(defaultInteractionsEnabled) {
                         cv = new ActivityClassVisitor(cv, instrumentationContext, log, true);

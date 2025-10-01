@@ -751,6 +751,7 @@ public class AndroidAgentImpl implements
      *
      * @param location An android.location.Location
      */
+    @Deprecated
     public void setLocation(Location location) {
         if (location == null) {
             throw new IllegalArgumentException("Location must not be null.");
