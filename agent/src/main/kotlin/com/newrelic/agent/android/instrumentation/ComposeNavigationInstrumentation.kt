@@ -8,15 +8,25 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import com.newrelic.agent.android.agentdata.AgentDataController
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl
-
+import com.newrelic.agent.android.sessionReplay.SessionReplay
+import  kotlin.collections.Map
+/**
+ * Adds a New Relic navigation listener to a NavHostController to track navigation events.
+ * 
+ * This extension function attaches a destination change listener to the NavHostController
+ * that automatically records navigation routes as breadcrumbs and triggers full snapshots
+ * in Session Replay when navigation occurs.
+ *
+ * @receiver The NavHostController to which the navigation listener will be attached
+ * @return The same NavHostController instance with the New Relic navigation listener attached
+ */
 @Composable
-fun NavHostController.withMeasureNavigationListener(): NavHostController {
+fun NavHostController.withNewRelicNavigationListener(): NavHostController {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle, this) {
         val observer = MeasureNavigationObserver(
-            this@withMeasureNavigationListener,
+            this@withNewRelicNavigationListener,
         )
         lifecycle.addObserver(observer)
 
@@ -46,7 +56,10 @@ private class MeasureNavigationObserver(
     private val destinationChangedListener =
         NavController.OnDestinationChangedListener { controller, _, _ ->
             controller.currentDestination?.route?.let { to ->
-                AnalyticsControllerImpl.getInstance().recordBreadcrumb(to, null);
+                SessionReplay.setTakeFullSnapshot(true)
+                val attributes = mapOf("event_type" to "navigation")
+
+                AnalyticsControllerImpl.getInstance().recordBreadcrumb("screen_name: $to", attributes)
             }
         }
 }
