@@ -16,8 +16,7 @@ publishing {
 
     publications {
         mavenJava(MavenPublication) {
-//            groupId 'com.newrelic.agent.android'
-            groupId 'io.github.ywang-nr'
+            groupId 'com.newrelic.agent.android'
             version project.versions.agent
 
             pom {
