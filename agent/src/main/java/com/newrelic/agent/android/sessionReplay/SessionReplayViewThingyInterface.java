@@ -32,6 +32,16 @@ public interface SessionReplayViewThingyInterface {
     int getViewId();
 
     int getParentViewId();
+
+    /**
+     * Check if this view has changed compared to another view.
+     * This is used by the diff algorithm to determine if an UPDATE operation is needed.
+     *
+     * @param other The other view to compare against
+     * @return true if the views have different content/attributes, false otherwise
+     */
+    boolean hasChanged(SessionReplayViewThingyInterface other);
+
     @Override
     int hashCode();
 

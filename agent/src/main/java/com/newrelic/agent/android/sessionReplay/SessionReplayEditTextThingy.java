@@ -12,7 +12,6 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy implements SessionReplayViewThingyInterface {
@@ -144,5 +143,16 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
     @Override
     public int getParentViewId() {
         return viewDetails.parentId;
+    }
+
+    @Override
+    public boolean hasChanged(SessionReplayViewThingyInterface other) {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || !(other instanceof SessionReplayEditTextThingy)) {
+            return true;
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode();
     }
 }

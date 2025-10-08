@@ -10,8 +10,6 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.LayerDrawable;
-import android.os.Build;
-import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.LruCache;
@@ -28,7 +26,6 @@ import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.Mutation
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -195,36 +192,14 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
      */
     @WorkerThread
     private String bitmapToBase64(Bitmap bitmap) {
-        try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 10, byteArrayOutputStream);
-                } else {
-                    @SuppressWarnings("deprecation")
-                    Bitmap.CompressFormat format = Bitmap.CompressFormat.WEBP;
-                    bitmap.compress(format, 10, byteArrayOutputStream);
-                }
-
-                byte[] byteArray = byteArrayOutputStream.toByteArray();
-                return Base64.encodeToString(byteArray, Base64.NO_WRAP);
-            } catch (Exception e) {
-                Log.e(LOG_TAG, "Error converting bitmap to Base64", e);
-                return null;
-            }
-        } catch (Exception ignored) {
-            // Ignore cleanup errors
-        }
-        return "";
+        return ImageCompressionUtils.bitmapToBase64(bitmap);
     }
 
     /**
      * Gets the image data as a data URL for use in CSS or HTML
      */
     public String getImageDataUrl() {
-        if (imageData != null) {
-            return "data:image/webp;base64," + imageData;
-        }
-        return null;
+        return ImageCompressionUtils.toImageDataUrl(imageData);
     }
 
     public String getImageData() {
@@ -443,5 +418,16 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             clazz = clazz.getSuperclass();
         }
         return false;
+    }
+
+    @Override
+    public boolean hasChanged(SessionReplayViewThingyInterface other) {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || !(other instanceof SessionReplayImageViewThingy)) {
+            return true;
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode();
     }
 }

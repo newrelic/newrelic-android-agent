@@ -24,22 +24,22 @@ public class SessionReplayProcessor {
 
     private SessionReplayFrame lastFrame;
 
-    public List<RRWebEvent> processFrames(List<SessionReplayFrame> rawFrames) {
+    public List<RRWebEvent> processFrames(List<SessionReplayFrame> rawFrames,boolean takeFullSnapshot) {
         ArrayList<RRWebEvent> snapshot = new ArrayList<>();
 
-        for(SessionReplayFrame rawFrame : rawFrames) {
+        for (SessionReplayFrame rawFrame : rawFrames) {
             // We need to come up with a way to tell if the activity or fragment is different.
-//            if(lastFrame == null)  {
+            if (takeFullSnapshot || lastFrame == null) {
                 addFullFrameSnapshot(snapshot, rawFrame);
-//            } else {
-//                if(rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
-//                    snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
-//                } else if (rawFrame.width != lastFrame.width || rawFrame.height != lastFrame.height) {
-//                    addFullFrameSnapshot(snapshot, rawFrame);
-//                } else {
-//                    addFullFrameSnapshot(snapshot, rawFrame);
-//                }
-//            }
+            } else {
+                if (rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
+                    snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
+                } else if (rawFrame.width != lastFrame.width || rawFrame.height != lastFrame.height) {
+                    addFullFrameSnapshot(snapshot, rawFrame);
+                } else {
+                    addFullFrameSnapshot(snapshot, rawFrame);
+                }
+            }
             lastFrame = rawFrame;
         }
 

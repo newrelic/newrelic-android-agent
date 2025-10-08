@@ -405,4 +405,15 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         return false;
     }
 
+    @Override
+    public boolean hasChanged(SessionReplayViewThingyInterface other) {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || !(other instanceof SessionReplayTextViewThingy)) {
+            return true;
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode();
+    }
+
 }

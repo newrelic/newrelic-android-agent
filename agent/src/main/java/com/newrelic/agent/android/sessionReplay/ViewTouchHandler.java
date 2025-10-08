@@ -4,6 +4,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import androidx.compose.ui.platform.ComposeView;
 import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.util.ComposeChecker;
+
 import java.util.Set;
 
 public class ViewTouchHandler {
@@ -34,7 +36,8 @@ public class ViewTouchHandler {
             View child = viewGroup.getChildAt(i);
             Object foundView = findViewAtCoords(child, x, y);
             if (foundView != null) {
-                if((foundView instanceof View && ((View)foundView).getParent() instanceof ComposeView)) {
+
+                if(ComposeChecker.isComposeUsed(rootView.getContext())  && (foundView instanceof View && ((View)foundView).getParent() instanceof ComposeView)) {
                     // Delegate to SemanticsNode handler for Compose views
                     return foundView; // Return the compose view, let caller handle semantics
                 }

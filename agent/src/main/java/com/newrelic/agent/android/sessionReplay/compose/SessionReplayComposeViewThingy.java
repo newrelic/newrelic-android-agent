@@ -11,7 +11,6 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class SessionReplayComposeViewThingy implements SessionReplayViewThingyInterface {
@@ -173,8 +172,19 @@ public class SessionReplayComposeViewThingy implements SessionReplayViewThingyIn
         if (semanticsNode.getConfig().contains(androidx.compose.ui.semantics.SemanticsProperties.INSTANCE.getContentDescription())) {
             return true;
         }
-        
+
         // Check for other semantic properties that indicate meaningful content
         return semanticsNode.getConfig().contains(androidx.compose.ui.semantics.SemanticsProperties.INSTANCE.getRole());
+    }
+
+    @Override
+    public boolean hasChanged(SessionReplayViewThingyInterface other) {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || !(other instanceof SessionReplayComposeViewThingy)) {
+            return true;
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode();
     }
 }

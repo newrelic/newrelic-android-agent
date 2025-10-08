@@ -115,4 +115,15 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
     public int getParentViewId() {
         return viewDetails.parentId;
     }
+
+    @Override
+    public boolean hasChanged(SessionReplayViewThingyInterface other) {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || !(other instanceof SessionReplayViewThingy)) {
+            return true;
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode();
+    }
 }

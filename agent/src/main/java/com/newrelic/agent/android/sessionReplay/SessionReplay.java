@@ -44,6 +44,27 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private final ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
     private final List<RRWebEvent> rrWebEvents = new ArrayList<>();
     private static boolean isFirstChunk = true;
+    private static boolean takeFullSnapshot = true;
+
+    /**
+     * Sets whether the next snapshot should be a full snapshot or incremental.
+     * This can be called from any class to force a full snapshot on the next capture.
+     *
+     * @param shouldTakeFullSnapshot true to take a full snapshot, false for incremental
+     */
+    public static void setTakeFullSnapshot(boolean shouldTakeFullSnapshot) {
+        takeFullSnapshot = shouldTakeFullSnapshot;
+        log.debug("SessionReplay: takeFullSnapshot set to " + shouldTakeFullSnapshot);
+    }
+
+    /**
+     * Gets the current takeFullSnapshot value.
+     *
+     * @return true if the next snapshot will be a full snapshot, false otherwise
+     */
+    public static boolean shouldTakeFullSnapshot() {
+        return takeFullSnapshot;
+    }
 
     /**
      * Initializes the SessionReplay system.
@@ -141,6 +162,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         touchTrackers.clear();
         fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
+        takeFullSnapshot = true;
     }
 
     /**
@@ -196,11 +218,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         rawFrames.add(newFrame);
-        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)));
+        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)),takeFullSnapshot);
         rrWebEvents.addAll(events);
         if (fileManager != null) {
             fileManager.addFrameToFile(events);
         }
+        takeFullSnapshot = false;
     }
 
     @Override

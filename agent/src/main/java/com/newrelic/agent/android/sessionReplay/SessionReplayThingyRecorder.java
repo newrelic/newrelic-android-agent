@@ -5,6 +5,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.compose.ui.node.LayoutNode;
 import androidx.compose.ui.semantics.Role;
 import androidx.compose.ui.semantics.SemanticsNode;
 import androidx.compose.ui.semantics.SemanticsProperties;
@@ -15,6 +16,7 @@ import com.newrelic.agent.android.sessionReplay.compose.ComposeImageThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails;
 import com.newrelic.agent.android.sessionReplay.compose.SessionReplayComposeViewThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeTextViewThingy;
+import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
 
 public class SessionReplayThingyRecorder {
     private final AgentConfiguration agentConfiguration;
@@ -37,9 +39,15 @@ public class SessionReplayThingyRecorder {
             return new SessionReplayViewThingy(viewDetails);
         }
     }
-
+    @androidx.compose.ui.InternalComposeUiApi
     public  SessionReplayViewThingyInterface recordView(SemanticsNode node,float density) {
 
+        LayoutNode layoutNode = ReflectionUtils.getLayoutNode(node);
+
+        if(layoutNode.getInteropView() != null) {
+            // It's a view inside compose
+            return recordView(layoutNode.getInteropView());
+        }
 
         ComposeViewDetails composeViewDetails = new ComposeViewDetails(node, density);
          if(node.getConfig().contains(SemanticsProperties.INSTANCE.getEditableText())) {
