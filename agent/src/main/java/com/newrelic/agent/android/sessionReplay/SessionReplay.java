@@ -44,6 +44,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private final ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
     private final List<RRWebEvent> rrWebEvents = new ArrayList<>();
     private static boolean isFirstChunk = true;
+    private static boolean takeFullSnapshot = true;
 
     /**
      * Initializes the SessionReplay system.
@@ -141,7 +142,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         touchTrackers.clear();
         fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
+        takeFullSnapshot = true;
     }
+
 
     /**
      * Extracts timestamp from different RRWebEvent types
@@ -171,6 +174,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     public static void startRecording() {
         Harvest.addHarvestListener(instance);
+        takeFullSnapshot = true; // Force full snapshot when starting recording
         uiThreadHandler.post(() -> {
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
             viewDrawInterceptor.Intercept(decorViews);
@@ -194,11 +198,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         rawFrames.add(newFrame);
-        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)));
+        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)),takeFullSnapshot);
         rrWebEvents.addAll(events);
         if (fileManager != null) {
             fileManager.addFrameToFile(events);
         }
+        takeFullSnapshot = false;
     }
 
     @Override
