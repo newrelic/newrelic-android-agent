@@ -9,17 +9,9 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
-import android.os.Build;
 import android.view.View;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable; // Use androidx annotation
-import androidx.compose.ui.Modifier;
-import androidx.compose.ui.layout.Placeable;
-import androidx.compose.ui.node.LayoutNode;
-import androidx.compose.ui.semantics.SemanticsNode;
-
-import java.lang.reflect.Field;
 
 public class ViewBackgroundHelper {
 
@@ -142,101 +134,9 @@ public class ViewBackgroundHelper {
         }
 
 
-        Paint strokePaint = getStrokePaint(backgroundDrawable);
+        Paint strokePaint = ReflectionUtils.getStrokePaint(backgroundDrawable);
         if (strokePaint != null) {
             backgroundColorStringBuilder.append(" border:").append(getPixel(strokePaint.getStrokeWidth(), density)).append("px").append(" solid #").append(Integer.toHexString(strokePaint.getColor()).substring(2)).append(";");
-        }
-    }
-
-    public static Paint getFillPaint(GradientDrawable gradientDrawable) {
-        try {
-            Field mFillPaintField = GradientDrawable.class.getDeclaredField("mFillPaint");
-            mFillPaintField.setAccessible(true);
-            return (Paint)mFillPaintField.get(gradientDrawable);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    public static Paint getStrokePaint(GradientDrawable gradientDrawable) {
-        try {
-            Field mStrokePaintPaintField = GradientDrawable.class.getDeclaredField("mStrokePaint");
-            mStrokePaintPaintField.setAccessible(true);
-            return (Paint)mStrokePaintPaintField.get(gradientDrawable);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    public static LayoutNode GetLayoutNode(SemanticsNode semanticsNode) {
-        try {
-            Field layoutNodeField = SemanticsNode.class.getDeclaredField("layoutNode");
-            layoutNodeField.setAccessible(true);
-            return (LayoutNode) layoutNodeField.get(semanticsNode);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    public static Placeable GetPlaceble(LayoutNode layoutNode) {
-        try {
-            Field innerLayerCoordinatorField = LayoutNode.class.getDeclaredField("_innerLayerCoordinator");
-            innerLayerCoordinatorField.setAccessible(true);
-            return (Placeable) innerLayerCoordinatorField.get(layoutNode);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    public static float getPaddingTop(Modifier modifier) throws ClassNotFoundException {
-        Class paddingClass = Class.forName("androidx.compose.foundation.layout.PaddingElement");
-        try {
-            Field topField = paddingClass.getDeclaredField("top");
-            topField.setAccessible(true);
-            return (float) topField.get(modifier);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
-
-    public static float getPaddingBottom(Modifier modifier) throws ClassNotFoundException {
-        Class paddingClass = Class.forName("androidx.compose.foundation.layout.PaddingElement");
-        try {
-            Field bottomField = paddingClass.getDeclaredField("bottom");
-            bottomField.setAccessible(true);
-            return (float) bottomField.get(modifier);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
-
-    public static float getPaddingStart(Modifier modifier) throws ClassNotFoundException {
-        Class paddingClass = Class.forName("androidx.compose.foundation.layout.PaddingElement");
-        try {
-            Field startField = paddingClass.getDeclaredField("start");
-            startField.setAccessible(true);
-            return (float) startField.get(modifier);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
-
-    public static float getPaddingEnd(Modifier modifier) throws ClassNotFoundException {
-        Class paddingClass = Class.forName("androidx.compose.foundation.layout.PaddingElement");
-        try {
-            Field endField = paddingClass.getDeclaredField("end");
-            endField.setAccessible(true);
-            return (float) endField.get(modifier);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return 0;
         }
     }
 
