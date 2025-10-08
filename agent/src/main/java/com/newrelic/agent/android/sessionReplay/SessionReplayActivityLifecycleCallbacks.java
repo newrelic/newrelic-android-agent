@@ -25,6 +25,7 @@ import kotlin.jvm.functions.Function1;
 
 import com.newrelic.agent.android.sessionReplay.ViewTouchHandler;
 import com.newrelic.agent.android.sessionReplay.SemanticsNodeTouchHandler;
+import com.newrelic.agent.android.util.ComposeChecker;
 
 public class SessionReplayActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
     private static final String TAG = "SessionReplayActivityLifecycleCallbacks";
@@ -105,7 +106,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 if(containingView instanceof View){
                     View foundView = (View) containingView;
                     // Check if this is a Compose view that needs SemanticsNode handling
-                    if(foundView.getParent() instanceof ComposeView) {
+                    if( ComposeChecker.isComposeUsed(foundView.getContext()) && foundView.getParent() instanceof ComposeView) {
                         Object semanticsNode = semanticsNodeTouchHandler.getComposeSemanticsNode(foundView, (int)pointerCoords.x, (int)pointerCoords.y);
                         if (semanticsNode instanceof SemanticsNode) {
                             containingTouchViewId = semanticsNodeTouchHandler.getSemanticsNodeStableId((SemanticsNode) semanticsNode);
