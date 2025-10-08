@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.IntSize;
 
 import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator;
-import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
+import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
 
 import java.util.Objects;
 
@@ -52,8 +52,8 @@ public class ComposeViewDetails {
         this.density = density;
 
         // Extract layout information from semantics node
-        LayoutNode layoutNode = ViewBackgroundHelper.GetLayoutNode(semanticsNode);
-        Placeable placeable = ViewBackgroundHelper.GetPlaceble(layoutNode);
+        LayoutNode layoutNode = ReflectionUtils.getLayoutNode(semanticsNode);
+        Placeable placeable = ReflectionUtils.getPlaceable(layoutNode);
         this.backgroundColor = extractBackgroundColor(semanticsNode);
 
         androidx.compose.ui.geometry.Rect boundsInRoot = semanticsNode.getBoundsInRoot();
@@ -62,10 +62,10 @@ public class ComposeViewDetails {
                // This is a padding modifier
                 // We might want to adjust boundsInRoot accordingly if needed
                try {
-                   this.paddingTop = ViewBackgroundHelper.getPaddingTop(modifierInfo.getModifier());
-                   this.paddingBottom = ViewBackgroundHelper.getPaddingBottom(modifierInfo.getModifier());
-                     this.paddingLeft = ViewBackgroundHelper.getPaddingStart(modifierInfo.getModifier());
-                        this.paddingRight = ViewBackgroundHelper.getPaddingEnd(modifierInfo.getModifier());
+                   this.paddingTop = ReflectionUtils.getPaddingTop(modifierInfo.getModifier());
+                   this.paddingBottom = ReflectionUtils.getPaddingBottom(modifierInfo.getModifier());
+                     this.paddingLeft = ReflectionUtils.getPaddingStart(modifierInfo.getModifier());
+                        this.paddingRight = ReflectionUtils.getPaddingEnd(modifierInfo.getModifier());
                } catch (ClassNotFoundException e) {
                    this.paddingTop = 0;
                    this.paddingBottom = 0;
@@ -142,7 +142,7 @@ public class ComposeViewDetails {
         if (node.getConfig().contains(SemanticsProperties.INSTANCE.getRole())) {
             androidx.compose.ui.semantics.Role role = node.getConfig().get(SemanticsProperties.INSTANCE.getRole());
             if (role != null) {
-                return "Compose" + role.toString();
+                return "Compose" + role;
             }
         }
 
@@ -240,7 +240,6 @@ public class ComposeViewDetails {
                 .append("width: ")
                 .append(frame.width())
                 .append("px;")
-                .append("border-style: solid; border-color: coral;")
                 .append("height: ")
                 .append(frame.height())
                 .append("px;")

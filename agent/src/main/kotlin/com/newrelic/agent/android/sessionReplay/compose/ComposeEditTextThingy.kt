@@ -2,7 +2,6 @@ package com.newrelic.agent.android.sessionReplay.compose
 
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.text.AnnotatedString
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
@@ -160,6 +159,16 @@ class ComposeEditTextThingy(
         val textAddRecord = RRWebMutationData.AddRecord(viewDetails.viewId, null, textNode)
 
         return listOf(viewAddRecord, textAddRecord)
+    }
+
+    override fun hasChanged(other: SessionReplayViewThingyInterface?): Boolean {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || other !is ComposeEditTextThingy) {
+            return true
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode()
     }
 
     /**

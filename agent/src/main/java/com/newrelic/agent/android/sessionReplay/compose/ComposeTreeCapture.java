@@ -8,7 +8,7 @@ import androidx.compose.ui.semantics.SemanticsOwner;
 
 import com.newrelic.agent.android.sessionReplay.SessionReplayThingyRecorder;
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface;
-import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
+import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
 
 import java.util.ArrayList;
 
@@ -53,7 +53,7 @@ public class ComposeTreeCapture {
 
     private boolean shouldRecordView(SemanticsNode node) {
         // Note: The original code appears incomplete here
-        LayoutNode layoutNode = ViewBackgroundHelper.GetLayoutNode(node);
+        LayoutNode layoutNode = ReflectionUtils.getLayoutNode(node);
         return layoutNode.isPlaced();
     }
 }

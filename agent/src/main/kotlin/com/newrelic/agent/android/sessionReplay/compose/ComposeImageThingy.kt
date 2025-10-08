@@ -5,14 +5,9 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.os.Build
-import android.util.Base64
 import android.util.Log
 import android.util.LruCache
-import android.widget.ImageView
-import androidx.annotation.RequiresApi
 import androidx.compose.ui.geometry.isUnspecified
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.VectorPainter
@@ -20,15 +15,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.getOrNull
 import com.newrelic.agent.android.AgentConfiguration
+import com.newrelic.agent.android.sessionReplay.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
-import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration
+import com.newrelic.agent.android.sessionReplay.internal.ComposePainterReflectionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
 import com.newrelic.agent.android.sessionReplay.ViewDetails
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode
-import java.io.ByteArrayOutputStream
 
 open class ComposeImageThingy(
     private val viewDetails: ComposeViewDetails,
@@ -64,7 +59,7 @@ open class ComposeImageThingy(
     init {
         contentScale = extractContentScale()
 
-        if (!shouldMaskImage(semanticsNode)) {
+        if (shouldUnMaskImage(semanticsNode)) {
             imageData = extractImageFromModifierInfo()
         }
     }
@@ -103,54 +98,7 @@ open class ComposeImageThingy(
 
 
     private fun extractPainterFromModifier(modifier: Any): Painter? {
-        try {
-            // Common field names for painter in Compose Image modifiers
-            val painterFields = arrayOf("painter", "intrinsicPainter", "imagePainter")
-
-            for (fieldName in painterFields) {
-                try {
-                    val field = modifier.javaClass.getDeclaredField(fieldName)
-                    field.isAccessible = true
-                    val painter = field.get(modifier)
-
-                    if (painter is Painter) {
-                        return painter
-                    }
-                } catch (e: NoSuchFieldException) {
-                    // Field doesn't exist, continue to next one
-                } catch (e: IllegalAccessException) {
-                    // Can't access field, continue to next one
-                }
-            }
-
-            // Try to find painter through methods
-            val methods = modifier.javaClass.declaredMethods
-            for (method in methods) {
-                if (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        method.name.contains("painter", ignoreCase = true) &&
-                            method.parameterCount == 0 &&
-                            Painter::class.java.isAssignableFrom(method.returnType)
-                    } else {
-                        TODO("VERSION.SDK_INT < O")
-                    }
-                ) {
-                    try {
-                        method.isAccessible = true
-                        val painter = method.invoke(modifier)
-                        if (painter is Painter) {
-                            return painter
-                        }
-                    } catch (e: Exception) {
-                        // Method invocation failed, continue
-                    }
-                }
-            }
-
-        } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting painter using reflection", e)
-        }
-
-        return null
+        return ComposePainterReflectionUtils.extractPainterFromModifier(modifier)
     }
 
     private fun convertPainterToBase64(painter: Painter): String? {
@@ -198,17 +146,7 @@ open class ComposeImageThingy(
     }
 
     private fun extractBitmapFromBitmapPainter(bitmapPainter: BitmapPainter): Bitmap? {
-        try {
-            // Use reflection to get the ImageBitmap from BitmapPainter
-            val imageField = bitmapPainter.javaClass.getDeclaredField("image")
-            imageField.isAccessible = true
-            val imageBitmap = imageField.get(bitmapPainter) as? ImageBitmap
-
-            return imageBitmap?.asAndroidBitmap()
-        } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting bitmap from BitmapPainter", e)
-            return null
-        }
+        return ComposePainterReflectionUtils.extractBitmapFromBitmapPainter(bitmapPainter)
     }
 
     private fun createBitmapFromVectorPainter(vectorPainter: VectorPainter): Bitmap? {
@@ -232,14 +170,14 @@ open class ComposeImageThingy(
             }
 
             // Try to extract cached bitmap first (most efficient)
-            val cachedBitmap = extractCachedBitmapFromVectorPainter(vectorPainter)
+            val cachedBitmap = ComposePainterReflectionUtils.extractCachedBitmapFromVectorPainter(vectorPainter)
             if (cachedBitmap != null) {
                 Log.d(LOG_TAG, "Successfully extracted cached bitmap from VectorPainter")
                 return cachedBitmap
             }
 
             // If we can't extract ImageVector, try to get the root group
-            val rootGroup = extractRootGroupFromVectorPainter(vectorPainter)
+            val rootGroup = ComposePainterReflectionUtils.extractRootGroupFromVectorPainter(vectorPainter)
             if (rootGroup != null) {
                 return rasterizeVectorGroup(rootGroup, width, height)
             }
@@ -258,14 +196,14 @@ open class ComposeImageThingy(
             Log.d(LOG_TAG, "Attempting to extract bitmap from AsyncImagePainter")
 
             // Direct path: asyncImagePainter.painter._painter.image.bitmap
-            val bitmap = extractBitmapFromAsyncImagePath(asyncImagePainter)
+            val bitmap = ComposePainterReflectionUtils.extractBitmapFromAsyncImagePath(asyncImagePainter)
             if (bitmap != null) {
                 Log.d(LOG_TAG, "Successfully extracted bitmap from AsyncImagePainter path")
                 return bitmap
             }
 
             // Fallback: Try to access the delegate painter (BitmapPainter, VectorPainter, etc.)
-            val delegatePainter = getDelegatePainter(asyncImagePainter)
+            val delegatePainter = ComposePainterReflectionUtils.getDelegatePainter(asyncImagePainter)
             if (delegatePainter != null) {
                 Log.d(LOG_TAG, "Found delegate painter: ${delegatePainter.javaClass.simpleName}")
                 return when {
@@ -285,80 +223,6 @@ open class ComposeImageThingy(
         }
     }
 
-    private fun extractBitmapFromAsyncImagePath(asyncImagePainter: Painter): Bitmap? {
-        try {
-            // Follow the path: asyncImagePainter.painter._painter.image.bitmap
-
-            // Step 2: Get _painter field from painter
-            val _painterField = asyncImagePainter.javaClass.getDeclaredField("_painter")
-            _painterField.isAccessible = true
-            val _painter = _painterField.get(asyncImagePainter)
-
-            if (_painter == null) {
-                Log.w(LOG_TAG, "_painter field is null in painter")
-                return null
-            }
-
-            // Step 3: Get image field from _painter
-            val imageField = _painter.javaClass.getDeclaredField("image")
-            imageField.isAccessible = true
-            val image = imageField.get(_painter)
-
-            if (image == null) {
-                Log.w(LOG_TAG, "image field is null in _painter")
-                return null
-            }
-
-            // Step 4: Get bitmap from image
-            val bitmapField = image.javaClass.getDeclaredField("bitmap")
-            bitmapField.isAccessible = true
-            val bitmap = bitmapField.get(image)
-
-            if (bitmap is Bitmap) {
-                Log.d(LOG_TAG, "Successfully extracted bitmap from AsyncImagePainter path")
-                return bitmap
-            } else if (bitmap is ImageBitmap) {
-                Log.d(LOG_TAG, "Successfully extracted ImageBitmap from AsyncImagePainter path")
-                return bitmap.asAndroidBitmap()
-            }
-
-        } catch (e: NoSuchFieldException) {
-            Log.w(LOG_TAG, "Field not found in AsyncImagePainter path: ${e.message}")
-        } catch (e: IllegalAccessException) {
-            Log.w(LOG_TAG, "Cannot access field in AsyncImagePainter path: ${e.message}")
-        } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting bitmap from AsyncImagePainter path", e)
-        }
-
-        return null
-    }
-
-
-    private fun getDelegatePainter(asyncImagePainter: Painter): Painter? {
-        try {
-            // AsyncImagePainter often delegates to other painters (BitmapPainter, etc.)
-            val delegateFields = arrayOf("delegate", "painter", "currentPainter", "wrappedPainter")
-
-            for (fieldName in delegateFields) {
-                try {
-                    val field = asyncImagePainter.javaClass.getDeclaredField(fieldName)
-                    field.isAccessible = true
-                    val delegate = field.get(asyncImagePainter)
-
-                    if (delegate is Painter) {
-                        return delegate
-                    }
-                } catch (e: NoSuchFieldException) {
-                    // Field doesn't exist, continue to next one
-                } catch (e: IllegalAccessException) {
-                    // Can't access field, continue to next one
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error getting delegate painter from AsyncImagePainter", e)
-        }
-        return null
-    }
 
     private fun createAsyncImagePlaceholder(): Bitmap {
         // Create a specific placeholder for AsyncImage that indicates it's loading/async
@@ -389,115 +253,6 @@ open class ComposeImageThingy(
         return bitmap
     }
 
-    private fun extractCachedBitmapFromVectorPainter(vectorPainter: VectorPainter): Bitmap? {
-        try {
-            // Access the nested path: vectorPainter.vector.mDrawScope.cachedImage.bitmap
-
-            // Step 1: Get the vector field from VectorPainter
-            val vectorField = vectorPainter.javaClass.getDeclaredField("vector")
-            vectorField.isAccessible = true
-            val vector = vectorField.get(vectorPainter)
-
-            if (vector == null) {
-                Log.w(LOG_TAG, "Vector field is null in VectorPainter")
-                return null
-            }
-
-
-            // Step 2: Get mDrawScope from vector
-            val drawScopeField = vector.javaClass.getDeclaredField("cacheDrawScope")
-            drawScopeField.isAccessible = true
-            val drawScope = drawScopeField.get(vector)
-
-            if (drawScope == null) {
-                Log.w(LOG_TAG, "mDrawScope field is null in vector")
-                return null
-            }
-
-            // Step 3: Get cachedImage from mDrawScope
-            val cachedImageField = drawScope.javaClass.getDeclaredField("mCachedImage")
-            cachedImageField.isAccessible = true
-            val cachedImage = cachedImageField.get(drawScope)
-
-            if (cachedImage == null) {
-                Log.w(LOG_TAG, "cachedImage field is null in mDrawScope")
-                return null
-            }
-
-            // Step 4: Get bitmap from cachedImage
-            val bitmapField = cachedImage.javaClass.getDeclaredField("bitmap")
-            bitmapField.isAccessible = true
-            val bitmap = bitmapField.get(cachedImage)
-
-            if (bitmap is Bitmap) {
-                Log.d(LOG_TAG, "Successfully extracted cached bitmap from VectorPainter")
-                return bitmap
-            } else if (bitmap is ImageBitmap) {
-                Log.d(LOG_TAG, "Successfully extracted cached ImageBitmap from VectorPainter")
-                return bitmap.asAndroidBitmap()
-            }
-
-        } catch (e: NoSuchFieldException) {
-            Log.w(LOG_TAG, "Field not found in VectorPainter structure: ${e.message}")
-        } catch (e: IllegalAccessException) {
-            Log.w(LOG_TAG, "Cannot access field in VectorPainter structure: ${e.message}")
-        } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting cached bitmap from VectorPainter", e)
-        }
-
-        return null
-    }
-
-    private fun extractRootGroupFromVectorPainter(vectorPainter: VectorPainter): Any? {
-        try {
-            // Try to get the root group directly
-            val rootField = vectorPainter.javaClass.getDeclaredField("rootGroup")
-            rootField.isAccessible = true
-            return rootField.get(vectorPainter)
-        } catch (e: Exception) {
-            // Try alternative field names
-            val groupFields = arrayOf("group", "vectorGroup", "root")
-            for (fieldName in groupFields) {
-                try {
-                    val field = vectorPainter.javaClass.getDeclaredField(fieldName)
-                    field.isAccessible = true
-                    val group = field.get(vectorPainter)
-                    if (group != null) {
-                        return group
-                    }
-                } catch (e: Exception) {
-                    // Continue to next field
-                }
-            }
-        }
-        return null
-    }
-
-    private fun rasterizeImageVector(imageVector: Any, width: Int, height: Int): Bitmap? {
-        try {
-            // This is a simplified implementation
-            // In practice, rasterizing an ImageVector requires complex drawing operations
-            // that would involve recreating the vector drawing commands
-
-            Log.d(LOG_TAG, "Attempting to rasterize ImageVector of size ${width}x${height}")
-
-            // Create a bitmap to draw into
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bitmap)
-            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-
-            // For now, we'll create a placeholder since full vector rasterization
-            // would require implementing the entire Compose vector drawing pipeline
-            // This could be enhanced in the future to properly render the vector
-
-            Log.w(LOG_TAG, "ImageVector rasterization not fully implemented - returning placeholder")
-            return createPlaceholderBitmap(width, height)
-
-        } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error rasterizing ImageVector", e)
-            return null
-        }
-    }
 
     private fun rasterizeVectorGroup(rootGroup: Any, width: Int, height: Int): Bitmap? {
         try {
@@ -585,41 +340,26 @@ open class ComposeImageThingy(
     }
 
     private fun bitmapToBase64(bitmap: Bitmap): String? {
-        return try {
-            ByteArrayOutputStream().use { byteArrayOutputStream ->
-                val success = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, 10, byteArrayOutputStream)
-                } else {
-                    @Suppress("DEPRECATION")
-                    bitmap.compress(Bitmap.CompressFormat.WEBP, 10, byteArrayOutputStream)
-                }
-
-                if (success) {
-                    val byteArray = byteArrayOutputStream.toByteArray()
-                    Base64.encodeToString(byteArray, Base64.NO_WRAP)
-                } else {
-                        return null;
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error converting bitmap to Base64", e)
-            null
-        }
+        return ImageCompressionUtils.bitmapToBase64(bitmap)
     }
 
 
     fun getImageDataUrl(): String? {
-        return imageData?.let { "data:image/webp;base64,$it" }
+        return ImageCompressionUtils.toImageDataUrl(imageData)
     }
 
     fun getImageData(): String? = imageData
 
-    private fun shouldMaskImage(node: SemanticsNode): Boolean {
+    private fun shouldUnMaskImage(node: SemanticsNode): Boolean {
         // For now, always allow images - this can be enhanced with privacy settings later
         val viewTag = node.config.getOrNull(NewRelicPrivacyKey) ?: ""
         val isCustomMode = sessionReplayConfiguration.mode == "custom"
-        val hasUnmaskTag = isCustomMode && viewTag == "nr-unmask"
-        return !hasUnmaskTag
+        if(isCustomMode) {
+            val hasmaskTag = isCustomMode && viewTag == "nr-mask"
+            return !hasmaskTag
+        } else {
+            return true
+        }
     }
 
     private fun getBackgroundSizeFromContentScale(): String {
@@ -731,4 +471,14 @@ open class ComposeImageThingy(
     override fun getViewId(): Int = viewDetails.viewId
 
     override fun getParentViewId(): Int = viewDetails.parentId
+
+    override fun hasChanged(other: SessionReplayViewThingyInterface?): Boolean {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || other !is ComposeImageThingy) {
+            return true
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode()
+    }
 }

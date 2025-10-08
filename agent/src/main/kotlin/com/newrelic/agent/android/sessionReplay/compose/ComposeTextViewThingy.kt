@@ -48,7 +48,7 @@ open class ComposeTextViewThingy(
     init {
 
         val textLayoutResults = mutableListOf<TextLayoutResult>()
-        semanticsNode.config[SemanticsActions.GetTextLayoutResult]?.action?.invoke(textLayoutResults)
+        semanticsNode.config[SemanticsActions.GetTextLayoutResult].action?.invoke(textLayoutResults)
 
         val layoutResult = textLayoutResults.firstOrNull()
         val layoutInput = layoutResult?.layoutInput
@@ -68,7 +68,7 @@ open class ComposeTextViewThingy(
     }
 
     private fun extractTextFromSemantics(layoutInput: TextLayoutInput?): String {
-        return layoutInput?.text.toString()?: "";
+        return layoutInput?.text.toString();
     }
 
     private fun shouldMaskComposeText(node: SemanticsNode): Boolean {
@@ -231,6 +231,7 @@ open class ComposeTextViewThingy(
             styleDifferences["top"] = "${otherComposeViewDetails.frame.top}px"
             styleDifferences["width"] = "${otherComposeViewDetails.frame.width()}px"
             styleDifferences["height"] = "${otherComposeViewDetails.frame.height()}px"
+            styleDifferences["line-height"] = "${otherComposeViewDetails.frame.height()}px"
         }
 
         if (viewDetails.backgroundColor != null && otherComposeViewDetails.backgroundColor != null) {
@@ -291,6 +292,16 @@ open class ComposeTextViewThingy(
     override fun getViewId(): Int = viewDetails.viewId
     override fun getParentViewId(): Int {
         return viewDetails.parentId
+    }
+
+    override fun hasChanged(other: SessionReplayViewThingyInterface?): Boolean {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || other !is ComposeTextViewThingy) {
+            return true
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode()
     }
 
     protected fun getMaskedTextIfNeeded(node: SemanticsNode, text: String, shouldMask: Boolean): String {
