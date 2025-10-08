@@ -263,7 +263,9 @@ public class EventManagerImpl implements EventManager, EventListener {
             log.warn("Event queue should not be larger than " + DEFAULT_MAX_EVENT_BUFFER_SIZE);
         }
 
-        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_POOL_SIZE, maxSize);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_POOL_SIZE);
+        log.debug("EventsManager.setMaxEventPoolSize(): Events Pool size set to " + maxSize);
+
         this.maxEventPoolSize = maxSize;
     }
 
@@ -282,7 +284,9 @@ public class EventManagerImpl implements EventManager, EventListener {
             maxBufferTimeInSec = DEFAULT_MAX_EVENT_BUFFER_TIME;
         }
 
-        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_BUFFER_SIZE, maxBufferTimeInSec);
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_BUFFER_SIZE);
+        log.debug("EventsManager.setMaxEventBufferTime(): Event buffer time set to " + maxBufferTimeInSec + " seconds");
+
         this.maxBufferTimeInSec = maxBufferTimeInSec;
     }
 

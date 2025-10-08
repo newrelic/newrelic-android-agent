@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * these metrics are used by the agent itself to report supportability metrics.
  */
 public class StatsEngine extends HarvestAdapter {
-    public final static StatsEngine INSTANCE = new StatsEngine();
+    public final static StatsEngine INSTANCE = new StatsEngine(); // returns a singleton instance of statsEngine
     public final static StatsEngine SUPPORTABILITY = new SupportabilityDecorator();
     final static AgentLog log = AgentLogManager.getAgentLog();
 
@@ -85,6 +85,19 @@ public class StatsEngine extends HarvestAdapter {
         }
     }
 
+    /**
+     * Record value as a metric. This will also increment callCount by 1.
+     *
+     * @param name  Name of the metric.
+     * @param value The sampled value.
+     */
+    public void setScope(String name, String value) {
+        Metric m = lazyGet(name);
+
+        synchronized (m) {
+            m.setScope(value);
+        }
+    }
     /**
      * Record a sample. This will also increment callCount by 1.
      *

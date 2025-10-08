@@ -183,9 +183,6 @@ public class Metric extends HarvestableObject {
         return scope == null ? "" : scope;
     }
 
-    public void setScope(String scope) {
-        this.scope = scope;
-    }
 
     public double getMin() {
         return (min == null || min < 0) ? 0.0 : min;
@@ -200,9 +197,9 @@ public class Metric extends HarvestableObject {
     }
 
 
-    public void setTotal(Double total) {
-        this.total = total;
-    }
+    public void setScope(String scope) { this.scope = scope; }
+
+    public void setTotal(Double total) { this.total = total; }
 
     public void setSumOfSquares(Double sumOfSquares) {
         this.sumOfSquares = sumOfSquares;
@@ -223,6 +220,7 @@ public class Metric extends HarvestableObject {
         sumOfSquares = null;
         exclusive = null;
         count = 0;
+        scope = null;
     }
 
     public boolean isCountOnly() {
