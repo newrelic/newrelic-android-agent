@@ -9,6 +9,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -50,7 +51,14 @@ public class ViewBackgroundHelper {
     private static String getDrawableColor(Drawable drawable) {
         if (drawable instanceof ColorDrawable) {
             int color = ((ColorDrawable) drawable).getColor();
-            return Integer.toHexString(color).substring(2); // Remove the leading '#'
+            String colorString = toRGBAHexString(color);
+            if(colorString.length() > 3) {
+                Log.d("ViewBackgroundHelper", "Color: " + colorString);
+                return colorString.substring(2);
+            } else {
+                return "FFFFFF";
+            }
+            // Remove the leading '#'
         } else if (drawable instanceof GradientDrawable) {
             GradientDrawable gradientDrawable = (GradientDrawable) drawable;
             // GradientDrawables can have multiple colors for gradients.
