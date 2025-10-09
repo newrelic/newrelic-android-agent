@@ -49,7 +49,7 @@ public class OkHttp3Instrumentation {
         TransactionState transactionState = new TransactionState();
         addHeadersAsCustomAttribute(transactionState, request);
         // Websocket Listeners
-        setWebSocketListener(client,request);
+//        setWebSocketListener(client,request);
         
         // Create a new client with New Relic interceptor added after existing interceptors
         OkHttpClient instrumentedClient = addNewRelicInterceptor(client, transactionState);
