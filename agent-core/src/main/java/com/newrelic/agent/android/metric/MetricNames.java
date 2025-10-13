@@ -112,7 +112,6 @@ public class MetricNames {
     public static final String BACKGROUND_CRASH_COUNT = SUPPORTABILITY_BACKGROUND + "Crash/Count";
 
     public static final String SUPPORTABILITY_DATA_TOKEN = SUPPORTABILITY_AGENT + "DataToken/";
-
     public static final String SUPPORTABILITY_INVALID_DATA_TOKEN = SUPPORTABILITY_DATA_TOKEN + "Invalid";
 
     public static final String SUPPORTABILITY_API = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<frameworkVersion>/API/<name>";
@@ -123,9 +122,6 @@ public class MetricNames {
     public static final String SUPPORTABILITY_DESTINATION_OUTPUT_BYTES = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/" + SUPPORTABILITY_OUTPUT_BYTES;
     public static final String SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/<subdestination>/" + SUPPORTABILITY_OUTPUT_BYTES;
     public static final String SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT = SUPPORTABILITY_MOBILE_ANDROID + "<framework>/<destination>/MaxPayloadSizeLimit/<subdestination>";
-
-    public static final String SUPPORTABILITY_API_EVENT_BUFFER_SIZE = SUPPORTABILITY_MOBILE_ANDROID + "API/setMaxEventBufferTime";
-    public static final String SUPPORTABILITY_API_EVENT_POOL_SIZE = SUPPORTABILITY_MOBILE_ANDROID + "API/setMaxEventPoolSize";
 
     public static final String SUPPORTABILITY_SESSION_START_COUNT_VALUE_OVERFLOW = SUPPORTABILITY_AGENT + "Session/Start/Count/ValueOverflow";
 

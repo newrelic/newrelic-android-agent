@@ -726,16 +726,12 @@ public class NewRelicTest {
     @Test
     public void testSetMaxEventPoolSize() {
         NewRelic.setMaxEventPoolSize(11);
-
-        Assert.assertTrue("Should call StatsEngine with SUPPORTABILITY_API_EVENT_POOL_SIZE", StatsEngine.notice().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_API_EVENT_POOL_SIZE));
         Assert.assertEquals("Should set max buffer time", EventManagerImpl.DEFAULT_MIN_EVENT_BUFFER_SIZE, analyticsController.getMaxEventPoolSize());
     }
 
     @Test
     public void testSetMaxEventBufferTime() {
         NewRelic.setMaxEventBufferTime(13);
-
-        Assert.assertTrue("Should call StatsEngine with SUPPORTABILITY_API_EVENT_BUFFER_SIZE", StatsEngine.notice().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_API_EVENT_BUFFER_SIZE));
         Assert.assertEquals("Should set max buffer time", EventManagerImpl.DEFAULT_MIN_EVENT_BUFFER_TIME, analyticsController.getMaxEventBufferTime());
     }
 
