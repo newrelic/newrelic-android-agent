@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class EventManagerImpl implements EventManager, EventListener {
     private static final AgentLog log = AgentLogManager.getAgentLog();
-    protected static final int DEFAULT_MAX_EVENT_BUFFER_TIME = 600;    // 600 seconds (10 minutes)
+    protected static final int DEFAULT_MAX_EVENT_BUFFER_TIME = 60;    // 60 seconds (1 minutes)
     protected static final int DEFAULT_MAX_EVENT_BUFFER_SIZE = 1000;   // 1000 as the default
 
     public static final int DEFAULT_MIN_EVENT_BUFFER_SIZE = 64;
@@ -44,7 +44,7 @@ public class EventManagerImpl implements EventManager, EventListener {
     private AnalyticsEventStore eventStore;
 
     public EventManagerImpl() {
-        // Currently using 1000 max events, 10 minutes max buffer age
+        // Currently using 1000 max events, 1 minutes max buffer age
         this(DEFAULT_MAX_EVENT_BUFFER_SIZE, DEFAULT_MAX_EVENT_BUFFER_TIME);
     }
 
@@ -67,6 +67,7 @@ public class EventManagerImpl implements EventManager, EventListener {
         if (eventStore != null) {
             storedEvents = eventStore.fetchAll();
         }
+
 
         if (!initialized.compareAndSet(false, true)) {
             eventsRecorded.set(0);
@@ -250,6 +251,9 @@ public class EventManagerImpl implements EventManager, EventListener {
 
     @Override
     public void setMaxEventPoolSize(int maxSize) {
+
+        // Validate if maxSize in within the range of DEFAULT_MIN_EVENT_BUFFER_SIZE and DEFAULT_MAX_EVENT_POOL_SIZE
+
         if (maxSize < DEFAULT_MIN_EVENT_BUFFER_SIZE) {
             log.error("Event queue cannot be smaller than " + DEFAULT_MIN_EVENT_BUFFER_SIZE);
             maxSize = DEFAULT_MIN_EVENT_BUFFER_SIZE;
@@ -259,11 +263,15 @@ public class EventManagerImpl implements EventManager, EventListener {
             log.warn("Event queue should not be larger than " + DEFAULT_MAX_EVENT_BUFFER_SIZE);
         }
 
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_POOL_SIZE);
         this.maxEventPoolSize = maxSize;
     }
 
     @Override
     public void setMaxEventBufferTime(int maxBufferTimeInSec) {
+
+        // Validate if maxSize in within the range of DEFAULT_MAX_EVENT_BUFFER_TIME and DEFAULT_MIN_EVENT_BUFFER_TIME
+
         if (maxBufferTimeInSec < DEFAULT_MIN_EVENT_BUFFER_TIME) {
             log.error("Event buffer time cannot be shorter than " + DEFAULT_MIN_EVENT_BUFFER_TIME + " seconds");
             maxBufferTimeInSec = DEFAULT_MIN_EVENT_BUFFER_TIME;
@@ -274,6 +282,7 @@ public class EventManagerImpl implements EventManager, EventListener {
             maxBufferTimeInSec = DEFAULT_MAX_EVENT_BUFFER_TIME;
         }
 
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_BUFFER_SIZE);
         this.maxBufferTimeInSec = maxBufferTimeInSec;
     }
 
