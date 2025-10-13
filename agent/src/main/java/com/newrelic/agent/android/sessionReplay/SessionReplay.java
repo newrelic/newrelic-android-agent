@@ -163,24 +163,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         return 0;
     }
 
-    /**
-     * Extracts timestamp from different RRWebEvent types
-     */
-    private long getEventTimestamp(RRWebEvent event) {
-        if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent) {
-            return ((com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent) event).timestamp;
-        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent) {
-            return ((com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent) event).timestamp;
-        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebTouch) {
-            return ((com.newrelic.agent.android.sessionReplay.models.RRWebTouch) event).timestamp;
-        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent) {
-            return ((com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent) event).timestamp;
-        }
-        // Default fallback - should not happen if all event types have timestamp
-        return 0;
-    }
-
-
     private static void registerCallbacks() {
         application.registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
     }
