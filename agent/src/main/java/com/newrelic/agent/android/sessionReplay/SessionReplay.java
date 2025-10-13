@@ -44,6 +44,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private final ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
     private final List<RRWebEvent> rrWebEvents = new ArrayList<>();
     private static boolean isFirstChunk = true;
+    private static boolean takeFullSnapshot = true;
 
     /**
      * Initializes the SessionReplay system.
@@ -131,7 +132,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         String json = new Gson().toJson(rrWebEvents);
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(FIRST_TIMESTAMP, rawFrames.get(0).timestamp);
-        attributes.put(LAST_TIMESTAMP, rawFrames.get(rawFrames.size() - 1).timestamp);
+        // Use current time as last timestamp instead of last frame time to match with Mobile Session Event
+        attributes.put(LAST_TIMESTAMP, System.currentTimeMillis());
         attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
         SessionReplayReporter.reportSessionReplayData(json.getBytes(), attributes);
 
@@ -140,6 +142,25 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         touchTrackers.clear();
         fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
+        takeFullSnapshot = true;
+    }
+
+
+    /**
+     * Extracts timestamp from different RRWebEvent types
+     */
+    private long getEventTimestamp(RRWebEvent event) {
+        if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent) {
+            return ((com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent) event).timestamp;
+        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent) {
+            return ((com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent) event).timestamp;
+        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebTouch) {
+            return ((com.newrelic.agent.android.sessionReplay.models.RRWebTouch) event).timestamp;
+        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent) {
+            return ((com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent) event).timestamp;
+        }
+        // Default fallback - should not happen if all event types have timestamp
+        return 0;
     }
 
     /**
@@ -170,6 +191,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     public static void startRecording() {
         Harvest.addHarvestListener(instance);
+        takeFullSnapshot = true; // Force full snapshot when starting recording
         uiThreadHandler.post(() -> {
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
             viewDrawInterceptor.Intercept(decorViews);
@@ -193,11 +215,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         rawFrames.add(newFrame);
-        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)));
+        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)),takeFullSnapshot);
         rrWebEvents.addAll(events);
         if (fileManager != null) {
             fileManager.addFrameToFile(events);
         }
+        takeFullSnapshot = false;
     }
 
     @Override

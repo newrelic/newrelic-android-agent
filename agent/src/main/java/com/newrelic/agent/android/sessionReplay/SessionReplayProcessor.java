@@ -24,24 +24,20 @@ public class SessionReplayProcessor {
 
     private SessionReplayFrame lastFrame;
 
-    public List<RRWebEvent> processFrames(List<SessionReplayFrame> rawFrames) {
+    public List<RRWebEvent> processFrames(List<SessionReplayFrame> rawFrames,boolean takeFullSnapshot) {
         ArrayList<RRWebEvent> snapshot = new ArrayList<>();
 
-        for(SessionReplayFrame rawFrame : rawFrames) {
+        for (SessionReplayFrame rawFrame : rawFrames) {
             // We need to come up with a way to tell if the activity or fragment is different.
-            if(lastFrame == null)  {
-                RRWebMetaEvent metaEvent = createMetaEvent(rawFrame);
-                snapshot.add(metaEvent);
-                snapshot.add(processFullFrame(rawFrame));
+            if (lastFrame == null || takeFullSnapshot) {
+                addFullFrameSnapshot(snapshot, rawFrame);
             } else {
-                if(rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
+                if (rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
                     snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
                 } else if (rawFrame.width != lastFrame.width || rawFrame.height != lastFrame.height) {
-                    RRWebMetaEvent metaEvent = createMetaEvent(rawFrame);
-                    snapshot.add(metaEvent);
-                    snapshot.add(processFullFrame(rawFrame));
+                    addFullFrameSnapshot(snapshot, rawFrame);
                 } else {
-                    snapshot.add(processFullFrame(rawFrame));
+                    addFullFrameSnapshot(snapshot, rawFrame);
                 }
             }
             lastFrame = rawFrame;
@@ -129,10 +125,10 @@ public class SessionReplayProcessor {
                     );
 
                     for (MutationRecord record : records) {
-                        if(record instanceof RRWebMutationData.TextRecord) {
+                        if (record instanceof RRWebMutationData.TextRecord) {
                             RRWebMutationData.TextRecord textRecord = (RRWebMutationData.TextRecord) record;
                             texts.add(textRecord);
-                        } else if(record instanceof RRWebMutationData.AttributeRecord) {
+                        } else if (record instanceof RRWebMutationData.AttributeRecord) {
                             RRWebMutationData.AttributeRecord attributeRecord = (RRWebMutationData.AttributeRecord) record;
                             attributes.add(attributeRecord);
                         } else {
@@ -172,7 +168,7 @@ public class SessionReplayProcessor {
         return thingies;
     }
 
-     RRWebMetaEvent createMetaEvent(SessionReplayFrame frame) {
+    RRWebMetaEvent createMetaEvent(SessionReplayFrame frame) {
         return new RRWebMetaEvent(
                 new RRWebMetaEvent.RRWebMetaEventData(
                         "https://newrelic.com",
@@ -186,5 +182,11 @@ public class SessionReplayProcessor {
     public void onNewScreen() {
         // Reset the last frame when a new screen is detected
         lastFrame = null;
+    }
+
+    private void addFullFrameSnapshot(ArrayList<RRWebEvent> snapshot, SessionReplayFrame rawFrame) {
+        RRWebMetaEvent metaEvent = createMetaEvent(rawFrame);
+        snapshot.add(metaEvent);
+        snapshot.add(processFullFrame(rawFrame));
     }
 }

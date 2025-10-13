@@ -189,13 +189,8 @@ def toFatJarTask(def variant) {
         exclude 'kotlin/**'
         exclude 'org/**'
         exclude 'android/**'
-        exclude 'kotlinx/**'
-        exclude '_COROUTINE/**'
-        exclude 'android/**'
-        exclude 'androidx/**'
-        exclude 'jni/**'
-        exclude 'okio/**'
-        exclude 'DebugProbesKt.bin'
+        exclude 'proguard.txt'
+        exclude 'R.txt'
         duplicatesStrategy = DuplicatesStrategy.INHERIT
         from unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
         from shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }

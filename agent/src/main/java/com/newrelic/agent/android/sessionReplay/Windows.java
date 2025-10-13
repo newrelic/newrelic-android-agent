@@ -7,7 +7,6 @@ import android.view.WindowManager;
 
 import curtains.internal.WindowSpy;
 
-
 public class Windows {
 
     enum WindowType {

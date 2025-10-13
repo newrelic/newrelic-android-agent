@@ -163,7 +163,7 @@ public class InvocationDispatcher {
                     cv = new TraceAnnotationClassVisitor(cv, instrumentationContext, log);
                     cv = new AgentMethodDelegateClassVisitor(cv, instrumentationContext, log);
 
-                    cv = new WebViewMethodClassVisitor(cv, instrumentationContext, log);
+//                    cv = new WebViewMethodClassVisitor(cv, instrumentationContext, log);
 
                 }
                 cv = new ContextInitializationClassVisitor(cv, instrumentationContext);
