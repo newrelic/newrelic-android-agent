@@ -5,8 +5,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.getOrNull
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutInput
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -42,7 +40,6 @@ open class ComposeTextViewThingy(
     private val fontFamily: String
     private val textColor: String
     private val textAlign: String
-    protected val sessionReplayLocalConfiguration: SessionReplayLocalConfiguration = agentConfiguration.sessionReplayLocalConfiguration
     protected val sessionReplayConfiguration: SessionReplayConfiguration = agentConfiguration.sessionReplayConfiguration
 
     init {
@@ -68,7 +65,7 @@ open class ComposeTextViewThingy(
     }
 
     private fun extractTextFromSemantics(layoutInput: TextLayoutInput?): String {
-        return layoutInput?.text.toString();
+        return layoutInput?.text.toString()
     }
 
     private fun shouldMaskComposeText(node: SemanticsNode): Boolean {
@@ -83,16 +80,16 @@ open class ComposeTextViewThingy(
 
 
     private fun extractTextStyling(textStyle: TextStyle?): Tuple5<Float, String, String, String, String> {
-        var fontSize = 14.0f
-        val fontName = "default"
-        var fontFamily = "font-family: sans-serif; font-weight: normal; font-style: normal;"
+        var fontSize = ComposeSessionReplayConstants.Defaults.DEFAULT_FONT_SIZE
+        val fontName = ComposeSessionReplayConstants.Defaults.DEFAULT_FONT_NAME
+        var fontFamily = ComposeSessionReplayConstants.CSS.FONT_FAMILY_DEFAULT
         val textAlign = extractTextAlignment(textStyle)
-        var textColor = "000000"
+        var textColor = ComposeSessionReplayConstants.Defaults.DEFAULT_TEXT_COLOR
 
         textStyle?.fontSize?.let { fontSizeUnit ->
             fontSize = when (fontSizeUnit.type) {
                 TextUnitType.Companion.Sp -> fontSizeUnit.value
-                TextUnitType.Companion.Em -> fontSizeUnit.value * 16.0f
+                TextUnitType.Companion.Em -> fontSizeUnit.value * ComposeSessionReplayConstants.Defaults.EM_TO_PX_MULTIPLIER
                 else -> fontSize
             }
         }
@@ -110,7 +107,7 @@ open class ComposeTextViewThingy(
         }
 
         textStyle?.color?.let { color ->
-            val colorString = Integer.toHexString(Color(color.value).toArgb());
+            val colorString = Integer.toHexString(Color(color.value).toArgb())
             if(colorString.length > 2 ){
                 textColor = colorString.substring(2)
             }
@@ -307,13 +304,14 @@ open class ComposeTextViewThingy(
     protected fun getMaskedTextIfNeeded(node: SemanticsNode, text: String, shouldMask: Boolean): String {
         if (text.isEmpty()) return text
 
-        val viewTag = node.config.getOrNull(NewRelicPrivacyKey) ?: ""
-        val isCustomMode = sessionReplayConfiguration.getMode() == "custom"
-        val hasUnmaskTag = isCustomMode && viewTag == "nr-unmask"
-        val hasMaskTag = viewTag == "nr-mask"
+        // Check current node and all parent nodes for privacy tags
+        val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(node)
+        val isCustomMode = sessionReplayConfiguration.getMode() == ComposeSessionReplayConstants.Modes.CUSTOM
+        val hasUnmaskTag = isCustomMode && privacyTag == ComposeSessionReplayConstants.PrivacyTags.UNMASK
+        val hasMaskTag = privacyTag == ComposeSessionReplayConstants.PrivacyTags.MASK
 
         return if ((shouldMask && !hasUnmaskTag) || (!shouldMask && hasMaskTag)) {
-            "*".repeat(text.length)
+            ComposeSessionReplayConstants.Masking.MASK_CHARACTER.repeat(text.length)
         } else {
             text
         }

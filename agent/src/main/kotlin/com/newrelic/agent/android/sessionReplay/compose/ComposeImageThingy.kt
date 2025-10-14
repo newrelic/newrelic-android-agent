@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.PorterDuff
-import android.os.Build
 import android.util.Log
 import android.util.LruCache
 import androidx.compose.ui.geometry.isUnspecified
@@ -13,7 +12,6 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.VectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.SemanticsNode
-import androidx.compose.ui.semantics.getOrNull
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
@@ -32,7 +30,7 @@ open class ComposeImageThingy(
 ) : SessionReplayViewThingyInterface {
 
     companion object {
-        private const val LOG_TAG = "ComposeImageThingy"
+        private const val LOG_TAG = ComposeSessionReplayConstants.LogTags.COMPOSE_IMAGE
 
         // Static cache shared across all instances
         private val imageCache = LruCache<String, String>(1024)
@@ -351,12 +349,12 @@ open class ComposeImageThingy(
     fun getImageData(): String? = imageData
 
     private fun shouldUnMaskImage(node: SemanticsNode): Boolean {
-        // For now, always allow images - this can be enhanced with privacy settings later
-        val viewTag = node.config.getOrNull(NewRelicPrivacyKey) ?: ""
-        val isCustomMode = sessionReplayConfiguration.mode == "custom"
+        // Check current node and all parent nodes for privacy tags
+        val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(node)
+        val isCustomMode = sessionReplayConfiguration.mode == ComposeSessionReplayConstants.Modes.CUSTOM
         if(isCustomMode) {
-            val hasmaskTag = isCustomMode && viewTag == "nr-mask"
-            return !hasmaskTag
+            val hasMaskTag = privacyTag == ComposeSessionReplayConstants.PrivacyTags.MASK
+            return !hasMaskTag
         } else {
             return true
         }

@@ -6,7 +6,7 @@ import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 /**
  * NewRelic privacy semantics property key for controlling session replay masking behavior
  */
-val NewRelicPrivacyKey = SemanticsPropertyKey<String>("NewRelicPrivacy")
+val NewRelicPrivacyKey = SemanticsPropertyKey<String>(ComposeSessionReplayConstants.SemanticsKeys.NEW_RELIC_PRIVACY)
 
 /**
  * Sets the NewRelic privacy behavior for session replay
