@@ -6,11 +6,12 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.Window;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.compose.ui.platform.AndroidComposeView;
 import androidx.compose.ui.platform.ComposeView;
 import androidx.compose.ui.semantics.SemanticsNode;
 
@@ -22,9 +23,6 @@ import curtains.DispatchState;
 import curtains.OnTouchEventListener;
 import curtains.internal.WindowCallbackWrapper;
 import kotlin.jvm.functions.Function1;
-
-import com.newrelic.agent.android.sessionReplay.ViewTouchHandler;
-import com.newrelic.agent.android.sessionReplay.SemanticsNodeTouchHandler;
 import com.newrelic.agent.android.util.ComposeChecker;
 
 public class SessionReplayActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
@@ -43,7 +41,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
         sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
         density = application.getApplicationContext().getResources().getDisplayMetrics().density;
         this.viewTouchHandler = new ViewTouchHandler(sessionReplayConfiguration);
-        this.semanticsNodeTouchHandler = new SemanticsNodeTouchHandler();
+        this.semanticsNodeTouchHandler = new SemanticsNodeTouchHandler(sessionReplayConfiguration);
     }
 
 
@@ -105,8 +103,11 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
                 if(containingView instanceof View){
                     View foundView = (View) containingView;
+                    ViewParent parent = foundView.getParent();
+
                     // Check if this is a Compose view that needs SemanticsNode handling
-                    if( ComposeChecker.isComposeUsed(foundView.getContext()) && foundView.getParent() instanceof ComposeView) {
+                    if(parent != null && ComposeChecker.isComposeUsed(foundView.getContext()) &&
+                       (parent instanceof AndroidComposeView || parent instanceof ComposeView)) {
                         Object semanticsNode = semanticsNodeTouchHandler.getComposeSemanticsNode(foundView, (int)pointerCoords.x, (int)pointerCoords.y);
                         if (semanticsNode instanceof SemanticsNode) {
                             containingTouchViewId = semanticsNodeTouchHandler.getSemanticsNodeStableId((SemanticsNode) semanticsNode);
