@@ -39,14 +39,7 @@ public class DataStoreHelper {
     private final CoroutineScope serviceScope; // Managed by this singleton
 
     public DataStoreHelper(Context context, String storeFilename) {
-        DataStoreSingleton dataStoreSingleton = DataStoreSingleton.getInstance();
-        if (dataStoreSingleton.getDataStore() == null) {
-            dataStore = DataStorePreference.getNamedDataStorePreference(context, storeFilename);
-            dataStoreSingleton.setDataStore(dataStore);
-        } else {
-            dataStore = dataStoreSingleton.getDataStore();
-        }
-
+        dataStore = DataStorePreference.getNamedDataStorePreference(context, storeFilename);
         this.storeFilename = storeFilename;
 
         // Create a long-lived scope for this service.

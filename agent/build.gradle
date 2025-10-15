@@ -24,6 +24,12 @@ tasks.withType(JavaExec).configureEach {
     }
 }
 
+sourceSets {
+    main.java.srcDirs += 'src/main/kotlin'
+    main.resources.srcDirs += 'src/main/kotlin'
+
+}
+
 android {
     namespace "com.newrelic.agent.android"
     compileSdkVersion project.versions.agp.compileSdk
@@ -138,9 +144,16 @@ def toFatJarTask(def variant) {
     def unshadedJarProvider = project.tasks.register("unshadedJar${variant.name.capitalize()}", Jar) {
         dependsOn variant.runtimeConfiguration
         dependsOn variant.getJavaCompileProvider()
+        if (project.hasProperty('kotlin')) {
+            dependsOn "compile${variant.name.capitalize()}Kotlin"
+        }
         archiveClassifier = "u"
         include("**/GsonInstrumentation*")
         from variant.getJavaCompileProvider().get().destinationDir
+        // Include Kotlin compiled classes
+        if (project.hasProperty('kotlin')) {
+            from "$buildDir/tmp/kotlin-classes/${variant.name}"
+        }
         from {
             variant.runtimeConfiguration.collect { it.isDirectory() ? it : zipTree(it) }
         }
@@ -149,8 +162,16 @@ def toFatJarTask(def variant) {
     def shadedJarProvider = project.tasks.register("shadedJar${variant.name.capitalize()}", ShadowJar) {
         dependsOn variant.runtimeConfiguration
         dependsOn variant.getJavaCompileProvider()
+        // Add dependency on Kotlin compilation if available
+        if (project.hasProperty('kotlin')) {
+            dependsOn "compile${variant.name.capitalize()}Kotlin"
+        }
         archiveClassifier = "s"
         from variant.getJavaCompileProvider().get().destinationDir
+        // Include Kotlin compiled classes
+        if (project.hasProperty('kotlin')) {
+            from "$buildDir/tmp/kotlin-classes/${variant.name}"
+        }
         from {
             variant.runtimeConfiguration.collect { it.isDirectory() ? it : zipTree(it) }
         }
@@ -189,6 +210,16 @@ def toFatJarTask(def variant) {
         exclude 'kotlin/**'
         exclude 'org/**'
         exclude 'android/**'
+        exclude 'AndroidManifest.xml'
+        exclude 'kotlinx/**'
+        exclude 'org/**'
+        exclude '_COROUTINE/**'
+        exclude 'android/**'
+        exclude 'androidx/**'
+        exclude 'jni/**'
+        exclude 'okio/**'
+        exclude 'DebugProbesKt.bin'
+        exclude 'public.txt'
         exclude 'proguard.txt'
         exclude 'R.txt'
         duplicatesStrategy = DuplicatesStrategy.INHERIT
