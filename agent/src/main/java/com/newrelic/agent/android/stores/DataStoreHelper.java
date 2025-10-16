@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import kotlinx.coroutines.CompletableJob;
 import kotlinx.coroutines.CoroutineScope;
@@ -54,6 +55,10 @@ public class DataStoreHelper {
 
     public void shutdown() {
         CoroutineScopeKt.cancel(serviceScope, "DataStoreHelper is shutting down.", null);
+    }
+
+    public CompletableFuture<Boolean> putStringValueAsync(String uuid, String bytes) {
+        return putStringValue(uuid, bytes);
     }
 
     public CompletableFuture<Boolean> putStringValue(String key, String value) {
@@ -90,7 +95,8 @@ public class DataStoreHelper {
 
     public boolean store(String uuid, byte[] bytes) {
         try {
-            boolean result = putStringValue(uuid, decodeBytesToString(bytes)).get();
+            boolean result = putStringValueAsync(uuid, decodeBytesToString(bytes)).get(5, TimeUnit.SECONDS);
+
             return result;
         } catch (Exception e) {
             log.error("DataStoreHelper.store(String, byte[]): ", e);
@@ -125,10 +131,8 @@ public class DataStoreHelper {
         final ArrayList<Object> objectList = new ArrayList<Object>();
 
         try {
-            synchronized (this) {
-                Map<Preferences.Key<?>, Object> objectStrings = dataStoreBridge.getAllPreferences().get();
-                objectList.addAll(objectStrings.values());
-            }
+            Map<Preferences.Key<?>, Object> objectStrings = dataStoreBridge.getAllPreferences().get();
+            objectList.addAll(objectStrings.values());
         } catch (Exception e) {
             log.error("DataStoreHelper.fetchAll(): ", e);
         }
@@ -138,9 +142,7 @@ public class DataStoreHelper {
 
     public int count() {
         try {
-            synchronized (dataStore) {
-                return dataStoreBridge.countPreferences().get();
-            }
+            return dataStoreBridge.countPreferences().get();
         } catch (Exception e) {
             log.error("DataStoreHelper.count(): ", e);
 

@@ -8,14 +8,16 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.newrelic.agent.android.logging.AgentLog
+import com.newrelic.agent.android.logging.AgentLogManager
 import com.newrelic.agent.android.stores.DataStoreKeys.defineKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.future.future
-import kotlinx.coroutines.flow.firstOrNull
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
 
@@ -26,25 +28,30 @@ import java.util.concurrent.CompletableFuture
 class DataStoreBridge(
     context: Context,
     private val externalScope: CoroutineScope, // Scope provided by Java
-    dataStore : DataStore<Preferences>
+    dataStore: DataStore<Preferences>
 ) {
     private val dataStore = dataStore
+    private val log: AgentLog = AgentLogManager.getAgentLog()
 
     // Create keys
     private fun createStringKey(keyName: String?): Preferences.Key<String> {
-        return defineKey(keyName?: "default_string_key", PreferenceType.STRING)
+        require(keyName?.isNotBlank() == true) { "Key name cannot be blank" }
+        return defineKey(keyName ?: "default_string_key", PreferenceType.STRING)
     }
 
     private fun createStringSetKey(keyName: String?): Preferences.Key<Set<String>> {
-        return defineKey(keyName?: "default_string_set_key", PreferenceType.SET)
+        require(keyName?.isNotBlank() == true) { "Key name cannot be blank" }
+        return defineKey(keyName ?: "default_string_set_key", PreferenceType.SET)
     }
 
     private fun createLongKey(keyName: String?): Preferences.Key<Long> {
-        return defineKey(keyName?: "default_long_key", PreferenceType.LONG)
+        require(keyName?.isNotBlank() == true) { "Key name cannot be blank" }
+        return defineKey(keyName ?: "default_long_key", PreferenceType.LONG)
     }
 
     private fun createBooleanKey(keyName: String?): Preferences.Key<Boolean> {
-        return defineKey(keyName?: "default_boolean_key", PreferenceType.BOOLEAN)
+        require(keyName?.isNotBlank() == true) { "Key name cannot be blank" }
+        return defineKey(keyName ?: "default_boolean_key", PreferenceType.BOOLEAN)
     }
 
     inline fun <reified T : Any> createTypedKeyByName(keyName: String): Preferences.Key<T> {
@@ -80,7 +87,8 @@ class DataStoreBridge(
 
     // --- Write Data (CompletableFuture for Java) ---
     fun saveStringValue(key: String?, value: String?): CompletableFuture<Boolean> {
-        val stringKey: Preferences.Key<String> = defineKey(key?: "default_string_key", PreferenceType.STRING);
+        val stringKey: Preferences.Key<String> =
+            defineKey(key ?: "default_string_key", PreferenceType.STRING);
 
         return externalScope.future(Dispatchers.IO) {
             try {
@@ -92,14 +100,16 @@ class DataStoreBridge(
                     }
                 }
                 true
-            }catch(e : Exception){
+            } catch (e: Exception) {
+                log.error("DataStoreBridge: Error saving string value", e)
                 false
             }
         }
     }
 
     fun saveStringSetValue(key: String?, value: Set<String>?): CompletableFuture<Boolean> {
-        val stringSetKey: Preferences.Key<Set<String>> = defineKey(key?: "default_string_set_key", PreferenceType.SET);
+        val stringSetKey: Preferences.Key<Set<String>> =
+            defineKey(key ?: "default_string_set_key", PreferenceType.SET);
 
         return externalScope.future(Dispatchers.IO) {
             try {
@@ -111,14 +121,16 @@ class DataStoreBridge(
                     }
                 }
                 true
-            }catch (e :Exception){
+            } catch (e: Exception) {
+                log.error("DataStoreBridge: Error saving stringset value", e)
                 false
             }
         }
     }
 
     fun saveLongValue(key: String?, value: Long?): CompletableFuture<Boolean> {
-        val longKey: Preferences.Key<Long> = defineKey(key?: "default_long_key", PreferenceType.LONG)
+        val longKey: Preferences.Key<Long> =
+            defineKey(key ?: "default_long_key", PreferenceType.LONG)
 
         return externalScope.future(Dispatchers.IO) {
             try {
@@ -130,14 +142,16 @@ class DataStoreBridge(
                     }
                 }
                 true
-            }catch(e:Exception){
+            } catch (e: Exception) {
+                log.error("DataStoreBridge: Error saving long value", e)
                 false
             }
         }
     }
 
     fun saveBooleanValue(key: String?, value: Boolean?): CompletableFuture<Boolean> {
-        val booleanKey: Preferences.Key<Boolean> = defineKey(key?: "default_boolean_key", PreferenceType.BOOLEAN)
+        val booleanKey: Preferences.Key<Boolean> =
+            defineKey(key ?: "default_boolean_key", PreferenceType.BOOLEAN)
 
         return externalScope.future(Dispatchers.IO) {
             try {
@@ -149,7 +163,8 @@ class DataStoreBridge(
                     }
                 }
                 true
-            }catch(e:Exception){
+            } catch (e: Exception) {
+                log.error("DataStoreBridge: Error saving boolean value", e)
                 false
             }
         }
@@ -163,7 +178,8 @@ class DataStoreBridge(
                     settings.remove(stringKey)
                 }
                 true
-            }catch(e:Exception){
+            } catch (e: Exception) {
+                log.error("DataStoreBridge: Error deleting string value", e)
                 false
             }
         }
@@ -177,7 +193,8 @@ class DataStoreBridge(
                     settings.remove(longKey)
                 }
                 true
-            }catch(e:Exception){
+            } catch (e: Exception) {
+                log.error("DataStoreBridge: Error deleting long value", e)
                 false
             }
         }
@@ -191,7 +208,8 @@ class DataStoreBridge(
                     settings.remove(booleanKey)
                 }
                 true
-            }catch(e:Exception){
+            } catch (e: Exception) {
+                log.error("DataStoreBridge: Error deleting boolean value", e)
                 false
             }
         }
@@ -202,7 +220,8 @@ class DataStoreBridge(
             try {
                 dataStore.edit { it.clear() }
                 true
-            }catch(e:Exception){
+            } catch (e: Exception) {
+                log.error("DataStoreBridge: Error clearing all preferences values", e)
                 false
             }
         }

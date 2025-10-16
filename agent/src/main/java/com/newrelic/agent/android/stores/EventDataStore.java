@@ -35,19 +35,17 @@ public class EventDataStore extends DataStoreHelper implements AnalyticsEventSto
 
     @Override
     public boolean store(AnalyticsEvent event) {
-        synchronized (this) {
-            try {
-                final JsonObject jsonObj = event.asJsonObject();
-                String eventJson = jsonObj.toString();
+        try {
+            final JsonObject jsonObj = event.asJsonObject();
+            String eventJson = jsonObj.toString();
 
-                // events should be stored synchronously, since the app is terminating
-                putStringValue(event.getEventUUID(), eventJson);
+            // events should be stored synchronously, since the app is terminating
+            putStringValue(event.getEventUUID(), eventJson);
 
-                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED, eventJson.length());
-                return true;
-            } catch (Exception e) {
-                log.error("SharedPrefsStore.store(String, String): ", e);
-            }
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED, eventJson.length());
+            return true;
+        } catch (Exception e) {
+            log.error("EventDataStore.store(String, String): ", e);
         }
         return false;
     }
@@ -79,7 +77,7 @@ public class EventDataStore extends DataStoreHelper implements AnalyticsEventSto
                 super.delete(event.getEventUUID());
             }
         } catch (Exception e) {
-            log.error("SharedPrefsEventStore.delete(): ", e);
+            log.error("EventDataStore.delete(): ", e);
         }
     }
 }

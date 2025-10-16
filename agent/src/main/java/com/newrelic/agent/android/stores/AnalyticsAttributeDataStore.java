@@ -36,19 +36,19 @@ public class AnalyticsAttributeDataStore extends DataStoreHelper implements Anal
             if (attribute.isPersistent()) {
                 switch (attribute.getAttributeDataType()) {
                     case STRING:
-                        log.audit("SharedPrefsAnalyticsAttributeStore.store(" + attribute + ")");
+                        log.audit("AnalyticsAttributeDataStore.store(" + attribute + ")");
                         putStringValue(attribute.getName(), attribute.getStringValue());
                         break;
                     case DOUBLE:
-                        log.audit("SharedPrefsAnalyticsAttributeStore.store(" + attribute + ")");
+                        log.audit("AnalyticsAttributeDataStore.store(" + attribute + ")");
                         putLongValue(attribute.getName(), Double.doubleToLongBits(attribute.getDoubleValue()));
                         break;
                     case BOOLEAN:
-                        log.audit("SharedPrefsAnalyticsAttributeStore.store(" + attribute + ")");
+                        log.audit("AnalyticsAttributeDataStore.store(" + attribute + ")");
                         putBooleanValue(attribute.getName(), attribute.getBooleanValue());
                         break;
                     default:
-                        log.error("SharedPrefsAnalyticsAttributeStore.store - unsupported analytic attribute data type" + attribute.getName());
+                        log.error("AnalyticsAttributeDataStore.store - unsupported analytic attribute data type" + attribute.getName());
                         return false;
                 }
 
@@ -66,7 +66,7 @@ public class AnalyticsAttributeDataStore extends DataStoreHelper implements Anal
             Map<Preferences.Key<?>, Object> storedAttributes = dataStoreBridge.getAllPreferences().get();
 
             for (Map.Entry entry : storedAttributes.entrySet()) {
-                log.audit("SharedPrefsAnalyticsAttributeStore contains attribute [" + entry.getKey() + "=" + entry.getValue() + "]");
+                log.audit("AnalyticsAttributeDataStore contains attribute [" + entry.getKey() + "=" + entry.getValue() + "]");
                 if (entry.getValue() instanceof String) {
                     analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), entry.getValue().toString(), true));
                 } else if (entry.getValue() instanceof Float) { // keep  the float unwrap around to handled deprecated agent storage method
@@ -76,7 +76,7 @@ public class AnalyticsAttributeDataStore extends DataStoreHelper implements Anal
                 } else if (entry.getValue() instanceof Boolean) {
                     analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), Boolean.valueOf(entry.getValue().toString()), true));
                 } else {
-                    log.error("SharedPrefsAnalyticsAttributeStore.fetchAll(): unsupported attribute [" + entry.getKey() + "=" + entry.getValue() + "]");
+                    log.error("AnalyticsAttributeDataStore.fetchAll(): unsupported attribute [" + entry.getKey() + "=" + entry.getValue() + "]");
                 }
             }
         } catch (Exception e) {
@@ -89,7 +89,7 @@ public class AnalyticsAttributeDataStore extends DataStoreHelper implements Anal
     @Override
     public void delete(AnalyticsAttribute attribute) {
         synchronized (this) {
-            log.audit("SharedPrefsAnalyticsAttributeStore.delete(" + attribute.getName() + ")");
+            log.audit("AnalyticsAttributeDataStore.delete(" + attribute.getName() + ")");
             super.delete(attribute.getName());
         }
     }

@@ -2,7 +2,7 @@ package com.newrelic.agent.android.stores
 
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlin.jvm.javaClass
@@ -21,7 +21,7 @@ object DataStoreKeys {
         if (existingKey != null) {
             val canReuse = when (type) {
                 PreferenceType.STRING -> existingKey is Preferences.Key<*> && stringPreferencesKey("dummy").javaClass == existingKey.javaClass
-                PreferenceType.LONG -> existingKey is Preferences.Key<*> && intPreferencesKey("dummy").javaClass == existingKey.javaClass
+                PreferenceType.LONG -> existingKey is Preferences.Key<*> && longPreferencesKey("dummy").javaClass == existingKey.javaClass
                 PreferenceType.BOOLEAN -> existingKey is Preferences.Key<*> && booleanPreferencesKey("dummy").javaClass == existingKey.javaClass
                 PreferenceType.SET -> existingKey is Preferences.Key<*> && stringSetPreferencesKey("dummy").javaClass == existingKey.javaClass
                 // Add other types as needed
@@ -40,7 +40,7 @@ object DataStoreKeys {
 
         val newKey: Preferences.Key<T> = when (type) {
             PreferenceType.STRING -> stringPreferencesKey(name) as Preferences.Key<T>
-            PreferenceType.LONG -> intPreferencesKey(name) as Preferences.Key<T>
+            PreferenceType.LONG -> longPreferencesKey(name) as Preferences.Key<T>
             PreferenceType.BOOLEAN -> booleanPreferencesKey(name) as Preferences.Key<T>
             PreferenceType.SET -> stringSetPreferencesKey(name) as Preferences.Key<T>
             // Add other types as needed

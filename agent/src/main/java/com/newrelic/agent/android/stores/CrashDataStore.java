@@ -30,23 +30,21 @@ public class CrashDataStore extends DataStoreHelper implements CrashStore {
 
     @Override
     public boolean store(Crash crash) {
-        synchronized (this) {
-            try {
-                final JsonObject jsonObj = crash.asJsonObject();
-                jsonObj.add("uploadCount", SafeJsonPrimitive.factory(crash.getUploadCount()));
+        try {
+            final JsonObject jsonObj = crash.asJsonObject();
+            jsonObj.add("uploadCount", SafeJsonPrimitive.factory(crash.getUploadCount()));
 
-                String crashJson = jsonObj.toString();
+            String crashJson = jsonObj.toString();
 
-                // crashes should be stored synchronously, since the app is terminating
-                putStringValue(crash.getUuid().toString(), crashJson);
+            // crashes should be stored synchronously, since the app is terminating
+            putStringValue(crash.getUuid().toString(), crashJson);
 
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_SIZE_UNCOMPRESSED, crashJson.length());
+            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_SIZE_UNCOMPRESSED, crashJson.length());
 
-                return true;
+            return true;
 
-            } catch (Exception e) {
-                log.error("SharedPrefsStore.store(String, String): ", e);
-            }
+        } catch (Exception e) {
+            log.error("CrashDataStore.store(String, String): ", e);
         }
         return false;
     }
@@ -75,7 +73,7 @@ public class CrashDataStore extends DataStoreHelper implements CrashStore {
                 super.delete(crash.getUuid().toString());
             }
         } catch (Exception e) {
-            log.error("SharedPrefsCrashStore.delete(): ", e);
+            log.error("CrashDataStore.delete(): ", e);
         }
     }
 
