@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 // Still good to have an enum or sealed class for known types if possible
 enum class PreferenceType {
-    STRING, BOOLEAN, LONG, SET// Add other types like LONG, FLOAT, STRING_SET as needed
+    STRING, BOOLEAN, LONG, SET
 }
 
 object DataStoreKeys {

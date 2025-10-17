@@ -59,10 +59,17 @@ public class DataStoreHelper {
                 serviceScope.getCoroutineContext(),
                 kotlinx.coroutines.CoroutineStart.DEFAULT,
                 (scope, continuation) -> {
-                    migrateFromSharedPrefs(context, storeFilename);
+                    try {
+                        migrateFromSharedPrefs(context, storeFilename);
+                        log.debug("DataStoreHelper: Background migration completed for " + storeFilename);
+                    } catch (Exception e) {
+                        log.error("DataStoreHelper: Background migration failed for "
+                                + storeFilename, e);
+                    }
                     return kotlin.Unit.INSTANCE;
                 }
         );
+
     }
 
     private void migrateFromSharedPrefs(Context context, String filename) {
@@ -124,10 +131,6 @@ public class DataStoreHelper {
         CoroutineScopeKt.cancel(serviceScope, "DataStoreHelper is shutting down.", null);
     }
 
-    public CompletableFuture<Boolean> putStringValueAsync(String uuid, String bytes) {
-        return putStringValue(uuid, bytes);
-    }
-
     public CompletableFuture<Boolean> putStringValue(String key, String value) {
         return dataStoreBridge.saveStringValue(key, value);
     }
@@ -162,7 +165,7 @@ public class DataStoreHelper {
 
     public boolean store(String uuid, byte[] bytes) {
         try {
-            boolean result = putStringValueAsync(uuid, decodeBytesToString(bytes)).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            boolean result = putStringValue(uuid, decodeBytesToString(bytes)).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
             return result;
         } catch (Exception e) {
