@@ -3,7 +3,7 @@ pluginManagement {
         versions = [
                 agent : "7.+",
                 agp   : "7.4.+",
-                kotlin: "1.7.+"
+                kotlin: "1.9.+"
         ]
     }
 
