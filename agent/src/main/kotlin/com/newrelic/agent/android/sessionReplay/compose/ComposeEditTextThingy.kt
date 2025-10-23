@@ -2,10 +2,10 @@ package com.newrelic.agent.android.sessionReplay.compose
 
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
-import com.newrelic.agent.android.sessionReplay.ViewDetails
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
@@ -41,17 +41,10 @@ class ComposeEditTextThingy(
      * Extracts editable text from SemanticsProperties.EditableText
      */
     private fun extractEditableText(node: SemanticsNode): String {
-        if (node.config.contains(SemanticsProperties.EditableText)) {
-            val editableTextValue = node.config[SemanticsProperties.EditableText]
-            val rawText = when (editableTextValue) {
-                else -> editableTextValue.text
-            }
+        val editableTextValue = node.config.getOrNull(SemanticsProperties.EditableText) ?: return ""
 
-            // Apply masking for user input text
-            val shouldMaskText = sessionReplayConfiguration.isMaskUserInputText
-            return getMaskedTextIfNeeded(node, rawText, shouldMaskText)
-        }
-        return ""
+        val shouldMaskText = sessionReplayConfiguration.isMaskUserInputText
+        return getMaskedTextIfNeeded(node, editableTextValue.text, shouldMaskText)
     }
 
     /**
@@ -78,7 +71,7 @@ class ComposeEditTextThingy(
 
     override fun generateRRWebNode(): RRWebElementNode {
         val displayText = getCurrentDisplayText()
-        val textNode = RRWebTextNode(displayText, false, NewRelicIdGenerator.generateId())
+        val textNode = createTextNode(displayText)
 
         val attributes = Attributes(viewDetails.cssSelector)
 
@@ -88,7 +81,7 @@ class ComposeEditTextThingy(
 
         return RRWebElementNode(
             attributes,
-            RRWebElementNode.TAG_TYPE_DIV, // Use input tag for editable text
+            RRWebElementNode.TAG_TYPE_DIV, // Use div tag (styled as input via type attribute)
             viewDetails.viewId,
             arrayListOf(textNode)
         )
@@ -99,38 +92,43 @@ class ComposeEditTextThingy(
             return null
         }
 
-        val mutations = mutableListOf<MutationRecord>()
-
-        // Get style differences from parent class
-        val parentDifferences = super.generateDifferences(other)
-        parentDifferences?.let { mutations.addAll(it) }
-
-        // Check for editable text content changes
+        // Check if anything actually changed
         val currentDisplayText = getCurrentDisplayText()
         val otherDisplayText = other.getCurrentDisplayText()
-
-        if (currentDisplayText != otherDisplayText) {
-            mutations.add(RRWebMutationData.TextRecord(viewDetails.viewId, otherDisplayText))
-        }
-
-        // Check for editable text vs hint text state changes
         val currentHasEditableText = editableText.isNotEmpty()
         val otherHasEditableText = other.editableText.isNotEmpty()
 
-        if (currentHasEditableText != otherHasEditableText) {
-            // State changed between showing editable content vs hint
+        val parentDifferences = super.generateDifferences(other)
+        val hasTextChange = currentDisplayText != otherDisplayText
+        val hasStateChange = currentHasEditableText != otherHasEditableText
+
+        // Early return if nothing changed
+        if (parentDifferences.isNullOrEmpty() && !hasTextChange && !hasStateChange) {
+            return null
+        }
+
+        // Now build mutations list with known size
+        val mutations = ArrayList<MutationRecord>(
+            (parentDifferences?.size ?: 0) + 2
+        )
+
+        parentDifferences?.let { mutations.addAll(it) }
+
+        if (hasTextChange) {
+            mutations.add(RRWebMutationData.TextRecord(viewDetails.viewId, otherDisplayText))
+        }
+
+        if (hasStateChange) {
             val attributes = Attributes(viewDetails.cssSelector)
             if (otherHasEditableText) {
-                // Changed to showing editable text, remove placeholder
                 attributes.metadata["placeholder"] = ""
             } else {
-                // Changed to showing hint text, add placeholder
                 attributes.metadata["placeholder"] = other.hintText
             }
             mutations.add(RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes))
         }
 
-        return if (mutations.isEmpty()) null else mutations
+        return mutations.ifEmpty { null }
     }
 
     override fun generateAdditionNodes(parentId: Int): List<RRWebMutationData.AddRecord> {
@@ -153,7 +151,7 @@ class ComposeEditTextThingy(
 
         viewNode.attributes.metadata["style"] = generateInlineCss()
 
-        val textNode = RRWebTextNode(displayText, false, NewRelicIdGenerator.generateId())
+        val textNode =  createTextNode(displayText)
 
         val viewAddRecord = RRWebMutationData.AddRecord(parentId, null, viewNode)
         val textAddRecord = RRWebMutationData.AddRecord(viewDetails.viewId, null, textNode)
@@ -162,26 +160,14 @@ class ComposeEditTextThingy(
     }
 
     override fun hasChanged(other: SessionReplayViewThingyInterface?): Boolean {
-        // Quick check: if it's not the same type, it has changed
         if (other == null || other !is ComposeEditTextThingy) {
             return true
         }
-
-        // Compare using hashCode (which should reflect the content)
-        return this.hashCode() != other.hashCode()
+        return !this.equals(other)  // Use proper equals comparison
     }
 
-    /**
-     * Checks if this compose element represents an editable text field
-     */
-    fun hasEditableText(): Boolean {
-        return getSemanticsNode().config.contains(SemanticsProperties.EditableText)
-    }
 
     // Override interface methods for proper implementation
-    override fun getViewDetails(): ViewDetails? = null
-
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ComposeEditTextThingy) return false
@@ -196,5 +182,9 @@ class ComposeEditTextThingy(
         result = 31 * result + editableText.hashCode()
         result = 31 * result + hintText.hashCode()
         return result
+    }
+
+    private fun createTextNode(text: String): RRWebTextNode {
+        return RRWebTextNode(text, false, NewRelicIdGenerator.generateId())
     }
 }

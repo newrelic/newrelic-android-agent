@@ -2,20 +2,12 @@ package com.newrelic.agent.android.sessionReplay.compose;
 
 import android.graphics.Rect;
 
-import androidx.compose.foundation.layout.PaddingKt;
-import androidx.compose.ui.Modifier;
-import androidx.compose.ui.geometry.Offset;
-import androidx.compose.ui.graphics.Color;
-import androidx.compose.ui.layout.LayoutInfo;
 import androidx.compose.ui.layout.Placeable;
 import androidx.compose.ui.node.LayoutNode;
 import androidx.compose.ui.semantics.SemanticsActions;
 import androidx.compose.ui.semantics.SemanticsNode;
 import androidx.compose.ui.semantics.SemanticsProperties;
-import androidx.compose.ui.unit.IntSize;
 
-import com.newrelic.agent.android.R;
-import com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator;
 import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
 
 import java.util.Objects;
@@ -24,7 +16,6 @@ public class ComposeViewDetails {
     public final int viewId;
     public final Rect frame;
     public String backgroundColor;
-    public final float alpha;
     public final boolean isHidden;
     public final int parentId;
     public final String viewName;
@@ -39,13 +30,6 @@ public class ComposeViewDetails {
         return this.viewName + "-" + this.viewId;
     }
 
-    public boolean isVisible() {
-        return !isHidden && alpha > 0 && (frame.width() > 0 || frame.height() > 0);
-    }
-
-    public boolean isClear() {
-        return alpha <= 1.0f;
-    }
 
     public ComposeViewDetails(SemanticsNode semanticsNode, float density) {
         this.semanticsNode = semanticsNode;
@@ -55,7 +39,6 @@ public class ComposeViewDetails {
         LayoutNode layoutNode = ReflectionUtils.getLayoutNode(semanticsNode);
         Placeable placeable = ReflectionUtils.getPlaceable(layoutNode);
         this.backgroundColor = extractBackgroundColor(semanticsNode);
-
         androidx.compose.ui.geometry.Rect boundsInRoot = semanticsNode.getBoundsInRoot();
         semanticsNode.getLayoutInfo().getModifierInfo().forEach(modifierInfo -> {
            if(modifierInfo.getModifier().toString().contains("androidx.compose.foundation.layout.PaddingElement")){
@@ -66,23 +49,22 @@ public class ComposeViewDetails {
                    this.paddingBottom = ReflectionUtils.getPaddingBottom(modifierInfo.getModifier());
                      this.paddingLeft = ReflectionUtils.getPaddingStart(modifierInfo.getModifier());
                         this.paddingRight = ReflectionUtils.getPaddingEnd(modifierInfo.getModifier());
-               } catch (ClassNotFoundException e) {
-                   this.paddingTop = 0;
-                   this.paddingBottom = 0;
-                   this.paddingLeft = 0;
-                    this.paddingRight = 0;
-                   throw new RuntimeException(e);
-               }
+                    } catch (ClassNotFoundException e) {
+                        this.paddingTop = 0;
+                        this.paddingBottom = 0;
+                        this.paddingLeft = 0;
+                        this.paddingRight = 0;
+                    }
 
-           } else if(modifierInfo.getModifier().toString().contains("androidx.compose.foundation.BackgroundElement")) {
-                // This is a background modifier
-                // We might want to extract background color if needed
-                try {
-                    this.backgroundColor = SemanticsNodeUtil.Companion.getBackgroundColor(modifierInfo.getModifier());
-                } catch (ClassNotFoundException e) {
-                     throw new RuntimeException(e);
+                } else if (modifierInfo.getModifier().toString().contains("androidx.compose.foundation.BackgroundElement")) {
+                    // This is a background modifier
+                    // We might want to extract background color if needed
+                    try {
+                        this.backgroundColor = SemanticsNodeUtil.Companion.getBackgroundColor(modifierInfo.getModifier());
+                    } catch (ClassNotFoundException e) {
+
+                    }
                 }
-           }
         });
 
         // Convert Compose coordinates to Android Rect (scaled by density)
@@ -100,13 +82,12 @@ public class ComposeViewDetails {
             }
         }
 
+
         this.frame = new Rect(left, top, right, bottom);
 
         // Extract background color if available
 
         // Extract alpha/transparency
-        this.alpha = extractAlpha(semanticsNode);
-
         // Determine if hidden based on semantics
         this.isHidden = extractVisibility(semanticsNode);
 
@@ -124,17 +105,16 @@ public class ComposeViewDetails {
         return "transparent"; // Default fallback
     }
 
-    private float extractAlpha(SemanticsNode node) {
-        // Extract alpha from layout info if available
-        LayoutInfo layoutInfo = node.getLayoutInfo();
-        // Default to 1.0f if not available
-        return 1.0f;
-    }
-
     private boolean extractVisibility(SemanticsNode node) {
-        // Check if the node is effectively invisible
-        androidx.compose.ui.geometry.Rect bounds = node.getBoundsInRoot();
-        return bounds.getWidth() <= 0 || bounds.getHeight() <= 0;
+        try {
+            // Try touch bounds first (Compose 1.5+)
+            androidx.compose.ui.geometry.Rect bounds = node.getTouchBoundsInRoot();
+            return bounds.getWidth() <= 0 || bounds.getHeight() <= 0;
+        } catch (NoSuchMethodError e) {
+            // Fallback for older Compose versions
+            androidx.compose.ui.geometry.Rect bounds = node.getBoundsInRoot();
+            return bounds.getWidth() <= 0 || bounds.getHeight() <= 0;
+        }
     }
 
     private String extractViewName(SemanticsNode node) {
@@ -160,7 +140,6 @@ public class ComposeViewDetails {
         if (node.getConfig().contains(SemanticsProperties.INSTANCE.getContentDescription())) {
             return "ComposeView";
         }
-
         // Default fallback
         return "ComposeNode";
     }
@@ -191,10 +170,6 @@ public class ComposeViewDetails {
         return backgroundColor;
     }
 
-    public float getAlpha() {
-        return alpha;
-    }
-
     public boolean isHidden() {
         return isHidden;
     }
@@ -223,6 +198,11 @@ public class ComposeViewDetails {
                 .append(generateBackgroundColorCss())
                 .append(" ")
                 .append(generateComposeCss());
+
+        if(isHidden) {
+            cssString.append("visibility: hidden;");
+        }
+
 
         return cssString.toString();
     }
@@ -264,26 +244,12 @@ public class ComposeViewDetails {
 
     private String generateComposeCss() {
         StringBuilder composeStringBuilder = new StringBuilder();
-
-        // Add Compose-specific styling
-        if (semanticsNode != null) {
-            // Add semantic role as a CSS class if available
-            if (semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getRole())) {
-                androidx.compose.ui.semantics.Role role = semanticsNode.getConfig().get(SemanticsProperties.INSTANCE.getRole());
-//                if (role != null) {
-//                    composeStringBuilder.append("/* semantic-role: ")
-//                            .append(role.toString())
-//                            .append(" */");
-//                }
-            }
-
             // Add text styling if this is a text node
             if (semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getText())) {
                 composeStringBuilder.append("display: flex;")
                         .append("align-items: center;")
                         .append("justify-content: center;");
             }
-        }
 
         return composeStringBuilder.toString();
     }
@@ -294,7 +260,6 @@ public class ComposeViewDetails {
         if (o == null || getClass() != o.getClass()) return false;
         ComposeViewDetails that = (ComposeViewDetails) o;
         return viewId == that.viewId &&
-                Float.compare(that.alpha, alpha) == 0 &&
                 isHidden == that.isHidden &&
                 Objects.equals(frame, that.frame) &&
                 Objects.equals(backgroundColor, that.backgroundColor) &&
@@ -303,16 +268,13 @@ public class ComposeViewDetails {
 
     @Override
     public int hashCode() {
-        return Objects.hash(viewId, frame, backgroundColor, alpha, isHidden, viewName);
+        return Objects.hash(viewId, frame, backgroundColor, isHidden, viewName);
     }
 
-    public SemanticsNode getSemanticsNode() {
-        return semanticsNode;
-    }
 
     public boolean hasText() {
         return semanticsNode != null &&
-               semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getText());
+                semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getText());
     }
 
     public String getText() {
@@ -320,32 +282,5 @@ public class ComposeViewDetails {
             return semanticsNode.getConfig().get(SemanticsProperties.INSTANCE.getText()).toString();
         }
         return "";
-    }
-
-    public boolean hasContentDescription() {
-        return semanticsNode != null &&
-               semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getContentDescription());
-    }
-
-    public String getContentDescription() {
-        if (hasContentDescription()) {
-            java.util.List<String> descriptions = semanticsNode.getConfig().get(SemanticsProperties.INSTANCE.getContentDescription());
-            if (descriptions != null && !descriptions.isEmpty()) {
-                return String.join(" ", descriptions);
-            }
-        }
-        return "";
-    }
-
-    public boolean isClickable() {
-        return semanticsNode != null &&
-               semanticsNode.getConfig().contains(SemanticsActions.INSTANCE.getOnClick());
-    }
-
-    public androidx.compose.ui.semantics.Role getSemanticRole() {
-        if (semanticsNode != null && semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getRole())) {
-            return semanticsNode.getConfig().get(SemanticsProperties.INSTANCE.getRole());
-        }
-        return null;
     }
 }

@@ -12,48 +12,82 @@ import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
 
 import java.util.ArrayList;
 
+/**
+ * Captures Compose UI tree structure for session replay recording.
+ * Recursively traverses the semantics tree and converts nodes to replay format.
+ */
 public class ComposeTreeCapture {
 
-
-    private float density;
-    private SessionReplayThingyRecorder recorder;
+    private final SessionReplayThingyRecorder recorder;
 
     public ComposeTreeCapture(SessionReplayThingyRecorder recorder) {
         this.recorder = recorder;
     }
+
+    /**
+     * Captures the Compose view hierarchy starting from the root.
+     *
+     * @param view The AndroidComposeView to capture
+     * @return The captured view hierarchy, or null if capture fails
+     */
     public SessionReplayViewThingyInterface captureComposeView(AndroidComposeView view) {
 
-        this.density = view.getResources().getDisplayMetrics().density;
-
-        SemanticsOwner semanticsOwner = (SemanticsOwner) view.getSemanticsOwner();
-        SemanticsNode semanticsNode = semanticsOwner.getUnmergedRootSemanticsNode();
-
-        SessionReplayViewThingyInterface replayView = captureChildren(semanticsNode);
-
-        return replayView;
-    }
-
-    private SessionReplayViewThingyInterface captureChildren(SemanticsNode node) {
-
-        ArrayList<SessionReplayViewThingyInterface> childThingies = new ArrayList<>();
-
-
-
-        for (SemanticsNode child : node.getChildren()) {
-            childThingies.add(captureChildren(child));
+        if (view == null) {
+            return null;
         }
 
+        float density = view.getResources().getDisplayMetrics().density;
 
+        SemanticsOwner semanticsOwner = view.getSemanticsOwner();
+        if (semanticsOwner == null) {
+            return null;
+        }
 
+        SemanticsNode rootNode = semanticsOwner.getUnmergedRootSemanticsNode();
+        if (rootNode == null) {
+            return null;
+        }
+
+        return captureChildren(rootNode, density);
+    }
+
+    /**
+     * Recursively captures child nodes.
+     *
+     * @param node Current node to capture
+     * @param density Display density for coordinate conversion
+     * @return Captured node with children, or null if node should be skipped
+     */
+
+    private SessionReplayViewThingyInterface captureChildren(SemanticsNode node, float density) {
+
+        ArrayList<SessionReplayViewThingyInterface> childThingies = new ArrayList<>();
+        for (SemanticsNode child : node.getChildren()) {
+            childThingies.add(captureChildren(child,density));
+        }
         SessionReplayViewThingyInterface replayView = recorder.recordView(node, density);
         replayView.setSubviews(childThingies);
-
         return replayView;
     }
 
+    /**
+     * Determines if a node should be recorded in the session replay.
+     * Only placed nodes (visible in the layout) are recorded.
+     *
+     * @param node The node to check
+     * @return true if the node should be recorded, false otherwise
+     */
     private boolean shouldRecordView(SemanticsNode node) {
-        // Note: The original code appears incomplete here
-        LayoutNode layoutNode = ReflectionUtils.getLayoutNode(node);
-        return layoutNode.isPlaced();
+        if (node == null) {
+            return false;
+        }
+
+        try {
+            LayoutNode layoutNode = ReflectionUtils.getLayoutNode(node);
+            return layoutNode != null && layoutNode.isPlaced();
+        } catch (Exception e) {
+            // Log error and skip node if reflection fails
+            return false;
+        }
     }
 }

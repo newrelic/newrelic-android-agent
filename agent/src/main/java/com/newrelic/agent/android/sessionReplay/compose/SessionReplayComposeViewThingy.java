@@ -15,14 +15,12 @@ import java.util.List;
 
 public class SessionReplayComposeViewThingy implements SessionReplayViewThingyInterface {
     ComposeViewDetails viewDetails;
-    private final SemanticsNode semanticsNode;
     private final AgentConfiguration agentConfiguration;
 
     private List<? extends SessionReplayViewThingyInterface> subviews = new ArrayList<>();
 
     public SessionReplayComposeViewThingy(ComposeViewDetails viewDetails, SemanticsNode semanticsNode, AgentConfiguration agentConfiguration) {
         this.viewDetails = viewDetails;
-        this.semanticsNode = semanticsNode;
         this.agentConfiguration = agentConfiguration;
     }
 
@@ -58,29 +56,13 @@ public class SessionReplayComposeViewThingy implements SessionReplayViewThingyIn
 
     @Override
     public String generateInlineCss() {
-        StringBuilder css = new StringBuilder();
-        css.append(viewDetails.generateInlineCSS());
-        
-        // Add Compose-specific styling if needed
-        if (semanticsNode != null) {
-            // Add any Compose-specific CSS properties here
-        }
-        
-        return css.toString();
+        return viewDetails.generateInlineCSS();
     }
 
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
-        
-        // Add Compose-specific attributes
-        if (semanticsNode != null) {
-            // You can add semantic information as data attributes
-
-        }
-        
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId,new ArrayList<RRWebNode>()  );
-//                new ArrayList<RRWebNode>());
     }
 
     @Override
@@ -91,35 +73,48 @@ public class SessionReplayComposeViewThingy implements SessionReplayViewThingyIn
         }
 
         SessionReplayComposeViewThingy otherCompose = (SessionReplayComposeViewThingy) other;
+        ComposeViewDetails otherDetails = otherCompose.viewDetails;
 
-        // Create a map to store style differences
-        java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
+        // Early return if no changes
+        if (viewDetails.equals(otherDetails)) {
+            return new ArrayList<>(); // or Collections.emptyList()
+        }
 
-        ComposeViewDetails otherComposeDetails = (ComposeViewDetails) other.getViewDetails();
+        // Use LinkedHashMap for predictable iteration order
+        java.util.Map<String, String> styleDifferences = new java.util.LinkedHashMap<>(8); // Size hint
+
         // Compare frames
-        if (!viewDetails.frame.equals(otherComposeDetails.frame)) {
-            styleDifferences.put("left", otherComposeDetails.frame.left + "px");
-            styleDifferences.put("top", otherComposeDetails.frame.top + "px");
-            styleDifferences.put("width", otherComposeDetails.frame.width() + "px");
-            styleDifferences.put("height", otherComposeDetails.frame.height() + "px");
+        if (!viewDetails.frame.equals(otherDetails.frame)) {
+            styleDifferences.put("left", otherDetails.frame.left + "px");
+            styleDifferences.put("top", otherDetails.frame.top + "px");
+            styleDifferences.put("width", otherDetails.frame.width() + "px");
+            styleDifferences.put("height", otherDetails.frame.height() + "px");
         }
 
-        // Compare background colors if available
-        if (!viewDetails.backgroundColor.equals(otherComposeDetails.backgroundColor)) {
-            styleDifferences.put("background-color", otherComposeDetails.backgroundColor);
+        // Compare background colors (null-safe)
+        if (!java.util.Objects.equals(viewDetails.backgroundColor, otherDetails.backgroundColor)) {
+            if (otherDetails.backgroundColor != null) {
+                styleDifferences.put("background-color", otherDetails.backgroundColor);
+            }
         }
 
-        // Compare Compose-specific properties
-        if (semanticsNode != null && otherCompose.semanticsNode != null) {
-            // Compare semantic properties and add differences if needed
-            // This is where you'd add Compose-specific difference detection
+        // Compare visibility
+        if (viewDetails.isHidden() != otherDetails.isHidden()) {
+            styleDifferences.put("visibility", otherDetails.isHidden() ? "hidden" : "visible");
         }
 
-        // Create and return a MutationRecord with the style differences
+        // Early return if no style differences
+        if (styleDifferences.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Create mutation record
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
         attributes.setMetadata(styleDifferences);
-        List<MutationRecord> mutations = new ArrayList<>();
+
+        List<MutationRecord> mutations = new ArrayList<>(1); // Capacity hint
         mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+
         return mutations;
     }
 
@@ -155,36 +150,13 @@ public class SessionReplayComposeViewThingy implements SessionReplayViewThingyIn
         return agentConfiguration;
     }
 
-    /**
-     * Check if this Compose view has semantic content that should be captured
-     */
-    public boolean hasSemanticContent() {
-        if (semanticsNode == null) {
-            return false;
-        }
-
-        // Check for text content
-        if (semanticsNode.getConfig().contains(androidx.compose.ui.semantics.SemanticsProperties.INSTANCE.getText())) {
-            return true;
-        }
-        
-        // Check for content description
-        if (semanticsNode.getConfig().contains(androidx.compose.ui.semantics.SemanticsProperties.INSTANCE.getContentDescription())) {
-            return true;
-        }
-
-        // Check for other semantic properties that indicate meaningful content
-        return semanticsNode.getConfig().contains(androidx.compose.ui.semantics.SemanticsProperties.INSTANCE.getRole());
-    }
-
     @Override
     public boolean hasChanged(SessionReplayViewThingyInterface other) {
-        // Quick check: if it's not the same type, it has changed
         if (other == null || !(other instanceof SessionReplayComposeViewThingy)) {
             return true;
         }
 
-        // Compare using hashCode (which should reflect the content)
-        return this.hashCode() != other.hashCode();
+        SessionReplayComposeViewThingy otherCompose = (SessionReplayComposeViewThingy) other;
+        return !viewDetails.equals(otherCompose.viewDetails);
     }
 }

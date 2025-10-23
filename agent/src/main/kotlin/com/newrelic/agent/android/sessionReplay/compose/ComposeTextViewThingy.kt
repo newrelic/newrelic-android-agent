@@ -16,9 +16,7 @@ import androidx.compose.ui.unit.TextUnitType
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
-import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
-import com.newrelic.agent.android.sessionReplay.ViewDetails
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
@@ -31,19 +29,20 @@ open class ComposeTextViewThingy(
     agentConfiguration: AgentConfiguration
 ) : SessionReplayViewThingyInterface {
 
-    private var subviews: List<SessionReplayViewThingyInterface> = ArrayList()
+    private var subviews: List<SessionReplayViewThingyInterface> = emptyList()
 
     var shouldRecordSubviews = false
     private val labelText: String
     private val fontSize: Float
-    private val fontName: String
     private val fontFamily: String
     private val textColor: String
     private val textAlign: String
+    private val fontWeight:String
+    private val fontStyle:String
+
     protected val sessionReplayConfiguration: SessionReplayConfiguration = agentConfiguration.sessionReplayConfiguration
 
     init {
-
         val textLayoutResults = mutableListOf<TextLayoutResult>()
         semanticsNode.config[SemanticsActions.GetTextLayoutResult].action?.invoke(textLayoutResults)
 
@@ -55,12 +54,12 @@ open class ComposeTextViewThingy(
         labelText = getMaskedTextIfNeeded(semanticsNode, rawText, shouldMaskText)
 
         val textStyling = extractTextStyling(textStyle)
-        fontSize = textStyling.first
-        fontName = textStyling.second
-        fontFamily = textStyling.third
-        textColor = textStyling.fourth
-        textAlign = textStyling.fifth
-
+        fontSize = textStyling.fontSize
+        fontFamily = textStyling.fontFamily
+        textColor = textStyling.textColor
+        textAlign = textStyling.textAlign
+        fontStyle = textStyling.fontStyle
+        fontWeight = textStyling.fontWeight
 
     }
 
@@ -79,56 +78,47 @@ open class ComposeTextViewThingy(
 
 
 
-    private fun extractTextStyling(textStyle: TextStyle?): Tuple5<Float, String, String, String, String> {
-        var fontSize = ComposeSessionReplayConstants.Defaults.DEFAULT_FONT_SIZE
-        val fontName = ComposeSessionReplayConstants.Defaults.DEFAULT_FONT_NAME
-        var fontFamily = ComposeSessionReplayConstants.CSS.FONT_FAMILY_DEFAULT
-        val textAlign = extractTextAlignment(textStyle)
-        var textColor = ComposeSessionReplayConstants.Defaults.DEFAULT_TEXT_COLOR
-
-        textStyle?.fontSize?.let { fontSizeUnit ->
-            fontSize = when (fontSizeUnit.type) {
+    private fun extractTextStyling(textStyle: TextStyle?): TextStyling {
+        val fontSize = textStyle?.fontSize?.let { fontSizeUnit ->
+            when (fontSizeUnit.type) {
                 TextUnitType.Companion.Sp -> fontSizeUnit.value
                 TextUnitType.Companion.Em -> fontSizeUnit.value * ComposeSessionReplayConstants.Defaults.EM_TO_PX_MULTIPLIER
-                else -> fontSize
+                else -> ComposeSessionReplayConstants.Defaults.DEFAULT_FONT_SIZE
             }
-        }
+        } ?: ComposeSessionReplayConstants.Defaults.DEFAULT_FONT_SIZE
 
-        textStyle?.fontFamily?.let { family ->
-            fontFamily = convertFontFamilyToCss(family)
-        }
+        // Better: Inline in extractTextStyling
+        val textAlign = textStyle?.textAlign?.let { align ->
+            when (align) {
+                TextAlign.Companion.Center -> "center"
+                TextAlign.Companion.End, TextAlign.Companion.Right -> "right"
+                TextAlign.Companion.Start, TextAlign.Companion.Left -> "left"
+                else -> "left"
+            }
+        } ?: "left"
 
-        textStyle?.fontWeight?.let { weight ->
-            fontFamily = updateFontFamilyWithWeight(fontFamily, weight)
-        }
 
-        textStyle?.fontStyle?.let { style ->
-            fontFamily = updateFontFamilyWithStyle(fontFamily, style)
-        }
-
+        var txtColor = ComposeSessionReplayConstants.Defaults.DEFAULT_TEXT_COLOR
         textStyle?.color?.let { color ->
-            val colorString = Integer.toHexString(Color(color.value).toArgb())
-            if(colorString.length > 2 ){
-                textColor = colorString.substring(2)
+            val argb = Color(color.value).toArgb()
+            val colorString = Integer.toHexString(argb)
+            txtColor = if (colorString.length > 2) {
+                colorString.substring(2)
+            } else {
+                ComposeSessionReplayConstants.Defaults.DEFAULT_TEXT_COLOR
             }
         }
 
-        return Tuple5(fontSize, fontName, fontFamily, textColor, textAlign)
-    }
+        // Build CSS directly instead of string manipulation
 
-    private fun convertFontFamilyToCss(fontFamily: FontFamily): String {
-        return when (fontFamily) {
-            FontFamily.Companion.Default -> "font-family: sans-serif; font-weight: normal; font-style: normal;"
-            FontFamily.Companion.SansSerif -> "font-family: sans-serif; font-weight: normal; font-style: normal;"
-            FontFamily.Companion.Serif -> "font-family: serif; font-weight: normal; font-style: normal;"
-            FontFamily.Companion.Monospace -> "font-family: monospace; font-weight: normal; font-style: normal;"
-            FontFamily.Companion.Cursive -> "font-family: cursive; font-weight: normal; font-style: normal;"
-            else -> "font-family: sans-serif; font-weight: normal; font-style: normal;"
+        val family = when (textStyle?.fontFamily) {
+            FontFamily.Companion.Serif -> "serif"
+            FontFamily.Companion.Monospace -> "monospace"
+            FontFamily.Companion.Cursive -> "cursive"
+            else -> "sans-serif"
         }
-    }
 
-    private fun updateFontFamilyWithWeight(currentFontFamily: String, fontWeight: FontWeight): String {
-        val weightValue = when (fontWeight) {
+        val weight = when (textStyle?.fontWeight) {
             FontWeight.Companion.Bold -> "bold"
             FontWeight.Companion.Light -> "300"
             FontWeight.Companion.Medium -> "500"
@@ -138,26 +128,18 @@ open class ComposeTextViewThingy(
             else -> "normal"
         }
 
-        return currentFontFamily.replace("font-weight: normal", "font-weight: $weightValue")
-    }
+        val style = if (textStyle?.fontStyle == FontStyle.Companion.Italic) "italic" else "normal"
 
-    private fun updateFontFamilyWithStyle(currentFontFamily: String, fontStyle: FontStyle): String {
-        val styleValue = if (fontStyle == FontStyle.Companion.Italic) "italic" else "normal"
-        return currentFontFamily.replace("font-style: normal", "font-style: $styleValue")
+        return TextStyling(fontSize, family, txtColor, textAlign,style,weight)
     }
-
-    private fun extractTextAlignment( textStyle: TextStyle?): String {
-        textStyle?.textAlign?.let { textAlign ->
-            return when (textAlign) {
-                TextAlign.Companion.Center -> "center"
-                TextAlign.Companion.End, TextAlign.Companion.Right -> "right"
-                TextAlign.Companion.Start, TextAlign.Companion.Left -> "left"
-                else -> "left"
-            }
-        }
-
-        return "left"
-    }
+    private data class TextStyling(
+        val fontSize: Float,
+        val fontFamily: String,
+        val textColor: String,
+        val textAlign: String,
+        val fontStyle: String = "normal",
+        val fontWeight: String = "normal"
+    )
 
     override fun getSubviews(): List<SessionReplayViewThingyInterface> = subviews
 
@@ -165,7 +147,7 @@ open class ComposeTextViewThingy(
         this.subviews = subviews
     }
 
-    override fun getViewDetails(): ViewDetails? = null
+    override fun getViewDetails(): Any? = this.viewDetails
 
     override fun shouldRecordSubviews(): Boolean = shouldRecordSubviews
 
@@ -173,7 +155,6 @@ open class ComposeTextViewThingy(
 
     override fun generateCssDescription(): String {
         val cssBuilder = StringBuilder(viewDetails.generateCssDescription())
-        cssBuilder.append("")
         generateTextCss(cssBuilder)
         return cssBuilder.toString()
     }
@@ -187,14 +168,11 @@ open class ComposeTextViewThingy(
 
     private fun generateTextCss(cssBuilder: StringBuilder) {
         cssBuilder.append("white-space: pre-wrap;")
-        cssBuilder.append("")
         cssBuilder.append("word-wrap: break-word;")
         cssBuilder.append(" ")
         cssBuilder.append("font-size: ")
-        cssBuilder.append(String.format("%.2f", fontSize))
+        cssBuilder.append(formattedFontSize)
         cssBuilder.append("px; ")
-        cssBuilder.append(fontFamily)
-        cssBuilder.append("; ")
         cssBuilder.append("color: #")
         cssBuilder.append(textColor)
         cssBuilder.append("; ")
@@ -202,6 +180,15 @@ open class ComposeTextViewThingy(
         cssBuilder.append(textAlign)
         cssBuilder.append("; ")
         cssBuilder.append("line-height: normal; ")
+        cssBuilder.append("font-family: ")
+        cssBuilder.append(fontFamily)
+        cssBuilder.append("; ")
+        cssBuilder.append("font-style: ")
+        cssBuilder.append(fontStyle)
+        cssBuilder.append("; ")
+        cssBuilder.append("font-weight: ")
+        cssBuilder.append(fontWeight)
+        cssBuilder.append("; ")
 
     }
 
@@ -221,7 +208,11 @@ open class ComposeTextViewThingy(
             return null
         }
 
-        val styleDifferences = mutableMapOf<String, String>()
+        // Early return if nothing changed
+        if (!hasChanged(other)) {
+            return null
+        }
+        val styleDifferences = HashMap<String, String>(10)
         val otherComposeViewDetails = other.viewDetails
         if (viewDetails.frame != otherComposeViewDetails.frame) {
             styleDifferences["left"] = "${otherComposeViewDetails.frame.left}px"
@@ -231,12 +222,10 @@ open class ComposeTextViewThingy(
             styleDifferences["line-height"] = "${otherComposeViewDetails.frame.height()}px"
         }
 
-        if (viewDetails.backgroundColor != null && otherComposeViewDetails.backgroundColor != null) {
-            if (viewDetails.backgroundColor != otherComposeViewDetails.backgroundColor) {
-                styleDifferences["background-color"] = otherComposeViewDetails.backgroundColor
+        if (viewDetails.backgroundColor != otherComposeViewDetails.backgroundColor) {
+            otherComposeViewDetails.backgroundColor?.let {
+                styleDifferences["background-color"] = it
             }
-        } else if (otherComposeViewDetails.backgroundColor != null) {
-            styleDifferences["background-color"] = otherComposeViewDetails.backgroundColor
         }
 
         if (textColor != other.textColor) {
@@ -247,6 +236,14 @@ open class ComposeTextViewThingy(
             styleDifferences["font-family"] = other.fontFamily
         }
 
+        if(fontStyle != other.fontStyle){
+            styleDifferences["font-style"] = other.fontStyle
+        }
+
+        if (fontWeight != other.fontWeight) {
+            styleDifferences["font-weight"] = other.fontWeight
+        }
+
         if (textAlign != other.textAlign) {
             styleDifferences["text-align"] = other.textAlign
         }
@@ -255,7 +252,14 @@ open class ComposeTextViewThingy(
             styleDifferences["font-size"] = String.format("%.2fpx", other.fontSize)
         }
 
-        val mutations = mutableListOf<MutationRecord>()
+        if (viewDetails.isHidden() != other.viewDetails.isHidden()) {
+            styleDifferences.put(
+                "visibility",
+                if (other.viewDetails.isHidden()) "hidden" else "visible"
+            )
+        }
+
+        val mutations = ArrayList<MutationRecord>(2)
         val attributes = Attributes(viewDetails.cssSelector)
         attributes.metadata = styleDifferences
         mutations.add(RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes))
@@ -264,7 +268,7 @@ open class ComposeTextViewThingy(
             mutations.add(RRWebMutationData.TextRecord(viewDetails.viewId, other.labelText))
         }
 
-        return mutations
+        return mutations.takeIf { styleDifferences.isNotEmpty() || labelText != other.labelText }
     }
 
     override fun generateAdditionNodes(parentId: Int): List<RRWebMutationData.AddRecord> {
@@ -297,8 +301,14 @@ open class ComposeTextViewThingy(
             return true
         }
 
-        // Compare using hashCode (which should reflect the content)
-        return this.hashCode() != other.hashCode()
+        return viewDetails != other.viewDetails ||
+                labelText != other.labelText ||
+                fontSize != other.fontSize ||
+                textColor != other.textColor ||
+                textAlign != other.textAlign ||
+                fontFamily != other.fontFamily ||
+                fontStyle != other.fontStyle ||
+                fontWeight != other.fontWeight
     }
 
     protected fun getMaskedTextIfNeeded(node: SemanticsNode, text: String, shouldMask: Boolean): String {
@@ -317,31 +327,13 @@ open class ComposeTextViewThingy(
         }
     }
 
-    fun getSemanticsNode(): SemanticsNode = semanticsNode
 
     fun isEditableText(): Boolean {
         return semanticsNode.config.contains(SemanticsProperties.EditableText)
     }
 
-    fun isPasswordField(): Boolean {
-        return semanticsNode.config.contains(SemanticsProperties.Password)
-    }
 
-    fun getEditableText(): String {
-        if (isEditableText()) {
-            val editableText = semanticsNode.config[SemanticsProperties.EditableText]
-            return when (editableText) {
-                else -> editableText.text
-            }
-        }
-        return ""
+    private val formattedFontSize: String by lazy {
+        String.format("%.2f", fontSize)
     }
-
-    private data class Tuple5<A, B, C, D, E>(
-        val first: A,
-        val second: B,
-        val third: C,
-        val fourth: D,
-        val fifth: E
-    )
 }
