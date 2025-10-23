@@ -16,7 +16,7 @@ enum class PreferenceType {
 }
 
 object DataStoreKeys {
-    private val registeredKeys = ConcurrentHashMap<String, WeakReference<Preferences.Key<*>>>()
+    internal val registeredKeys = ConcurrentHashMap<String, WeakReference<Preferences.Key<*>>>()
     private val log: AgentLog = AgentLogManager.getAgentLog()
 
     @Suppress("UNCHECKED_CAST")

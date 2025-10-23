@@ -17,6 +17,7 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class AnalyticsAttributeDataStore extends DataStoreHelper implements AnalyticsAttributeStore {
     private static final AgentLog log = AgentLogManager.getAgentLog();
@@ -33,26 +34,30 @@ public class AnalyticsAttributeDataStore extends DataStoreHelper implements Anal
     @Override
     public boolean store(AnalyticsAttribute attribute) {
         synchronized (this) {
-            if (attribute.isPersistent()) {
-                switch (attribute.getAttributeDataType()) {
-                    case STRING:
-                        log.audit("AnalyticsAttributeDataStore.store(" + attribute + ")");
-                        putStringValue(attribute.getName(), attribute.getStringValue());
-                        break;
-                    case DOUBLE:
-                        log.audit("AnalyticsAttributeDataStore.store(" + attribute + ")");
-                        putLongValue(attribute.getName(), Double.doubleToLongBits(attribute.getDoubleValue()));
-                        break;
-                    case BOOLEAN:
-                        log.audit("AnalyticsAttributeDataStore.store(" + attribute + ")");
-                        putBooleanValue(attribute.getName(), attribute.getBooleanValue());
-                        break;
-                    default:
-                        log.error("AnalyticsAttributeDataStore.store - unsupported analytic attribute data type" + attribute.getName());
-                        return false;
-                }
+            try {
+                if (attribute.isPersistent()) {
+                    switch (attribute.getAttributeDataType()) {
+                        case STRING:
+                            log.audit("AnalyticsAttributeDataStore.store(" + attribute + ")");
+                            putStringValue(attribute.getName(), attribute.getStringValue()).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                            break;
+                        case DOUBLE:
+                            log.audit("AnalyticsAttributeDataStore.store(" + attribute + ")");
+                            putLongValue(attribute.getName(), Double.doubleToLongBits(attribute.getDoubleValue())).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                            break;
+                        case BOOLEAN:
+                            log.audit("AnalyticsAttributeDataStore.store(" + attribute + ")");
+                            putBooleanValue(attribute.getName(), attribute.getBooleanValue()).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                            break;
+                        default:
+                            log.error("AnalyticsAttributeDataStore.store - unsupported analytic attribute data type" + attribute.getName());
+                            return false;
+                    }
 
-                return true;
+                    return true;
+                }
+            } catch (Exception ex) {
+                log.error("AnalyticsAttributeDataStore operation failed", ex);
             }
         }
 
@@ -63,9 +68,9 @@ public class AnalyticsAttributeDataStore extends DataStoreHelper implements Anal
     public List<AnalyticsAttribute> fetchAll() {
         ArrayList<AnalyticsAttribute> analyticsAttributeArrayList = new ArrayList<AnalyticsAttribute>();
         try {
-            Map<Preferences.Key<?>, Object> storedAttributes = dataStoreBridge.getAllPreferences().get();
+            Map<Preferences.Key<?>, Object> storedAttributes = dataStoreBridge.getAllPreferences().get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-            for (Map.Entry entry : storedAttributes.entrySet()) {
+            for (Map.Entry<Preferences.Key<?>, Object> entry : storedAttributes.entrySet()) {
                 log.audit("AnalyticsAttributeDataStore contains attribute [" + entry.getKey() + "=" + entry.getValue() + "]");
                 if (entry.getValue() instanceof String) {
                     analyticsAttributeArrayList.add(new AnalyticsAttribute(entry.getKey().toString(), entry.getValue().toString(), true));
@@ -80,7 +85,7 @@ public class AnalyticsAttributeDataStore extends DataStoreHelper implements Anal
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("AnalyticsAttributeDataStore operation failed", e);
         }
 
         return analyticsAttributeArrayList;

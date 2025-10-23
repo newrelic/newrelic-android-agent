@@ -58,15 +58,15 @@ The output is `agent-ndk-<variant>.aar`
 
 Tool dependencies must to be installed and configured for your environment prior to building. The Android agent requires the following tools to build:
 
-| Dependency            | Version        |
-|-----------------------|----------------|
-| Java                  | JDK 11         |
-| Android Gradle Plugin | 7.1            |
-| Gradle                | 7.2            |
-| minSDK                | 24             |
-| compileSDK            | 28             |
-| targetSDK             | 28             |
-| buildtools            | 28.0.2         |
+| Dependency            | Version |
+|-----------------------|---------|
+| Java                  | JDK 11  |
+| Android Gradle Plugin | 7.1     |
+| Gradle                | 7.2     |
+| minSDK                | 24      |
+| compileSDK            | 34      |
+| targetSDK             | 34      |
+| buildtools            | 28.0.2  |
 
 ## Submodules
 |Dependency|        Version         |

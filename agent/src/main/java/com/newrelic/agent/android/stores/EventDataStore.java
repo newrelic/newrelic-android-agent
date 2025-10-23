@@ -20,6 +20,7 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class EventDataStore extends DataStoreHelper implements AnalyticsEventStore {
     private static final AgentLog log = AgentLogManager.getAgentLog();
@@ -40,7 +41,7 @@ public class EventDataStore extends DataStoreHelper implements AnalyticsEventSto
             String eventJson = jsonObj.toString();
 
             // events should be stored synchronously, since the app is terminating
-            putStringValue(event.getEventUUID(), eventJson);
+            putStringValue(event.getEventUUID(), eventJson).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_EVENT_SIZE_UNCOMPRESSED, eventJson.length());
             return true;
@@ -54,7 +55,7 @@ public class EventDataStore extends DataStoreHelper implements AnalyticsEventSto
     public List<AnalyticsEvent> fetchAll() {
         final List<AnalyticsEvent> events = new ArrayList<AnalyticsEvent>();
         try {
-            Map<Preferences.Key<?>, Object> objectStrings = dataStoreBridge.getAllPreferences().get();
+            Map<Preferences.Key<?>, Object> objectStrings = dataStoreBridge.getAllPreferences().get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             for (Map.Entry<Preferences.Key<?>, Object> entry : objectStrings.entrySet()) {
                 if (entry.getValue() instanceof String) {
                     try {
@@ -65,7 +66,7 @@ public class EventDataStore extends DataStoreHelper implements AnalyticsEventSto
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("EventDataStore.fetchAll(): ", e);
         }
         return events;
     }

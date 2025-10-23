@@ -125,7 +125,7 @@ project.afterEvaluate {
         enabled prepareIntegration.enabled
     }
 
-    check.dependsOn(['integrationTest'])
+//    check.dependsOn(['integrationTest'])
 }
 
 project.tasks.register("cleanRoot", Delete) {

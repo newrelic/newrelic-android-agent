@@ -42,7 +42,7 @@ public class DataStoreHelper {
     final DataStoreBridge dataStoreBridge;
     private final CoroutineScope serviceScope; // Managed by this singleton
 
-    private static final int OPERATION_TIMEOUT_SECONDS = 10;
+    public static final int OPERATION_TIMEOUT_SECONDS = 10;
 
     public DataStoreHelper(Context context, String storeFilename) {
         dataStore = DataStorePreference.getNamedDataStorePreference(context, storeFilename);
@@ -72,6 +72,25 @@ public class DataStoreHelper {
 
     }
 
+    /**
+     * Migrates existing SharedPreferences data to DataStore asynchronously.
+     *
+     * <p>This method handles various data types with the following migration strategy:</p>
+     * <ul>
+     *   <li>String values: migrated directly</li>
+     *   <li>Long values: migrated directly</li>
+     *   <li>Integer values: converted to Long for DataStore compatibility</li>
+     *   <li>Boolean values: migrated directly</li>
+     *   <li>SetString values: migrated with type checking</li>
+     *   <li>Float values: skipped with warning (deprecated in agent)</li>
+     * </ul>
+     *
+     * <p>Migration is performed in batches for optimal performance and includes proper error handling.
+     * Original SharedPreferences are preserved for safety and can be cleared manually later.</p>
+     *
+     * @param context Application context for accessing SharedPreferences
+     * @param filename Name of the SharedPreferences file to migrate from
+     */
     private void migrateFromSharedPrefs(Context context, String filename) {
         SharedPreferences oldPrefs = context.getSharedPreferences(filename, Context.MODE_PRIVATE);
         Map<String, ?> allPrefs = oldPrefs.getAll();
@@ -178,7 +197,7 @@ public class DataStoreHelper {
     @WorkerThread
     public boolean store(String uuid, Set<String> stringSet) {
         try {
-            boolean result = putStringSetValue(uuid, stringSet).get();
+            boolean result = putStringSetValue(uuid, stringSet).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             return result;
         } catch (Exception e) {
             log.error("DataStoreHelper.store(String, Set<String>): ", e);
@@ -190,7 +209,7 @@ public class DataStoreHelper {
     @WorkerThread
     public boolean store(String uuid, String string) {
         try {
-            boolean result = putStringValue(uuid, string).get();
+            boolean result = putStringValue(uuid, string).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             return result;
         } catch (Exception e) {
             log.error("DataStoreHelper.store(String, String): ", e);
@@ -204,7 +223,7 @@ public class DataStoreHelper {
         final ArrayList<Object> objectList = new ArrayList<Object>();
 
         try {
-            Map<Preferences.Key<?>, Object> objectStrings = dataStoreBridge.getAllPreferences().get();
+            Map<Preferences.Key<?>, Object> objectStrings = dataStoreBridge.getAllPreferences().get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             objectList.addAll(objectStrings.values());
         } catch (Exception e) {
             log.error("DataStoreHelper.fetchAll(): ", e);
@@ -216,7 +235,7 @@ public class DataStoreHelper {
     @WorkerThread
     public int count() {
         try {
-            return dataStoreBridge.countPreferences().get();
+            return dataStoreBridge.countPreferences().get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("DataStoreHelper.count(): ", e);
 
@@ -229,7 +248,7 @@ public class DataStoreHelper {
     public void clear() {
         try {
             synchronized (this) {
-                dataStoreBridge.clearAllPreferences();
+                dataStoreBridge.clearAllPreferences().get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             }
         } catch (Exception e) {
             log.error("DataStoreHelper.clear(): ", e);
@@ -241,9 +260,9 @@ public class DataStoreHelper {
         try {
             synchronized (this) {
                 //No way to identify the value type, so try all
-                dataStoreBridge.deleteStringValue(uuid).get();
-                dataStoreBridge.deleteBooleanValue(uuid).get();
-                dataStoreBridge.deleteLongValue(uuid).get();
+                dataStoreBridge.deleteStringValue(uuid).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                dataStoreBridge.deleteBooleanValue(uuid).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                dataStoreBridge.deleteLongValue(uuid).get(OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             }
         } catch (Exception e) {
             log.error("DataStoreHelper.delete(): ", e);

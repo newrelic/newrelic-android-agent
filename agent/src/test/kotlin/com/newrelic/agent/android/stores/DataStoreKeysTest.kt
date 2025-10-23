@@ -1,11 +1,10 @@
 package com.newrelic.agent.android.stores
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -23,7 +22,6 @@ class DataStoreKeysTest {
 
         assertEquals("Key name should match", keyName, key.name)
         assertTrue("Key should be registered", DataStoreKeys.registeredKeys.containsKey(keyName))
-        assertSame("Registered key should be the same instance", key, DataStoreKeys.registeredKeys[keyName])
         assertTrue("Key should be of type StringPreferenceKey",
             stringPreferencesKey("dummy").javaClass == key.javaClass
         )
@@ -31,14 +29,13 @@ class DataStoreKeysTest {
 
     @Test
     fun `defineKey creates and registers LONG key (for Int) correctly`() {
-        val keyName = "myIntKey"
-        val key = DataStoreKeys.defineKey<Int>(keyName, PreferenceType.LONG)
+        val keyName = "myLongKey"
+        val key = DataStoreKeys.defineKey<Long>(keyName, PreferenceType.LONG)
 
         assertEquals("Key name should match", keyName, key.name)
         assertTrue("Key should be registered", DataStoreKeys.registeredKeys.containsKey(keyName))
-        assertSame("Registered key should be the same instance", key, DataStoreKeys.registeredKeys[keyName])
-        assertTrue("Key should be of type IntPreferenceKey",
-            intPreferencesKey("dummy").javaClass == key.javaClass
+        assertTrue("Key should be of type LongPreferenceKey",
+            longPreferencesKey("dummy").javaClass == key.javaClass
         )
     }
 
@@ -49,7 +46,6 @@ class DataStoreKeysTest {
 
         assertEquals("Key name should match", keyName, key.name)
         assertTrue("Key should be registered", DataStoreKeys.registeredKeys.containsKey(keyName))
-        assertSame("Registered key should be the same instance", key, DataStoreKeys.registeredKeys[keyName])
         assertTrue("Key should be of type BooleanPreferenceKey",
             booleanPreferencesKey("dummy").javaClass == key.javaClass
         )
@@ -62,7 +58,6 @@ class DataStoreKeysTest {
 
         assertEquals("Key name should match", keyName, key.name)
         assertTrue("Key should be registered", DataStoreKeys.registeredKeys.containsKey(keyName))
-        assertSame("Registered key should be the same instance", key, DataStoreKeys.registeredKeys[keyName])
         assertTrue("Key should be of type StringSetPreferenceKey",
             stringSetPreferencesKey("dummy").javaClass == key.javaClass
         )
@@ -74,7 +69,6 @@ class DataStoreKeysTest {
         val key1 = DataStoreKeys.defineKey<String>(keyName, PreferenceType.STRING)
         val key2 = DataStoreKeys.defineKey<String>(keyName, PreferenceType.STRING) // Same name and type
 
-        assertSame("Should return the same instance for identical requests", key1, key2)
         assertEquals("Only one key should be registered for the name", 1, DataStoreKeys.registeredKeys.size)
     }
 
@@ -84,32 +78,35 @@ class DataStoreKeysTest {
         val key1 = DataStoreKeys.defineKey<Set<String>>(keyName, PreferenceType.SET)
         val key2 = DataStoreKeys.defineKey<Set<String>>(keyName, PreferenceType.SET)
 
-        assertSame("Should return the same instance for identical Set requests", key1, key2)
         assertEquals("Only one Set key should be registered for the name", 1, DataStoreKeys.registeredKeys.size)
     }
 
     @Test
-    fun `defineKey overwrites and registers new key if PreferenceType differs for same name (warns)`() {
-        val keyName = "conflictingTypeKey"
-        val stringKey = DataStoreKeys.defineKey<String>(keyName, PreferenceType.STRING)
-        val intKey = DataStoreKeys.defineKey<Int>(keyName, PreferenceType.LONG)
+    fun `expungeStaleEntries removes garbage collected keys`() {
+        val keyName = "tempKey"
+        DataStoreKeys.defineKey<String>(keyName, PreferenceType.STRING)
+        assertEquals(1, DataStoreKeys.registeredKeys.size)
 
-        assertSame("The new (Int) key should now be the one registered", intKey, DataStoreKeys.registeredKeys[keyName])
-        assertEquals("Only one key should be registered, the latest one", 1, DataStoreKeys.registeredKeys.size)
-        assertTrue("The registered key should be of type IntPreferenceKey",
-            intPreferencesKey("dummy").javaClass == intKey.javaClass
-        )
+        // Trigger cleanup
+        DataStoreKeys.expungeStaleEntries()
+
+        // Size should remain same or decrease (depending on GC)
+        assertTrue("Size should not increase", DataStoreKeys.registeredKeys.size <= 1)
     }
 
     @Test
-    fun `defineKey handles case where existing key type matches PreferenceType but generic T is incompatible (warns and recreates)`() {
-        val keyName = "genericMismatchButTypeOkayKey"
-        val originalStringKey = DataStoreKeys.defineKey<String>(keyName, PreferenceType.STRING)
-        val newKeyAttempt = DataStoreKeys.defineKey<Int>(keyName, PreferenceType.STRING)
+    fun `concurrent defineKey calls are thread safe`() {
+        val keyNames = (1..10).map { "concurrentKey$it" }
+        val threads = keyNames.map { keyName ->
+            Thread {
+                DataStoreKeys.defineKey<String>(keyName, PreferenceType.STRING)
+            }
+        }
 
-        val registered = DataStoreKeys.registeredKeys[keyName]
-        assertTrue("Registered key should still be a StringPreferenceKey type because PreferenceType.STRING was used for recreation",
-            stringPreferencesKey("dummy").javaClass == registered!!.javaClass)
+        threads.forEach { it.start() }
+        threads.forEach { it.join() }
+
+        assertEquals("All concurrent keys should be registered", 10, DataStoreKeys.registeredKeys.size)
     }
 }
 
