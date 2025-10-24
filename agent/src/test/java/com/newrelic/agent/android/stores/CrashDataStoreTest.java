@@ -62,6 +62,19 @@ public class CrashDataStoreTest {
             Crash crash = new Crash(new RuntimeException("testStoreLotsOfCrashes" + i.toString()));
             crashStore.store(crash);
         }
+
+        // THE FIX:
+        // Manually poll the count with a timeout.
+        long timeout = 5000;  // 5 seconds
+        long start = System.currentTimeMillis();
+        while (crashStore.count() < reps && (System.currentTimeMillis() - start) < timeout) {
+            try {
+                Thread.sleep(100); // Wait for 100ms before checking again
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
         // crashStore.store() is an async call, so it's possible the last element was not written
         // by the time the assert is hit. Use a delta of 1 in the assertion.
         Assert.assertEquals("Should contain " + Integer.valueOf(reps).toString() + " crashes", reps, crashStore.count(), 1);
