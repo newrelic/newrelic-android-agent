@@ -12,16 +12,16 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.VectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.SemanticsNode
+import androidx.core.graphics.createBitmap
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
-import com.newrelic.agent.android.sessionReplay.internal.ComposePainterReflectionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
+import com.newrelic.agent.android.sessionReplay.internal.ComposePainterReflectionUtils
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode
-import androidx.core.graphics.createBitmap
 
 open class ComposeImageThingy(
     private val viewDetails: ComposeViewDetails,
@@ -298,16 +298,43 @@ open class ComposeImageThingy(
         imageData?.let { ImageCompressionUtils.toImageDataUrl(it) }
     }
 
+
+    /**
+     * Determines if an image should be captured (unmasked) for session replay.
+     *
+     * ### Decision Logic:
+     * 1. **CUSTOM Mode**: Only capture if NOT masked
+     *    - Check privacy tag (inherited from ComposeTreeCapture propagation)
+     *    - Check global isMaskAllImages flag
+     *    - Return false if either indicates masking
+     *
+     * 2. **Non-CUSTOM Mode** (DEFAULT): Capture all images
+     *    - Always return true (capture everything)
+     *
+     * ### Performance:
+     * - O(1) lookup via ComposePrivacyUtils (tag already propagated)
+     * - No parent chain traversal needed
+     *
+     * @param node The SemanticsNode to check for masking
+     * @return true if image should be captured, false if should be masked (show placeholder)
+     */
     private fun shouldUnMaskImage(node: SemanticsNode): Boolean {
-        // Check current node and all parent nodes for privacy tags
+        // Check current node's effective privacy tag (already propagated during tree capture)
         val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(node)
-        val isCustomMode =
-            sessionReplayConfiguration.mode == ComposeSessionReplayConstants.Modes.CUSTOM
-        if (isCustomMode) {
-            val hasMaskTag = privacyTag == ComposeSessionReplayConstants.PrivacyTags.MASK
-            return !hasMaskTag
+
+        // Null-safe mode comparison (use equals to handle Java interop)
+        val isCustomMode = ComposeSessionReplayConstants.Modes.CUSTOM.equals(
+            sessionReplayConfiguration.mode
+        )
+
+        return if (isCustomMode) {
+            // CUSTOM mode: Check both privacy tag and global flag
+            val hasMaskTag = ComposeSessionReplayConstants.PrivacyTags.MASK.equals(privacyTag)
+                || sessionReplayConfiguration.isMaskAllImages
+            !hasMaskTag  // Unmask (capture) if no mask indicators
         } else {
-            return true
+            // DEFAULT mode: Capture all images
+            true
         }
     }
 
@@ -349,22 +376,50 @@ open class ComposeImageThingy(
         return cssBuilder.toString()
     }
 
+    /**
+     * Generates CSS for image rendering with privacy masking support.
+     *
+     * ### Rendering Modes:
+     * 1. **Normal Image** (imageData exists):
+     *    - Shows actual image with background-image
+     *    - Uses backgroundColor as fallback/transparency base
+     *    - Applies contentScale via background-size
+     *
+     * 2. **Masked Image** (imageData is null due to privacy tag):
+     *    - Shows gray placeholder (#CCCCCC) instead of image
+     *    - No background-image properties (optimization)
+     *    - Indicates sensitive content to reviewers
+     *
+     * ### Performance:
+     * - Lazy imageDataUrl evaluation (computed once on first access)
+     * - Skips background-image properties for masked images (~30 bytes saved)
+     * - Reuses backgroundSize lazy property
+     */
     private fun generateImageCss(cssBuilder: StringBuilder) {
-        cssBuilder.append("background-color: ")
-        cssBuilder.append(backgroundColor)
-        cssBuilder.append("; ")
+        if (imageData != null) {
+            // Normal image rendering: use actual background color
+            // This shows behind transparent images or as fallback during load
+            if (backgroundColor.isNotEmpty() && backgroundColor != "transparent") {
+                cssBuilder.append("background-color: ")
+                cssBuilder.append(backgroundColor)
+                cssBuilder.append("; ")
+            }
 
-        imageData?.let {
+            // Add image with scaling properties
             cssBuilder.append("background-image: url(")
             cssBuilder.append(imageDataUrl)
             cssBuilder.append("); ")
+            cssBuilder.append("background-size: ")
+            cssBuilder.append(backgroundSize)
+            cssBuilder.append("; ")
+            cssBuilder.append("background-repeat: no-repeat; ")
+            cssBuilder.append("background-position: center; ")
+        } else {
+            // Masked image: show gray placeholder (privacy-protected)
+            // This indicates to replay viewers that an image was present but masked
+            cssBuilder.append("background-color: #CCCCCC; ")
+            // Note: No background-image properties needed (performance optimization)
         }
-
-        cssBuilder.append("background-size: ")
-        cssBuilder.append(backgroundSize)
-        cssBuilder.append("; ")
-        cssBuilder.append("background-repeat: no-repeat; ")
-        cssBuilder.append("background-position: center; ")
     }
 
     override fun generateRRWebNode(): RRWebElementNode {

@@ -316,9 +316,9 @@ open class ComposeTextViewThingy(
 
         // Check current node and all parent nodes for privacy tags
         val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(node)
-        val isCustomMode = sessionReplayConfiguration.getMode() == ComposeSessionReplayConstants.Modes.CUSTOM
-        val hasUnmaskTag = isCustomMode && privacyTag == ComposeSessionReplayConstants.PrivacyTags.UNMASK
-        val hasMaskTag = privacyTag == ComposeSessionReplayConstants.PrivacyTags.MASK
+        val isCustomMode = sessionReplayConfiguration.getMode().equals(ComposeSessionReplayConstants.Modes.CUSTOM)
+        val hasUnmaskTag = isCustomMode && privacyTag.equals(ComposeSessionReplayConstants.PrivacyTags.UNMASK)
+        val hasMaskTag = privacyTag.equals(ComposeSessionReplayConstants.PrivacyTags.MASK)
 
         return if ((shouldMask && !hasUnmaskTag) || (!shouldMask && hasMaskTag)) {
             ComposeSessionReplayConstants.Masking.MASK_CHARACTER.repeat(text.length)
