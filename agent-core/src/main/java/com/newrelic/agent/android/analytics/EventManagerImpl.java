@@ -264,6 +264,7 @@ public class EventManagerImpl implements EventManager, EventListener {
         }
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_POOL_SIZE);
+        log.debug("Event pool size was set to custom value: " + maxSize);
         this.maxEventPoolSize = maxSize;
     }
 
@@ -283,6 +284,7 @@ public class EventManagerImpl implements EventManager, EventListener {
         }
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_BUFFER_SIZE);
+        log.debug("Event buffer time was set to custom value: " + maxBufferTimeInSec + " seconds");
         this.maxBufferTimeInSec = maxBufferTimeInSec;
     }
 
