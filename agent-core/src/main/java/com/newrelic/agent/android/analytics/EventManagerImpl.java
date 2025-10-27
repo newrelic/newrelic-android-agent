@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class EventManagerImpl implements EventManager, EventListener {
     private static final AgentLog log = AgentLogManager.getAgentLog();
-    protected static final int DEFAULT_MAX_EVENT_BUFFER_TIME = 60;    // 60 seconds (1 minutes)
+    protected static final int DEFAULT_MAX_EVENT_BUFFER_TIME = 600;    // 600 seconds (10 minutes)
     protected static final int DEFAULT_MAX_EVENT_BUFFER_SIZE = 1000;   // 1000 as the default
 
     public static final int DEFAULT_MIN_EVENT_BUFFER_SIZE = 64;
