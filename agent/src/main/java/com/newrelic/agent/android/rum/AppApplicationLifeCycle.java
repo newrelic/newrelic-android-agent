@@ -59,8 +59,14 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
 
     @Override
     public void close() throws IOException {
+        // Use the same defensive logic as onColdStartInitiated()
+        Application application = null;
         if (context instanceof Application) {
-            ((Application) context).unregisterActivityLifecycleCallbacks(this);
+            application = (Application) context;
+        }
+        
+        if (application != null) {
+            application.unregisterActivityLifecycleCallbacks(this);
         } else {
             log.error("Unable to unregister activity lifecycle callbacks: context is not an Application instance");
         }
