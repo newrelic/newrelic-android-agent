@@ -44,11 +44,12 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
         this.context = context.getApplicationContext();
         
         // Get the Application instance - handle cases where context might be wrapped (e.g., by MAM SDK)
+        // Check application context first as it's more likely to be an Application instance
         Application application = null;
-        if (context instanceof Application) {
-            application = (Application) context;
-        } else if (this.context instanceof Application) {
+        if (this.context instanceof Application) {
             application = (Application) this.context;
+        } else if (context instanceof Application) {
+            application = (Application) context;
         }
         
         if (application != null) {
