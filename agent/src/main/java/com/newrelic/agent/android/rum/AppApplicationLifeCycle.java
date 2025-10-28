@@ -41,12 +41,29 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
 
     public void onColdStartInitiated(Context context) {
         this.context = context.getApplicationContext();
-        ((Application) context).registerActivityLifecycleCallbacks(this);
+        
+        // Get the Application instance - handle cases where context might be wrapped (e.g., by MAM SDK)
+        Application application = null;
+        if (context instanceof Application) {
+            application = (Application) context;
+        } else if (this.context instanceof Application) {
+            application = (Application) this.context;
+        }
+        
+        if (application != null) {
+            application.registerActivityLifecycleCallbacks(this);
+        } else {
+            log.error("Unable to register activity lifecycle callbacks: context is not an Application instance");
+        }
     }
 
     @Override
     public void close() throws IOException {
-        ((Application) context).unregisterActivityLifecycleCallbacks(this);
+        if (context instanceof Application) {
+            ((Application) context).unregisterActivityLifecycleCallbacks(this);
+        } else {
+            log.error("Unable to unregister activity lifecycle callbacks: context is not an Application instance");
+        }
     }
 
     @Override
