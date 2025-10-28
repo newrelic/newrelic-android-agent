@@ -26,6 +26,7 @@ import java.util.Date;
 
 public class AppApplicationLifeCycle implements Application.ActivityLifecycleCallbacks, Closeable, ApplicationStateListener {
     private Context context;
+    private Application registeredApplication;
     private static boolean firstDrawInvoked = false;
     private static boolean firstActivityCreated = false;
     private static boolean firstActivityResumed = false;
@@ -52,6 +53,7 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
         
         if (application != null) {
             application.registerActivityLifecycleCallbacks(this);
+            this.registeredApplication = application;
         } else {
             log.error("Unable to register activity lifecycle callbacks: context is not an Application instance");
         }
@@ -59,16 +61,11 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
 
     @Override
     public void close() throws IOException {
-        // Use the same defensive logic as onColdStartInitiated()
-        Application application = null;
-        if (context instanceof Application) {
-            application = (Application) context;
-        }
-        
-        if (application != null) {
-            application.unregisterActivityLifecycleCallbacks(this);
+        // Unregister from the same Application instance we registered with
+        if (registeredApplication != null) {
+            registeredApplication.unregisterActivityLifecycleCallbacks(this);
         } else {
-            log.error("Unable to unregister activity lifecycle callbacks: context is not an Application instance");
+            log.error("Unable to unregister activity lifecycle callbacks: no Application instance was registered");
         }
     }
 
