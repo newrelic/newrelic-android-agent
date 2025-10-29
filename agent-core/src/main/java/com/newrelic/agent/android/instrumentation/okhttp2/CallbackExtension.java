@@ -32,13 +32,26 @@ public class CallbackExtension implements Callback {
     @Override
     public void onFailure(Request request, IOException e) {
         error(e);
-        impl.onFailure(request, e);
+        try {
+            impl.onFailure(request, e);
+        } catch (Exception callbackException) {
+            // Protect against exceptions thrown by the application's callback implementation
+            log.error("Exception in application callback onFailure: " + callbackException.getMessage(), callbackException);
+        }
     }
 
     @Override
     public void onResponse(Response response) throws IOException {
         response = checkResponse(response);
-        impl.onResponse(response);
+        try {
+            impl.onResponse(response);
+        } catch (IOException ioException) {
+            // Re-throw IOException as per the method signature contract
+            throw ioException;
+        } catch (Exception callbackException) {
+            // Protect against unexpected exceptions thrown by the application's callback implementation
+            log.error("Exception in application callback onResponse: " + callbackException.getMessage(), callbackException);
+        }
     }
 
     private Response checkResponse(Response response) {
