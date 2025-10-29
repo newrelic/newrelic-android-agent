@@ -44,7 +44,7 @@ public class EventManagerImpl implements EventManager, EventListener {
     private AnalyticsEventStore eventStore;
 
     public EventManagerImpl() {
-        // Currently using 1000 max events, 1 minutes max buffer age
+        // Currently using 1000 max events, 10 minutes max buffer age
         this(DEFAULT_MAX_EVENT_BUFFER_SIZE, DEFAULT_MAX_EVENT_BUFFER_TIME);
     }
 
@@ -67,7 +67,6 @@ public class EventManagerImpl implements EventManager, EventListener {
         if (eventStore != null) {
             storedEvents = eventStore.fetchAll();
         }
-
 
         if (!initialized.compareAndSet(false, true)) {
             eventsRecorded.set(0);
