@@ -11,19 +11,16 @@ import java.util.Map;
 
 public class WebViewInstrumentation {
 
-    @ReplaceCallSite(isStatic = true, scope = "android.webkit.WebView")
     public static void loadUrl(WebView webView,String url) {
-         webView.loadUrl(url);
+        webView.loadUrl(url);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_LOAD_URL);
     }
 
-    @ReplaceCallSite(isStatic = true, scope = "android.webkit.WebView")
     public static void loadUrl(WebView webView, String url, Map<String,String> additionalHttpHeaders) {
         webView.loadUrl(url,additionalHttpHeaders);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_LOAD_URL);
     }
 
-    @ReplaceCallSite(isStatic = true, scope = "android.webkit.WebView")
     public static void postUrl(WebView webView, String url, byte[] postData) {
         webView.postUrl(url,postData);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_POST_URL);
