@@ -121,16 +121,30 @@ public class NavigationController extends InstrumentationDelegate {
 
     @ReplaceCallSite
     static public boolean navigateUp(NavController navController) {
-        boolean rc = navController.navigateUp();
-
-        submit(requiredFeatures, () -> {
-            log.debug("navigateUp(NavController)");
-            Map<String, Object> attrs = new HashMap<String, Object>() {{
-                put("span", "navigateUp");
-                put("result", rc);
-            }};
-            analyticsController.recordBreadcrumb("Compose", attrs);
-        });
+        boolean rc = false;
+        RuntimeException exception = null;
+        
+        try {
+            rc = navController.navigateUp();
+        } catch (RuntimeException e) {
+            exception = e;
+            throw e;
+        } finally {
+            final boolean result = rc;
+            final RuntimeException finalException = exception;
+            submit(requiredFeatures, () -> {
+                log.debug("navigateUp(NavController)");
+                Map<String, Object> attrs = new HashMap<String, Object>() {{
+                    put("span", "navigateUp");
+                    put("result", result);
+                    if (finalException != null) {
+                        put("exception", finalException.getClass().getName());
+                        put("exceptionMessage", finalException.getMessage());
+                    }
+                }};
+                analyticsController.recordBreadcrumb("Compose", attrs);
+            });
+        }
 
         return rc;
     }
