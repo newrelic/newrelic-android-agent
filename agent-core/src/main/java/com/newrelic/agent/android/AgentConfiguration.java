@@ -60,7 +60,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private boolean reportCrashes = false;
     private boolean reportHandledExceptions = true;
     private boolean enableAnalyticsEvents = true;
-    private String sessionID = provideSessionId();
+    private String sessionID = null;
     private String customApplicationVersion = null;
     private String customBuildId = null;
     private String region = null;
@@ -186,6 +186,9 @@ public class AgentConfiguration implements HarvestConfigurable {
     }
 
     public String getSessionID() {
+        if (sessionID == null) {
+            sessionID = UUID.randomUUID().toString();
+        }
         return sessionID;
     }
 
