@@ -187,7 +187,11 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public String getSessionID() {
         if (sessionID == null) {
-            sessionID = UUID.randomUUID().toString();
+            synchronized (this) {
+                if (sessionID == null) {
+                    sessionID = UUID.randomUUID().toString();
+                }
+            }
         }
         return sessionID;
     }
@@ -224,7 +228,7 @@ public class AgentConfiguration implements HarvestConfigurable {
         this.applicationFrameworkVersion = applicationFrameworkVersion;
     }
 
-    public String provideSessionId() {
+    public synchronized String provideSessionId() {
         sessionID = UUID.randomUUID().toString();
         return sessionID;
     }
