@@ -128,6 +128,7 @@ object ComposeSessionReplayConstants {
     // Semantics Property Keys
     object SemanticsKeys {
         const val NEW_RELIC_PRIVACY = "NewRelicPrivacy"
+        const val NEW_RELIC_ID = "NewRelicId"
     }
 
     // Format Strings

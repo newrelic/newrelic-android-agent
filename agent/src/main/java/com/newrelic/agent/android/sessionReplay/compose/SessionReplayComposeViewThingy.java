@@ -140,7 +140,7 @@ public class SessionReplayComposeViewThingy implements SessionReplayViewThingyIn
 
     @Override
     public int getParentViewId() {
-        return 0;
+        return viewDetails.parentId;
     }
 
 

@@ -16,7 +16,9 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SessionReplayProcessor {
     public static int RRWEB_TYPE_FULL_SNAPSHOT = 2;
@@ -99,43 +101,51 @@ public class SessionReplayProcessor {
         List<SessionReplayViewThingyInterface> oldThingies = flattenTree(oldFrame.rootThingy);
         List<SessionReplayViewThingyInterface> newThingies = flattenTree(newFrame.rootThingy);
 
-        List<IncrementalDiffGenerator.Operation> operations = IncrementalDiffGenerator.generateDiff(oldThingies, newThingies);
+        // Use experimental set-based diffing algorithm
+        ExperimentalDiffGenerator.DiffResult diffResult = ExperimentalDiffGenerator.findAddedAndRemovedItems(oldThingies, newThingies);
 
         List<RRWebMutationData.AddRecord> adds = new ArrayList<>();
         List<RRWebMutationData.RemoveRecord> removes = new ArrayList<>();
         List<RRWebMutationData.TextRecord> texts = new ArrayList<>();
         List<RRWebMutationData.AttributeRecord> attributes = new ArrayList<>();
 
-        for (IncrementalDiffGenerator.Operation operation : operations) {
-            switch (operation.getType()) {
-                case ADD:
-                    adds.addAll(operation.getAddChange().getNode().generateAdditionNodes(operation.getAddChange().getParentId()));
-                    break;
-                case REMOVE:
-                    RRWebMutationData.RemoveRecord removeRecord = new RRWebMutationData.RemoveRecord(
-                            operation.getRemoveChange().getParentId(),
-                            operation.getRemoveChange().getId()
-                    );
-                    removes.add(removeRecord);
-                    break;
-                case UPDATE:
-                    // For updates, we need to handle the mutations
-                    List<MutationRecord> records = operation.getUpdateChange().getOldElement().generateDifferences(
-                            operation.getUpdateChange().getNewElement()
-                    );
+        // Process added items
+        for (SessionReplayViewThingyInterface addedItem : diffResult.getAddedItems()) {
+            adds.addAll(addedItem.generateAdditionNodes(addedItem.getParentViewId()));
+        }
 
-                    for (MutationRecord record : records) {
-                        if(record instanceof RRWebMutationData.TextRecord) {
-                            RRWebMutationData.TextRecord textRecord = (RRWebMutationData.TextRecord) record;
-                            texts.add(textRecord);
-                        } else if(record instanceof RRWebMutationData.AttributeRecord) {
-                            RRWebMutationData.AttributeRecord attributeRecord = (RRWebMutationData.AttributeRecord) record;
-                            attributes.add(attributeRecord);
-                        } else {
-                            continue;
-                        }
+        // Process removed items
+        for (SessionReplayViewThingyInterface removedItem : diffResult.getRemovedItems()) {
+            RRWebMutationData.RemoveRecord removeRecord = new RRWebMutationData.RemoveRecord(
+                    removedItem.getParentViewId(),
+                    removedItem.getViewId()
+            );
+            removes.add(removeRecord);
+        }
+
+        // Process updated items - create map for O(1) lookup of old items
+        Map<Integer, SessionReplayViewThingyInterface> oldThingiesMap = new HashMap<>();
+        for (SessionReplayViewThingyInterface item : oldThingies) {
+            oldThingiesMap.put(item.getViewId(), item);
+        }
+
+        for (SessionReplayViewThingyInterface updatedNewItem : diffResult.getUpdatedItems()) {
+            // Find the corresponding old item by ID using O(1) map lookup
+            SessionReplayViewThingyInterface oldItem = oldThingiesMap.get(updatedNewItem.getViewId());
+
+            if (oldItem != null) {
+                // Generate differences between old and new versions
+                List<MutationRecord> records = oldItem.generateDifferences(updatedNewItem);
+
+                for (MutationRecord record : records) {
+                    if (record instanceof RRWebMutationData.TextRecord) {
+                        RRWebMutationData.TextRecord textRecord = (RRWebMutationData.TextRecord) record;
+                        texts.add(textRecord);
+                    } else if (record instanceof RRWebMutationData.AttributeRecord) {
+                        RRWebMutationData.AttributeRecord attributeRecord = (RRWebMutationData.AttributeRecord) record;
+                        attributes.add(attributeRecord);
                     }
-                    break;
+                }
             }
         }
 

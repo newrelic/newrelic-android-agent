@@ -22,6 +22,9 @@ import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 open class ComposeImageThingy(
     private val viewDetails: ComposeViewDetails,
@@ -34,7 +37,7 @@ open class ComposeImageThingy(
 
         // Static cache shared across all instances
         private const val MAX_CACHE_SIZE_BYTES = 50 * 1024 * 1024 // 50MB
-
+        private val imageExtractionExecutor = Executors.newCachedThreadPool()
         private val imageCache = object : LruCache<String, String>(MAX_CACHE_SIZE_BYTES) {
             override fun sizeOf(key: String, value: String): Int {
                 return value.length * 2
@@ -51,12 +54,14 @@ open class ComposeImageThingy(
         }
     }
 
+    @Volatile
+    private var imageData: String? = null
+
     private var subviews: List<SessionReplayViewThingyInterface> = emptyList()
     var shouldRecordSubviews = false
 
     private val contentScale: ContentScale
     private val backgroundColor: String = viewDetails.backgroundColor
-    private var imageData: String? = null // Base64 encoded image data
 
     protected val sessionReplayConfiguration: SessionReplayConfiguration =
         agentConfiguration.sessionReplayConfiguration
@@ -65,7 +70,13 @@ open class ComposeImageThingy(
         contentScale = extractContentScale()
 
         if (shouldUnMaskImage(semanticsNode)) {
-            imageData = extractImageFromModifierInfo()
+            imageExtractionExecutor.execute {
+                try {
+                    imageData = extractImageFromModifierInfo()
+                } catch (e: Exception) {
+                    Log.e(LOG_TAG, "Error extracting image", e)
+                }
+            }
         }
     }
 
