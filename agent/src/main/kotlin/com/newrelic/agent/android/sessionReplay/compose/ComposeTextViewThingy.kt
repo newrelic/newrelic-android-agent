@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.text.TextLayoutInput
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -23,6 +24,28 @@ import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMut
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode
 
+/**
+ * Session replay representation of Jetpack Compose Text composables.
+ *
+ * This class extracts text content and styling from Compose Text composables for session replay,
+ * with comprehensive privacy masking support for sensitive text fields.
+ *
+ *
+ * ## Text Styling:
+ * - Font size: Supports Sp and Em units (Em converted to pixels)
+ * - Text alignment: Maps Compose TextAlign to CSS (left, center, right)
+ * - Font weight: Maps Compose FontWeight to CSS numeric values (100-900)
+ * - Font style: Supports normal and italic
+ * - Font family: Maps Compose FontFamily to web-safe equivalents
+ *
+ * @param viewDetails The Compose view's layout and styling information
+ * @param semanticsNode The Compose SemanticsNode containing text and layout data
+ * @param agentConfiguration Agent configuration including session replay privacy settings
+ *
+ * @see ComposeViewDetails
+ * @see SessionReplayViewThingyInterface
+ * @see ComposeEditTextThingy
+ */
 open class ComposeTextViewThingy(
     private val viewDetails: ComposeViewDetails,
     private val semanticsNode: SemanticsNode,
@@ -44,7 +67,8 @@ open class ComposeTextViewThingy(
 
     init {
         val textLayoutResults = mutableListOf<TextLayoutResult>()
-        semanticsNode.config[SemanticsActions.GetTextLayoutResult].action?.invoke(textLayoutResults)
+        // Safely access GetTextLayoutResult action with null-check to prevent NPE
+        semanticsNode.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(textLayoutResults)
 
         val layoutResult = textLayoutResults.firstOrNull()
         val layoutInput = layoutResult?.layoutInput

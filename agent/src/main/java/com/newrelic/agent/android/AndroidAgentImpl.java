@@ -759,6 +759,10 @@ public class AndroidAgentImpl implements
      * a Location to a country and region code.
      *
      * @param location An android.location.Location
+     * @deprecated This method is deprecated due to reliance on Geocoder which may fail or be unavailable.
+     *             Use {@link #setLocation(String, String)} instead to directly provide country code and
+     *             administrative region. This allows for more reliable location tracking without
+     *             dependency on the Geocoder service.
      */
     @Deprecated
     public void setLocation(Location location) {

@@ -52,12 +52,14 @@ class ComposeEditTextThingy(
      */
     private fun extractRegularText(node: SemanticsNode): String {
         if (node.config.contains(SemanticsProperties.Text)) {
-            val textList = node.config[SemanticsProperties.Text]
-            val rawText = textList.joinToString(" ")
+            val textList = node.config.getOrNull(SemanticsProperties.Text)
+            if (textList != null && textList.isNotEmpty()) {
+                val rawText = textList.joinToString(" ")
 
-            // Apply masking for application text
-            val shouldMaskText = sessionReplayConfiguration.isMaskApplicationText
-            return getMaskedTextIfNeeded(node, rawText, shouldMaskText)
+                // Apply masking for application text
+                val shouldMaskText = sessionReplayConfiguration.isMaskApplicationText
+                return getMaskedTextIfNeeded(node, rawText, shouldMaskText)
+            }
         }
         return ""
     }

@@ -214,9 +214,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             }
 
             viewDrawInterceptor.Intercept(decorViews);
-            if(decorViews.length > 0) {
-                sessionReplayActivityLifecycleCallbacks.setupTouchInterceptorForWindow(decorViews[0]);
-            }
+            sessionReplayActivityLifecycleCallbacks.setupTouchInterceptorForWindow(decorViews[0]);
         });
 
         Curtains.getOnRootViewsChangedListeners().add((view, added) -> {

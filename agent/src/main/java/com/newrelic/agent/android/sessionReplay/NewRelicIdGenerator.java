@@ -4,9 +4,12 @@ package com.newrelic.agent.android.sessionReplay;
 
 import android.util.Log;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class NewRelicIdGenerator {
 
     private static final String TAG = "NewRelicIdGenerator";
+
 
     /**
      * ID offset to avoid collision with Compose SemanticsNode IDs.
@@ -23,7 +26,7 @@ public class NewRelicIdGenerator {
      * Note: This is a simple counter. In a multi-threaded environment, consider using AtomicInteger
      * for thread-safety, though current usage via setTag/getTag on views is typically main-thread only.
      */
-    static int counter = ID_OFFSET;
+    private static final AtomicInteger counter = new AtomicInteger(ID_OFFSET);
 
     /**
      * Generates a unique ID for traditional Android Views that won't collide with Compose SemanticsNode IDs.
@@ -31,7 +34,6 @@ public class NewRelicIdGenerator {
      * @return A unique ID starting from 1,000,000 to avoid collision with Compose IDs (0-999,999 range)
      */
     public static int generateId() {
-        Log.d(TAG, "generateId: " + counter);
-        return counter++;
+        return  counter.getAndIncrement();
     }
 }

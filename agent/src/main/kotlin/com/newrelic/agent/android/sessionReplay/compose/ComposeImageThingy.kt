@@ -26,6 +26,20 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+/**
+ * Session replay representation of Jetpack Compose Image composables.
+ *
+ * This class handles extraction, compression, and privacy masking of images rendered
+ * in Compose UI for session replay functionality. It supports multiple painter types
+ * including BitmapPainter, VectorPainter, and AsyncImagePainter (Coil).
+
+ * @param viewDetails The Compose view's layout and styling information
+ * @param semanticsNode The Compose SemanticsNode containing image data
+ * @param agentConfiguration Agent configuration including session replay settings
+ *
+ * @see ComposeViewDetails
+ * @see SessionReplayViewThingyInterface
+ */
 open class ComposeImageThingy(
     private val viewDetails: ComposeViewDetails,
     private val semanticsNode: SemanticsNode,
@@ -44,11 +58,22 @@ open class ComposeImageThingy(
             }
         }
 
+        /**
+         * Clears all cached image data from the LRU cache.
+         *
+         * This can be used to free memory or force fresh image extraction.
+         * Call this when memory pressure is detected or session replay is being reset.
+         */
         fun clearImageCache() {
             imageCache.evictAll()
             Log.d(LOG_TAG, "Image cache cleared")
         }
 
+        /**
+         * Returns diagnostic information about the image cache performance.
+         *
+         * @return A formatted string containing cache size, hit count, and miss count
+         */
         fun getCacheStats(): String {
             return "Cache stats - Size: ${imageCache.size()}, Hits: ${imageCache.hitCount()}, Misses: ${imageCache.missCount()}"
         }

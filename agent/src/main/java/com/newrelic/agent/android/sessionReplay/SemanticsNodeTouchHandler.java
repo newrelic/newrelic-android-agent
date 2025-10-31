@@ -29,7 +29,7 @@ public class SemanticsNodeTouchHandler {
             return null;
         }
 
-
+        try {
         if(foundView instanceof AndroidComposeView) {
             SemanticsOwner semanticsOwner = ((AndroidComposeView) foundView).getSemanticsOwner();
             SemanticsNode semanticsNodes = semanticsOwner.getUnmergedRootSemanticsNode();
@@ -39,7 +39,10 @@ public class SemanticsNodeTouchHandler {
             SemanticsNode semanticsNodes = semanticsOwner.getUnmergedRootSemanticsNode();
             return findNodeAtPosition(semanticsNodes, x, y);
         }else {
-            // handle other view types here, such as RecyclerView or ListView
+            return null;
+            // handle other view types here, such as RecyclerView or List Viewreturn null;
+        }} catch (Exception e) {
+            Log.w(TAG, "Failed to access Compose SemanticsNode", e);
             return null;
         }
     }
@@ -110,12 +113,6 @@ public class SemanticsNodeTouchHandler {
         if (isCustomMode && com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants.PrivacyTags.MASK.equals(privacyTag)) {
             return true;
         }
-
-        // Check if unmask tag is present (overrides masking)
-        if (isCustomMode && com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants.PrivacyTags.UNMASK.equals(privacyTag)) {
-            return false;
-        }
-
         return false;
     }
 

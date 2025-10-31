@@ -16,6 +16,7 @@ import java.io.ByteArrayOutputStream;
  */
 public class ImageCompressionUtils {
     private static final String LOG_TAG = "ImageCompressionUtils";
+    private static final int DEFAULT_WEBP_QUALITY = 10;
 
     /**
      * Converts a bitmap to a Base64 encoded string with WEBP compression
@@ -24,7 +25,7 @@ public class ImageCompressionUtils {
      */
     @WorkerThread
     public static String bitmapToBase64(Bitmap bitmap) {
-        return bitmapToBase64(bitmap, 10);
+        return bitmapToBase64(bitmap, DEFAULT_WEBP_QUALITY);
     }
 
     /**
@@ -61,6 +62,10 @@ public class ImageCompressionUtils {
             }
         } catch (Exception ignored) {
             // Ignore cleanup errors
+        } finally {
+            if (bitmapCopy != null && bitmapCopy != bitmap) {
+                bitmapCopy.recycle();
+            }
         }
         return null;
     }
