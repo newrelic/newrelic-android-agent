@@ -151,7 +151,16 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         String json = new Gson().toJson(rrWebEvents);
         Map<String, Object> attributes = new HashMap<>();
-        attributes.put(FIRST_TIMESTAMP, rawFrames.get(0).timestamp);
+
+        // Safely get first timestamp - use first frame timestamp if available, otherwise use current time
+        if (!rawFrames.isEmpty()) {
+            attributes.put(FIRST_TIMESTAMP, rawFrames.get(0).timestamp);
+        } else {
+            // If we only have touch data without frames, use current time as first timestamp
+            attributes.put(FIRST_TIMESTAMP, System.currentTimeMillis());
+            Log.w("SessionReplay", "No frames available, using current time as FIRST_TIMESTAMP");
+        }
+
         // Use current time as last timestamp instead of last frame time to match with Mobile Session Event
         attributes.put(LAST_TIMESTAMP, System.currentTimeMillis());
         attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
@@ -164,6 +173,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         isFirstChunk = false;
         takeFullSnapshot = true;
     }
+
 
     /**
      * Extracts timestamp from different RRWebEvent types
@@ -193,8 +203,16 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     public static void startRecording() {
         Harvest.addHarvestListener(instance);
+        takeFullSnapshot = true; // Force full snapshot when starting recording
         uiThreadHandler.post(() -> {
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
+
+            // Check if decorViews is not empty before accessing
+            if (decorViews == null || decorViews.length == 0) {
+                Log.w("SessionReplay", "No root views available, skipping initial recording setup");
+                return;
+            }
+
             viewDrawInterceptor.Intercept(decorViews);
             if(decorViews.length > 0) {
                 sessionReplayActivityLifecycleCallbacks.setupTouchInterceptorForWindow(decorViews[0]);

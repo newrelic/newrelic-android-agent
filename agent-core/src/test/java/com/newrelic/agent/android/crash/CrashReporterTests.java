@@ -99,9 +99,9 @@ public class CrashReporterTests {
         crashReporter.start();
         Assert.assertFalse("Should disable JIT crash reporting on start.", TestCrashReporter.getReportCrashes());
 
-        crashReporter.storeAndReportCrash(new Crash(new RuntimeException("testStoreExistingCrashes")));
-        crashReporter.storeAndReportCrash(new Crash(new RuntimeException("testStoreExistingCrashes")));
-        crashReporter.storeAndReportCrash(new Crash(new RuntimeException("testStoreExistingCrashes")));
+        crashReporter.storeAndReportCrash(new Crash(new RuntimeException("testStoreExistingCrashes")),false);
+        crashReporter.storeAndReportCrash(new Crash(new RuntimeException("testStoreExistingCrashes")),false);
+        crashReporter.storeAndReportCrash(new Crash(new RuntimeException("testStoreExistingCrashes")),false);
         Assert.assertEquals("CrashStore should contain 3 crash.", 3, crashStore.count());
         Mockito.verify(crashReporter, Mockito.never()).reportCrash(ArgumentMatchers.any(Crash.class));
     }

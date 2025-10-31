@@ -178,7 +178,7 @@ public class SessionReplayProcessor {
         return thingies;
     }
 
-     RRWebMetaEvent createMetaEvent(SessionReplayFrame frame) {
+    RRWebMetaEvent createMetaEvent(SessionReplayFrame frame) {
         return new RRWebMetaEvent(
                 new RRWebMetaEvent.RRWebMetaEventData(
                         "https://newrelic.com",
@@ -193,7 +193,7 @@ public class SessionReplayProcessor {
         // Reset the last frame when a new screen is detected
         lastFrame = null;
     }
-    
+
     private void addFullFrameSnapshot(ArrayList<RRWebEvent> snapshot, SessionReplayFrame rawFrame) {
         RRWebMetaEvent metaEvent = createMetaEvent(rawFrame);
         snapshot.add(metaEvent);

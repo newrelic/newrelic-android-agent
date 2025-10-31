@@ -21,7 +21,9 @@ import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -48,6 +50,8 @@ public class OkHttp3Instrumentation {
     public static Call newCall(OkHttpClient client, Request request) {
         TransactionState transactionState = new TransactionState();
         addHeadersAsCustomAttribute(transactionState, request);
+        // Websocket Listeners
+//        setWebSocketListener(client,request);
         
         // Create a new client with New Relic interceptor added after existing interceptors
         OkHttpClient instrumentedClient = addNewRelicInterceptor(client, transactionState);
@@ -72,12 +76,29 @@ public class OkHttp3Instrumentation {
         client.newWebSocket(request,webSocketListener) ;
     }
 
+    /**
+     * Adds HTTP headers from the request as custom attributes to the transaction state.
+     * Only headers configured via {@link HttpHeaders#addHttpHeaderAsAttribute(String)} are captured.
+     *
+     * <h3>Thread Safety:</h3>
+     * Creates a defensive copy of the header list to avoid {@link java.util.ConcurrentModificationException}
+     * if headers are modified concurrently by another thread calling
+     * {@link HttpHeaders#addHttpHeaderAsAttribute(String)} or
+     * {@link HttpHeaders#removeHttpHeaderAsAttribute(String)}.
+     * @param transactionState The transaction state to add attributes to
+     * @param request The OkHttp request containing headers
+     */
     private static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
-
         Map<String, String> headers = new HashMap<>();
-        for (String s : HttpHeaders.getInstance().getHttpHeaders()) {
-            if (request.headers().get(s) != null) {
-                headers.put(HttpHeaders.translateApolloHeader(s), request.headers().get(s));
+
+        // Defensive copy to prevent ConcurrentModificationException
+        // If HttpHeaders is modified during iteration, we use the snapshot
+        Set<String> headersCopy = new HashSet<>(HttpHeaders.getInstance().getHttpHeaders());
+
+        for (String headerName : headersCopy) {
+            String headerValue = request.headers().get(headerName);
+            if (headerValue != null) {
+                headers.put(HttpHeaders.translateApolloHeader(headerName), headerValue);
             }
         }
         transactionState.setParams(headers);

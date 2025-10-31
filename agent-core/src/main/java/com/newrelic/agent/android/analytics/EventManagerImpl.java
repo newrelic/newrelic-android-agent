@@ -250,6 +250,9 @@ public class EventManagerImpl implements EventManager, EventListener {
 
     @Override
     public void setMaxEventPoolSize(int maxSize) {
+
+        // Validate if maxSize in within the range of DEFAULT_MIN_EVENT_BUFFER_SIZE and DEFAULT_MAX_EVENT_POOL_SIZE
+
         if (maxSize < DEFAULT_MIN_EVENT_BUFFER_SIZE) {
             log.error("Event queue cannot be smaller than " + DEFAULT_MIN_EVENT_BUFFER_SIZE);
             maxSize = DEFAULT_MIN_EVENT_BUFFER_SIZE;
@@ -259,11 +262,16 @@ public class EventManagerImpl implements EventManager, EventListener {
             log.warn("Event queue should not be larger than " + DEFAULT_MAX_EVENT_BUFFER_SIZE);
         }
 
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_POOL_SIZE);
+        log.debug("Event pool size was set to custom value: " + maxSize);
         this.maxEventPoolSize = maxSize;
     }
 
     @Override
     public void setMaxEventBufferTime(int maxBufferTimeInSec) {
+
+        // Validate if maxSize in within the range of DEFAULT_MAX_EVENT_BUFFER_TIME and DEFAULT_MIN_EVENT_BUFFER_TIME
+
         if (maxBufferTimeInSec < DEFAULT_MIN_EVENT_BUFFER_TIME) {
             log.error("Event buffer time cannot be shorter than " + DEFAULT_MIN_EVENT_BUFFER_TIME + " seconds");
             maxBufferTimeInSec = DEFAULT_MIN_EVENT_BUFFER_TIME;
@@ -274,6 +282,8 @@ public class EventManagerImpl implements EventManager, EventListener {
             maxBufferTimeInSec = DEFAULT_MAX_EVENT_BUFFER_TIME;
         }
 
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_BUFFER_SIZE);
+        log.debug("Event buffer time was set to custom value: " + maxBufferTimeInSec + " seconds");
         this.maxBufferTimeInSec = maxBufferTimeInSec;
     }
 
