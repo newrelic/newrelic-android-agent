@@ -6,6 +6,7 @@ import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMut
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class SessionReplayViewThingy implements SessionReplayViewThingyInterface {
@@ -63,7 +64,7 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
     public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
         // Make sure this is not null and is of the same type
         if (!(other instanceof SessionReplayViewThingy)) {
-            return null;
+            return Collections.emptyList();
         }
 
         // Create a map to store style differences

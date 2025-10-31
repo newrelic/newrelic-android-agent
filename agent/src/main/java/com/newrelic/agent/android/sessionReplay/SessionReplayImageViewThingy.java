@@ -284,7 +284,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     @Override
     public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
         if (!(other instanceof SessionReplayImageViewThingy)) {
-            return null;
+            return Collections.emptyList();
         }
 
         Map<String, String> styleDifferences = new HashMap<>();

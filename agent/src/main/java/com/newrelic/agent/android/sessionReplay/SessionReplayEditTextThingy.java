@@ -12,6 +12,7 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy implements SessionReplayViewThingyInterface {
@@ -89,7 +90,7 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
     public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
         // Make sure this is not null and is of the same type
         if (!(other instanceof SessionReplayEditTextThingy)) {
-            return null;
+            return Collections.emptyList();
         }
 
         // Create a map to store style differences

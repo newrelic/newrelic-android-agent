@@ -205,12 +205,12 @@ open class ComposeTextViewThingy(
 
     override fun generateDifferences(other: SessionReplayViewThingyInterface): List<MutationRecord>? {
         if (other !is ComposeTextViewThingy) {
-            return null
+            return emptyList()
         }
 
         // Early return if nothing changed
         if (!hasChanged(other)) {
-            return null
+            return emptyList()
         }
         val styleDifferences = HashMap<String, String>(10)
         val otherComposeViewDetails = other.viewDetails

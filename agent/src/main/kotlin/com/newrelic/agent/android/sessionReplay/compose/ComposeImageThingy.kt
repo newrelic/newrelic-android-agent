@@ -445,7 +445,7 @@ open class ComposeImageThingy(
 
     override fun generateDifferences(other: SessionReplayViewThingyInterface): List<MutationRecord>? {
         if (other !is ComposeImageThingy) {
-            return null
+            return emptyList()
         }
 
         val styleDifferences = HashMap<String, String>(8)
@@ -475,7 +475,7 @@ open class ComposeImageThingy(
             )
         }
         if (styleDifferences.isEmpty()) {
-            return null  // or emptyList()
+            return emptyList()  // or emptyList()
         }
 
         val attributes = Attributes(viewDetails.cssSelector)

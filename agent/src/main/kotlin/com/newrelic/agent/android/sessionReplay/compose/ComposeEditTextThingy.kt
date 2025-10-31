@@ -89,7 +89,7 @@ class ComposeEditTextThingy(
 
     override fun generateDifferences(other: SessionReplayViewThingyInterface): List<MutationRecord>? {
         if (other !is ComposeEditTextThingy) {
-            return null
+            return emptyList()
         }
 
         // Check if anything actually changed
@@ -104,7 +104,7 @@ class ComposeEditTextThingy(
 
         // Early return if nothing changed
         if (parentDifferences.isNullOrEmpty() && !hasTextChange && !hasStateChange) {
-            return null
+            return emptyList()
         }
 
         // Now build mutations list with known size

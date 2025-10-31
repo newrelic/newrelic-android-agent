@@ -185,7 +185,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
         // Make sure this is not null and is of the same type
         if (!(other instanceof SessionReplayTextViewThingy)) {
-            return null;
+            return Collections.emptyList();
         }
 
         // Create a map to store style differences

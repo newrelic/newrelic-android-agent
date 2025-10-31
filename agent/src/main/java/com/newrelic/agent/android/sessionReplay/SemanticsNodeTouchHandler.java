@@ -29,11 +29,16 @@ public class SemanticsNodeTouchHandler {
             return null;
         }
 
+
         if(foundView instanceof AndroidComposeView) {
             SemanticsOwner semanticsOwner = ((AndroidComposeView) foundView).getSemanticsOwner();
             SemanticsNode semanticsNodes = semanticsOwner.getUnmergedRootSemanticsNode();
             return findNodeAtPosition(semanticsNodes, x, y);
-        } else {
+        } else if(foundView.getParent() instanceof AndroidComposeView){
+            SemanticsOwner semanticsOwner = ((AndroidComposeView) foundView.getParent()).getSemanticsOwner();
+            SemanticsNode semanticsNodes = semanticsOwner.getUnmergedRootSemanticsNode();
+            return findNodeAtPosition(semanticsNodes, x, y);
+        }else {
             // handle other view types here, such as RecyclerView or ListView
             return null;
         }
