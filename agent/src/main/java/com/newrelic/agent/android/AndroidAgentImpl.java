@@ -70,6 +70,7 @@ import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsEventStore;
 import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
 import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
+import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
@@ -327,7 +328,15 @@ public class AndroidAgentImpl implements
 
             envInfo.setDiskAvailable(free);
         }
-        envInfo.setMemoryUsage(Sampler.sampleMemory(activityManager).getSampleValue().asLong());
+
+        // Safely sample memory usage, handling potential null returns
+        Sample memorySample = Sampler.sampleMemory(activityManager);
+        if (memorySample != null && memorySample.getSampleValue() != null) {
+            envInfo.setMemoryUsage(memorySample.getSampleValue().asLong());
+        } else {
+            envInfo.setMemoryUsage(0L);
+        }
+
         envInfo.setOrientation(context.getResources().getConfiguration().orientation);
         envInfo.setNetworkStatus(getNetworkCarrier());
         envInfo.setNetworkWanType(getNetworkWanType());

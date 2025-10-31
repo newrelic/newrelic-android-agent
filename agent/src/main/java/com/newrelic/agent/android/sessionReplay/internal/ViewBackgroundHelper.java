@@ -126,17 +126,31 @@ public class ViewBackgroundHelper {
 
     public static void getBackGroundFromDrawable(StringBuilder backgroundColorStringBuilder, GradientDrawable backgroundDrawable,float density) {
 
-        // Extract corner radius
-        float[] cornerRadii = backgroundDrawable.getCornerRadii();
-        if (cornerRadii != null) {
-            backgroundColorStringBuilder.append(" border-radius: ").append(getPixel(cornerRadii[0],density)).append("px;");
-        } else {
-            float cornerRadius = getPixel(backgroundDrawable.getCornerRadius(),density);
-            if (cornerRadius > 0) {
-                backgroundColorStringBuilder.append(" border-radius: ").append(cornerRadius).append("px;");
+        // Extract corner radius - wrap in try-catch as getCornerRadii() can throw NPE internally
+        // when the internal corner radii array is null in some Android versions
+        try {
+            float[] cornerRadii = backgroundDrawable.getCornerRadii();
+            if (cornerRadii != null && cornerRadii.length > 0) {
+                backgroundColorStringBuilder.append(" border-radius: ").append(getPixel(cornerRadii[0],density)).append("px;");
+            } else {
+                float cornerRadius = getPixel(backgroundDrawable.getCornerRadius(),density);
+                if (cornerRadius > 0) {
+                    backgroundColorStringBuilder.append(" border-radius: ").append(cornerRadius).append("px;");
+                }
+            }
+        } catch (NullPointerException e) {
+            // GradientDrawable.getCornerRadii() can throw NPE when trying to clone a null internal array
+            // Fall back to single corner radius
+            try {
+                float cornerRadius = getPixel(backgroundDrawable.getCornerRadius(),density);
+                if (cornerRadius > 0) {
+                    backgroundColorStringBuilder.append(" border-radius: ").append(cornerRadius).append("px;");
+                }
+            } catch (Exception ex) {
+                // If even the fallback fails, just skip corner radius
+                // No need to log as this is expected in some edge cases
             }
         }
-
 
         Paint strokePaint = getStrokePaint(backgroundDrawable);
         if (strokePaint != null) {

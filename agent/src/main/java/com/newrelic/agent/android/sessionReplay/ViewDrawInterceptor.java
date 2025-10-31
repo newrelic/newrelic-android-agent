@@ -43,7 +43,31 @@ public class ViewDrawInterceptor  {
                 // Use debouncer to limit capture frequency
                 lastCaptureTime = currentTime;
                 Log.d("ViewDrawInterceptor", "Capturing frame");
-                Context context = decorViews[0].getContext().getApplicationContext();
+
+                // Safely get context - the view may have been detached by the time this runs
+                if (decorViews == null || decorViews.length == 0) {
+                    Log.w("ViewDrawInterceptor", "decorViews is null or empty, skipping frame capture");
+                    return;
+                }
+
+                View firstView = decorViews[0];
+                if (firstView == null) {
+                    Log.w("ViewDrawInterceptor", "First decor view is null, skipping frame capture");
+                    return;
+                }
+
+                Context viewContext = firstView.getContext();
+                if (viewContext == null) {
+                    Log.w("ViewDrawInterceptor", "View context is null (view may be detached), skipping frame capture");
+                    return;
+                }
+
+                Context context = viewContext.getApplicationContext();
+                if (context == null) {
+                    Log.w("ViewDrawInterceptor", "Application context is null, skipping frame capture");
+                    return;
+                }
+
                 float density = context.getResources().getDisplayMetrics().density;
 
                 // Get screen dimensions
