@@ -47,14 +47,18 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         // Check if input type is for password - always mask password fields
         int inputType = view.getInputType();
-        if ((inputType & android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD) != 0 ||
-                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) != 0 ||
-                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) != 0 ||
-                (inputType & android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) != 0) {
+        if ((inputType == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)||
+                (inputType == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)  ||
+                (inputType == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) ||
+                (inputType == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD)) {
             shouldMaskText = true;
         } else {
-            // For non-password fields, use configuration-based logic
-            shouldMaskText = inputType != 0 ? sessionReplayConfiguration.isMaskUserInputText() : sessionReplayConfiguration.isMaskApplicationText();
+            // For non-password fields, check if it's actually an editable input field
+            // Use instanceof EditText to determine if it's user input vs static text
+            boolean isEditableInput = view instanceof android.widget.EditText;
+            shouldMaskText = isEditableInput
+                ? sessionReplayConfiguration.isMaskUserInputText()
+                : sessionReplayConfiguration.isMaskApplicationText();
         }
 
         // Apply masking if needed
