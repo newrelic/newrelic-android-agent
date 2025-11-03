@@ -18,9 +18,12 @@ public class SessionReplayCapture {
     private SessionReplayThingyRecorder recorder;
     private ComposeTreeCapture composeTreeCapture;
 
+    public SessionReplayCapture(AgentConfiguration config) {
+        this.recorder = new SessionReplayThingyRecorder(config);
+        this.composeTreeCapture = new ComposeTreeCapture(recorder);
+    }
+
     public SessionReplayViewThingyInterface capture(View rootView, AgentConfiguration agentConfiguration) {
-        recorder = new SessionReplayThingyRecorder(agentConfiguration);
-        composeTreeCapture = new ComposeTreeCapture(recorder);
         return recursivelyCapture(rootView,false,false);
     }
 
@@ -35,12 +38,19 @@ public class SessionReplayCapture {
             for(int i = 0; i < ((ViewGroup) rootView).getChildCount(); i++) {
                 View child = ((ViewGroup) rootView).getChildAt(i);
 
-                if(!shouldRecordView(child)) {
+                // Defensive null check - getChildAt can return null in rare concurrent modification cases
+                if (child == null || !shouldRecordView(child)) {
                     continue;
                 }
 
-                boolean shouldAddMask1 = (child.getTag(R.id.newrelic_privacy) != null && child.getTag(R.id.newrelic_privacy).equals("nr-mask")) || (child.getTag() != null && child.getTag().equals("nr-mask"));
-                boolean shouldAddUnMask1 = child.getTag(R.id.newrelic_privacy) != null && child.getTag(R.id.newrelic_privacy).equals("nr-unmask") || (child.getTag() != null && child.getTag().equals("nr-unmask"));
+                // Check privacy tags - use safe null-checking pattern
+                Object privacyTag = child.getTag(R.id.newrelic_privacy);
+                Object generalTag = child.getTag();
+
+                boolean shouldAddMask1 = (privacyTag != null && "nr-mask".equals(privacyTag)) ||
+                                         (generalTag != null && "nr-mask".equals(generalTag));
+                boolean shouldAddUnMask1 = (privacyTag != null && "nr-unmask".equals(privacyTag)) ||
+                                           (generalTag != null && "nr-unmask".equals(generalTag));
 
 
                 if(shouldAddMask &&  !shouldAddUnMask1 ) {

@@ -46,11 +46,30 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         boolean shouldMaskText;
 
         // Check if input type is for password - always mask password fields
+        // Note: InputType uses bit fields structured as: [flags][variation][class]
+        // - Bits 0-3: TYPE_CLASS (text=1, number=2, phone=3, datetime=4)
+        // - Bits 4-11: TYPE_VARIATION (password=0x80, email=0x20, etc.)
+        // - Bits 12+: TYPE_FLAGS (caps, multiline, etc.)
         int inputType = view.getInputType();
-        if ((inputType == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)||
-                (inputType == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)  ||
-                (inputType == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) ||
-                (inputType == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD)) {
+
+        // Extract the variation bits (bits 4-11) by masking with 0xFF0 (0b111111110000)
+        // This isolates just the variation field, ignoring class and flags
+        int TYPE_MASK_CLASS = 0x0000000f;  // Mask for class (bits 0-3)
+        int TYPE_MASK_VARIATION = 0x00000ff0;  // Mask for variation (bits 4-11)
+
+        int variation = inputType & TYPE_MASK_VARIATION;
+
+        // Check for password variations - CRITICAL: Always mask passwords
+        // We compare ONLY the variation bits (bits 4-11), not the full inputType
+        // Password variation values: 0x80=password, 0x90=visible_password, 0xe0=web_password, 0x10=number_password
+        boolean isPassword =
+            variation == 0x80 ||  // TYPE_TEXT_VARIATION_PASSWORD
+            variation == 0x90 ||  // TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+            variation == 0xe0 ||  // TYPE_TEXT_VARIATION_WEB_PASSWORD
+            variation == 0x10;    // TYPE_NUMBER_VARIATION_PASSWORD
+
+        if (isPassword) {
+            // Always mask passwords regardless of configuration
             shouldMaskText = true;
         } else {
             // For non-password fields, check if it's actually an editable input field

@@ -13,22 +13,25 @@ import android.view.WindowMetrics;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 
 public class ViewDrawInterceptor  {
-    private final WeakHashMap<View, ViewTreeObserver.OnDrawListener> decorViewListeners = new WeakHashMap<>();
-    SessionReplayCapture capture = new SessionReplayCapture();
+    private final Map<View, ViewTreeObserver.OnDrawListener> decorViewListeners =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    SessionReplayCapture capture;
     private final OnFrameTakenListener listener;
     private static final long CAPTURE_INTERVAL = 1000;
     private long lastCaptureTime = 0;
-    private AgentConfiguration agentConfiguration;
-    private Debouncer captureDebouncer;
+    private final AgentConfiguration agentConfiguration;
+    private final Debouncer captureDebouncer;
     private static final long DEBOUNCE_DELAY = 1000; // ~60 FPS (16ms per frame)
 
     public ViewDrawInterceptor(OnFrameTakenListener listener, AgentConfiguration agentConfiguration) {
         this.listener = listener;
         this.agentConfiguration = agentConfiguration;
+        capture = new SessionReplayCapture(agentConfiguration);
         this.captureDebouncer = new Debouncer(true);
     }
 
@@ -77,8 +80,33 @@ public class ViewDrawInterceptor  {
 
                 // Start timing the frame creation
                 long frameCreationStart = System.currentTimeMillis();
-                // Start walking the view tree
-                SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length - 1], agentConfiguration), System.currentTimeMillis(), width, height);
+
+
+                // Capture the LAST decorView (most recently added window)
+                //
+                // Why the last element?
+                // - Android maintains decorViews in a stack ordered by z-index (rendering order)
+                // - Index 0: Base activity window (bottom layer)
+                // - Index 1..n-1: Dialogs, popups, toasts (middle layers)
+                // - Index n-1: Most recent window (top layer) - THIS IS WHAT USER SEES
+                //
+                // Examples:
+                // - MainActivity (index 0) + AlertDialog (index 1) → We capture index 1 (the visible dialog)
+                // - Activity + Popup Menu → We capture the popup (most recent interaction)
+                // - Activity only → We capture index 0 (the only window)
+                //
+                // This approach captures what the user is currently interacting with, which is
+                // always the topmost (most recent) window in the decorViews array.
+                //
+                // Alternative considered: Merge all decorViews into a composite snapshot
+                // Reason not implemented: Performance overhead + complexity of merging z-indexed views
+                View topMostView = decorViews[decorViews.length - 1];
+                SessionReplayFrame frame = new SessionReplayFrame(
+                    capture.capture(topMostView, agentConfiguration),
+                    System.currentTimeMillis(),
+                    width,
+                    height
+                );
 
                 // Calculate frame creation time
                 long frameCreationTime = System.currentTimeMillis() - frameCreationStart;
