@@ -9,13 +9,10 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
-import android.os.Build;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable; // Use androidx annotation
-
-import java.lang.reflect.Field;
 
 public class ViewBackgroundHelper {
 
@@ -54,7 +51,14 @@ public class ViewBackgroundHelper {
     private static String getDrawableColor(Drawable drawable) {
         if (drawable instanceof ColorDrawable) {
             int color = ((ColorDrawable) drawable).getColor();
-            return toRGBAHexString(color);
+            String colorString = toRGBAHexString(color);
+            if(colorString.length() > 3) {
+                Log.d("ViewBackgroundHelper", "Color: " + colorString);
+                return colorString.substring(2);
+            } else {
+                return "FFFFFF";
+            }
+            // Remove the leading '#'
         } else if (drawable instanceof GradientDrawable) {
             GradientDrawable gradientDrawable = (GradientDrawable) drawable;
             // GradientDrawables can have multiple colors for gradients.
@@ -152,33 +156,14 @@ public class ViewBackgroundHelper {
             }
         }
 
-        Paint strokePaint = getStrokePaint(backgroundDrawable);
+        Paint strokePaint = ReflectionUtils.getStrokePaint(backgroundDrawable);
         if (strokePaint != null) {
             backgroundColorStringBuilder.append(" border:").append(getPixel(strokePaint.getStrokeWidth(), density)).append("px").append(" solid #").append(Integer.toHexString(strokePaint.getColor()).substring(2)).append(";");
         }
     }
 
-    public static Paint getFillPaint(GradientDrawable gradientDrawable) {
-        try {
-            Field mFillPaintField = GradientDrawable.class.getDeclaredField("mFillPaint");
-            mFillPaintField.setAccessible(true);
-            return (Paint)mFillPaintField.get(gradientDrawable);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 
-    public static Paint getStrokePaint(GradientDrawable gradientDrawable) {
-        try {
-            Field mStrokePaintPaintField = GradientDrawable.class.getDeclaredField("mStrokePaint");
-            mStrokePaintPaintField.setAccessible(true);
-            return (Paint)mStrokePaintPaintField.get(gradientDrawable);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
+
     private static float getPixel(float value, float density) {
         return  (value /density);
     }
