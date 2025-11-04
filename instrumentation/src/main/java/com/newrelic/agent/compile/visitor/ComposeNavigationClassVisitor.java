@@ -26,7 +26,7 @@ import java.util.Map;
  * Android Activity classes.  It either modifies existing Activity class methods (onStart,
  * onStop, etc.) if overridden, or injects them (with a call to the super implementation).
  */
-public class ComposNavigationClassVisitor extends AgentDelegateClassVisitor {
+public class ComposeNavigationClassVisitor extends AgentDelegateClassVisitor {
 
     static final Type agentDelegateClassType = Type.getObjectType(Constants.ASM_CLASS_NAME);
 
@@ -54,7 +54,7 @@ public class ComposNavigationClassVisitor extends AgentDelegateClassVisitor {
     // Start a new trace on entry to these methods
 
 
-    public ComposNavigationClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log) {
+    public ComposeNavigationClassVisitor(ClassVisitor cv, InstrumentationContext context, Logger log) {
         super(cv, context, log, ACTIVITY_CLASSES, methodDelegateMap, methodAccessMap);
         this.access = 0;
     }
