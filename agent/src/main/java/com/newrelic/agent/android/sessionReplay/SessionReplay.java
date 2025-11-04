@@ -25,9 +25,11 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import curtains.Curtains;
 
@@ -41,10 +43,32 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private static final SessionReplay instance = new SessionReplay();
     private SessionReplayFileManager fileManager;
     protected static final AgentLog log = AgentLogManager.getAgentLog();
-    private final ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
-    private final List<RRWebEvent> rrWebEvents = new ArrayList<>();
     private static boolean isFirstChunk = true;
-    private static boolean takeFullSnapshot = true;
+    private final List<SessionReplayFrame> rawFrames =
+            Collections.synchronizedList(new ArrayList<>());
+    private final List<RRWebEvent> rrWebEvents =
+            Collections.synchronizedList(new ArrayList<>());
+    private static final AtomicBoolean takeFullSnapshot = new AtomicBoolean(true);
+
+    /**
+     * Sets whether the next snapshot should be a full snapshot or incremental.
+     * This can be called from any class to force a full snapshot on the next capture.
+     *
+     * @param shouldTakeFullSnapshot true to take a full snapshot, false for incremental
+     */
+    public static void setTakeFullSnapshot(boolean shouldTakeFullSnapshot) {
+        takeFullSnapshot.set(shouldTakeFullSnapshot);
+        log.debug("SessionReplay: takeFullSnapshot set to " + shouldTakeFullSnapshot);
+    }
+
+    /**
+     * Gets the current takeFullSnapshot value.
+     *
+     * @return true if the next snapshot will be a full snapshot, false otherwise
+     */
+    public static boolean shouldTakeFullSnapshot() {
+        return takeFullSnapshot.get();
+    }
 
     /**
      * Initializes the SessionReplay system.
@@ -151,7 +175,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         touchTrackers.clear();
         fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
-        takeFullSnapshot = true;
+        takeFullSnapshot.set(true);
     }
 
 
@@ -183,7 +207,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     public static void startRecording() {
         Harvest.addHarvestListener(instance);
-        takeFullSnapshot = true; // Force full snapshot when starting recording
+        takeFullSnapshot.set(true); // Force full snapshot when starting recording
         uiThreadHandler.post(() -> {
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
 
@@ -214,12 +238,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         rawFrames.add(newFrame);
-        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)),takeFullSnapshot);
+        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)),takeFullSnapshot.get());
         rrWebEvents.addAll(events);
         if (fileManager != null) {
             fileManager.addFrameToFile(events);
         }
-        takeFullSnapshot = false;
+        takeFullSnapshot.set(false);
     }
 
     @Override

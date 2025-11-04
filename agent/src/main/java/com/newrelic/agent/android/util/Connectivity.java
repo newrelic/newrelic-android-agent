@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2022-present New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
@@ -150,12 +151,12 @@ public final class Connectivity {
                 return WanType.HSUPA;
             case TelephonyManager.NETWORK_TYPE_UMTS:
                 return WanType.UMTS;
-            case TelephonyManager.NETWORK_TYPE_IDEN: // API level 8
+            case TelephonyManager.NETWORK_TYPE_IDEN:
                 return WanType.IDEN;
             /*
-             * the following require API > 8, which we to not target
+             * the following require API > 8, which we do not target
             */
-            case 12:// TelephonyManager.NETWORK_TYPE_EVDO_B: (API level 9)
+            case TelephonyManager.NETWORK_TYPE_EVDO_B:
                 return WanType.EVDO_REV_B;
             case 15://TelephonyManager.NETWORK_TYPE_HSPAP: (API level 13)
                 return WanType.HSPAP;
