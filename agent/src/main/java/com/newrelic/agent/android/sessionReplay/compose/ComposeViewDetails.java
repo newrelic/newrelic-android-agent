@@ -236,7 +236,7 @@ public class ComposeViewDetails {
 
     private String generateBackgroundColorCss() {
         StringBuilder backgroundColorStringBuilder = new StringBuilder();
-        if (!backgroundColor.isEmpty() && !backgroundColor.equals("transparent")) {
+        if (this.backgroundColor != null && !this.backgroundColor.isEmpty() && !this.backgroundColor.equals("transparent")) {
             backgroundColorStringBuilder.append("background-color: #")
                     .append(backgroundColor)
                     .append(";");

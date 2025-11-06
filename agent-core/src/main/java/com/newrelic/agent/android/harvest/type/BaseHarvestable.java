@@ -22,7 +22,7 @@ public class BaseHarvestable implements Harvestable {
     /**
      * A GSON TypeToken for converting Map&lt;String, String&gt; to JSON.
      */
-    protected final static java.lang.reflect.Type GSON_STRING_MAP_TYPE = new TypeToken<Map>() {
+    protected final static java.lang.reflect.Type GSON_STRING_MAP_TYPE = new TypeToken<Map<String, String>>() {
     }.getType();
 
     public BaseHarvestable(Harvestable.Type type) {
