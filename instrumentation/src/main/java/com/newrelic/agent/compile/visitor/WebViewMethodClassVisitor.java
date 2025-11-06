@@ -198,6 +198,11 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
     public MethodVisitor visitMethod(int access, String methodName, String desc, String signature, String[] exceptions) {
         MethodVisitor mv = super.visitMethod(access, methodName, desc, signature, exceptions);
 
+        // Only instrument if this class extends WebView (checked in visit() method)
+        if (!instrument) {
+            return mv;
+        }
+
         // ========================================================================
         // Instrument WebViewClient.onPageFinished(WebView view, String url)
         // ========================================================================
