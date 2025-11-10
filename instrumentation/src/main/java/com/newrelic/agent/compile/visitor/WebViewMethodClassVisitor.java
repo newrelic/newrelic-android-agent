@@ -156,25 +156,12 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
         this.access = access;
-
-        instrument = isInstrumentable(name, superName);
-        if (instrument) {
-            interfaces = TraceClassDecorator.addInterface(interfaces);
-            log.info("[ActivityClassVisitor] Added Trace interface to class[" + context.getClassName() + "] superName[" + superName + "]");
-
-            // The TraceFieldInterface has been added, so now the class needs the trace flag
-            // and TraceFieldInterface implementation if abstract. Added during visitEnd()
-        }
-
         context.markModified();
         super.visit(version, access, name, signature, superName, interfaces);
     }
 
     @Override
     protected void injectIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method agentDelegateMethod) {
-     if (method.getName().equalsIgnoreCase("onClick")) {
-         log.debug("[onClick] Injecting call to agent delegate method: " + agentDelegateMethod.getName());
-        }
     }
 
     /**
