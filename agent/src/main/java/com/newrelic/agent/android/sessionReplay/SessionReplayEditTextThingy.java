@@ -1,7 +1,6 @@
 package com.newrelic.agent.android.sessionReplay;
 
 import android.annotation.SuppressLint;
-import android.graphics.Typeface;
 import android.widget.EditText;
 
 import com.newrelic.agent.android.AgentConfiguration;
@@ -9,6 +8,7 @@ import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
+import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
 import java.util.ArrayList;
@@ -17,10 +17,10 @@ import java.util.List;
 
 public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy implements SessionReplayViewThingyInterface {
     private List<? extends SessionReplayViewThingyInterface> subviews = new ArrayList<>();
-    private ViewDetails viewDetails;
+    private final ViewDetails viewDetails;
 
     public boolean shouldRecordSubviews = false;
-    private String hint;
+    private final String hint;
 
     public SessionReplayEditTextThingy(ViewDetails viewDetails, EditText view, AgentConfiguration agentConfiguration) {
         // Call the parent constructor to initialize common properties
@@ -81,35 +81,38 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
         attributes.setType("text"); // Set input type to "text" for EditText
 
-        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, Collections.singletonList(textNode));
+        ArrayList <RRWebNode> children = new ArrayList<>();
+        children.add(textNode);
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId,children);
     }
 
     @Override
     public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
         // Make sure this is not null and is of the same type
         if (!(other instanceof SessionReplayEditTextThingy)) {
-            return null;
+            return Collections.emptyList();
         }
 
         // Create a map to store style differences
         java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
 
+        ViewDetails otherViewDetails = (ViewDetails) other.getViewDetails();
         // Compare frames
-        if (!viewDetails.frame.equals(other.getViewDetails().frame)) {
-            styleDifferences.put("left", other.getViewDetails().frame.left + "px");
-            styleDifferences.put("top", other.getViewDetails().frame.top + "px");
-            styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
-            styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
-            styleDifferences.put("line-height", other.getViewDetails().frame.height() + "px");
+        if (!viewDetails.frame.equals(otherViewDetails.frame)) {
+            styleDifferences.put("left", otherViewDetails.frame.left + "px");
+            styleDifferences.put("top", otherViewDetails.frame.top + "px");
+            styleDifferences.put("width", otherViewDetails.frame.width() + "px");
+            styleDifferences.put("height", otherViewDetails.frame.height() + "px");
+            styleDifferences.put("line-height", otherViewDetails.frame.height() + "px");
         }
 
         // Compare background colors if available
-        if (viewDetails.backgroundColor != null && other.getViewDetails().backgroundColor != null) {
-            if (!viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
-                styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+        if (viewDetails.backgroundColor != null && otherViewDetails.backgroundColor != null) {
+            if (!viewDetails.backgroundColor.equals(otherViewDetails.backgroundColor)) {
+                styleDifferences.put("background-color", otherViewDetails.backgroundColor);
             }
-        } else if (other.getViewDetails().backgroundColor != null) {
-            styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+        } else if (otherViewDetails.backgroundColor != null) {
+            styleDifferences.put("background-color", otherViewDetails.backgroundColor);
         }
 
         // compare TextColor if available
@@ -138,22 +141,19 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
         return viewDetails.viewId;
     }
 
-    private String getFontFamily(Typeface typeface) {
-        if(typeface.equals(Typeface.DEFAULT)){
-            return "roboto, sans-serif";
+    @Override
+    public int getParentViewId() {
+        return viewDetails.parentId;
+    }
+
+    @Override
+    public boolean hasChanged(SessionReplayViewThingyInterface other) {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || !(other instanceof SessionReplayEditTextThingy)) {
+            return true;
         }
-        if(typeface.equals(Typeface.DEFAULT_BOLD)){
-            return "sans-serif-bold";
-        }
-        if(typeface.equals(Typeface.MONOSPACE)){
-            return "monospace";
-        }
-        if(typeface.equals(Typeface.SANS_SERIF)){
-            return "sans-serif";
-        }
-        if(typeface.equals(Typeface.SERIF)){
-            return "serif";
-        }
-        return "roboto, sans-serif";
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode();
     }
 }
