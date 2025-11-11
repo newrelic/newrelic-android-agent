@@ -28,6 +28,7 @@ buildscript {
                 agent  : newrelic.agent.version,
                 gradle : "7.2",
                 jetpack: "2.5.3",
+                composeui: "1.4.3",
 
                 java   : [
                         minVersion : JavaVersion.VERSION_11,

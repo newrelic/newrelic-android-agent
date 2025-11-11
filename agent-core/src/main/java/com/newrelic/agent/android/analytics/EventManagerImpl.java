@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class EventManagerImpl implements EventManager, EventListener {
     private static final AgentLog log = AgentLogManager.getAgentLog();
-    protected static final int DEFAULT_MAX_EVENT_BUFFER_TIME = 60;    // 60 seconds (1 minutes)
+    protected static final int DEFAULT_MAX_EVENT_BUFFER_TIME = 600;    // 600 seconds (10 minutes)
     protected static final int DEFAULT_MAX_EVENT_BUFFER_SIZE = 1000;   // 1000 as the default
 
     public static final int DEFAULT_MIN_EVENT_BUFFER_SIZE = 64;
@@ -44,7 +44,7 @@ public class EventManagerImpl implements EventManager, EventListener {
     private AnalyticsEventStore eventStore;
 
     public EventManagerImpl() {
-        // Currently using 1000 max events, 1 minutes max buffer age
+        // Currently using 1000 max events, 10 minutes max buffer age
         this(DEFAULT_MAX_EVENT_BUFFER_SIZE, DEFAULT_MAX_EVENT_BUFFER_TIME);
     }
 
@@ -67,7 +67,6 @@ public class EventManagerImpl implements EventManager, EventListener {
         if (eventStore != null) {
             storedEvents = eventStore.fetchAll();
         }
-
 
         if (!initialized.compareAndSet(false, true)) {
             eventsRecorded.set(0);
@@ -264,6 +263,7 @@ public class EventManagerImpl implements EventManager, EventListener {
         }
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_POOL_SIZE);
+        log.debug("Event pool size was set to custom value: " + maxSize);
         this.maxEventPoolSize = maxSize;
     }
 
@@ -283,6 +283,7 @@ public class EventManagerImpl implements EventManager, EventListener {
         }
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_BUFFER_SIZE);
+        log.debug("Event buffer time was set to custom value: " + maxBufferTimeInSec + " seconds");
         this.maxBufferTimeInSec = maxBufferTimeInSec;
     }
 

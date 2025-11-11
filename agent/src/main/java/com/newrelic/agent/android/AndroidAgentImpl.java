@@ -70,6 +70,7 @@ import com.newrelic.agent.android.stores.CrashDataStore;
 import com.newrelic.agent.android.stores.EventDataStore;
 import com.newrelic.agent.android.stores.PayloadDataStore;
 import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
+import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
@@ -327,7 +328,15 @@ public class AndroidAgentImpl implements
 
             envInfo.setDiskAvailable(free);
         }
-        envInfo.setMemoryUsage(Sampler.sampleMemory(activityManager).getSampleValue().asLong());
+
+        // Safely sample memory usage, handling potential null returns
+        Sample memorySample = Sampler.sampleMemory(activityManager);
+        if (memorySample != null && memorySample.getSampleValue() != null) {
+            envInfo.setMemoryUsage(memorySample.getSampleValue().asLong());
+        } else {
+            envInfo.setMemoryUsage(0L);
+        }
+
         envInfo.setOrientation(context.getResources().getConfiguration().orientation);
         envInfo.setNetworkStatus(getNetworkCarrier());
         envInfo.setNetworkWanType(getNetworkWanType());
@@ -750,7 +759,12 @@ public class AndroidAgentImpl implements
      * a Location to a country and region code.
      *
      * @param location An android.location.Location
+     * @deprecated This method is deprecated due to reliance on Geocoder which may fail or be unavailable.
+     *             Use {@link #setLocation(String, String)} instead to directly provide country code and
+     *             administrative region. This allows for more reliable location tracking without
+     *             dependency on the Geocoder service.
      */
+    @Deprecated
     public void setLocation(Location location) {
         if (location == null) {
             throw new IllegalArgumentException("Location must not be null.");

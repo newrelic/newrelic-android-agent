@@ -39,14 +39,39 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
+    /**
+     * Initializes lifecycle tracking when the app performs a cold start.
+     *
+     * <p><b>Microsoft Intune MAM Compatibility:</b> This method safely handles contexts
+     * wrapped by Microsoft Intune's Mobile Application Management (MAM). Intune wraps
+     * contexts with {@code MAMContext}, which cannot be cast to {@link Application}.
+     * We use {@link Context#getApplicationContext()} to get the actual {@link Application}
+     * instance, avoiding {@link ClassCastException}.</p>
+     *
+     * @param context The context used to register lifecycle callbacks (may be MAM-wrapped)
+     */
     public void onColdStartInitiated(Context context) {
         this.context = context.getApplicationContext();
-        ((Application) context).registerActivityLifecycleCallbacks(this);
+
+        // Use ApplicationContext (this.context) instead of input context to avoid
+        // ClassCastException with Microsoft Intune MAM's MAMContext wrapper
+        if (this.context instanceof Application) {
+            ((Application) this.context).registerActivityLifecycleCallbacks(this);
+        } else {
+            log.error("Unable to register activity lifecycle callbacks: ApplicationContext is not an Application instance. " +
+                    "Context type: " + (this.context != null ? this.context.getClass().getName() : "null"));
+        }
     }
 
     @Override
     public void close() throws IOException {
-        ((Application) context).unregisterActivityLifecycleCallbacks(this);
+        // Safe cast check to avoid ClassCastException with MAMContext
+        if (context instanceof Application) {
+            ((Application) context).unregisterActivityLifecycleCallbacks(this);
+        } else {
+            log.warn("Unable to unregister activity lifecycle callbacks: Context is not an Application instance. " +
+                    "Context type: " + (context != null ? context.getClass().getName() : "null"));
+        }
     }
 
     @Override
