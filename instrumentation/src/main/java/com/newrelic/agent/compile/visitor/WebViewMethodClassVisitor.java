@@ -109,14 +109,15 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
      *       ($ ensures exact match, no further subclasses)</li>
      *   <li>"^android/webkit/WebView" - Matches WebView and all its transitive subclasses
      *       (no $ allows matching subclass hierarchies like WebView/Chrome/CustomWebView)</li>
-     *   <li>"^java/lang/Object" - Fallback pattern that matches any class extending Object
-     *       (useful for edge cases but may cause over-instrumentation)</li>
      * </ul>
+     * <p>
+     * Note: The previous pattern "^java/lang/Object" has been removed as it caused
+     * over-instrumentation of non-WebView classes that happen to have loadUrl() methods,
+     * resulting in VerifyError due to type mismatches.
      */
     static final ImmutableSet<String> WEBVIEW_CLASSES = ImmutableSet.of(
             "^android/webkit/WebView$",        // Direct WebView subclass
-            "^android/webkit/WebView",         // WebView and its subclasses
-            "^java/lang/Object"                // Fallback for any class
+            "^android/webkit/WebView"          // WebView and its subclasses
     );
 
     /**
@@ -155,25 +156,12 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
         this.access = access;
-
-        instrument = isInstrumentable(name, superName);
-        if (instrument) {
-            interfaces = TraceClassDecorator.addInterface(interfaces);
-            log.info("[ActivityClassVisitor] Added Trace interface to class[" + context.getClassName() + "] superName[" + superName + "]");
-
-            // The TraceFieldInterface has been added, so now the class needs the trace flag
-            // and TraceFieldInterface implementation if abstract. Added during visitEnd()
-        }
-
         context.markModified();
         super.visit(version, access, name, signature, superName, interfaces);
     }
 
     @Override
     protected void injectIntoMethod(GeneratorAdapter generatorAdapter, Method method, Method agentDelegateMethod) {
-     if (method.getName().equalsIgnoreCase("onClick")) {
-         log.debug("[onClick] Injecting call to agent delegate method: " + agentDelegateMethod.getName());
-        }
     }
 
     /**
@@ -196,6 +184,11 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
     @Override
     public MethodVisitor visitMethod(int access, String methodName, String desc, String signature, String[] exceptions) {
         MethodVisitor mv = super.visitMethod(access, methodName, desc, signature, exceptions);
+
+        // Only instrument if this class extends WebView (checked in visit() method)
+        if (!instrument) {
+            return mv;
+        }
 
         // ========================================================================
         // Instrument WebViewClient.onPageFinished(WebView view, String url)
