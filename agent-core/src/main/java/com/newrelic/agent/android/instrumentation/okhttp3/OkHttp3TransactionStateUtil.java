@@ -63,6 +63,8 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
             Request request = response.request();
             // add request headers as custom attributes
             addHeadersAsCustomAttribute(transactionState, request);
+            // add response headers as custom attributes
+            addResponseHeadersAsCustomAttribute(transactionState, response);
             if (request != null && request.url() != null) {
                 String url = request.url().toString();
                 if (!url.isEmpty()) {
@@ -285,6 +287,31 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
 
         for (String headerName : headersCopy) {
             String headerValue = request.headers().get(headerName);
+            if (headerValue != null) {
+                headers.put(HttpHeaders.translateApolloHeader(headerName), headerValue);
+            }
+        }
+        transactionState.setParams(headers);
+    }
+
+    /**
+     * Adds HTTP headers from the response as custom attributes to the transaction state.
+     * Only headers configured via {@link HttpHeaders#addHttpHeaderAsAttribute(String)} are captured.
+     *
+     * <p><b>Thread Safety:</b> Creates a defensive copy of the header list to avoid
+     * {@link java.util.ConcurrentModificationException} if headers are modified concurrently.</p>
+     *
+     * @param transactionState The transaction state to add attributes to
+     * @param response The OkHttp response containing headers
+     */
+    public static void addResponseHeadersAsCustomAttribute(TransactionState transactionState, Response response) {
+        Map<String, String> headers = new HashMap<>();
+
+        // Defensive copy to prevent ConcurrentModificationException
+        Set<String> headersCopy = new HashSet<>(HttpHeaders.getInstance().getHttpHeaders());
+
+        for (String headerName : headersCopy) {
+            String headerValue = response.headers().get(headerName);
             if (headerValue != null) {
                 headers.put(HttpHeaders.translateApolloHeader(headerName), headerValue);
             }

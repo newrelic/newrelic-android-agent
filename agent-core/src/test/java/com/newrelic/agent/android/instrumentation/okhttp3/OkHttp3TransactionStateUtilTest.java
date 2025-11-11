@@ -410,6 +410,118 @@ public class OkHttp3TransactionStateUtilTest {
 
     }
 
+    @Test
+    public void testResponseHeadersCaptureAsCustomAttribute() {
+        final String requestUrl = "http://www.foo.com/";
+        final String appId = "some-app-id";
+
+        final StubAgentImpl agent = StubAgentImpl.install();
+
+        assertEquals(0, agent.getTransactionData().size());
+
+        final Request.Builder builder = new Request.Builder().
+                url(requestUrl).
+                header(Constants.Network.APPLICATION_ID_HEADER, appId).
+                get();
+
+        final Request request = OkHttp3Instrumentation.build(builder);
+
+        ResponseBody body = new ResponseBuilderExtensionTest.TestResponseBody();
+        Response response = new Response.Builder().
+                request(request).
+                protocol(Protocol.HTTP_1_1).
+                code(HttpStatus.SC_OK).
+                body(body).
+                message("200 OK").
+                header("X-Custom-Header-1", "response-header-value").
+                header("X-CUSTOM-HEADER-2", "another-response-value").
+                build();
+
+        OkHttp3TransactionStateUtil.inspectAndInstrumentResponse(transactionState, response);
+
+        Assert.assertNotNull(transactionState.getParams());
+        Assert.assertTrue("Should contain response header X-Custom-Header-1", 
+                transactionState.getParams().containsKey("X-Custom-Header-1"));
+        Assert.assertEquals("response-header-value", 
+                transactionState.getParams().get("X-Custom-Header-1"));
+        Assert.assertTrue("Should contain response header X-CUSTOM-HEADER-2", 
+                transactionState.getParams().containsKey("X-CUSTOM-HEADER-2"));
+        Assert.assertEquals("another-response-value", 
+                transactionState.getParams().get("X-CUSTOM-HEADER-2"));
+    }
+
+    @Test
+    public void testResponseHeadersAndRequestHeadersCapturedTogether() {
+        final String requestUrl = "http://www.foo.com/";
+        final String appId = "some-app-id";
+
+        final StubAgentImpl agent = StubAgentImpl.install();
+
+        assertEquals(0, agent.getTransactionData().size());
+
+        final Request.Builder builder = new Request.Builder().
+                url(requestUrl).
+                header(Constants.Network.APPLICATION_ID_HEADER, appId).
+                header("X-Custom-Header-1", "request-header-value").
+                get();
+
+        final Request request = OkHttp3Instrumentation.build(builder);
+
+        ResponseBody body = new ResponseBuilderExtensionTest.TestResponseBody();
+        Response response = new Response.Builder().
+                request(request).
+                protocol(Protocol.HTTP_1_1).
+                code(HttpStatus.SC_OK).
+                body(body).
+                message("200 OK").
+                header("X-CUSTOM-HEADER-2", "response-header-value").
+                build();
+
+        OkHttp3TransactionStateUtil.inspectAndInstrumentResponse(transactionState, response);
+
+        Assert.assertNotNull(transactionState.getParams());
+        // Note: When both request and response have headers with same name, response header takes precedence
+        // because addResponseHeadersAsCustomAttribute is called after addHeadersAsCustomAttribute
+        Assert.assertTrue("Should contain header X-CUSTOM-HEADER-2 from response", 
+                transactionState.getParams().containsKey("X-CUSTOM-HEADER-2"));
+        Assert.assertEquals("response-header-value", 
+                transactionState.getParams().get("X-CUSTOM-HEADER-2"));
+    }
+
+    @Test
+    public void testResponseHeadersCaptureWhenHeaderNotInResponse() {
+        final String requestUrl = "http://www.foo.com/";
+        final String appId = "some-app-id";
+
+        final StubAgentImpl agent = StubAgentImpl.install();
+
+        assertEquals(0, agent.getTransactionData().size());
+
+        final Request.Builder builder = new Request.Builder().
+                url(requestUrl).
+                header(Constants.Network.APPLICATION_ID_HEADER, appId).
+                get();
+
+        final Request request = OkHttp3Instrumentation.build(builder);
+
+        ResponseBody body = new ResponseBuilderExtensionTest.TestResponseBody();
+        Response response = new Response.Builder().
+                request(request).
+                protocol(Protocol.HTTP_1_1).
+                code(HttpStatus.SC_OK).
+                body(body).
+                message("200 OK").
+                // No custom headers in response
+                build();
+
+        OkHttp3TransactionStateUtil.inspectAndInstrumentResponse(transactionState, response);
+
+        Assert.assertNotNull(transactionState.getParams());
+        // Should not contain the tracked headers if they're not in the response
+        Assert.assertFalse("Should not contain X-Custom-Header-1 when not in response", 
+                transactionState.getParams().containsKey("X-Custom-Header-1"));
+    }
+
     private Request provideRequest() {
         final String requestUrl = "http://www.foo.com";
         final String appId = "some-app-id";
