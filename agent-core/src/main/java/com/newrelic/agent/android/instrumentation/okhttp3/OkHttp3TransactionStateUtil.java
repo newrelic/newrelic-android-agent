@@ -280,7 +280,8 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
      * @param request The OkHttp request containing headers
      */
     public static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
-        Map<String, String> headers = new HashMap<>();
+        // Get existing params to merge with
+        Map<String, String> headers = new HashMap<>(transactionState.getParams());
 
         // Defensive copy to prevent ConcurrentModificationException
         Set<String> headersCopy = new HashSet<>(HttpHeaders.getInstance().getHttpHeaders());
@@ -305,7 +306,8 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
      * @param response The OkHttp response containing headers
      */
     public static void addResponseHeadersAsCustomAttribute(TransactionState transactionState, Response response) {
-        Map<String, String> headers = new HashMap<>();
+        // Get existing params to merge with
+        Map<String, String> headers = new HashMap<>(transactionState.getParams());
 
         // Defensive copy to prevent ConcurrentModificationException
         Set<String> headersCopy = new HashSet<>(HttpHeaders.getInstance().getHttpHeaders());

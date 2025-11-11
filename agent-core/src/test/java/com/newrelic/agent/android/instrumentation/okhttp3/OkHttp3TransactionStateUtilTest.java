@@ -480,8 +480,11 @@ public class OkHttp3TransactionStateUtilTest {
         OkHttp3TransactionStateUtil.inspectAndInstrumentResponse(transactionState, response);
 
         Assert.assertNotNull(transactionState.getParams());
-        // Note: When both request and response have headers with same name, response header takes precedence
-        // because addResponseHeadersAsCustomAttribute is called after addHeadersAsCustomAttribute
+        // Both request and response headers should be captured
+        Assert.assertTrue("Should contain header X-Custom-Header-1 from request", 
+                transactionState.getParams().containsKey("X-Custom-Header-1"));
+        Assert.assertEquals("request-header-value", 
+                transactionState.getParams().get("X-Custom-Header-1"));
         Assert.assertTrue("Should contain header X-CUSTOM-HEADER-2 from response", 
                 transactionState.getParams().containsKey("X-CUSTOM-HEADER-2"));
         Assert.assertEquals("response-header-value", 
