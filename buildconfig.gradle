@@ -57,8 +57,8 @@ buildscript {
                         // https://developer.android.com/studio/releases/platforms
                         plugin       : '7.4.2', // using Gradle 7.6
                         minSdk       : 24,      // Android 7
-                        compileSdk   : 34,      // Android 11
-                        targetSdk    : 34,      // Android 11
+                        compileSdk   : 34,      // Android 14
+                        targetSdk    : 34,      // Android 14
                         buildTools   : '28.0.2',
                         gradleApi    : '7.4.2',
                         gradleTestKit: '7.4.2'
