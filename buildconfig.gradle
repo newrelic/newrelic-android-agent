@@ -29,6 +29,7 @@ buildscript {
                 gradle : "7.2",
                 jetpack: "2.5.3",
                 composeui: "1.4.3",
+                composeCompiler:"1.2.0",
 
                 java   : [
                         minVersion : JavaVersion.VERSION_11,

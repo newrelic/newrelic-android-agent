@@ -10,6 +10,7 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.AgentImpl;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
+import com.newrelic.agent.android.harvest.DataToken;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 
@@ -76,7 +77,7 @@ public class UncaughtExceptionHandlerTest {
         crashReporter.setEnabled(true);
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
 
-        Mockito.verify(crashReporter, Mockito.times(1)).storeAndReportCrash(ArgumentMatchers.any(Crash.class),false);
+        Mockito.verify(crashReporter, Mockito.times(1)).storeAndReportCrash(ArgumentMatchers.any(Crash.class),ArgumentMatchers.eq(false));
         Mockito.verify(crashStore, Mockito.times(1)).store(ArgumentMatchers.any(Crash.class));
 
     }
@@ -93,7 +94,7 @@ public class UncaughtExceptionHandlerTest {
         uncaughtExceptionHandler = Mockito.spy(new UncaughtExceptionHandler(crashReporter));
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
 
-        Mockito.verify(crashReporter, Mockito.times(1)).storeAndReportCrash(ArgumentMatchers.any(Crash.class),false);
+        Mockito.verify(crashReporter, Mockito.times(1)).storeAndReportCrash(ArgumentMatchers.any(Crash.class),ArgumentMatchers.eq(false));
         Mockito.verify(crashStore, Mockito.times(1)).store(ArgumentMatchers.any(Crash.class));
         Mockito.verify(crashReporter, Mockito.times(1)).reportCrash(ArgumentMatchers.any(Crash.class));
         Assert.assertEquals(1, crashStore.count());
@@ -111,7 +112,7 @@ public class UncaughtExceptionHandlerTest {
         uncaughtExceptionHandler = Mockito.spy(new UncaughtExceptionHandler(crashReporter));
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
 
-        Mockito.verify(crashReporter, Mockito.times(1)).storeAndReportCrash(ArgumentMatchers.any(Crash.class),false);
+        Mockito.verify(crashReporter, Mockito.times(1)).storeAndReportCrash(ArgumentMatchers.any(Crash.class),ArgumentMatchers.eq(false));
         Mockito.verify(crashStore, Mockito.times(1)).store(ArgumentMatchers.any(Crash.class));
         Mockito.verify(crashReporter, Mockito.times(0)).reportCrash(ArgumentMatchers.any(Crash.class));
         Assert.assertEquals(1, crashStore.count());
