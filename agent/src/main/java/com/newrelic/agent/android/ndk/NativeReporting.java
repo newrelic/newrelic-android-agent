@@ -166,7 +166,7 @@ public class NativeReporting extends HarvestAdapter {
                     analyticsController.getEventManager().getQueuedEvents());
 
             if (null != CrashReporter.getInstance()) {
-                 CrashReporter.getInstance().storeAndReportCrash(crash,true);
+                 CrashReporter.getInstance().storeAndReportCrash(crash);
                 return true;
             } else {
                 log.error("Could not report native crash: CrashReporter is disabled.");
