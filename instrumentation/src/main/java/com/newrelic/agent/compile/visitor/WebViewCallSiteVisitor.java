@@ -17,8 +17,31 @@ import org.slf4j.Logger;
  * BEFORE the actual call, avoiding StackOverflow issues that occur when
  * replacing methods that are overridden in subclasses.
  *
+ * <h2>Purpose</h2>
  * This visitor intercepts INVOKEVIRTUAL calls to android.webkit.WebView methods
- * and injects tracking calls before the original method executes.
+ * and injects tracking calls before the original method executes. It works in
+ * tandem with {@link WebViewMethodClassVisitor} to provide comprehensive coverage:
+ * <ul>
+ *   <li><b>WebViewCallSiteVisitor</b>: Instruments call sites where the static type
+ *       is android.webkit.WebView (e.g., {@code WebView wv = ...; wv.loadUrl(...)})</li>
+ *   <li><b>WebViewMethodClassVisitor</b>: Instruments overridden methods in WebView
+ *       subclasses (e.g., {@code class MyWebView extends WebView { void loadUrl(...) }})</li>
+ * </ul>
+ *
+ * <h2>Why Only Instrument android.webkit.WebView Owner?</h2>
+ * <p>The check {@code owner.equals("android/webkit/WebView")} is intentionally strict:</p>
+ * <ul>
+ *   <li>JVM bytecode uses the <b>static (declared) type</b> for INVOKEVIRTUAL owner,
+ *       so polymorphic calls like {@code WebView wv = new ChromeWebView(); wv.loadUrl()}
+ *       will have owner = "android/webkit/WebView" and are correctly instrumented</li>
+ *   <li>Direct subclass calls like {@code MyWebView wv = new MyWebView(); wv.loadUrl()}
+ *       have owner = "com/example/MyWebView" and are handled by WebViewMethodClassVisitor
+ *       when the subclass overrides the method</li>
+ *   <li>This avoids false positives from non-WebView classes that happen to have
+ *       similarly named methods (e.g., {@code class Foo { void loadUrl(String s) }})</li>
+ * </ul>
+ *
+ * @see WebViewMethodClassVisitor
  */
 public class WebViewCallSiteVisitor extends ClassVisitor {
     private final InstrumentationContext context;

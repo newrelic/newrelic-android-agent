@@ -197,4 +197,33 @@ public class AgentConfigurationTest {
         Assert.assertNull(config.getSessionReplayConfiguration());
         Assert.assertNotSame(originalConfig, config.getSessionReplayConfiguration());
     }
+
+    @Test
+    public void shouldLazilyInitializeSessionId() {
+        AgentConfiguration config = new AgentConfiguration();
+        // Session ID should be generated lazily when getSessionID() is called
+        String sessionId1 = config.getSessionID();
+        Assert.assertNotNull(sessionId1);
+        Assert.assertFalse(sessionId1.isEmpty());
+        
+        // Subsequent calls should return the same session ID
+        String sessionId2 = config.getSessionID();
+        Assert.assertEquals(sessionId1, sessionId2);
+    }
+
+    @Test
+    public void shouldGenerateNewSessionIdWhenProvideSessionIdIsCalled() {
+        AgentConfiguration config = new AgentConfiguration();
+        String sessionId1 = config.getSessionID();
+        Assert.assertNotNull(sessionId1);
+        
+        // provideSessionId() should generate a new session ID
+        String sessionId2 = config.provideSessionId();
+        Assert.assertNotNull(sessionId2);
+        Assert.assertNotEquals(sessionId1, sessionId2);
+        
+        // getSessionID() should now return the new session ID
+        String sessionId3 = config.getSessionID();
+        Assert.assertEquals(sessionId2, sessionId3);
+    }
 }

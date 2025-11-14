@@ -127,16 +127,16 @@ public class SessionReplaySender extends PayloadSender {
         switch (responseCode) {
             case HttpsURLConnection.HTTP_OK:
             case HttpsURLConnection.HTTP_ACCEPTED:
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIME, timer.peek());
+                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIME, timer.duration());
                 int payloadSize = getPayloadSize();
-                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_COMPRESSED, payloadSize);
-                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED, ((Integer)this.replayDataMap.get("decompressedBytes")).intValue());
+                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_SESSION_REPLAY_COMPRESSED, payloadSize);
+                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED, ((Integer)this.replayDataMap.get("decompressedBytes")).intValue());
                 log.info("Session Replay Blob: [" + payloadSize + "] bytes successfully submitted.");
                 break;
 
             case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] has timed out (will try again later) - Response code [" + responseCode + "]");
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIMEOUT,timer.peek());
+                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIMEOUT,timer.duration());
                 break;
 
             case HttpURLConnection.HTTP_REQ_TOO_LONG:
@@ -156,7 +156,7 @@ public class SessionReplaySender extends PayloadSender {
 
             case HttpURLConnection.HTTP_FORBIDDEN:
                 onFailedUpload("The data payload [" + payload.getUuid() + "] was rejected and will be deleted - Response code [" + responseCode + "]");
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD, timer.peek());
+                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD, timer.duration());
                 break;
 
             default:

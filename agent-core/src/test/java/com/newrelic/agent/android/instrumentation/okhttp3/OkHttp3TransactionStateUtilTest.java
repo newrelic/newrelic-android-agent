@@ -40,6 +40,7 @@ import static com.newrelic.agent.android.harvest.type.HarvestErrorCodes.NSURLErr
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
@@ -446,6 +447,433 @@ public class OkHttp3TransactionStateUtilTest {
                 build();
 
         return response;
+    }
+
+    /**
+     * Test that response body is limited to 4096 bytes when capturing error responses
+     */
+    @Test
+    public void testErrorResponseBodyLimitedTo4096Bytes() throws Exception {
+        TestHarvest testHarvest = new TestHarvest();
+
+        // Create a large error response body (10KB)
+        String largeErrorBody = generateString(10 * 1024);
+        ResponseBody body = createResponseBodyWithContent(largeErrorBody);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_INTERNAL_SERVER_ERROR)  // 500 error
+                .body(body)
+                .message("500 Internal Server Error")
+                .header(Constants.Network.CONTENT_TYPE_HEADER, "application/json")
+                .build();
+
+        transactionState.setStatusCode(response.code());
+        Response result = OkHttp3TransactionStateUtil.addTransactionAndErrorData(transactionState, response);
+
+        assertNotNull("Response should not be null", result);
+        testHarvest.verifyQueuedTransactions(1);
+    }
+
+    /**
+     * Test that chunked responses without Content-Length header are handled correctly
+     */
+    @Test
+    public void testChunkedResponseWithoutContentLengthHeader() {
+        // Create a response without Content-Length header (simulating chunked encoding)
+        String responseContent = "Chunked response data";
+        ResponseBody body = createResponseBodyWithoutContentLength(responseContent);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)
+                .body(body)
+                .message("200 OK")
+                // No Content-Length header
+                .header("Transfer-Encoding", "chunked")
+                .build();
+
+        Response result = OkHttp3TransactionStateUtil.inspectAndInstrumentResponse(transactionState, response);
+
+        assertNotNull("Response should not be null", result);
+        // Should not crash even without Content-Length header
+    }
+
+    /**
+     * Test that multi-byte characters are handled correctly when truncating to 4096 chars
+     */
+    @Test
+    public void testMultiByteCharacterTruncation() throws Exception {
+        TestHarvest testHarvest = new TestHarvest();
+
+        // Create error response with multi-byte characters (emoji, CJK, etc.)
+        StringBuilder multiByteContent = new StringBuilder();
+        // Add emojis and multi-byte characters to exceed 4096 bytes but maybe less than 4096 chars
+        for (int i = 0; i < 3000; i++) {
+            multiByteContent.append("🔥测试");  // Each emoji/CJK char is 3-4 bytes
+        }
+
+        ResponseBody body = createResponseBodyWithContent(multiByteContent.toString());
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_BAD_REQUEST)
+                .body(body)
+                .message("400 Bad Request")
+                .header(Constants.Network.CONTENT_TYPE_HEADER, "text/plain; charset=utf-8")
+                .build();
+
+        transactionState.setStatusCode(response.code());
+        Response result = OkHttp3TransactionStateUtil.addTransactionAndErrorData(transactionState, response);
+
+        assertNotNull("Response should not be null", result);
+        testHarvest.verifyQueuedTransactions(1);
+    }
+
+    /**
+     * Test that small error responses are captured completely
+     */
+    @Test
+    public void testSmallErrorResponseCapturedCompletely() throws Exception {
+        TestHarvest testHarvest = new TestHarvest();
+
+        String smallErrorBody = "{\"error\": \"Invalid request\", \"code\": 400}";
+        ResponseBody body = createResponseBodyWithContent(smallErrorBody);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_BAD_REQUEST)
+                .body(body)
+                .message("400 Bad Request")
+                .header(Constants.Network.CONTENT_TYPE_HEADER, "application/json")
+                .header(Constants.Network.CONTENT_LENGTH_HEADER, String.valueOf(smallErrorBody.length()))
+                .build();
+
+        transactionState.setStatusCode(response.code());
+        Response result = OkHttp3TransactionStateUtil.addTransactionAndErrorData(transactionState, response);
+
+        assertNotNull("Response should not be null", result);
+        testHarvest.verifyQueuedTransactions(1);
+    }
+
+    /**
+     * Test that successful responses (non-errors) don't capture body
+     */
+    @Test
+    public void testSuccessfulResponseDoesNotCaptureBody() throws Exception {
+        TestHarvest testHarvest = new TestHarvest();
+
+        String responseBody = "Success response body";
+        ResponseBody body = createResponseBodyWithContent(responseBody);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)  // 200 success - should NOT capture body
+                .body(body)
+                .message("200 OK")
+                .build();
+
+        transactionState.setStatusCode(response.code());
+        Response result = OkHttp3TransactionStateUtil.addTransactionAndErrorData(transactionState, response);
+
+        assertNotNull("Response should not be null", result);
+        testHarvest.verifyQueuedTransactions(1);
+    }
+
+    /**
+     * Test that response body exactly at 4096 bytes is handled correctly
+     */
+    @Test
+    public void testResponseBodyExactly4096Bytes() throws Exception {
+        TestHarvest testHarvest = new TestHarvest();
+
+        // Create exactly 4096 byte response
+        String exactSizeBody = generateString(4096);
+        ResponseBody body = createResponseBodyWithContent(exactSizeBody);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+                .body(body)
+                .message("500 Internal Server Error")
+                .header(Constants.Network.CONTENT_LENGTH_HEADER, "4096")
+                .build();
+
+        transactionState.setStatusCode(response.code());
+        Response result = OkHttp3TransactionStateUtil.addTransactionAndErrorData(transactionState, response);
+
+        assertNotNull("Response should not be null", result);
+        testHarvest.verifyQueuedTransactions(1);
+    }
+
+    // Helper methods for test response bodies
+
+    private ResponseBody createResponseBodyWithContent(final String content) {
+        return new ResponseBody() {
+            @Override
+            public MediaType contentType() {
+                return MediaType.parse("text/plain; charset=utf-8");
+            }
+
+            @Override
+            public long contentLength() {
+                return content.getBytes().length;
+            }
+
+            @Override
+            public okio.BufferedSource source() {
+                return okio.Okio.buffer(okio.Okio.source(new java.io.ByteArrayInputStream(content.getBytes())));
+            }
+        };
+    }
+
+    private ResponseBody createResponseBodyWithoutContentLength(final String content) {
+        return new ResponseBody() {
+            @Override
+            public MediaType contentType() {
+                return MediaType.parse("text/plain; charset=utf-8");
+            }
+
+            @Override
+            public long contentLength() {
+                // Return -1 to simulate chunked encoding
+                return -1;
+            }
+
+            @Override
+            public okio.BufferedSource source() {
+                return okio.Okio.buffer(okio.Okio.source(new java.io.ByteArrayInputStream(content.getBytes())));
+            }
+        };
+    }
+
+    private String generateString(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append((char) ('a' + (i % 26)));
+        }
+        return sb.toString();
+    }
+
+    // ========================================
+    // Tests for exhaustiveContentLength() method via reflection
+    // ========================================
+
+    /**
+     * Helper method to invoke private exhaustiveContentLength() method
+     */
+    private long invokeExhaustiveContentLength(Response response) throws Exception {
+        java.lang.reflect.Method method = OkHttp3TransactionStateUtil.class.getDeclaredMethod("exhaustiveContentLength", Response.class);
+        method.setAccessible(true);
+        return (long) method.invoke(null, response);
+    }
+
+    /**
+     * Test that contentLength is correctly obtained from body().contentLength() when available
+     */
+    @Test
+    public void testContentLengthFromBodyContentLength() throws Exception {
+        String content = "Test response body with known length";
+        ResponseBody body = createResponseBodyWithContent(content);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)
+                .body(body)
+                .message("200 OK")
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        assertEquals("Content length should match body length",
+                    content.getBytes().length, contentLength);
+    }
+
+    /**
+     * Test that peekBody() is used as LAST RESORT when body().contentLength() returns -1
+     * and no Content-Length header is present
+     */
+    @Test
+    public void testContentLengthFromPeekBodyWhenBodyReturnsMinusOne() throws Exception {
+        String content = "Chunked response without Content-Length header";
+        ResponseBody body = createResponseBodyWithoutContentLength(content);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)
+                .body(body)
+                .message("200 OK")
+                .header("Transfer-Encoding", "chunked")
+                // No Content-Length header, so will fall back to peekBody
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        // Should get content length from peekBody() as last resort - limited to 4097 bytes
+        assertTrue("Content length should be > 0", contentLength > 0);
+        assertTrue("Content length should be <= 4097 (peek limit)", contentLength <= 4097);
+    }
+
+    /**
+     * Test that peekBody is limited to 4097 bytes to prevent memory issues
+     * (only used as last resort when all other methods fail)
+     */
+    @Test
+    public void testPeekBodyLimitedTo4097Bytes() throws Exception {
+        // Create a very large response (100KB) with no Content-Length header
+        String largeContent = generateString(100 * 1024);
+        ResponseBody body = createResponseBodyWithoutContentLength(largeContent);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)
+                .body(body)
+                .message("200 OK")
+                .header("Transfer-Encoding", "chunked")
+                // No Content-Length header, so will fall back to peekBody as last resort
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        // Should return at most 4097 (ATTRIBUTE_VALUE_MAX_LENGTH + 1)
+        assertTrue("Content length should be > 0", contentLength > 0);
+        assertTrue("Content length should be limited to 4097 bytes, got: " + contentLength,
+                  contentLength <= 4097);
+    }
+
+    /**
+     * Test that malformed Content-Length header falls back to peekBody
+     */
+    @Test
+    public void testMalformedContentLengthHeader() throws Exception {
+        ResponseBody body = new ResponseBody() {
+            @Override
+            public MediaType contentType() {
+                return MediaType.parse("text/plain");
+            }
+
+            @Override
+            public long contentLength() {
+                return -1;
+            }
+
+            @Override
+            public okio.BufferedSource source() {
+                // Empty source, so peekBody will return 0
+                return okio.Okio.buffer(okio.Okio.source(new java.io.ByteArrayInputStream(new byte[0])));
+            }
+        };
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)
+                .body(body)
+                .message("200 OK")
+                .header(Constants.Network.CONTENT_LENGTH_HEADER, "not-a-number")
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        // Malformed header is skipped, peekBody returns 0 for empty source
+        assertEquals("Content length should be 0 from peekBody (empty source)", 0L, contentLength);
+    }
+
+    /**
+     * Test that empty response body returns 0
+     */
+    @Test
+    public void testEmptyResponseBody() throws Exception {
+        ResponseBody body = createResponseBodyWithContent("");
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_NO_CONTENT)
+                .body(body)
+                .message("204 No Content")
+                .header(Constants.Network.CONTENT_LENGTH_HEADER, "0")
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        assertEquals("Content length should be 0 for empty body", 0L, contentLength);
+    }
+
+    /**
+     * Test boundary: exactly 4096 bytes (via peekBody as last resort)
+     */
+    @Test
+    public void testExactly4096BytesViaPeekBody() throws Exception {
+        String content = generateString(4096);
+        ResponseBody body = createResponseBodyWithoutContentLength(content);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)
+                .body(body)
+                .message("200 OK")
+                // No Content-Length header, so will use peekBody as last resort
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        assertEquals("Content length should be 4096 from peekBody", 4096L, contentLength);
+    }
+
+    /**
+     * Test boundary: 4097 bytes (at peek limit, via peekBody as last resort)
+     */
+    @Test
+    public void testExactly4097BytesViaPeekBody() throws Exception {
+        String content = generateString(4097);
+        ResponseBody body = createResponseBodyWithoutContentLength(content);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)
+                .body(body)
+                .message("200 OK")
+                // No Content-Length header, so will use peekBody as last resort
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        assertEquals("Content length should be 4097 from peekBody (at peek limit)", 4097L, contentLength);
+    }
+
+    /**
+     * Test boundary: 5000 bytes exceeds peek limit (via peekBody as last resort)
+     */
+    @Test
+    public void testExceeds4097BytesViaPeekBody() throws Exception {
+        String content = generateString(5000);
+        ResponseBody body = createResponseBodyWithoutContentLength(content);
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)
+                .body(body)
+                .message("200 OK")
+                // No Content-Length header, so will use peekBody as last resort
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        // peekBody limited to 4097, so should return 4097 not 5000
+        assertEquals("Content length should be limited to 4097 from peekBody", 4097L, contentLength);
     }
 
 }

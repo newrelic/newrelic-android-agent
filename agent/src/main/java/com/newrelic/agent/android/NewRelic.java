@@ -877,7 +877,7 @@ public final class NewRelic {
 
             if (userIdAttr != null) {
                 if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
-                    Harvest.harvestNow(true, true);// call non-blocking harvest
+                    Harvest.harvestNow(true, false);// call non-blocking harvest
                     controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
                             .setStringValue(agentConfiguration.provideSessionId())  // start a new session
                             .setPersistent(false);
