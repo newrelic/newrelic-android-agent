@@ -10,9 +10,12 @@ import com.newrelic.agent.Constants;
 import com.newrelic.agent.compile.visitor.ActivityClassVisitor;
 import com.newrelic.agent.compile.visitor.AnnotatingClassVisitor;
 import com.newrelic.agent.compile.visitor.AsyncTaskClassVisitor;
+import com.newrelic.agent.compile.visitor.ComposeNavigationClassVisitor;
 import com.newrelic.agent.compile.visitor.ContextInitializationClassVisitor;
 import com.newrelic.agent.compile.visitor.FragmentClassVisitor;
 import com.newrelic.agent.compile.visitor.NewRelicClassVisitor;
+import com.newrelic.agent.compile.visitor.WebViewCallSiteVisitor;
+import com.newrelic.agent.compile.visitor.WebViewMethodClassVisitor;
 import com.newrelic.agent.compile.visitor.PrefilterClassVisitor;
 import com.newrelic.agent.compile.visitor.TraceAnnotationClassVisitor;
 import com.newrelic.agent.compile.visitor.AgentMethodDelegateClassVisitor;
@@ -111,7 +114,7 @@ public class InvocationDispatcher {
         return visitClassBytesWithOptions(bytes, ClassWriter.COMPUTE_FRAMES);
     }
 
-    ClassData visitClassBytesWithOptions(byte[] bytes, int classWriterFlags) {
+    ClassData  visitClassBytesWithOptions(byte[] bytes, int classWriterFlags) {
         String className = "unknown";
 
         if (isInstrumentationDisabled()) {
@@ -143,11 +146,13 @@ public class InvocationDispatcher {
                 if (className.equals(Constants.NEWRELIC_CLASS_NAME)) {
                     cv = new NewRelicClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidJetpackPackage(className)) {
-                    // cv = new ComposeNavigatorClassVisitor(cv, instrumentationContext, log);
-                    // cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
+                    cv = new ComposeNavigationClassVisitor(cv, instrumentationContext, log);
+
+//                     cv = new ComposeNavigatorClassVisitor(cv, instrumentationContext, log);
+//                     cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidSDKPackage(className)) {
                     if(defaultInteractionsEnabled) {
-                        cv = new ActivityClassVisitor(cv, instrumentationContext, log,defaultInteractionsEnabled);
+                        cv = new ActivityClassVisitor(cv, instrumentationContext, log, true);
                     }
                 } else if (isExcludedPackage(className)) {
                     // log.debug("[InvocationDispatcher] Excluding class [" + className + "]");
@@ -161,6 +166,11 @@ public class InvocationDispatcher {
                     cv = new AsyncTaskClassVisitor(cv, instrumentationContext, log);
                     cv = new TraceAnnotationClassVisitor(cv, instrumentationContext, log);
                     cv = new AgentMethodDelegateClassVisitor(cv, instrumentationContext, log);
+                    // WebView call site instrumentation - tracks direct calls to webView.loadUrl() / postUrl()
+                    cv = new WebViewCallSiteVisitor(cv, instrumentationContext, log);
+                    // WebView method instrumentation - tracks overridden loadUrl() / postUrl() in WebView subclasses
+                    cv = new WebViewMethodClassVisitor(cv, instrumentationContext, log);
+
                 }
                 cv = new ContextInitializationClassVisitor(cv, instrumentationContext);
 

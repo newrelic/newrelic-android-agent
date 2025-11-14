@@ -7,6 +7,8 @@ import android.widget.TextView;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
@@ -44,15 +46,38 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         boolean shouldMaskText;
 
         // Check if input type is for password - always mask password fields
+        // Note: InputType uses bit fields structured as: [flags][variation][class]
+        // - Bits 0-3: TYPE_CLASS (text=1, number=2, phone=3, datetime=4)
+        // - Bits 4-11: TYPE_VARIATION (password=0x80, email=0x20, etc.)
+        // - Bits 12+: TYPE_FLAGS (caps, multiline, etc.)
         int inputType = view.getInputType();
-        if ((inputType & android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD) != 0 ||
-                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) != 0 ||
-                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) != 0 ||
-                (inputType & android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) != 0) {
+
+        // Extract the variation bits (bits 4-11) by masking with 0xFF0 (0b111111110000)
+        // This isolates just the variation field, ignoring class and flags
+        int TYPE_MASK_CLASS = 0x0000000f;  // Mask for class (bits 0-3)
+        int TYPE_MASK_VARIATION = 0x00000ff0;  // Mask for variation (bits 4-11)
+
+        int variation = inputType & TYPE_MASK_VARIATION;
+
+        // Check for password variations - CRITICAL: Always mask passwords
+        // We compare ONLY the variation bits (bits 4-11), not the full inputType
+        // Password variation values: 0x80=password, 0x90=visible_password, 0xe0=web_password, 0x10=number_password
+        boolean isPassword =
+            variation == 0x80 ||  // TYPE_TEXT_VARIATION_PASSWORD
+            variation == 0x90 ||  // TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+            variation == 0xe0 ||  // TYPE_TEXT_VARIATION_WEB_PASSWORD
+            variation == 0x10;    // TYPE_NUMBER_VARIATION_PASSWORD
+
+        if (isPassword) {
+            // Always mask passwords regardless of configuration
             shouldMaskText = true;
         } else {
-            // For non-password fields, use configuration-based logic
-            shouldMaskText = inputType != 0 ? sessionReplayConfiguration.isMaskUserInputText() : sessionReplayConfiguration.isMaskApplicationText();
+            // For non-password fields, check if it's actually an editable input field
+            // Use instanceof EditText to determine if it's user input vs static text
+            boolean isEditableInput = view instanceof android.widget.EditText;
+            shouldMaskText = isEditableInput
+                ? sessionReplayConfiguration.isMaskUserInputText()
+                : sessionReplayConfiguration.isMaskApplicationText();
         }
 
         // Apply masking if needed
@@ -100,6 +125,11 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     @Override
+    public ViewDetails getViewDetails() {
+        return viewDetails;
+    }
+
+    @Override
     public boolean shouldRecordSubviews() {
         return shouldRecordSubviews;
     }
@@ -125,7 +155,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     @Override
-    public String getCSSSelector() {
+    public String getCssSelector() {
         return viewDetails.getCssSelector();
     }
 
@@ -134,6 +164,20 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     public String generateCssDescription() {
         StringBuilder cssBuilder = new StringBuilder(viewDetails.generateCssDescription());
         cssBuilder.append("");
+        generateTextCss(cssBuilder);
+
+        return cssBuilder.toString();
+    }
+
+    @Override
+    public String generateInlineCss() {
+        StringBuilder cssBuilder = new StringBuilder(viewDetails.generateInlineCSS());
+        cssBuilder.append(" ");
+        generateTextCss(cssBuilder);
+        return cssBuilder.toString();
+    }
+
+    private void generateTextCss(StringBuilder cssBuilder) {
         cssBuilder.append("white-space: pre-wrap;");
         cssBuilder.append("");
         cssBuilder.append("word-wrap: break-word;");
@@ -149,21 +193,130 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         cssBuilder.append("text-align: ");
         cssBuilder.append(this.textAlign);
         cssBuilder.append("; ");
-        cssBuilder.append("}");
-
-        return cssBuilder.toString();
     }
 
     @Override
     public RRWebElementNode generateRRWebNode() {
-        // Use classes from your project's models package
         RRWebTextNode textNode = new RRWebTextNode(this.labelText, false, NewRelicIdGenerator.generateId());
 
-        // Use classes from your project's models package
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
 
-        // Use classes from your project's models package
-        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), Collections.singletonList(textNode));
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, new ArrayList<>(Collections.singletonList(textNode)));
+    }
+
+    @Override
+    public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
+        // Make sure this is not null and is of the same type
+        if (!(other instanceof SessionReplayTextViewThingy)) {
+            return Collections.emptyList();
+        }
+
+        // Create a map to store style differences
+        java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
+
+        ViewDetails otherViewDetails = (ViewDetails) other.getViewDetails();
+        // Compare frames
+        if (!viewDetails.frame.equals(otherViewDetails.frame)) {
+            styleDifferences.put("left", otherViewDetails.frame.left + "px");
+            styleDifferences.put("top", otherViewDetails.frame.top + "px");
+            styleDifferences.put("width", otherViewDetails.frame.width() + "px");
+            styleDifferences.put("height", otherViewDetails.frame.height() + "px");
+            styleDifferences.put("line-height", otherViewDetails.frame.height() + "px");
+        }
+
+        // Compare background colors if available
+        if (viewDetails.backgroundColor != null && otherViewDetails.backgroundColor != null) {
+            if (!viewDetails.backgroundColor.equals(otherViewDetails.backgroundColor)) {
+                styleDifferences.put("background-color", otherViewDetails.backgroundColor);
+            }
+        } else if (otherViewDetails.backgroundColor != null) {
+            styleDifferences.put("background-color", otherViewDetails.backgroundColor);
+        }
+
+        // compare TextColor if available
+        if(this.textColor != null) {
+            String otherTextColor = ((SessionReplayTextViewThingy) other).getTextColor();
+            if (!this.textColor.equals(otherTextColor)) {
+                styleDifferences.put("color", '#'+otherTextColor);
+            }
+        }
+
+        if(this.fontFamily!= null) {
+            String otherFontFamily = ((SessionReplayTextViewThingy) other).getFontFamily();
+            if (!this.fontFamily.equals(otherFontFamily)) {
+                styleDifferences.put("font-family", otherFontFamily);
+            }
+        }
+
+
+        // Compare text alignment
+        if(this.textAlign != null) {
+            String otherTextAlign = ((SessionReplayTextViewThingy) other).textAlign;
+            if (!this.textAlign.equals(otherTextAlign)) {
+                styleDifferences.put("text-align", otherTextAlign);
+            }
+        }
+
+        if (this.fontSize != ((SessionReplayTextViewThingy) other).getFontSize()) {
+            styleDifferences.put("font-size", String.format("%.2fpx", ((SessionReplayTextViewThingy) other).getFontSize()));
+        }
+
+        // Create and return a MutationRecord with the style differences
+        Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+        attributes.setMetadata(styleDifferences);
+        List<MutationRecord> mutations = new ArrayList<>();
+        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+
+        // Check if label text has changed
+        if (!this.labelText.equals(((SessionReplayTextViewThingy) other).getLabelText())) {
+            mutations.add(new RRWebMutationData.TextRecord(viewDetails.viewId, ((SessionReplayTextViewThingy) other).getLabelText()));
+        }
+
+        return mutations;
+    }
+
+    @Override
+    public List<RRWebMutationData.AddRecord> generateAdditionNodes(int parentId) {
+        // We have to recreate the RRWebElementNode instead of calling the
+        // method because that method automatically adds the text node as a
+        // child. For adds, the text node should be it's own node.
+
+        Attributes attributes = new Attributes(viewDetails.getCssSelector());
+
+        RRWebElementNode viewNode =  new RRWebElementNode(
+                attributes,
+                RRWebElementNode.TAG_TYPE_DIV,
+                viewDetails.viewId,
+                new ArrayList<>());
+
+        viewNode.attributes.metadata.put("style", generateInlineCss());
+
+        RRWebTextNode textNode = new RRWebTextNode(this.labelText, false, NewRelicIdGenerator.generateId());
+
+        RRWebMutationData.AddRecord viewAddRecord = new RRWebMutationData.AddRecord(
+                parentId,
+                null,
+                viewNode);
+
+        RRWebMutationData.AddRecord textAddRecord = new RRWebMutationData.AddRecord(
+                viewDetails.viewId,
+                null,
+                textNode);
+
+        List<RRWebMutationData.AddRecord> adds = new ArrayList<>();
+        adds.add(viewAddRecord);
+        adds.add(textAddRecord);
+        return adds;
+    }
+
+    @Override
+    public int getViewId() {
+        return viewDetails.viewId;
+    }
+
+    @Override
+    public int getParentViewId() {
+        return viewDetails.parentId;
     }
 
     private String getFontFamily(Typeface typeface) {
@@ -273,6 +426,17 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             clazz = clazz.getSuperclass();
         }
         return false;
+    }
+
+    @Override
+    public boolean hasChanged(SessionReplayViewThingyInterface other) {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || !(other instanceof SessionReplayTextViewThingy)) {
+            return true;
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode();
     }
 
 }

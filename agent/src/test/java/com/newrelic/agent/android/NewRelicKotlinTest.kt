@@ -29,7 +29,6 @@ class NewRelicKotlinTest {
     @Before
     fun setUp() {
         spyContext = SpyContext()
-
         NewRelic.started = false
         NewRelic.isShutdown = false
 

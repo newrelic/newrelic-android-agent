@@ -14,6 +14,7 @@ import com.newrelic.agent.android.util.ExceptionHelper;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -110,10 +111,15 @@ public class MeasurementPool extends BaseMeasurementProducer implements Measurem
             Collection<Measurement> measurements = producer.drainMeasurements();
             if (measurements.size() > 0) {
                 allProducedMeasurements.addAll(measurements);
-                // filter out any null measurements
-                while (allProducedMeasurements.remove(null)) {
-                    ;
-                }
+            }
+        }
+
+        // filter out any null measurements
+        Iterator<Measurement> iterator = allProducedMeasurements.iterator();
+        while (iterator.hasNext()) {
+            Measurement filterMeasurement = iterator.next();
+            if (filterMeasurement == null) {
+                iterator.remove(); // Safe way to remove during iteration
             }
         }
 

@@ -11,4 +11,9 @@ public class RRWebTouch implements RRWebEvent {
         this.type = type;
         this.data = data;
     }
+
+    @Override
+    public long getTimestamp() {
+        return this.timestamp;
+    }
 }

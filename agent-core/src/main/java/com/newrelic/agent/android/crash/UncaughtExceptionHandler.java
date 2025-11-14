@@ -96,7 +96,7 @@ public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler
                     agentConfiguration.getEnableAnalyticsEvents());
 
             // Store the crash right away.  We'll delete it later if we're able to send it.
-            crashReporter.storeAndReportCrash(crash);
+            crashReporter.storeAndReportCrash(crash,false);
 
         } finally {
             // InstantApps don't provide the same lifecycle hints as normal apps.

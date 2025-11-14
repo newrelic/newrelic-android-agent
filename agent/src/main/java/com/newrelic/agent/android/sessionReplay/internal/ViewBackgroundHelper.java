@@ -9,13 +9,10 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
-import android.os.Build;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable; // Use androidx annotation
-
-import java.lang.reflect.Field;
 
 public class ViewBackgroundHelper {
 
@@ -54,7 +51,13 @@ public class ViewBackgroundHelper {
     private static String getDrawableColor(Drawable drawable) {
         if (drawable instanceof ColorDrawable) {
             int color = ((ColorDrawable) drawable).getColor();
-            return toRGBAHexString(color);
+            String colorString = toRGBAHexString(color);
+            if(colorString.length() > 3) {
+                return colorString;
+            } else {
+                return "#FFFFFF";
+            }
+            // Remove the leading '#'
         } else if (drawable instanceof GradientDrawable) {
             GradientDrawable gradientDrawable = (GradientDrawable) drawable;
             // GradientDrawables can have multiple colors for gradients.
@@ -126,45 +129,40 @@ public class ViewBackgroundHelper {
 
     public static void getBackGroundFromDrawable(StringBuilder backgroundColorStringBuilder, GradientDrawable backgroundDrawable,float density) {
 
-        // Extract corner radius
-        float[] cornerRadii = backgroundDrawable.getCornerRadii();
-        if (cornerRadii != null) {
-            backgroundColorStringBuilder.append(" border-radius: ").append(getPixel(cornerRadii[0],density)).append("px;");
-        } else {
-            float cornerRadius = getPixel(backgroundDrawable.getCornerRadius(),density);
-            if (cornerRadius > 0) {
-                backgroundColorStringBuilder.append(" border-radius: ").append(cornerRadius).append("px;");
+        // Extract corner radius - wrap in try-catch as getCornerRadii() can throw NPE internally
+        // when the internal corner radii array is null in some Android versions
+        try {
+            float[] cornerRadii = backgroundDrawable.getCornerRadii();
+            if (cornerRadii != null && cornerRadii.length > 0) {
+                backgroundColorStringBuilder.append(" border-radius: ").append(getPixel(cornerRadii[0],density)).append("px;");
+            } else {
+                float cornerRadius = getPixel(backgroundDrawable.getCornerRadius(),density);
+                if (cornerRadius > 0) {
+                    backgroundColorStringBuilder.append(" border-radius: ").append(cornerRadius).append("px;");
+                }
+            }
+        } catch (NullPointerException e) {
+            // GradientDrawable.getCornerRadii() can throw NPE when trying to clone a null internal array
+            // Fall back to single corner radius
+            try {
+                float cornerRadius = getPixel(backgroundDrawable.getCornerRadius(),density);
+                if (cornerRadius > 0) {
+                    backgroundColorStringBuilder.append(" border-radius: ").append(cornerRadius).append("px;");
+                }
+            } catch (Exception ex) {
+                // If even the fallback fails, just skip corner radius
+                // No need to log as this is expected in some edge cases
             }
         }
 
-
-        Paint strokePaint = getStrokePaint(backgroundDrawable);
+        Paint strokePaint = ReflectionUtils.getStrokePaint(backgroundDrawable);
         if (strokePaint != null) {
             backgroundColorStringBuilder.append(" border:").append(getPixel(strokePaint.getStrokeWidth(), density)).append("px").append(" solid #").append(Integer.toHexString(strokePaint.getColor()).substring(2)).append(";");
         }
     }
 
-    public static Paint getFillPaint(GradientDrawable gradientDrawable) {
-        try {
-            Field mFillPaintField = GradientDrawable.class.getDeclaredField("mFillPaint");
-            mFillPaintField.setAccessible(true);
-            return (Paint)mFillPaintField.get(gradientDrawable);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 
-    public static Paint getStrokePaint(GradientDrawable gradientDrawable) {
-        try {
-            Field mStrokePaintPaintField = GradientDrawable.class.getDeclaredField("mStrokePaint");
-            mStrokePaintPaintField.setAccessible(true);
-            return (Paint)mStrokePaintPaintField.get(gradientDrawable);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
+
     private static float getPixel(float value, float density) {
         return  (value /density);
     }

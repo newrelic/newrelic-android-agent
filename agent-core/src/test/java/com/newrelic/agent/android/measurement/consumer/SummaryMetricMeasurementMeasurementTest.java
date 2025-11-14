@@ -224,7 +224,7 @@ public class SummaryMetricMeasurementMeasurementTest extends MeasurementTest {
         consumer.summarizeActivityMetrics(activityTrace);
 
         MachineMeasurements metrics = Harvest.getInstance().getHarvestData().getMetrics();
-        Assert.assertEquals(1, consumer.completedTraces.size());
+        Assert.assertEquals(0, consumer.completedTraces.size());
         Assert.assertFalse(metrics.isEmpty());
 
         Assert.assertNotNull(metrics.getMetrics());

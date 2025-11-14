@@ -5,7 +5,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 
-import com.newrelic.agent.android.sessionReplay.internal.WindowSpy;
+import curtains.internal.WindowSpy;
 
 public class Windows {
 
@@ -18,7 +18,7 @@ public class Windows {
     }
 
     public static Window getPhoneWindowForView(View view) {
-        return WindowSpy.pullWindow(view);
+        return WindowSpy.INSTANCE.pullWindow(view);
     }
 
     public static Windows.WindowType getWindowType(View view) {
@@ -28,7 +28,7 @@ public class Windows {
             return WindowType.POPUP_WINDOW;
         }
 
-        if(WindowSpy.attachedToPhoneWindow(rootView)) {
+        if(WindowSpy.INSTANCE.attachedToPhoneWindow(rootView)) {
             return WindowType.PHONE_WINDOW;
         }
 

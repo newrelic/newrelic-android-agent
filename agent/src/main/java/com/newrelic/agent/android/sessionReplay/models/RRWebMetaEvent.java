@@ -21,4 +21,8 @@ public class RRWebMetaEvent implements RRWebEvent {
         this.data = data;
         this.timestamp = timestamp;
     }
+    @Override
+    public long getTimestamp() {
+        return this.timestamp;
+    }
 }

@@ -1,5 +1,6 @@
 package com.newrelic.agent.android.sessionReplay.models;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class RRWebElementNode implements RRWebNode {
@@ -16,7 +17,7 @@ public class RRWebElementNode implements RRWebNode {
     public List<RRWebNode> childNodes;
     public int id;
 
-    public RRWebElementNode(Attributes attributes, String tagName, int id, List<RRWebNode> childNodes) {
+    public RRWebElementNode(Attributes attributes, String tagName, int id, ArrayList<RRWebNode> childNodes) {
         this.attributes = attributes;
         this.tagName = tagName;
         this.id = id;

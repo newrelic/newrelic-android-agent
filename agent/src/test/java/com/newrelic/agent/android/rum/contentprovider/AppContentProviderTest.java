@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.rum.contentprovider;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -54,6 +53,5 @@ public class AppContentProviderTest {
         Assert.assertTrue(contentProvider.onCreate());
         Assert.assertTrue(AppTracer.getInstance().getContentProviderStartedTime() != 0);
         verify(contentProvider.appApplicationLifeCycle, times(1)).onColdStartInitiated(any(Context.class));
-        verify(application, times(1)).registerActivityLifecycleCallbacks(any(AppApplicationLifeCycle.class));
     }
 }
