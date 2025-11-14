@@ -53,10 +53,9 @@ public class ViewBackgroundHelper {
             int color = ((ColorDrawable) drawable).getColor();
             String colorString = toRGBAHexString(color);
             if(colorString.length() > 3) {
-                Log.d("ViewBackgroundHelper", "Color: " + colorString);
-                return colorString.substring(2);
+                return colorString;
             } else {
-                return "FFFFFF";
+                return "#FFFFFF";
             }
             // Remove the leading '#'
         } else if (drawable instanceof GradientDrawable) {

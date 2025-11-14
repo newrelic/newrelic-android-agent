@@ -191,7 +191,7 @@ public class CrashReporter extends PayloadReporter {
         // Store the crash right away.  We'll delete it later if we're able to send it.
         boolean stored = false;
 
-        if (!isNativeCrashReport && crashStore != null) {
+        if ((!isNativeCrashReport || !jitCrashReporting) && crashStore != null) {
             if (crash != null) {
                 stored = crashStore.store(crash);
                 if (!stored) {
