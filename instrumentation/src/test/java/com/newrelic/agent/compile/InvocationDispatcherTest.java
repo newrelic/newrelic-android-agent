@@ -25,7 +25,7 @@ public class InvocationDispatcherTest {
 
     @Before
     public void setUp() throws Exception {
-        invocationDispatcher = new InvocationDispatcher(InstrumentationAgent.LOGGER,true,true);
+        invocationDispatcher = new InvocationDispatcher(InstrumentationAgent.LOGGER, true, true, true);
         testContext = new TestContext(invocationDispatcher.getInstrumentationContext());
         classBytes = testContext.classBytesFromResource("/MainActivity.class");
     }
