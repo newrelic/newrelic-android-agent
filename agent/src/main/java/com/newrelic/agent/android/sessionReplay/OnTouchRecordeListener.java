@@ -1,6 +1,5 @@
 package com.newrelic.agent.android.sessionReplay;
 
-import com.newrelic.agent.android.sessionReplay.models.RecordedTouchData;
 
 public interface OnTouchRecordeListener {
 

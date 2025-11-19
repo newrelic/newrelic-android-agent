@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
@@ -9,6 +10,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     id("com.github.johnrengelman.shadow")
     id("com.android.library")
+    id("org.jetbrains.kotlin.android")
 }
 
 apply from: "$project.rootDir/jacoco.gradle"
@@ -23,6 +25,15 @@ tasks.withType(JavaExec).configureEach {
     }
 }
 
+
+
+
+sourceSets {
+    main.java.srcDirs += 'src/main/kotlin'
+    main.resources.srcDirs += 'src/main/kotlin'
+
+}
+
 android {
     namespace "com.newrelic.agent.android"
     compileSdkVersion project.versions.agp.compileSdk
@@ -31,6 +42,13 @@ android {
         minSdkVersion project.versions.agp.minSdk
         targetSdkVersion project.versions.agp.targetSdk
     }
+    buildFeatures { // Enables Jetpack Compose for this module
+        compose = true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion versions.composeCompiler
+    }
+
 
     buildTypes {
         release {
@@ -102,11 +120,18 @@ android {
 
 dependencies {
     implementation project(path: ':agent-core', configuration: 'fat')
+    implementation( 'com.squareup.curtains:curtains:1.2.5')
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:${versions.java.kotlin}")
 
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk
 
     compileOnly "androidx.navigation:navigation-compose:${project.versions.jetpack}"
+    compileOnly "androidx.compose.ui:ui:${project.versions.composeui}"
+
+    // Add Compose runtime for tests to satisfy the Compose Compiler
+    testImplementation "androidx.compose.runtime:runtime:${project.versions.composeui}"
+    testImplementation "androidx.compose.ui:ui:${project.versions.composeui}"
 
     testImplementation project(path: ':agent-core', configuration: 'fat')
     testImplementation fileTree(dir: 'libs', include: '*.jar')
@@ -127,9 +152,17 @@ def toFatJarTask(def variant) {
     def unshadedJarProvider = project.tasks.register("unshadedJar${variant.name.capitalize()}", Jar) {
         dependsOn variant.runtimeConfiguration
         dependsOn variant.getJavaCompileProvider()
+        // Add dependency on Kotlin compilation if available
+        if (project.hasProperty('kotlin')) {
+            dependsOn "compile${variant.name.capitalize()}Kotlin"
+        }
         archiveClassifier = "u"
         include("**/GsonInstrumentation*")
         from variant.getJavaCompileProvider().get().destinationDir
+        // Include Kotlin compiled classes
+        if (project.hasProperty('kotlin')) {
+            from "$buildDir/tmp/kotlin-classes/${variant.name}"
+        }
         from {
             variant.runtimeConfiguration.collect { it.isDirectory() ? it : zipTree(it) }
         }
@@ -138,8 +171,16 @@ def toFatJarTask(def variant) {
     def shadedJarProvider = project.tasks.register("shadedJar${variant.name.capitalize()}", ShadowJar) {
         dependsOn variant.runtimeConfiguration
         dependsOn variant.getJavaCompileProvider()
+        // Add dependency on Kotlin compilation if available
+        if (project.hasProperty('kotlin')) {
+            dependsOn "compile${variant.name.capitalize()}Kotlin"
+        }
         archiveClassifier = "s"
         from variant.getJavaCompileProvider().get().destinationDir
+        // Include Kotlin compiled classes
+        if (project.hasProperty('kotlin')) {
+            from "$buildDir/tmp/kotlin-classes/${variant.name}"
+        }
         from {
             variant.runtimeConfiguration.collect { it.isDirectory() ? it : zipTree(it) }
         }
@@ -173,6 +214,13 @@ def toFatJarTask(def variant) {
         }
         exclude '**/META-INF/**'
         exclude '**/module-info.class'
+        exclude 'AndroidManifest.xml'
+        exclude 'curtains/**'
+        exclude 'kotlin/**'
+        exclude 'org/**'
+        exclude 'android/**'
+        exclude 'proguard.txt'
+        exclude 'R.txt'
         duplicatesStrategy = DuplicatesStrategy.INHERIT
         from unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
         from shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }

@@ -46,15 +46,38 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         boolean shouldMaskText;
 
         // Check if input type is for password - always mask password fields
+        // Note: InputType uses bit fields structured as: [flags][variation][class]
+        // - Bits 0-3: TYPE_CLASS (text=1, number=2, phone=3, datetime=4)
+        // - Bits 4-11: TYPE_VARIATION (password=0x80, email=0x20, etc.)
+        // - Bits 12+: TYPE_FLAGS (caps, multiline, etc.)
         int inputType = view.getInputType();
-        if ((inputType & android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD) != 0 ||
-                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) != 0 ||
-                (inputType & android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) != 0 ||
-                (inputType & android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) != 0) {
+
+        // Extract the variation bits (bits 4-11) by masking with 0xFF0 (0b111111110000)
+        // This isolates just the variation field, ignoring class and flags
+        int TYPE_MASK_CLASS = 0x0000000f;  // Mask for class (bits 0-3)
+        int TYPE_MASK_VARIATION = 0x00000ff0;  // Mask for variation (bits 4-11)
+
+        int variation = inputType & TYPE_MASK_VARIATION;
+
+        // Check for password variations - CRITICAL: Always mask passwords
+        // We compare ONLY the variation bits (bits 4-11), not the full inputType
+        // Password variation values: 0x80=password, 0x90=visible_password, 0xe0=web_password, 0x10=number_password
+        boolean isPassword =
+            variation == 0x80 ||  // TYPE_TEXT_VARIATION_PASSWORD
+            variation == 0x90 ||  // TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+            variation == 0xe0 ||  // TYPE_TEXT_VARIATION_WEB_PASSWORD
+            variation == 0x10;    // TYPE_NUMBER_VARIATION_PASSWORD
+
+        if (isPassword) {
+            // Always mask passwords regardless of configuration
             shouldMaskText = true;
         } else {
-            // For non-password fields, use configuration-based logic
-            shouldMaskText = inputType != 0 ? sessionReplayConfiguration.isMaskUserInputText() : sessionReplayConfiguration.isMaskApplicationText();
+            // For non-password fields, check if it's actually an editable input field
+            // Use instanceof EditText to determine if it's user input vs static text
+            boolean isEditableInput = view instanceof android.widget.EditText;
+            shouldMaskText = isEditableInput
+                ? sessionReplayConfiguration.isMaskUserInputText()
+                : sessionReplayConfiguration.isMaskApplicationText();
         }
 
         // Apply masking if needed
@@ -178,35 +201,36 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
 
-        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, Collections.singletonList(textNode));
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId, new ArrayList<>(Collections.singletonList(textNode)));
     }
 
     @Override
     public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
         // Make sure this is not null and is of the same type
         if (!(other instanceof SessionReplayTextViewThingy)) {
-            return null;
+            return Collections.emptyList();
         }
 
         // Create a map to store style differences
         java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
 
+        ViewDetails otherViewDetails = (ViewDetails) other.getViewDetails();
         // Compare frames
-        if (!viewDetails.frame.equals(other.getViewDetails().frame)) {
-            styleDifferences.put("left", other.getViewDetails().frame.left + "px");
-            styleDifferences.put("top", other.getViewDetails().frame.top + "px");
-            styleDifferences.put("width", other.getViewDetails().frame.width() + "px");
-            styleDifferences.put("height", other.getViewDetails().frame.height() + "px");
-            styleDifferences.put("line-height", other.getViewDetails().frame.height() + "px");
+        if (!viewDetails.frame.equals(otherViewDetails.frame)) {
+            styleDifferences.put("left", otherViewDetails.frame.left + "px");
+            styleDifferences.put("top", otherViewDetails.frame.top + "px");
+            styleDifferences.put("width", otherViewDetails.frame.width() + "px");
+            styleDifferences.put("height", otherViewDetails.frame.height() + "px");
+            styleDifferences.put("line-height", otherViewDetails.frame.height() + "px");
         }
 
         // Compare background colors if available
-        if (viewDetails.backgroundColor != null && other.getViewDetails().backgroundColor != null) {
-            if (!viewDetails.backgroundColor.equals(other.getViewDetails().backgroundColor)) {
-                styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+        if (viewDetails.backgroundColor != null && otherViewDetails.backgroundColor != null) {
+            if (!viewDetails.backgroundColor.equals(otherViewDetails.backgroundColor)) {
+                styleDifferences.put("background-color", otherViewDetails.backgroundColor);
             }
-        } else if (other.getViewDetails().backgroundColor != null) {
-            styleDifferences.put("background-color", other.getViewDetails().backgroundColor);
+        } else if (otherViewDetails.backgroundColor != null) {
+            styleDifferences.put("background-color", otherViewDetails.backgroundColor);
         }
 
         // compare TextColor if available
@@ -288,6 +312,11 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     @Override
     public int getViewId() {
         return viewDetails.viewId;
+    }
+
+    @Override
+    public int getParentViewId() {
+        return viewDetails.parentId;
     }
 
     private String getFontFamily(Typeface typeface) {
@@ -397,6 +426,17 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             clazz = clazz.getSuperclass();
         }
         return false;
+    }
+
+    @Override
+    public boolean hasChanged(SessionReplayViewThingyInterface other) {
+        // Quick check: if it's not the same type, it has changed
+        if (other == null || !(other instanceof SessionReplayTextViewThingy)) {
+            return true;
+        }
+
+        // Compare using hashCode (which should reflect the content)
+        return this.hashCode() != other.hashCode();
     }
 
 }

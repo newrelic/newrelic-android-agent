@@ -70,6 +70,7 @@ import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsEventStore;
 import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
 import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
+import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
@@ -143,7 +144,6 @@ public class AndroidAgentImpl implements
         agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
-        startLogReporter(context, agentConfiguration);
         // used to determine when app backgrounds
         final UiBackgroundListener backgroundListener;
         if (Agent.getMonoInstrumentationFlag().equals("YES")) {
@@ -169,11 +169,9 @@ public class AndroidAgentImpl implements
     }
 
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
-        if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
-            LogReportingConfiguration.reseed();
-
             LogReportingConfiguration logReportingConfiguration = agentConfiguration.getLogReportingConfiguration();
-            if (logReportingConfiguration.getLoggingEnabled() ) {
+            LogReportingConfiguration.reseed();
+             if (logReportingConfiguration.getLoggingEnabled() ) {
                 try {
                     /*
                        LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
@@ -193,7 +191,6 @@ public class AndroidAgentImpl implements
                     log.warn("Agent log data will be forwarded with remote logs.");
                 }
             }
-        }
     }
 
     protected void initialize() {
@@ -211,7 +208,7 @@ public class AndroidAgentImpl implements
         Harvest.addHarvestListener(this);
 
         startLogReporter(context, agentConfiguration);
-
+        startSessionReplayRecorder(context, agentConfiguration);
         Measurements.initialize();
         log.info(MessageFormat.format("New Relic Agent v{0}", Agent.getVersion()));
         log.verbose(MessageFormat.format("Application token: {0}", agentConfiguration.getApplicationToken()));
@@ -331,7 +328,15 @@ public class AndroidAgentImpl implements
 
             envInfo.setDiskAvailable(free);
         }
-        envInfo.setMemoryUsage(Sampler.sampleMemory(activityManager).getSampleValue().asLong());
+
+        // Safely sample memory usage, handling potential null returns
+        Sample memorySample = Sampler.sampleMemory(activityManager);
+        if (memorySample != null && memorySample.getSampleValue() != null) {
+            envInfo.setMemoryUsage(memorySample.getSampleValue().asLong());
+        } else {
+            envInfo.setMemoryUsage(0L);
+        }
+
         envInfo.setOrientation(context.getResources().getConfiguration().orientation);
         envInfo.setNetworkStatus(getNetworkCarrier());
         envInfo.setNetworkWanType(getNetworkWanType());
@@ -527,10 +532,8 @@ public class AndroidAgentImpl implements
                 }
             }
 
-            if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
-                // assume a user action caused the agent to start or return to foreground
-                UserActionFacade.getInstance().recordUserAction(UserActionType.AppLaunch);
-            }
+            // assume a user action caused the agent to start or return to foreground
+            UserActionFacade.getInstance().recordUserAction(UserActionType.AppLaunch);
 
             //check if Compose is used for app or not
             if(ComposeChecker.isComposeUsed(context)) {
@@ -667,8 +670,6 @@ public class AndroidAgentImpl implements
         try {
             Agent.setImpl(new AndroidAgentImpl(context, agentConfiguration));
             Agent.start();
-            startLogReporter(context, agentConfiguration);
-            startSessionReplayRecorder(context, agentConfiguration);
         } catch (AgentInitializationException e) {
             log.error("Failed to initialize the agent: " + e);
         }
@@ -727,8 +728,6 @@ public class AndroidAgentImpl implements
         }
         if (!NewRelic.isShutdown) {
             start();
-            startLogReporter(context, agentConfiguration);
-            startSessionReplayRecorder(context, agentConfiguration);
             AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME);
         }
     }
@@ -758,7 +757,12 @@ public class AndroidAgentImpl implements
      * a Location to a country and region code.
      *
      * @param location An android.location.Location
+     * @deprecated This method is deprecated due to reliance on Geocoder which may fail or be unavailable.
+     *             Use {@link #setLocation(String, String)} instead to directly provide country code and
+     *             administrative region. This allows for more reliable location tracking without
+     *             dependency on the Geocoder service.
      */
+    @Deprecated
     public void setLocation(Location location) {
         if (location == null) {
             throw new IllegalArgumentException("Location must not be null.");

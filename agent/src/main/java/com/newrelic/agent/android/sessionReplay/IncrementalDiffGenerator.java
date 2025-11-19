@@ -18,6 +18,8 @@ public class IncrementalDiffGenerator {
     static class Symbol {
         boolean inNew;
         Integer indexInOld;
+        int occurrencesInOld = 0;
+        int occurrencesInNew = 0;
 
         Symbol(boolean inNew, Integer indexInOld) {
             this.inNew = inNew;
@@ -172,8 +174,12 @@ public class IncrementalDiffGenerator {
 
         // Pass One: Each element of the New array is gone through, and an entry in the table made for each
         for (SessionReplayViewThingyInterface item : newList) {
-            Symbol entry = new Symbol(true);
-            table.put(item.getViewId(), entry);
+            Symbol entry = table.get(item.getViewId());
+            if (entry == null) {
+                entry = new Symbol(true);
+                table.put(item.getViewId(), entry);
+            }
+            entry.occurrencesInNew++;
             newArrayEntries.add(Entry.symbol(entry));
         }
 
@@ -186,8 +192,12 @@ public class IncrementalDiffGenerator {
                 table.put(item.getViewId(), entry);
             } else {
                 entry = table.get(item.getViewId());
-                entry.indexInOld = index;
+                // Only set indexInOld if this is the first occurrence
+                if (entry.occurrencesInOld == 0) {
+                    entry.indexInOld = index;
+                }
             }
+            entry.occurrencesInOld++;
 
             oldArrayEntries.add(Entry.symbol(entry));
         }
@@ -197,7 +207,9 @@ public class IncrementalDiffGenerator {
         // the two
         for (int index = 0; index < newArrayEntries.size(); index++) {
             Entry item = newArrayEntries.get(index);
-            if (item.isSymbol && item.symbol.inNew && item.symbol.indexInOld != null) {
+            // Only match if element appears exactly once in both old AND new
+            if (item.isSymbol && item.symbol.inNew && item.symbol.indexInOld != null
+                    && item.symbol.occurrencesInOld == 1 && item.symbol.occurrencesInNew == 1) {
                 newArrayEntries.set(index, Entry.index(item.symbol.indexInOld));
                 oldArrayEntries.set(item.symbol.indexInOld, Entry.index(index));
             }
@@ -251,7 +263,7 @@ public class IncrementalDiffGenerator {
             deleteOffsets[index] = runningOffset;
             Entry entry = oldArrayEntries.get(index);
             if (entry.isSymbol) {
-                changes.add(Operation.remove(new Operation.RemoveChange(old.get(index).getViewDetails().parentId, old.get(index).getViewId())));
+                changes.add(Operation.remove(new Operation.RemoveChange(old.get(index).getParentViewId(), old.get(index).getViewId())));
                 runningOffset++;
             }
         }
@@ -262,7 +274,7 @@ public class IncrementalDiffGenerator {
         for (int index = 0; index < newArrayEntries.size(); index++) {
             Entry entry = newArrayEntries.get(index);
             if (entry.isSymbol) {
-                changes.add(Operation.add(new Operation.AddChange(newList.get(index).getViewDetails().parentId, newList.get(index).getViewId(), newList.get(index))));
+                changes.add(Operation.add(new Operation.AddChange(newList.get(index).getParentViewId(), newList.get(index).getViewId(), newList.get(index))));
                 runningOffset++;
             } else {
                 int indexInOld = entry.index;
@@ -273,10 +285,11 @@ public class IncrementalDiffGenerator {
                 if ((indexInOld - deleteOffset + runningOffset) != index) {
                     // If this doesn't get us back to where we currently are, then
                     // the thing was moved
-                    changes.add(Operation.remove(new Operation.RemoveChange(newElement.getViewDetails().parentId, newElement.getViewId())));
-                    changes.add(Operation.add(new Operation.AddChange(newElement.getViewDetails().parentId, newElement.getViewId(), newElement)));
+                    changes.add(Operation.remove(new Operation.RemoveChange(newElement.getParentViewId(), newElement.getViewId())));
+                    changes.add(Operation.add(new Operation.AddChange(newElement.getParentViewId(), newElement.getViewId(), newElement)));
                 } else if (newElement.getClass() == oldElement.getClass()) {
-                    if (newElement.hashCode() != oldElement.hashCode()) {
+                    // Use the hasChanged method from Diffable interface instead of hashCode
+                    if (newElement.hasChanged(oldElement)) {
                         changes.add(Operation.update(new Operation.UpdateChange(oldElement, newElement)));
                     }
                 }

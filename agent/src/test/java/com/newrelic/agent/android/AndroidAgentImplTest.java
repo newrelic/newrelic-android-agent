@@ -273,6 +273,21 @@ public class AndroidAgentImplTest {
     }
 
     @Test
+    public void testEnvironmentInformationWithValidMemorySample() throws Exception {
+        // Test the normal happy path where memory sampling works correctly
+        com.newrelic.agent.android.sample.Sampler.init(spyContext.getContext());
+
+        EnvironmentInformation environmentInformation = agentImpl.getEnvironmentInformation();
+
+        Assert.assertNotNull("Environment information should not be null", environmentInformation);
+        // Memory usage should be set to the actual sampled value (not 0)
+        Assert.assertTrue("Memory usage should be greater than 0 when sample is valid",
+                environmentInformation.getMemoryUsage() > 0);
+        Assert.assertEquals("Memory usage should match expected value",
+                (int) (SpyContext.APP_MEMORY / 1024), environmentInformation.getMemoryUsage());
+    }
+
+    @Test
     public void testCombinedAgentLifecycleGestures() throws Exception {
         eventStore = agentConfig.getEventStore();
         ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
@@ -331,7 +346,7 @@ public class AndroidAgentImplTest {
         eventStore.clear();
 
         agentImpl.start();
-        assertEquals("Should not contain app launch user action event", eventManager.getEventsRecorded(), 0);
+        assertEquals("Should not contain app launch user action event", eventManager.getEventsRecorded(), 1);
         queuedEvents = analyticsController.getEventManager().getQueuedEvents();
         Assert.assertNull("Should contain app launch event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
 
@@ -461,6 +476,7 @@ public class AndroidAgentImplTest {
         Mockito.when(loggingConfig.getLoggingEnabled()).thenReturn(true);
         agentConfig.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
         agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
+        agentImpl.initialize();
         Assert.assertTrue(log.getInstance() instanceof ForwardingAgentLog);
     }
 

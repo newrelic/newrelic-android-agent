@@ -21,7 +21,9 @@ import org.apache.http.HttpStatus;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import okhttp3.Headers;
@@ -92,21 +94,23 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
             if (response.body() != null) {
                 contentLength = response.body().contentLength();
             }
+
+            // If still unknown, try Content-Length header
             if (contentLength < 0L) {
-                String responseBodyString = response.header(Constants.Network.CONTENT_LENGTH_HEADER);
-                if (responseBodyString != null && responseBodyString.length() > 0) {
+                String contentLengthHeader = response.header(Constants.Network.CONTENT_LENGTH_HEADER);
+                if (contentLengthHeader != null && contentLengthHeader.length() > 0) {
                     try {
-                        contentLength = Long.parseLong(responseBodyString);
+                        contentLength = Long.parseLong(contentLengthHeader);
                     } catch (NumberFormatException var10) {
                         log.debug("Failed to parse content length: " + var10);
                     }
                 } else {
                     Response networkResponse = response.networkResponse();
                     if (networkResponse != null) {
-                        responseBodyString = networkResponse.header(Constants.Network.CONTENT_LENGTH_HEADER);
-                        if (responseBodyString != null && responseBodyString.length() > 0) {
+                        contentLengthHeader = networkResponse.header(Constants.Network.CONTENT_LENGTH_HEADER);
+                        if (contentLengthHeader != null && contentLengthHeader.length() > 0) {
                             try {
-                                contentLength = Long.parseLong(responseBodyString);
+                                contentLength = Long.parseLong(contentLengthHeader);
                             } catch (NumberFormatException var5) {
                                 log.debug("Failed to parse network response content length: " + var5);
                             }
@@ -116,11 +120,28 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
                             }
                         }
                     } else {
-                        // read the response? bad!
+                        // Response likely from cache with no content length
+                        log.debug("No network response available, content length unknown");
                     }
                 }
             }
         }
+
+        // If body().contentLength() returns -1, try to peek the buffer to get actual size
+        // Limit peek to New Relic's attribute limit to prevent memory issues
+        if (contentLength < 0L) {
+            try {
+                // Peek up to 4KB + some extra to detect if body is larger
+                long peekLimit = com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH + 1;
+                contentLength = response.peekBody(peekLimit).contentLength();
+                if (contentLength > 0) {
+                    log.debug("Got content length from peekBody: " + contentLength + " bytes");
+                }
+            } catch (IOException e) {
+                log.debug("Failed to peek response body: " + e);
+            }
+        }
+
         return contentLength;
     }
 
@@ -152,12 +173,30 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
                 try {
                     long contentLength = exhaustiveContentLength(response);
                     if (contentLength > 0) {
-                        responseBodyString = response.peekBody(contentLength).string();
+                        // Limit response body capture to New Relic's attribute value limit (4096 bytes)
+                        // to prevent memory issues and respect platform constraints
+                        long bytesToRead = Math.min(contentLength, com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
+                        responseBodyString = response.peekBody(bytesToRead).string();
+
+                        // Truncate if the string exceeds the limit (multi-byte characters can cause this)
+                        if (responseBodyString.length() > com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH) {
+                            responseBodyString = responseBodyString.substring(0, com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
+                            log.debug("Response body truncated to " + com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH + " characters");
+                        }
+
+                        if (contentLength > bytesToRead) {
+                            log.debug("Error response body truncated from " + contentLength + " to " + bytesToRead + " bytes");
+                        }
                     }
                 } catch (Exception e) {
+                    log.debug("Failed to read error response body: " + e.getMessage());
                     if (response.message() != null) {
-                        log.debug("Missing response body, using response message");
+                        log.debug("Using response message as fallback");
                         responseBodyString = response.message();
+                        // Ensure response message also respects the limit
+                        if (responseBodyString.length() > com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH) {
+                            responseBodyString = responseBodyString.substring(0, com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
+                        }
                     }
                 }
 
@@ -228,12 +267,26 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
         return response;
     }
 
+    /**
+     * Adds HTTP headers from the request as custom attributes to the transaction state.
+     * Only headers configured via {@link HttpHeaders#addHttpHeaderAsAttribute(String)} are captured.
+     *
+     * <p><b>Thread Safety:</b> Creates a defensive copy of the header list to avoid
+     * {@link java.util.ConcurrentModificationException} if headers are modified concurrently.</p>
+     *
+     * @param transactionState The transaction state to add attributes to
+     * @param request The OkHttp request containing headers
+     */
     public static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
-
         Map<String, String> headers = new HashMap<>();
-        for (String s : HttpHeaders.getInstance().getHttpHeaders()) {
-            if (request.headers().get(s) != null) {
-                headers.put(HttpHeaders.translateApolloHeader(s), request.headers().get(s));
+
+        // Defensive copy to prevent ConcurrentModificationException
+        Set<String> headersCopy = new HashSet<>(HttpHeaders.getInstance().getHttpHeaders());
+
+        for (String headerName : headersCopy) {
+            String headerValue = request.headers().get(headerName);
+            if (headerValue != null) {
+                headers.put(HttpHeaders.translateApolloHeader(headerName), headerValue);
             }
         }
         transactionState.setParams(headers);

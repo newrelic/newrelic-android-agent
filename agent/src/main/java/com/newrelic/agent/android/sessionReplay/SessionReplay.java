@@ -11,10 +11,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.NewRelic;
 import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.background.ApplicationStateListener;
 import com.newrelic.agent.android.harvest.Harvest;
@@ -22,16 +19,19 @@ import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
-import com.newrelic.agent.android.sessionReplay.internal.Curtains;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import curtains.Curtains;
 
 public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAware, OnTouchRecordedListener, ApplicationStateListener {
     private static Application application;
@@ -43,10 +43,32 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private static final SessionReplay instance = new SessionReplay();
     private SessionReplayFileManager fileManager;
     protected static final AgentLog log = AgentLogManager.getAgentLog();
-    private final ArrayList<SessionReplayFrame> rawFrames = new ArrayList<>();
-    private final ArrayList<RRWebEvent> rrWebEvents = new ArrayList<>();
     private static boolean isFirstChunk = true;
-    private JsonArray jsonArray = new JsonArray();
+    private final List<SessionReplayFrame> rawFrames =
+            Collections.synchronizedList(new ArrayList<>());
+    private final List<RRWebEvent> rrWebEvents =
+            Collections.synchronizedList(new ArrayList<>());
+    private static final AtomicBoolean takeFullSnapshot = new AtomicBoolean(true);
+
+    /**
+     * Sets whether the next snapshot should be a full snapshot or incremental.
+     * This can be called from any class to force a full snapshot on the next capture.
+     *
+     * @param shouldTakeFullSnapshot true to take a full snapshot, false for incremental
+     */
+    public static void setTakeFullSnapshot(boolean shouldTakeFullSnapshot) {
+        takeFullSnapshot.set(shouldTakeFullSnapshot);
+        log.debug("SessionReplay: takeFullSnapshot set to " + shouldTakeFullSnapshot);
+    }
+
+    /**
+     * Gets the current takeFullSnapshot value.
+     *
+     * @return true if the next snapshot will be a full snapshot, false otherwise
+     */
+    public static boolean shouldTakeFullSnapshot() {
+        return takeFullSnapshot.get();
+    }
 
     /**
      * Initializes the SessionReplay system.
@@ -80,8 +102,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         registerCallbacks();
         startRecording();
-
-
         isFirstChunk = true;
 
         Log.d("SessionReplay", "Session replay initialized successfully");
@@ -104,15 +124,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         instance.rawFrames.clear();
         instance.rrWebEvents.clear();
         instance.touchTrackers.clear();
-        instance.jsonArray = new JsonArray();
+
         // Shutdown file manager
         SessionReplayFileManager.shutdown();
 
         log.debug("Session replay deinitialized");
-    }
-
-    public static SessionReplay getInstance() {
-        return instance;
     }
 
     @Override
@@ -128,15 +144,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return;
         }
 
-        Log.d("SessionReplay","Processing"+rawFrames.size() +  "frame data");
-
-        // Start timing frame processing
-        long frameProcessingStart = System.currentTimeMillis();
-        rrWebEvents.addAll(processor.processFrames(rawFrames));
-        long frameProcessingTime = System.currentTimeMillis() - frameProcessingStart;
-
-        Log.d("SessionReplay","Frame processing took: " + frameProcessingTime + "ms for " + rawFrames.size() + " frames");
-
         ArrayList<RRWebEvent> totalTouches = new ArrayList<>();
         for (TouchTracker touchTracker : touchTrackers) {
             totalTouches.addAll(touchTracker.processTouchData());
@@ -148,20 +155,29 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         String json = new Gson().toJson(rrWebEvents);
         Map<String, Object> attributes = new HashMap<>();
-        attributes.put(FIRST_TIMESTAMP, rawFrames.get(0).timestamp);
-        attributes.put(LAST_TIMESTAMP, rawFrames.get(rawFrames.size() - 1).timestamp);
-        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
-        if(jsonArray.size() > 0) {
-            SessionReplayReporter.reportSessionReplayData(jsonArray.toString().getBytes(), attributes);
+
+        // Safely get first timestamp - use first frame timestamp if available, otherwise use current time
+        if (!rawFrames.isEmpty()) {
+            attributes.put(FIRST_TIMESTAMP, rawFrames.get(0).timestamp);
         } else {
-        SessionReplayReporter.reportSessionReplayData(json.getBytes(), attributes);
+            // If we only have touch data without frames, use current time as first timestamp
+            attributes.put(FIRST_TIMESTAMP, System.currentTimeMillis());
+            Log.w("SessionReplay", "No frames available, using current time as FIRST_TIMESTAMP");
         }
+
+        // Use current time as last timestamp instead of last frame time to match with Mobile Session Event
+        attributes.put(LAST_TIMESTAMP, System.currentTimeMillis());
+        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
+        SessionReplayReporter.reportSessionReplayData(json.getBytes(), attributes);
 
         rrWebEvents.clear();
         rawFrames.clear();
         touchTrackers.clear();
+        fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
+        takeFullSnapshot.set(true);
     }
+
 
     /**
      * Extracts timestamp from different RRWebEvent types
@@ -191,8 +207,16 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     public static void startRecording() {
         Harvest.addHarvestListener(instance);
+        takeFullSnapshot.set(true); // Force full snapshot when starting recording
         uiThreadHandler.post(() -> {
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
+
+            // Check if decorViews is not empty before accessing
+            if (decorViews == null || decorViews.length == 0) {
+                Log.w("SessionReplay", "No root views available, skipping initial recording setup");
+                return;
+            }
+
             viewDrawInterceptor.Intercept(decorViews);
             sessionReplayActivityLifecycleCallbacks.setupTouchInterceptorForWindow(decorViews[0]);
         });
@@ -214,9 +238,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         rawFrames.add(newFrame);
+        List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)),takeFullSnapshot.get());
+        rrWebEvents.addAll(events);
         if (fileManager != null) {
-            fileManager.addFrameToFile(newFrame);
+            fileManager.addFrameToFile(events);
         }
+        takeFullSnapshot.set(false);
     }
 
     @Override
@@ -239,11 +266,5 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         if (fileManager != null) {
             fileManager.clearWorkingFile();
         }
-    }
-
-    public void recordSessionReplayEvent(String jsonString) {
-
-        JsonObject jsonObject = new Gson().fromJson(jsonString, JsonObject.class);
-        jsonArray.add(jsonObject);
     }
 }

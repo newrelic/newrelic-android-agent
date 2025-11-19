@@ -41,10 +41,10 @@ public class Measurements {
 
     // Measurement Consumers
     private final static HttpTransactionMeasurementConsumer httpTransactionHarvester = new HttpTransactionMeasurementConsumer();
-    private static ActivityMeasurementConsumer activityConsumer ;
-    private static MethodMeasurementConsumer methodMeasurementConsumer ;
-    private static CustomMetricMeasurementConsumer customMetricMeasurementConsumer ;
-    private static SummaryMetricMeasurementConsumer summaryMetricMeasurementConsumer ;
+    private static ActivityMeasurementConsumer activityConsumer;
+    private static MethodMeasurementConsumer methodMeasurementConsumer;
+    private static CustomMetricMeasurementConsumer customMetricMeasurementConsumer;
+    private static SummaryMetricMeasurementConsumer summaryMetricMeasurementConsumer;
 
     private static boolean broadcastNewMeasurements = true;
 
@@ -59,6 +59,7 @@ public class Measurements {
         methodMeasurementConsumer = new MethodMeasurementConsumer();
         customMetricMeasurementConsumer = new CustomMetricMeasurementConsumer();
         summaryMetricMeasurementConsumer = new SummaryMetricMeasurementConsumer();
+        summaryMetricMeasurementConsumer.addListener();
 
         // Producers
         addMeasurementProducer(measurementEngine.getRootMeasurementPool());
@@ -89,22 +90,18 @@ public class Measurements {
         removeMeasurementProducer(methodMeasurementProducer);
         removeMeasurementProducer(customMetricMeasurementProducer);
 
+        if(summaryMetricMeasurementConsumer != null)
+            summaryMetricMeasurementConsumer.removeListener();
+
         removeMeasurementConsumer(httpTransactionHarvester);
         removeMeasurementConsumer(activityConsumer);
         removeMeasurementConsumer(methodMeasurementConsumer);
         removeMeasurementConsumer(customMetricMeasurementConsumer);
         removeMeasurementConsumer(summaryMetricMeasurementConsumer);
-
-        //remove all consumers
-        activityConsumer = null;
-        methodMeasurementConsumer = null;
-        customMetricMeasurementConsumer = null;
-        summaryMetricMeasurementConsumer = null;
     }
 
     /*** Measurement Production APIs ***/
     /* Network APIs */
-
     public static void addHttpTransaction(HttpTransactionMeasurement transactionMeasurement) {
         if (Harvest.isDisabled()) return;
 

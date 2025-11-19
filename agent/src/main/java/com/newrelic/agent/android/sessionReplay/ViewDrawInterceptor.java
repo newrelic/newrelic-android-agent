@@ -13,23 +13,26 @@ import android.view.WindowMetrics;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 
 public class ViewDrawInterceptor  {
-    private final WeakHashMap<View, ViewTreeObserver.OnDrawListener> decorViewListeners = new WeakHashMap<>();
-    SessionReplayCapture capture = new SessionReplayCapture();
+    private final Map<View, ViewTreeObserver.OnDrawListener> decorViewListeners =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    SessionReplayCapture capture;
     private final OnFrameTakenListener listener;
     private static final long CAPTURE_INTERVAL = 1000;
     private long lastCaptureTime = 0;
-    private AgentConfiguration agentConfiguration;
-    private Debouncer captureDebouncer;
-    private static final long DEBOUNCE_DELAY = 250; // ~60 FPS (16ms per frame)
+    private final AgentConfiguration agentConfiguration;
+    private final Debouncer captureDebouncer;
+    private static final long DEBOUNCE_DELAY = 1000; // ~60 FPS (16ms per frame)
 
     public ViewDrawInterceptor(OnFrameTakenListener listener, AgentConfiguration agentConfiguration) {
         this.listener = listener;
         this.agentConfiguration = agentConfiguration;
-        this.captureDebouncer = new Debouncer(DEBOUNCE_DELAY);
+        capture = new SessionReplayCapture(agentConfiguration);
+        this.captureDebouncer = new Debouncer(true);
     }
 
 
@@ -43,7 +46,31 @@ public class ViewDrawInterceptor  {
                 // Use debouncer to limit capture frequency
                 lastCaptureTime = currentTime;
                 Log.d("ViewDrawInterceptor", "Capturing frame");
-                Context context = decorViews[0].getContext().getApplicationContext();
+
+                // Safely get context - the view may have been detached by the time this runs
+                if (decorViews == null || decorViews.length == 0) {
+                    Log.w("ViewDrawInterceptor", "decorViews is null or empty, skipping frame capture");
+                    return;
+                }
+
+                View firstView = decorViews[0];
+                if (firstView == null) {
+                    Log.w("ViewDrawInterceptor", "First decor view is null, skipping frame capture");
+                    return;
+                }
+
+                Context viewContext = firstView.getContext();
+                if (viewContext == null) {
+                    Log.w("ViewDrawInterceptor", "View context is null (view may be detached), skipping frame capture");
+                    return;
+                }
+
+                Context context = viewContext.getApplicationContext();
+                if (context == null) {
+                    Log.w("ViewDrawInterceptor", "Application context is null, skipping frame capture");
+                    return;
+                }
+
                 float density = context.getResources().getDisplayMetrics().density;
 
                 // Get screen dimensions
@@ -53,8 +80,33 @@ public class ViewDrawInterceptor  {
 
                 // Start timing the frame creation
                 long frameCreationStart = System.currentTimeMillis();
-                // Start walking the view tree
-                SessionReplayFrame frame = new SessionReplayFrame(capture.capture(decorViews[decorViews.length - 1], agentConfiguration), System.currentTimeMillis(), width, height);
+
+
+                // Capture the LAST decorView (most recently added window)
+                //
+                // Why the last element?
+                // - Android maintains decorViews in a stack ordered by z-index (rendering order)
+                // - Index 0: Base activity window (bottom layer)
+                // - Index 1..n-1: Dialogs, popups, toasts (middle layers)
+                // - Index n-1: Most recent window (top layer) - THIS IS WHAT USER SEES
+                //
+                // Examples:
+                // - MainActivity (index 0) + AlertDialog (index 1) → We capture index 1 (the visible dialog)
+                // - Activity + Popup Menu → We capture the popup (most recent interaction)
+                // - Activity only → We capture index 0 (the only window)
+                //
+                // This approach captures what the user is currently interacting with, which is
+                // always the topmost (most recent) window in the decorViews array.
+                //
+                // Alternative considered: Merge all decorViews into a composite snapshot
+                // Reason not implemented: Performance overhead + complexity of merging z-indexed views
+                View topMostView = decorViews[decorViews.length - 1];
+                SessionReplayFrame frame = new SessionReplayFrame(
+                    capture.capture(topMostView, agentConfiguration),
+                    System.currentTimeMillis(),
+                    width,
+                    height
+                );
 
                 // Calculate frame creation time
                 long frameCreationTime = System.currentTimeMillis() - frameCreationStart;
@@ -112,27 +164,29 @@ public class ViewDrawInterceptor  {
      * @return Point containing screen width (x) and height (y)
      */
     private Point getScreenDimensions(Context context) {
-        int width, height;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             // For API 30 (Android 11) and above
             WindowMetrics windowMetrics = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE))
                     .getCurrentWindowMetrics();
-            width = windowMetrics.getBounds().width();
-            height = windowMetrics.getBounds().height();
+            return new Point(windowMetrics.getBounds().width(), windowMetrics.getBounds().height());
         } else {
-            // For API 29 and below
-            WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-            @SuppressWarnings("deprecation")
-            Display display = wm.getDefaultDisplay();
-
-            // Use getRealSize instead of getSize to get the actual full screen size including system decorations
-            Point size = new Point();
-            display.getRealSize(size);
-
-            width = size.x;
-            height = size.y;
+            // For API 24-29
+            return getScreenDimensionsLegacy(context);
         }
-        return new Point(width, height);
+    }
+
+    /**
+     * Gets screen dimensions using legacy Display API for API 24-29
+     */
+    @SuppressWarnings("deprecation")
+    private Point getScreenDimensionsLegacy(Context context) {
+        WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        Display display = wm.getDefaultDisplay();
+        
+        Point size = new Point();
+        display.getRealSize(size); // Safe to use since minSdk is 24 (getRealSize available since API 17)
+        
+        return size;
     }
 
 

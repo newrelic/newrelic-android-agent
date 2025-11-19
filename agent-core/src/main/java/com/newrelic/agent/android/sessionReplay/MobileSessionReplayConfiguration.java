@@ -69,7 +69,7 @@ public class MobileSessionReplayConfiguration {
 
     public MobileSessionReplayConfiguration() {
         // Default values
-        this.enabled = true;
+        this.enabled = false;
         this.samplingRate = 0.0;
         this.errorSamplingRate = 100.0;
         this.mode = "custom";
