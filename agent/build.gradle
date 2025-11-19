@@ -134,6 +134,11 @@ dependencies {
 
     compileOnly "androidx.navigation:navigation-compose:${project.versions.jetpack}"
     compileOnly "androidx.compose.ui:ui:${project.versions.composeui}"
+
+    // Add Compose runtime for tests to satisfy the Compose Compiler
+    testImplementation "androidx.compose.runtime:runtime:${project.versions.composeui}"
+    testImplementation "androidx.compose.ui:ui:${project.versions.composeui}"
+
     testImplementation project(path: ':agent-core', configuration: 'fat')
     testImplementation fileTree(dir: 'libs', include: '*.jar')
     testImplementation newrelic.deps.ndk
