@@ -552,10 +552,10 @@ public class AndroidAgentImpl implements
 
     void stop(boolean finalSendData) {
 
-        if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
-            // assume some user action caused the agent to go to background
-            UserActionFacade.getInstance().recordUserAction(UserActionType.AppBackground);
-        }
+
+        // assume some user action caused the agent to go to background
+         UserActionFacade.getInstance().recordUserAction(UserActionType.AppBackground);
+
 
         // clean up session data
         finalizeSession();
