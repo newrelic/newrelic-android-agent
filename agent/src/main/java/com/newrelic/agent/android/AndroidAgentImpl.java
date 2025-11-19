@@ -532,10 +532,8 @@ public class AndroidAgentImpl implements
                 }
             }
 
-            if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
-                // assume a user action caused the agent to start or return to foreground
-                UserActionFacade.getInstance().recordUserAction(UserActionType.AppLaunch);
-            }
+            // assume a user action caused the agent to start or return to foreground
+            UserActionFacade.getInstance().recordUserAction(UserActionType.AppLaunch);
 
             //check if Compose is used for app or not
             if(ComposeChecker.isComposeUsed(context)) {
