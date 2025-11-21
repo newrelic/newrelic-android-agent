@@ -16,7 +16,7 @@ pluginManagement {
         versions = [
                 agent   : hasOptional('newrelic.agent.version', "+"),
                 agp     : hasOptional('newrelic.agp.version', "7.1.+"),
-                kotlin  : hasOptional('newrelic.kotlin.version', "1.6.+"),
+                kotlin  : hasOptional('newrelic.kotlin.version', "1.8.+"),
                 gradle  : hasOptional('newrelic.gradle.version', "7.2"),
                 dexguard: [
                         base  : hasOptional('dexguard.base.version', '9.+'),
