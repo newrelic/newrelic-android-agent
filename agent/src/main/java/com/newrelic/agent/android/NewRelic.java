@@ -13,6 +13,8 @@ import com.newrelic.agent.android.agentdata.AgentDataController;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.EventListener;
+import com.newrelic.agent.android.analytics.EventManager;
+import com.newrelic.agent.android.analytics.EventManagerImpl;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
@@ -30,6 +32,8 @@ import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
+import com.newrelic.agent.android.sessionReplay.SessionReplay;
+import com.newrelic.agent.android.sessionReplay.CompositeEventListener;
 import com.newrelic.agent.android.sessionReplay.TextMaskingStrategy;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -1042,6 +1046,11 @@ public final class NewRelic {
             handledExceptionAttributes = new HashMap<>(attributes);
         }
 
+        // Notify SessionReplay about the handled exception for mode switching (if enabled)
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.onHandledExceptionDetected(throwable);
+        }
+
         return AgentDataController.sendAgentData(throwable, handledExceptionAttributes);
     }
 
@@ -1081,7 +1090,20 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setEventListener"));
 
-        AnalyticsControllerImpl.getInstance().getEventManager().setEventListener(eventListener);
+        EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
+        EventListener currentListener = ((EventManagerImpl)eventManager).getListener();
+
+        // If current listener is a CompositeEventListener, update its user listener
+        if (currentListener instanceof CompositeEventListener) {
+            ((CompositeEventListener) currentListener).setUserListener(eventListener);
+        } else {
+            // Otherwise, create a new CompositeEventListener with SessionReplay and user listener
+            // Note: This handles the case where user sets a listener before SessionReplay initializes
+            EventListener sessionReplayListener = currentListener;
+            CompositeEventListener composite = new CompositeEventListener(sessionReplayListener);
+            composite.setUserListener(eventListener);
+            eventManager.setEventListener(composite);
+        }
     }
 
     /**
