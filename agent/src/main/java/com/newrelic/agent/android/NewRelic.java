@@ -1418,37 +1418,4 @@ public final class NewRelic {
         return false;
     }
 
-    /**
-     * Adds a Jetpack Compose testTag to be masked during session replay.
-     * All Composables with the specified testTag will have their text content masked.
-     * <p>
-     * Example: In Compose, use `Modifier.testTag("sensitive_user_data")`.
-     * Then call `NewRelic.addSessionReplayMaskComposeTestTag("sensitive_user_data")`.
-     *
-     * @param testTag The testTag value used in `Modifier.testTag()` to mask.
-     * @return true if the testTag was successfully added to the mask list.
-     */
-    public static boolean addSessionReplayMaskComposeTestTag(String testTag) {
-        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
-                .replace(MetricNames.TAG_NAME, "addSessionReplayMaskComposeTestTag"));
-        // Under the hood, a testTag is implemented as a view tag, so we can reuse the existing logic.
-        return addSessionReplayMaskViewTag(testTag);
-    }
-
-    /**
-     * Adds a Jetpack Compose testTag to be explicitly unmasked during session replay.
-     * This is useful for excluding specific Composables from a broader masking rule.
-     * <p>
-     * Example: In Compose, use `Modifier.testTag("public_info")`.
-     * Then call `NewRelic.addSessionReplayUnmaskComposeTestTag("public_info")`.
-     *
-     * @param testTag The testTag value used in `Modifier.testTag()` to unmask.
-     * @return true if the testTag was successfully added to the unmask list.
-     */
-    public static boolean addSessionReplayUnmaskComposeTestTag(String testTag) {
-        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
-                .replace(MetricNames.TAG_NAME, "addSessionReplayUnmaskComposeTestTag"));
-        // Reusing the existing view tag logic for unmasking.
-        return addSessionReplayUnmaskViewTag(testTag);
-    }
 }
