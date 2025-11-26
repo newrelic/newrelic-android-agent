@@ -1527,4 +1527,40 @@ public class NewRelicTest {
                 .findFirst()
                 .orElse(null);
     }
+
+    @Test
+    public void testAddSessionReplayMaskComposeTestTag() {
+        final String testTag = "sensitive_compose_view";
+        Assert.assertTrue(NewRelic.addSessionReplayMaskComposeTestTag(testTag));
+
+        // Verify the tag was added to the configuration
+        Assert.assertTrue(agentConfiguration
+                .getSessionReplayLocalConfiguration()
+                .getMaskedViewTags()
+                .contains(testTag));
+    }
+
+    @Test
+    public void testAddSessionReplayUnmaskComposeTestTag() {
+        final String testTag = "public_compose_view";
+        Assert.assertTrue(NewRelic.addSessionReplayUnmaskComposeTestTag(testTag));
+
+        // Verify the tag was added to the unmask configuration
+        Assert.assertTrue(agentConfiguration
+                .getSessionReplayLocalConfiguration()
+                .getUnmaskedViewTags()
+                .contains(testTag));
+    }
+
+    @Test
+    public void testAddSessionReplayMaskComposeTestTagWithInvalidInput() {
+        Assert.assertFalse(NewRelic.addSessionReplayMaskComposeTestTag(null));
+        Assert.assertFalse(NewRelic.addSessionReplayMaskComposeTestTag(""));
+    }
+
+    @Test
+    public void testAddSessionReplayUnmaskComposeTestTagWithInvalidInput() {
+        Assert.assertFalse(NewRelic.addSessionReplayUnmaskComposeTestTag(null));
+        Assert.assertFalse(NewRelic.addSessionReplayUnmaskComposeTestTag(""));
+    }
 }
