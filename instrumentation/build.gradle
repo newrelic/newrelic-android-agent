@@ -160,7 +160,6 @@ apply from: "${rootDir}/gradle/publishing.gradle"
 
 publishing {
     publications {
-    if (!monoEnabled) {
         mavenJava(MavenPublication) {
 
             artifactId 'instrumentation'
@@ -174,7 +173,6 @@ publishing {
                 description = 'The New Relic Android instrumentation agent instruments and rewrites classes for Android applications'
             }
         }
-    }
      }
 }
 
