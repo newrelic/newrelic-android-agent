@@ -160,6 +160,7 @@ apply from: "${rootDir}/gradle/publishing.gradle"
 
 publishing {
     publications {
+    if (!monoEnabled) {
         mavenJava(MavenPublication) {
 
             artifactId 'instrumentation'
@@ -174,6 +175,7 @@ publishing {
             }
         }
     }
+     }
 }
 
 java {
