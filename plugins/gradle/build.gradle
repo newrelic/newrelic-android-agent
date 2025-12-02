@@ -193,17 +193,16 @@ apply from: "${rootDir}/gradle/publishing.gradle"
 
 publishing {
     publications {
-        if (!monoEnabled) {
     
             mavenJava(MavenPublication) {
                 from components.java
                 artifactId 'agent-gradle-plugin'
                 pom {
+                    artifactId = monoEnabled ?'agent-gradle-plugin-static':'agent-gradle-plugin'
                     name = 'New Relic Android Gradle Plugin'
                     description = 'The New Relic Android Gradle plugin instruments classes for Android applications'
                 }   
             }
-        }
     }
 }
 
