@@ -3,6 +3,7 @@ package com.newrelic.agent.compile.visitor;
 import com.newrelic.agent.InstrumentationAgent;
 import com.newrelic.agent.TestContext;
 import com.newrelic.agent.compile.InstrumentationContext;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,22 +31,24 @@ public class WebViewCallSiteVisitorTest {
     @Test
     public void testWebViewInstrumentation() throws IOException {
         byte[] classBytes = testContext.classBytesFromResource("/WebviewTest.class");
-
-        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-        ClassVisitor visitor = new WebViewCallSiteVisitor(testContext.classWriter, instrumentationContext, InstrumentationAgent.LOGGER);
+        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        ClassVisitor visitor = new WebViewCallSiteVisitor(classWriter, instrumentationContext, InstrumentationAgent.LOGGER);
         ClassReader classReader = new ClassReader(classBytes);
-
         classReader.accept(visitor, ClassReader.EXPAND_FRAMES);
-
         Assert.assertTrue("Class should be modified by the visitor", instrumentationContext.isClassModified());
 
         byte[] modifiedBytes = classWriter.toByteArray();
         final MethodCallCounter counter = new MethodCallCounter(
                 "com/newrelic/agent/android/webView/WebViewInstrumentationCallbacks",
-                "loadUrlCalled",
                 "postUrlCalled"
         );
+
+        final ClassReader modifiedClassReader = new ClassReader(modifiedBytes);
+        modifiedClassReader.accept(counter, ClassReader.EXPAND_FRAMES);
+
+        Assert.assertEquals("Should have instrumented one call to postUrl", 1, counter.getCount("postUrlCalled"));
     }
+
     private static class MethodCallCounter extends ClassVisitor {
         private final String owner;
         private final Map<String, Integer> counts = new HashMap<>();
