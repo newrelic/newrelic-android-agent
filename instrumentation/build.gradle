@@ -168,12 +168,12 @@ publishing {
             artifact sourcesJar
 
             pom {
-                artifactId = 'instrumentation'
+                artifactId = monoEnabled ?'instrumentation-static':'instrumentation'
                 name = 'New Relic Android Instrumentation Agent'
                 description = 'The New Relic Android instrumentation agent instruments and rewrites classes for Android applications'
             }
         }
-    }
+     }
 }
 
 java {
