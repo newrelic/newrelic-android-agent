@@ -65,6 +65,7 @@ import com.newrelic.agent.android.sample.Sampler;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayMode;
+import com.newrelic.agent.android.sessionReplay.SessionReplayModeManager;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
@@ -698,6 +699,7 @@ public class AndroidAgentImpl implements
             // SessionReplay not yet initialized - initialize in FULL mode
             log.debug("recordReplay: Initializing SessionReplay in FULL mode");
             try {
+                SessionReplayModeManager.getInstance().transitionTo(SessionReplayMode.FULL, "APIRecordReplay");
                 SessionReplay.initSessionReplay(SessionReplayMode.FULL);
                 AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
                 log.info("recordReplay: SessionReplay initialized in FULL mode");

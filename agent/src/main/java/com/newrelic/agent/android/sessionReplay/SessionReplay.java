@@ -19,7 +19,6 @@ import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.EventListener;
 import com.newrelic.agent.android.analytics.EventManager;
 import com.newrelic.agent.android.analytics.EventManagerImpl;
-import com.newrelic.agent.android.analytics.NetworkRequestErrorEvent;
 import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.background.ApplicationStateListener;
 import com.newrelic.agent.android.harvest.Harvest;
@@ -295,7 +294,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
 
     public static void stopRecording() {
-        uiThreadHandler.post(() -> viewDrawInterceptor.stopIntercept());
+        if(viewDrawInterceptor != null) {
+            uiThreadHandler.post(() -> {
+                viewDrawInterceptor.stopIntercept();
+            });
+        }
+        Curtains.getOnRootViewsChangedListeners().clear();
     }
 
     @Override
@@ -353,10 +357,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public boolean onEventAdded(AnalyticsEvent analyticsEvent) {
         // Check if this is a mobile request error event
-        if (analyticsEvent instanceof NetworkRequestErrorEvent) {
-            log.debug("SessionReplay: Mobile request error detected");
-            switchModeOnError();
-        }
+
+        //TODO: Uncomment when NetworkRequestErrorEvent Filter Functionality is available for mobile agents
+//        if (analyticsEvent instanceof NetworkRequestErrorEvent) {
+//            log.debug("SessionReplay: Mobile request error detected");
+//            switchModeOnError();
+//        }
         return true; // Always allow the event to be added
     }
 
@@ -485,7 +491,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @return true if mode was successfully transitioned to FULL, false otherwise
      */
     public static boolean switchModeOnError() {
-        if (modeManager != null) {
+        if (modeManager != null && modeManager.getCurrentMode() == SessionReplayMode.ERROR) {
             boolean modeChanged = modeManager.transitionTo(SessionReplayMode.FULL, "ErrorDetected");
             if (modeChanged) {
                 // Stop the sliding window timer when switching to FULL mode
@@ -499,14 +505,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     /**
-     * Called when a handled exception is about to be reported.
-     * Public method that can be called from AgentDataController to notify about handled exceptions.
+     * Called when an error is detected (handled exception or error log).
+     * Public method that can be called from NewRelic API to notify about errors.
      * If session replay is in ERROR mode, switches to FULL mode.
-     *
-     * @param throwable The exception that is being handled
      */
-    public static void onHandledExceptionDetected(Throwable throwable) {
-        log.debug("SessionReplay: Handled exception detected - " + (throwable != null ? throwable.getClass().getSimpleName() : "null"));
+    public static void onError() {
+        log.debug("SessionReplay: Error detected, checking if mode switch needed");
         switchModeOnError();
     }
 
@@ -559,7 +563,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @return true if recording in any mode (ERROR or FULL), false if OFF or not initialized
      */
     public static boolean isReplayRecording() {
-        if (modeManager == null) {
+        if (modeManager == null && modeManager.getCurrentMode() == SessionReplayMode.OFF) {
             return false;
         }
         return modeManager.isRecording();

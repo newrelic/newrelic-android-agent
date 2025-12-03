@@ -1047,9 +1047,9 @@ public final class NewRelic {
             handledExceptionAttributes = new HashMap<>(attributes);
         }
 
-        // Notify SessionReplay about the handled exception for mode switching (if enabled)
+        // Notify SessionReplay about the error for mode switching (if enabled)
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
-            SessionReplay.onHandledExceptionDetected(throwable);
+            SessionReplay.onError();
         }
 
         return AgentDataController.sendAgentData(throwable, handledExceptionAttributes);
@@ -1179,6 +1179,9 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name()));
 
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.onError();
+        }
         LogReporting.getLogger().log(LogLevel.ERROR, message);
     }
 
@@ -1193,6 +1196,9 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
+        if (logLevel.equals(LogLevel.ERROR) && agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.onError();
+        }
         if (LogReporting.isLevelEnabled(logLevel)) {
             LogReporting.getLogger().log(logLevel, message);
         }
