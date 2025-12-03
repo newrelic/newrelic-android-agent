@@ -297,8 +297,6 @@ public final class NewRelic {
         }
 
         try {
-//            sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
-//            ((Application) context.getApplicationContext()).registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
             log.setLevel(logLevel);
 
@@ -881,6 +879,9 @@ public final class NewRelic {
 
             if (userIdAttr != null) {
                 if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
+                    // Stop session replay before starting new session
+                    pauseReplay();
+
                     Harvest.harvestNow(true, false);// call non-blocking harvest
                     controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
                             .setStringValue(agentConfiguration.provideSessionId())  // start a new session
@@ -1091,7 +1092,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "setEventListener"));
 
         EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
-        EventListener currentListener = ((EventManagerImpl)eventManager).getListener();
+        EventListener currentListener = ((EventManagerImpl) eventManager).getListener();
 
         // If current listener is a CompositeEventListener, update its user listener
         if (currentListener instanceof CompositeEventListener) {
@@ -1335,8 +1336,8 @@ public final class NewRelic {
 
     /**
      * Adds a view class to be masked during session replay.
-
-    /**
+     * <p>
+     * /**
      * Adds a view class to be masked during session replay.
      * All instances of the specified class and its subclasses will have their text content masked.
      * <p>
@@ -1438,6 +1439,62 @@ public final class NewRelic {
         }
 
         return false;
+    }
+
+    /**
+     * Starts or transitions session replay to full recording mode programmatically.
+     * This API allows developers to trigger session replay recording on-demand, even if not
+     * enabled via configuration sampling.
+     * <p>
+     * Behavior:
+     * - If SessionReplay is disabled in configuration: returns false
+     * - If SessionReplay not yet initialized but enabled: initializes in FULL mode
+     * - If initialized in ERROR mode: transitions to FULL mode
+     * - If already in FULL mode: idempotent, returns true
+     * - Sets hasReplay attribute on success
+     *
+     * @return true if recording is now active in FULL mode, false if disabled in configuration
+     */
+    public static boolean recordReplay() {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "recordReplay"));
+
+        if (!agentConfiguration.getSessionReplayConfiguration().isEnabled()) {
+            log.debug("recordReplay: SessionReplay is not enabled in configuration");
+            return false;
+        }
+
+        return AndroidAgentImpl.recordReplay();
+    }
+
+    /**
+     * Stops session replay recording programmatically.
+     * This API allows developers to stop session replay collection and immediately send
+     * any buffered data.
+     * <p>
+     * Behavior:
+     * - Stops recording regardless of how it was started (via sampling or API)
+     * - Immediately triggers a harvest cycle to send buffered data
+     * - File is cleared after harvest completes
+     * - hasReplay attribute remains true for the session
+     *
+     * @return true if recording was stopped and harvest triggered, false if already stopped or not recording
+     */
+    public static boolean pauseReplay() {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "pauseReplay"));
+
+        if (!agentConfiguration.getSessionReplayConfiguration().isEnabled()) {
+            log.debug("pauseReplay: SessionReplay is not enabled in configuration");
+            return false;
+        }
+
+        try {
+            return AndroidAgentImpl.pauseReplay();
+        } catch (Exception e) {
+            log.error("pauseReplay: Failed to stop recording: " + e.getMessage(), e);
+            return false;
+        }
     }
 
 }

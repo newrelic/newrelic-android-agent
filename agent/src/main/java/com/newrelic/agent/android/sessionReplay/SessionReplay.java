@@ -45,21 +45,17 @@ import java.util.concurrent.TimeUnit;
 
 import curtains.Curtains;
 
-public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAware, OnTouchRecordedListener, ApplicationStateListener {
+public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAware, OnTouchRecordedListener, ApplicationStateListener, EventListener {
     private static Application application;
     private static Handler uiThreadHandler;
+    private static AgentConfiguration agentConfiguration;
     private static SessionReplayActivityLifecycleCallbacks sessionReplayActivityLifecycleCallbacks;
     private static SessionReplayProcessor processor;
     private static ViewDrawInterceptor viewDrawInterceptor;
-    private final List<TouchTracker> touchTrackers = new ArrayList<>();
     private static final SessionReplay instance = new SessionReplay();
     private SessionReplayFileManager fileManager;
     protected static final AgentLog log = AgentLogManager.getAgentLog();
     private static boolean isFirstChunk = true;
-    private final List<SessionReplayFrame> rawFrames =
-            Collections.synchronizedList(new ArrayList<>());
-    private final List<RRWebEvent> rrWebEvents =
-            Collections.synchronizedList(new ArrayList<>());
     private static final AtomicBoolean takeFullSnapshot = new AtomicBoolean(true);
     private static SessionReplayModeManager modeManager;
 
@@ -69,9 +65,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             Collections.synchronizedList(new ArrayList<>());
     private final List<TouchTracker> touchBufferDuringHarvest =
             Collections.synchronizedList(new ArrayList<>());
-
-    // Track if replay was explicitly paused via API
-    private static final AtomicBoolean isPaused = new AtomicBoolean(false);
 
     // Sliding window for ERROR mode
     private static final long SLIDING_WINDOW_MS = 15000L; // 15 seconds
@@ -99,7 +92,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     /**
-     * Initializes the SessionReplay system.
+     * Initializes the SessionReplay system with a specific recording mode.
      * This method sets up the necessary callbacks, handlers, and starts recording.
      * Should be called from the application's onCreate method.
      *
@@ -126,45 +119,15 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         SessionReplay.application = application;
         SessionReplay.uiThreadHandler = uiThreadHandler;
+        SessionReplay.agentConfiguration = agentConfiguration;
 
-        sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application);
-        viewDrawInterceptor = new ViewDrawInterceptor(instance,agentConfiguration);
-        processor = new SessionReplayProcessor();
-        // Initialize file manager
-        instance.fileManager = new SessionReplayFileManager(processor);
-        SessionReplayFileManager.initialize(application);
-
-        // Initialize the mode manager with the provided mode
-        modeManager = new SessionReplayModeManager(agentConfiguration.getSessionReplayConfiguration());
+        // Initialize the singleton mode manager with the provided mode
+        modeManager = SessionReplayModeManager.getInstance(agentConfiguration.getSessionReplayConfiguration());
         // Transition to the provided mode if not already in it
         modeManager.transitionTo(mode, "Initialization");
 
-        // Register SessionReplay as event listener using composite pattern
-        // This allows SessionReplay to always listen for NetworkRequestErrorEvent while also supporting user-provided listeners
-        EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
-        EventListener currentListener = ((EventManagerImpl)eventManager).getListener();
-
-        // Wrap current listener (or create new composite) to ensure SessionReplay is always included
-        if (currentListener instanceof CompositeEventListener) {
-            // If already a composite, set SessionReplay as the session replay listener
-            ((CompositeEventListener) currentListener).setSessionReplayListener(instance);
-        } else {
-            // Create new composite with SessionReplay and current listener
-            CompositeEventListener composite = new CompositeEventListener(instance);
-            if (currentListener != eventManager) {
-                // Only preserve current listener if it's not the default EventManager itself
-                composite.setUserListener(currentListener);
-            }
-            eventManager.setEventListener(composite);
-        }
-
-        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INIT);
-
+        sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application,modeManager);
         registerCallbacks();
-        startRecording(mode);
-        isFirstChunk = true;
-
-        Log.d("SessionReplay", "Session replay initialized successfully with mode: " + mode);
     }
 
     /**
@@ -178,12 +141,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return;
         }
         unregisterCallbacks();
+        Harvest.removeHarvestListener(instance);
         stopRecording();
-
-        // Clear any pending data
-        instance.rawFrames.clear();
-        instance.rrWebEvents.clear();
-        instance.touchTrackers.clear();
 
         // Shutdown file manager
         SessionReplayFileManager.shutdown();
@@ -204,8 +163,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     @Override
     public void onHarvest() {
         // Only harvest when in FULL mode
-        if (modeManager == null || modeManager.getCurrentMode() != SessionReplayMode.FULL) {
-            log.debug("SessionReplay: Skipping harvest - not in FULL mode");
+        if (modeManager == null || modeManager.getCurrentMode() == SessionReplayMode.ERROR) {
+            log.debug("SessionReplay: Skipping harvest - in Error mode (buffered data not ready)");
             return;
         }
 
@@ -242,7 +201,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Use current time as last timestamp to match with Mobile Session Event
         attributes.put(LAST_TIMESTAMP, System.currentTimeMillis());
         attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
-        SessionReplayReporter.reportSessionReplayData(json.getBytes(), attributes);
 
         // Convert JsonArray to JSON string and report
         String jsonArrayString = new Gson().toJson(jsonArray);
@@ -252,24 +210,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
         takeFullSnapshot.set(true);
-    }
 
-
-    /**
-     * Extracts timestamp from different RRWebEvent types
-     */
-    private long getEventTimestamp(RRWebEvent event) {
-        if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent) {
-            return ((com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent) event).timestamp;
-        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent) {
-            return ((com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent) event).timestamp;
-        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.RRWebTouch) {
-            return ((com.newrelic.agent.android.sessionReplay.models.RRWebTouch) event).timestamp;
-        } else if (event instanceof com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent) {
-            return ((com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent) event).timestamp;
-        }
-        // Default fallback - should not happen if all event types have timestamp
-        return 0;
     }
 
 
@@ -279,6 +220,40 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     private static void unregisterCallbacks() {
         application.unregisterActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
+    }
+
+    public static void initSessionReplay(SessionReplayMode mode) {
+        viewDrawInterceptor = new ViewDrawInterceptor(instance,agentConfiguration);
+        processor = new SessionReplayProcessor();
+        // Initialize file manager
+        instance.fileManager = new SessionReplayFileManager(processor);
+        SessionReplayFileManager.initialize(application);
+
+        if(mode == SessionReplayMode.ERROR) {
+            // Register SessionReplay as event listener using composite pattern
+            // This allows SessionReplay to always listen for NetworkRequestErrorEvent while also supporting user-provided listeners
+            EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
+            EventListener currentListener = ((EventManagerImpl) eventManager).getListener();
+
+            // Wrap current listener (or create new composite) to ensure SessionReplay is always included
+            if (currentListener instanceof CompositeEventListener) {
+                // If already a composite, set SessionReplay as the session replay listener
+                ((CompositeEventListener) currentListener).setSessionReplayListener(instance);
+            } else {
+                // Create new composite with SessionReplay and current listener
+                CompositeEventListener composite = new CompositeEventListener(instance);
+                if (currentListener != eventManager) {
+                    // Only preserve current listener if it's not the default EventManager itself
+                    composite.setUserListener(currentListener);
+                }
+                eventManager.setEventListener(composite);
+            }
+        }
+
+        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INIT);
+        startRecording(mode);
+        isFirstChunk = true;
+        Log.d("SessionReplay", "Session replay initialized successfully with mode: " + mode);
     }
 
     /**
@@ -300,7 +275,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
 
             // Check if decorViews is not empty before accessing
-            if (decorViews == null || decorViews.length == 0) {
+            if (decorViews.length == 0) {
                 Log.w("SessionReplay", "No root views available, skipping initial recording setup");
                 return;
             }
@@ -320,7 +295,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
 
     public static void stopRecording() {
-        Harvest.removeHarvestListener(instance);
         uiThreadHandler.post(() -> viewDrawInterceptor.stopIntercept());
     }
 
@@ -507,8 +481,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     /**
      * Switches session replay mode from ERROR to FULL when an error is detected.
      * This ensures that when an error occurs during buffering, we capture full session context.
+     *
+     * @return true if mode was successfully transitioned to FULL, false otherwise
      */
-    private static void switchModeOnError() {
+    public static boolean switchModeOnError() {
         if (modeManager != null) {
             boolean modeChanged = modeManager.transitionTo(SessionReplayMode.FULL, "ErrorDetected");
             if (modeChanged) {
@@ -516,8 +492,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
                 stopSlidingWindowTimer();
                 // Force a full snapshot to ensure we have complete data from this point forward
                 setTakeFullSnapshot(true);
+                return true;
             }
         }
+        return false;
     }
 
     /**
@@ -533,5 +511,83 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     /**
-            log.debug("SessionReplay: Triggering immediate harvest on pauseReplay()");
+     * Pauses session replay recording via the public API.
+     * This method allows developers to programmatically stop session replay collection.
+     * Immediately triggers a harvest cycle to send any buffered data.
+     *
+     * Behavior:
+     * - If SessionReplay is disabled or OFF: returns false
+     * - If in ERROR mode: transitions to OFF, triggers harvest immediately
+     * - If in FULL mode: transitions to OFF, triggers harvest immediately
+     *
+     * After this call:
+     * - No new data is collected
+     * - Buffered data up to pause point is sent immediately via harvest
+     * - File is cleared after harvest completes
+     *
+     * Note: hasReplay attribute remains true for this session.
+     *
+     * @return true if recording was stopped and harvest triggered, false if already stopped/disabled
+     */
+    public static boolean pauseReplay() {
+        boolean modeChanged = modeManager.transitionTo(SessionReplayMode.OFF, "APIPauseReplay");
+        if (modeChanged) {
+            stopSlidingWindowTimer();
+            stopRecording();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Gets the current session replay recording mode.
+     * This allows developers to query the current state of session replay.
+     *
+     * @return The current SessionReplayMode (OFF, ERROR, or FULL), or null if not initialized
+     */
+    public static SessionReplayMode getCurrentMode() {
+        if (modeManager == null) {
+            return null;
+        }
+        return modeManager.getCurrentMode();
+    }
+
+    /**
+     * Checks if session replay is currently recording (either ERROR or FULL mode).
+     * This allows developers to check if session replay is active.
+     *
+     * @return true if recording in any mode (ERROR or FULL), false if OFF or not initialized
+     */
+    public static boolean isReplayRecording() {
+        if (modeManager == null) {
+            return false;
+        }
+        return modeManager.isRecording();
+    }
+
+    /**
+     * Transitions the session replay mode to a specified mode with a trigger reason.
+     * Used internally by the API to transition between modes.
+     * Handles stopping the sliding window timer when transitioning from ERROR to FULL.
+     *
+     * @param newMode The target SessionReplayMode
+     * @param trigger The reason/trigger for the transition (for logging)
+     * @return true if transition was successful, false otherwise
+     */
+    public static boolean transitionToMode(SessionReplayMode newMode, String trigger) {
+        if (modeManager == null) {
+            log.warn("SessionReplay: transitionToMode called but SessionReplay not initialized");
+            return false;
+        }
+
+        SessionReplayMode currentMode = modeManager.getCurrentMode();
+
+        // If transitioning from ERROR to FULL, stop the sliding window timer
+        if (currentMode == SessionReplayMode.ERROR && newMode == SessionReplayMode.FULL) {
+            stopSlidingWindowTimer();
+            setTakeFullSnapshot(true);
+        }
+
+        return modeManager.transitionTo(newMode, trigger);
+    }
 }

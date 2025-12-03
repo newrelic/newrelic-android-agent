@@ -64,6 +64,7 @@ import com.newrelic.agent.android.sample.MachineMeasurementConsumer;
 import com.newrelic.agent.android.sample.Sampler;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayMode;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
@@ -675,22 +676,113 @@ public class AndroidAgentImpl implements
         }
     }
 
+    /**
+     * Starts or transitions session replay to FULL recording mode via API.
+     * This is the internal implementation called from NewRelic.recordReplay().
+     *
+     * Behavior:
+     * - If SessionReplay not enabled in configuration: returns false
+     * - If SessionReplay not initialized but enabled: initializes in FULL mode
+     * - If SessionReplay initialized in ERROR mode: transitions to FULL mode
+     * - If already in FULL mode: idempotent, returns true
+     * - Sets hasReplay attribute on success
+     * - Returns true if now recording in FULL mode, false if disabled in config
+     *
+     * @return true if recording started/transitioned to FULL, false if disabled
+     */
+    protected static boolean recordReplay() {
+        // Check current mode - single call instead of two
+        SessionReplayMode currentMode = SessionReplay.getCurrentMode();
+
+        if (currentMode == null || currentMode == SessionReplayMode.OFF) {
+            // SessionReplay not yet initialized - initialize in FULL mode
+            log.debug("recordReplay: Initializing SessionReplay in FULL mode");
+            try {
+                SessionReplay.initSessionReplay(SessionReplayMode.FULL);
+                AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
+                log.info("recordReplay: SessionReplay initialized in FULL mode");
+                return true;
+            } catch (Exception e) {
+                log.error("recordReplay: Failed to initialize SessionReplay: " + e.getMessage(), e);
+                return false;
+            }
+        }
+
+        // Handle based on current mode
+        switch (currentMode) {
+            case FULL:
+                // Already in FULL mode, idempotent success
+                log.debug("recordReplay: Already recording in FULL mode");
+                return true;
+
+            case ERROR:
+                // Transition from ERROR to FULL
+                boolean modeChanged = SessionReplay.switchModeOnError();
+                if (modeChanged) {
+                    AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
+                    log.info("recordReplay: Transitioned from ERROR to FULL mode");
+                    return true;
+                } else {
+                    log.warn("recordReplay: Failed to transition from ERROR to FULL mode");
+                    return false;
+                }
+            default:
+                return false;
+        }
+    }
+
+    protected static boolean pauseReplay() {
+        // If SessionReplay is already recording (ERROR or FULL mode)
+        if (SessionReplay.isReplayRecording()) {
+                SessionReplay.pauseReplay();
+                return true;
+        }
+        return false;
+
+    }
+
+
     private static void startSessionReplayRecorder(Context context, AgentConfiguration agentConfiguration) {
 
         SessionReplayConfiguration.reseed();
         SessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
-        if(sessionReplayConfiguration.isSessionReplayEnabled()) {
+        if(sessionReplayConfiguration.isEnabled()) {
             // only process masking rules if session replay is enabled
             sessionReplayConfiguration.processCustomMaskingRules();
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
-            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_SAMPLED + agentConfiguration.getSessionReplayConfiguration().isSampled());
             Handler uiHandler = new Handler(Looper.getMainLooper());
-            SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler,agentConfiguration);
+            SessionReplayMode mode = determineRecordingMode(sessionReplayConfiguration);
+            SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler, agentConfiguration, mode);
+            // Determine the recording mode based on sampling configuration
 
+            if(mode != SessionReplayMode.OFF) {
+                SessionReplay.initSessionReplay(mode);
+            }
         } else
             // if the session replay is not enabled, remove the attribute from the previous session
             AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED);
 
+    }
+
+    /**
+     * Determines the appropriate SessionReplay recording mode based on the sampling configuration.
+     *
+     * Logic:
+     * - If isSampled() is true: use FULL mode (continuous recording and sending)
+     * - Else if isErrorSampled() is true: use ERROR mode (buffering only, send on error)
+     * - Otherwise: use OFF mode (no recording)
+     *
+     * @param config The SessionReplayConfiguration with sampling rates
+     * @return The determined SessionReplayMode
+     */
+    private static SessionReplayMode determineRecordingMode(SessionReplayConfiguration config) {
+        if (config.isSampled()) {
+            return SessionReplayMode.FULL;
+        } else if (config.isErrorSampled()) {
+            return SessionReplayMode.ERROR;
+        } else {
+            return SessionReplayMode.OFF;
+        }
     }
 
     /*
