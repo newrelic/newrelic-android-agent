@@ -47,18 +47,21 @@ public class InvocationDispatcher {
     private final Pattern androidPackagePattern = Pattern.compile(Constants.ANDROID_PACKAGE_RE);
     private final Pattern kotlinPackagePattern = Pattern.compile(Constants.ANDROID_KOTLIN_PACKAGE_RE);
     private Boolean defaultInteractionsEnabled;
+    private Boolean webviewInstrumentationEnabled;
 
     final Map<String, InvocationHandler> invocationHandlers;
 
-    public InvocationDispatcher(final Logger log,boolean logInstrumentationEnabled,boolean defaultInteractionsEnabled) throws ClassNotFoundException {
-        ClassRemapperConfig config = new ClassRemapperConfig(log,logInstrumentationEnabled);
+    public InvocationDispatcher(final Logger log, boolean logInstrumentationEnabled, boolean defaultInteractionsEnabled, boolean webviewInstrumentationEnabled) throws ClassNotFoundException {
+        ClassRemapperConfig config = new ClassRemapperConfig(log, logInstrumentationEnabled);
 
         this.log = log;
         this.instrumentationContext = new InstrumentationContext(config, log);
         this.invocationHandlers = ImmutableMap.of();
         log.debug("[InvocationDispatcher] Initialized with logInstrumentationEnabled[{}]", logInstrumentationEnabled);
         log.debug("[InvocationDispatcher] Initialized with defaultInteractionsEnabled[{}]", defaultInteractionsEnabled);
+        log.debug("[InvocationDispatcher] Initialized with webviewInstrumentationEnabled[{}]", webviewInstrumentationEnabled);
         this.defaultInteractionsEnabled = defaultInteractionsEnabled;
+        this.webviewInstrumentationEnabled = webviewInstrumentationEnabled;
     }
 
     boolean isInstrumentationDisabled() {
@@ -114,7 +117,7 @@ public class InvocationDispatcher {
         return visitClassBytesWithOptions(bytes, ClassWriter.COMPUTE_FRAMES);
     }
 
-    ClassData  visitClassBytesWithOptions(byte[] bytes, int classWriterFlags) {
+    ClassData visitClassBytesWithOptions(byte[] bytes, int classWriterFlags) {
         String className = "unknown";
 
         if (isInstrumentationDisabled()) {
@@ -151,7 +154,7 @@ public class InvocationDispatcher {
 //                     cv = new ComposeNavigatorClassVisitor(cv, instrumentationContext, log);
 //                     cv = new WrapMethodClassVisitor(cv, instrumentationContext, log);
                 } else if (isAndroidSDKPackage(className)) {
-                    if(defaultInteractionsEnabled) {
+                    if (defaultInteractionsEnabled) {
                         cv = new ActivityClassVisitor(cv, instrumentationContext, log, true);
                     }
                 } else if (isExcludedPackage(className)) {
@@ -159,18 +162,20 @@ public class InvocationDispatcher {
                     return null;
                 } else {
                     cv = new AnnotatingClassVisitor(cv, instrumentationContext, log);
-                    cv = new ActivityClassVisitor(cv, instrumentationContext, log,defaultInteractionsEnabled);
-                    if(defaultInteractionsEnabled) {
+                    cv = new ActivityClassVisitor(cv, instrumentationContext, log, defaultInteractionsEnabled);
+                    if (defaultInteractionsEnabled) {
                         cv = new FragmentClassVisitor(cv, instrumentationContext, log);
                     }
                     cv = new AsyncTaskClassVisitor(cv, instrumentationContext, log);
                     cv = new TraceAnnotationClassVisitor(cv, instrumentationContext, log);
                     cv = new AgentMethodDelegateClassVisitor(cv, instrumentationContext, log);
-                    // WebView call site instrumentation - tracks direct calls to webView.loadUrl() / postUrl()
-                    cv = new WebViewCallSiteVisitor(cv, instrumentationContext, log);
-                    // WebView method instrumentation - tracks overridden loadUrl() / postUrl() in WebView subclasses
-                    cv = new WebViewMethodClassVisitor(cv, instrumentationContext, log);
 
+                    if (webviewInstrumentationEnabled) {
+                        // WebView call site instrumentation - tracks direct calls to webView.loadUrl() / postUrl()
+                        cv = new WebViewCallSiteVisitor(cv, instrumentationContext, log);
+                        // WebView method instrumentation - tracks overridden loadUrl() / postUrl() in WebView subclasses
+                        cv = new WebViewMethodClassVisitor(cv, instrumentationContext, log);
+                    }
                 }
                 cv = new ContextInitializationClassVisitor(cv, instrumentationContext);
 
