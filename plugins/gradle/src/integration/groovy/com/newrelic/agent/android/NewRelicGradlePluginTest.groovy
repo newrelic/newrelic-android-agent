@@ -18,6 +18,7 @@ class NewRelicGradlePluginTest extends PluginTest {
         def buildIdMap = plugin.getDefaultBuildMap() as HashMap<String, String>
         Assert.assertTrue(plugin.pluginExtension.variantMapsEnabled.get())
         Assert.assertTrue(plugin.pluginExtension.logInstrumentationEnabled.get())
+        Assert.assertTrue(plugin.pluginExtension.webviewInstrumentationEnabled.get())
         Assert.assertTrue(BuildId.variantMapsEnabled)
         Assert.assertEquals(plugin.buildHelper.variantAdapter.getVariantNames().size(), buildIdMap.size())
         buildIdMap.keySet().each() { variantName ->
