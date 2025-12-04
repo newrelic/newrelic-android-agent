@@ -25,9 +25,6 @@ tasks.withType(JavaExec).configureEach {
     }
 }
 
-
-
-
 sourceSets {
     main.java.srcDirs += 'src/main/kotlin'
     main.resources.srcDirs += 'src/main/kotlin'
@@ -119,6 +116,15 @@ android {
 
 
 dependencies {
+    implementation "androidx.datastore:datastore-preferences:1.1.7"
+    // Kotlin Standard Library (essential for Kotlin code)
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:${versions.java.kotlin}")
+    // Kotlin Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    // For bridging Kotlin Coroutines to Java CompletableFuture
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3")
+
     implementation project(path: ':agent-core', configuration: 'fat')
     implementation( 'com.squareup.curtains:curtains:1.2.5')
     implementation("org.jetbrains.kotlin:kotlin-stdlib:${versions.java.kotlin}")
@@ -219,6 +225,16 @@ def toFatJarTask(def variant) {
         exclude 'kotlin/**'
         exclude 'org/**'
         exclude 'android/**'
+        exclude 'AndroidManifest.xml'
+        exclude 'kotlinx/**'
+        exclude 'org/**'
+        exclude '_COROUTINE/**'
+        exclude 'android/**'
+        exclude 'androidx/**'
+        exclude 'jni/**'
+        exclude 'okio/**'
+        exclude 'DebugProbesKt.bin'
+        exclude 'public.txt'
         exclude 'proguard.txt'
         exclude 'R.txt'
         duplicatesStrategy = DuplicatesStrategy.INHERIT

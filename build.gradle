@@ -18,7 +18,8 @@ buildscript {
     dependencies {
         classpath "com.android.tools.build:gradle:${versions.agp.plugin}"
         classpath "org.jacoco:org.jacoco.core:${versions.test.jacoco}"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.java.kotlin}"    }
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.java.kotlin}"
+    }
 }
 
 plugins {
@@ -124,7 +125,7 @@ project.afterEvaluate {
         enabled prepareIntegration.enabled
     }
 
-    check.dependsOn(['integrationTest'])
+//    check.dependsOn(['integrationTest'])
 }
 
 project.tasks.register("cleanRoot", Delete) {

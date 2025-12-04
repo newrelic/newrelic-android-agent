@@ -196,7 +196,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         return 0;
     }
 
-
     private static void registerCallbacks() {
         application.registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
     }

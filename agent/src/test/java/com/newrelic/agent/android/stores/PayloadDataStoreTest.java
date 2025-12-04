@@ -30,19 +30,19 @@ import java.util.Map;
 import java.util.Set;
 
 @RunWith(RobolectricTestRunner.class)
-public class SharedPrefsPayloadStoreTest {
+public class PayloadDataStoreTest {
 
     private static Context context = new SpyContext().getContext();
     private static byte[] testBytes = {0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf};
     private static String testJson = "{'carrier': 'wifi', 'uuid': '571494b6-0717-4097-bfdd-426c0a0b20ca','deviceManufacturer': 'Genymotion', 'platformVersion': '5.8.3', 'osName': 'Android', 'osVersion': '5.1','osMajorVersion': '5', 'newRelicVersion': '5.8.3'}";
 
-    private SharedPrefsPayloadStore payloadStore;
+    private PayloadDataStore payloadStore;
     private Payload testPayload;
     private Payload jsonPayload;
 
     @Before
     public void setUp() throws Exception {
-        payloadStore = new SharedPrefsPayloadStore(context);
+        payloadStore = new PayloadDataStore(context);
         testPayload = new Payload(testBytes);
         jsonPayload = new Payload(testJson.getBytes());
     }
@@ -54,7 +54,7 @@ public class SharedPrefsPayloadStoreTest {
 
     @Test
     public void getStoreFilename() throws Exception {
-        Assert.assertEquals("Should return shared prefs name", payloadStore.getStoreFilename(), SharedPrefsPayloadStore.STORE_FILE);
+        Assert.assertEquals("Should return shared prefs name", payloadStore.getStoreFilename(), PayloadDataStore.STORE_FILE);
     }
 
     @Test

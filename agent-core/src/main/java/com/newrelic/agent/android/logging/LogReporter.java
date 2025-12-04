@@ -616,7 +616,7 @@ public class LogReporter extends PayloadReporter {
 
     /**
      * Remove log data files that have been "deleted" by other operations. We don't really delete files once
-     * used, but rather rename them as a backup. This gives us a window where data can be salvaged as neccesary.
+     * used, but rather rename them as a backup. This gives us a window where data can be salvaged as neccessary.
      * This sweep should only be run once in a while.
      */
     Set<File> cleanup() {

@@ -28,20 +28,20 @@ import java.util.UUID;
 import static org.mockito.Mockito.spy;
 
 @RunWith(RobolectricTestRunner.class)
-public class SharedPrefsCrashStoreTest {
+public class CrashDataStoreTest {
     private static final String UUID_STATIC = "ab20dfe5-96d2-4c6d-b975-3fe9d8778dfc";
 
     @Spy
-    private SharedPrefsCrashStore crashStore;
+    private CrashDataStore crashStore;
     private Context context = new SpyContext().getContext();
     private AgentConfiguration agentConfiguration;
 
     @Before
     public void setUp() throws Exception {
-        crashStore = spy(new SharedPrefsCrashStore(context));
+        crashStore = spy(new CrashDataStore(context));
 
         agentConfiguration = new AgentConfiguration();
-        agentConfiguration.setApplicationToken(SharedPrefsCrashStoreTest.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashDataStoreTest.class.getSimpleName());
         agentConfiguration.setCrashStore(crashStore);
         agentConfiguration.setReportCrashes(true);
         agentConfiguration.setEnableAnalyticsEvents(true);
@@ -62,6 +62,19 @@ public class SharedPrefsCrashStoreTest {
             Crash crash = new Crash(new RuntimeException("testStoreLotsOfCrashes" + i.toString()));
             crashStore.store(crash);
         }
+
+        // THE FIX:
+        // Manually poll the count with a timeout.
+        long timeout = 5000;  // 5 seconds
+        long start = System.currentTimeMillis();
+        while (crashStore.count() < reps && (System.currentTimeMillis() - start) < timeout) {
+            try {
+                Thread.sleep(100); // Wait for 100ms before checking again
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
         // crashStore.store() is an async call, so it's possible the last element was not written
         // by the time the assert is hit. Use a delta of 1 in the assertion.
         Assert.assertEquals("Should contain " + Integer.valueOf(reps).toString() + " crashes", reps, crashStore.count(), 1);

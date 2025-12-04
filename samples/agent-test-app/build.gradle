@@ -28,8 +28,8 @@ buildscript {
                 gradle  : hasOptional("newrelic.gradle.version", "7.6"),
                 agp     : [
                         plugin    : hasOptional('newrelic.agp.version', "7.0.+"),
-                        targetSdk : 31,
-                        compileSdk: 31,
+                        targetSdk : 34,
+                        compileSdk: 34,
                         minSdk    : 26,
                         supportLib: "28.+"
                 ],
@@ -37,7 +37,7 @@ buildscript {
                         base  : hasOptional('dexguard.base.version', '9.+'),
                         plugin: hasOptional('dexguard.plugin.version', '9.+')
                 ],
-                kotlin  : hasOptional('newrelic.kotlin.version', '1.7.+'),
+                kotlin  : hasOptional('newrelic.kotlin.version', '1.8.+'),
                 gson    : '2.10.1',
                 bcprov  : '1.76'
         ]
