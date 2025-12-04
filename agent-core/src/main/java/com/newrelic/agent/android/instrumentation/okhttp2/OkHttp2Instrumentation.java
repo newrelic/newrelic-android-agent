@@ -72,7 +72,8 @@ public class OkHttp2Instrumentation {
      * @param request The OkHttp2 request containing headers
      */
     private static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
-        Map<String, String> headers = new HashMap<>();
+        // Get existing params to merge with
+        Map<String, String> headers = new HashMap<>(transactionState.getParams());
 
         // Defensive copy to prevent ConcurrentModificationException
         Set<String> headersCopy = new HashSet<>(HttpHeaders.getInstance().getHttpHeaders());

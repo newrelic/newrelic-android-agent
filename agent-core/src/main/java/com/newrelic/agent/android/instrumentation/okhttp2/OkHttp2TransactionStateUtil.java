@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.instrumentation.okhttp2;
 
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
@@ -24,7 +25,10 @@ import org.apache.http.HttpStatus;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import okio.Buffer;
@@ -60,6 +64,10 @@ public class OkHttp2TransactionStateUtil extends TransactionStateUtil {
         } else {
             // update the request state from response (perhaps changed by interceptor)
             Request request = response.request();
+            // add request headers as custom attributes
+            addHeadersAsCustomAttribute(transactionState, request);
+            // add response headers as custom attributes
+            addResponseHeadersAsCustomAttribute(transactionState, response);
             if (request != null && request.url() != null) {
                 String url = request.url().toString();
                 if (!url.isEmpty()) {
@@ -238,6 +246,58 @@ public class OkHttp2TransactionStateUtil extends TransactionStateUtil {
         }
 
         return response;
+    }
+
+    /**
+     * Adds HTTP headers from the request as custom attributes to the transaction state.
+     * Only headers configured via {@link HttpHeaders#addHttpHeaderAsAttribute(String)} are captured.
+     *
+     * <p><b>Thread Safety:</b> Creates a defensive copy of the header list to avoid
+     * {@link java.util.ConcurrentModificationException} if headers are modified concurrently.</p>
+     *
+     * @param transactionState The transaction state to add attributes to
+     * @param request The OkHttp2 request containing headers
+     */
+    public static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
+        // Get existing params to merge with
+        Map<String, String> headers = new HashMap<>(transactionState.getParams());
+
+        // Defensive copy to prevent ConcurrentModificationException
+        Set<String> headersCopy = new HashSet<>(HttpHeaders.getInstance().getHttpHeaders());
+
+        for (String headerName : headersCopy) {
+            String headerValue = request.headers().get(headerName);
+            if (headerValue != null) {
+                headers.put(HttpHeaders.translateApolloHeader(headerName), headerValue);
+            }
+        }
+        transactionState.setParams(headers);
+    }
+
+    /**
+     * Adds HTTP headers from the response as custom attributes to the transaction state.
+     * Only headers configured via {@link HttpHeaders#addHttpHeaderAsAttribute(String)} are captured.
+     *
+     * <p><b>Thread Safety:</b> Creates a defensive copy of the header list to avoid
+     * {@link java.util.ConcurrentModificationException} if headers are modified concurrently.</p>
+     *
+     * @param transactionState The transaction state to add attributes to
+     * @param response The OkHttp2 response containing headers
+     */
+    public static void addResponseHeadersAsCustomAttribute(TransactionState transactionState, Response response) {
+        // Get existing params to merge with
+        Map<String, String> headers = new HashMap<>(transactionState.getParams());
+
+        // Defensive copy to prevent ConcurrentModificationException
+        Set<String> headersCopy = new HashSet<>(HttpHeaders.getInstance().getHttpHeaders());
+
+        for (String headerName : headersCopy) {
+            String headerValue = response.headers().get(headerName);
+            if (headerValue != null) {
+                headers.put(HttpHeaders.translateApolloHeader(headerName), headerValue);
+            }
+        }
+        transactionState.setParams(headers);
     }
 
 }

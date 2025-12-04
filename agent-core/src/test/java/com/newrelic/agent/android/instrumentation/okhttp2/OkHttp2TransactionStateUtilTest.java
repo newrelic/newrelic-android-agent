@@ -305,6 +305,102 @@ public class OkHttp2TransactionStateUtilTest {
 
     }
 
+    @Test
+    public void testResponseHeadersCaptureAsCustomAttribute() {
+        final StubAgentImpl agent = StubAgentImpl.install();
+
+        assertEquals(0, agent.getTransactionData().size());
+
+        final Request.Builder builder = new Request.Builder().
+                url(Providers.APP_URL).
+                header(Constants.Network.APPLICATION_ID_HEADER, "some-app-id").
+                get();
+
+        final Request request = OkHttp2Instrumentation.build(builder);
+
+        ResponseBody body = new ResponseBuilderExtensionTest.TestResponseBody();
+        Response response = new Response.Builder().
+                request(request).
+                protocol(Protocol.HTTP_1_1).
+                code(HttpStatus.SC_OK).
+                body(body).
+                header("X-Custom-Header-1", "response-header-value").
+                build();
+
+        OkHttp2TransactionStateUtil.inspectAndInstrumentResponse(transactionState, response);
+
+        Assert.assertNotNull(transactionState.getParams());
+        Assert.assertTrue("Should contain response header X-Custom-Header-1", 
+                transactionState.getParams().containsKey("X-Custom-Header-1"));
+        Assert.assertEquals("response-header-value", 
+                transactionState.getParams().get("X-Custom-Header-1"));
+    }
+
+    @Test
+    public void testResponseHeadersAndRequestHeadersCapturedTogether() {
+        final StubAgentImpl agent = StubAgentImpl.install();
+
+        assertEquals(0, agent.getTransactionData().size());
+
+        final Request.Builder builder = new Request.Builder().
+                url(Providers.APP_URL).
+                header(Constants.Network.APPLICATION_ID_HEADER, "some-app-id").
+                header("X-Custom-Header-1", "request-header-value").
+                get();
+
+        final Request request = OkHttp2Instrumentation.build(builder);
+
+        ResponseBody body = new ResponseBuilderExtensionTest.TestResponseBody();
+        Response response = new Response.Builder().
+                request(request).
+                protocol(Protocol.HTTP_1_1).
+                code(HttpStatus.SC_OK).
+                body(body).
+                build();
+
+        CallExtension call = (CallExtension) OkHttp2Instrumentation.newCall(client, request);
+        transactionState = call.getTransactionState();
+
+        OkHttp2TransactionStateUtil.inspectAndInstrumentResponse(transactionState, response);
+
+        Assert.assertNotNull(transactionState.getParams());
+        // Request header should be captured from newCall
+        Assert.assertTrue("Should contain header X-Custom-Header-1 from request", 
+                transactionState.getParams().containsKey("X-Custom-Header-1"));
+        Assert.assertEquals("request-header-value", 
+                transactionState.getParams().get("X-Custom-Header-1"));
+    }
+
+    @Test
+    public void testResponseHeadersCaptureWhenHeaderNotInResponse() {
+        final StubAgentImpl agent = StubAgentImpl.install();
+
+        assertEquals(0, agent.getTransactionData().size());
+
+        final Request.Builder builder = new Request.Builder().
+                url(Providers.APP_URL).
+                header(Constants.Network.APPLICATION_ID_HEADER, "some-app-id").
+                get();
+
+        final Request request = OkHttp2Instrumentation.build(builder);
+
+        ResponseBody body = new ResponseBuilderExtensionTest.TestResponseBody();
+        Response response = new Response.Builder().
+                request(request).
+                protocol(Protocol.HTTP_1_1).
+                code(HttpStatus.SC_OK).
+                body(body).
+                // No custom headers in response
+                build();
+
+        OkHttp2TransactionStateUtil.inspectAndInstrumentResponse(transactionState, response);
+
+        Assert.assertNotNull(transactionState.getParams());
+        // Should not contain the tracked headers if they're not in the response
+        Assert.assertFalse("Should not contain X-Custom-Header-1 when not in response", 
+                transactionState.getParams().containsKey("X-Custom-Header-1"));
+    }
+
     private Request provideRequest() {
         final Request.Builder builder = new Request.Builder().
                 url(Providers.APP_URL).
