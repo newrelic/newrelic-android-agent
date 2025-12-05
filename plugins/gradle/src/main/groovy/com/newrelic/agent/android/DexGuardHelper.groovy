@@ -101,11 +101,30 @@ class DexGuardHelper {
     RegularFileProperty getMappingFileProvider(String variantName) {
         def variant = buildHelper.variantAdapter.withVariant(variantName)
 
+        logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant object name: ${variant?.name}")
+        logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant flavorName: ${variant?.flavorName}")
+        logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant buildType: ${variant?.buildType}")
+
         if (isDexGuard9()) {
             // caller must replace target with [apk, bundle]
+            // Construct path based on whether variant has a flavor
+            def pathSegment
+            if (variant.flavorName && !variant.flavorName.isEmpty()) {
+                // If variant has a flavor, use flavorName/buildType
+                pathSegment = "${variant.flavorName}/${variant.buildType}"
+                logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant has flavor, pathSegment: ${pathSegment}")
+            } else {
+                // If no flavor, just use buildType
+                pathSegment = variant.buildType
+                logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant has no flavor, pathSegment: ${pathSegment}")
+            }
+
+            def finalPath = "outputs/dexguard/mapping/<target>/${pathSegment}/mapping.txt"
+            logger.lifecycle("DexGuardHelper.getMappingFileProvider: Final mapping path: ${finalPath}")
+
             return objectFactory.fileProperty().value(buildHelper.project.layout
                     .getBuildDirectory()
-                    .file("outputs/dexguard/mapping/<target>/${variant.name}/mapping.txt"))
+                    .file(finalPath))
         }
 
         // Legacy DG report through AGP to this location (unless overridden in dexguard.project settings)
@@ -126,11 +145,12 @@ class DexGuardHelper {
                         finalizeMapUploadProvider(taskProvider, variantName) {
                             it.replace("<target>", "apk")
                         }
-                    } else if (taskProvider.name.startsWith(DEXGUARD_AAB_TASK)) {
-                        finalizeMapUploadProvider(taskProvider, variantName) {
-                            it.replace("<target>", "aab")
-                        }
                     } else if (taskProvider.name.startsWith(DEXGUARD_BUNDLE_TASK)) {
+                        finalizeMapUploadProvider(taskProvider, variantName) {
+                            it.replace("<target>", "bundle")
+                        }
+
+                    } else if (taskProvider.name.startsWith(DEXGUARD_AAB_TASK)) {
                         finalizeMapUploadProvider(taskProvider, variantName) {
                             it.replace("<target>", "bundle")
                         }
