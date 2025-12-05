@@ -18,9 +18,10 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode
  */
 class ComposeEditTextThingy(
     private val viewDetails: ComposeViewDetails,
-    semanticsNode: SemanticsNode,
-    agentConfiguration: AgentConfiguration
-) : ComposeTextViewThingy(viewDetails, semanticsNode, agentConfiguration),SessionReplayViewThingyInterface {
+    private val semanticsNode: SemanticsNode,
+    private val agentConfiguration: AgentConfiguration
+) : ComposeTextViewThingy(viewDetails, semanticsNode, agentConfiguration),
+    SessionReplayViewThingyInterface {
 
     private val editableText: String
     private val hintText: String
@@ -38,12 +39,53 @@ class ComposeEditTextThingy(
     }
 
     /**
+     * Determines if the text content of this Composable should be masked.
+     * The decision is based on the agent's configuration for user input text
+     * and any specific masking/unmasking rules for this view's testTag.
+     */
+    private fun shouldMaskInputText(): Boolean {
+        val sessionReplayConfig = agentConfiguration.sessionReplayConfiguration
+        val sessionReplayLocalConfig = agentConfiguration.sessionReplayLocalConfiguration
+        val testTag = semanticsNode.config.getOrNull(SemanticsProperties.TestTag)
+
+        if (semanticsNode.config.getOrNull(SemanticsProperties.Password) != null) {
+            return true
+        }
+
+        if (testTag == "nr-unmask") {
+            return false
+        }
+
+        if (testTag == "nr-mask") {
+            return true
+        }
+
+        if (testTag != null && sessionReplayConfig.unmaskedViewTags.contains(testTag)) {
+            return false
+        }
+
+        if (testTag != null && sessionReplayConfig.maskedViewTags.contains(testTag)) {
+            return true
+        }
+
+        if (testTag != null && sessionReplayLocalConfig.unmaskedViewTags.contains(testTag)) {
+            return false
+        }
+
+        if (testTag != null && sessionReplayLocalConfig.maskedViewTags.contains(testTag)) {
+            return true
+        }
+
+        return sessionReplayConfig.isMaskUserInputText
+    }
+
+    /**
      * Extracts editable text from SemanticsProperties.EditableText
      */
     private fun extractEditableText(node: SemanticsNode): String {
         val editableTextValue = node.config.getOrNull(SemanticsProperties.EditableText) ?: return ""
 
-        val shouldMaskText = sessionReplayConfiguration.isMaskUserInputText
+        val shouldMaskText = shouldMaskInputText()
         return getMaskedTextIfNeeded(node, editableTextValue.text, shouldMaskText)
     }
 
@@ -153,7 +195,7 @@ class ComposeEditTextThingy(
 
         viewNode.attributes.metadata["style"] = generateInlineCss()
 
-        val textNode =  createTextNode(displayText)
+        val textNode = createTextNode(displayText)
 
         val viewAddRecord = RRWebMutationData.AddRecord(parentId, null, viewNode)
         val textAddRecord = RRWebMutationData.AddRecord(viewDetails.viewId, null, textNode)

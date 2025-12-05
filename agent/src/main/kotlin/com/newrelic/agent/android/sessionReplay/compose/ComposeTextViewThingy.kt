@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.TextUnitType
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
+import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
@@ -60,21 +61,26 @@ open class ComposeTextViewThingy(
     private val fontFamily: String
     private val textColor: String
     private val textAlign: String
-    private val fontWeight:String
-    private val fontStyle:String
+    private val fontWeight: String
+    private val fontStyle: String
 
-    protected val sessionReplayConfiguration: SessionReplayConfiguration = agentConfiguration.sessionReplayConfiguration
+    protected val sessionReplayConfiguration: SessionReplayConfiguration =
+        agentConfiguration.sessionReplayConfiguration
+    protected val sessionReplayLocalConfiguration: SessionReplayLocalConfiguration =
+        agentConfiguration.sessionReplayLocalConfiguration
 
     init {
         val textLayoutResults = mutableListOf<TextLayoutResult>()
         // Safely access GetTextLayoutResult action with null-check to prevent NPE
-        semanticsNode.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(textLayoutResults)
+        semanticsNode.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(
+            textLayoutResults
+        )
 
         val layoutResult = textLayoutResults.firstOrNull()
         val layoutInput = layoutResult?.layoutInput
         val textStyle = layoutInput?.style
         val rawText = extractTextFromSemantics(layoutInput)
-        val shouldMaskText = shouldMaskComposeText(semanticsNode)
+        val shouldMaskText = shouldMaskText(semanticsNode, rawText)
         labelText = getMaskedTextIfNeeded(semanticsNode, rawText, shouldMaskText)
 
         val textStyling = extractTextStyling(textStyle)
@@ -91,16 +97,47 @@ open class ComposeTextViewThingy(
         return layoutInput?.text.toString()
     }
 
-    private fun shouldMaskComposeText(node: SemanticsNode): Boolean {
-        if (node.config.contains(SemanticsProperties.Password)) {
+    private fun shouldMaskText(node: SemanticsNode, text: String): Boolean {
+        if (text.isEmpty()) return false
+
+        if (semanticsNode.config.getOrNull(SemanticsProperties.Password) != null) {
             return true
         }
 
+        val testTag = node.config.getOrNull(SemanticsProperties.TestTag)
+        if (testTag == "nr-unmask") {
+            return false
+        }
+        if (testTag == "nr-mask") {
+            return true
+        }
+
+        if (testTag != null && sessionReplayConfiguration.unmaskedViewTags.contains(testTag)) {
+            return false
+        }
+
+        if (testTag != null && sessionReplayConfiguration.maskedViewTags.contains(testTag)) {
+            return true
+        }
+
+        if (testTag != null && sessionReplayLocalConfiguration.unmaskedViewTags.contains(testTag)) {
+            return false
+        }
+
+        if (testTag != null && sessionReplayLocalConfiguration.maskedViewTags.contains(testTag)) {
+            return true
+        }
+
+        var shouldMask = false;
         val isInput = node.config.contains(SemanticsProperties.EditableText)
-        return if (isInput) sessionReplayConfiguration.isMaskUserInputText else sessionReplayConfiguration.isMaskApplicationText
+        if (isInput) {
+            shouldMask = sessionReplayConfiguration.isMaskUserInputText
+        } else {
+            shouldMask = sessionReplayConfiguration.isMaskApplicationText
+        }
+
+        return shouldMask
     }
-
-
 
     private fun extractTextStyling(textStyle: TextStyle?): TextStyling {
         val fontSize = textStyle?.fontSize?.let { fontSizeUnit ->
@@ -154,8 +191,9 @@ open class ComposeTextViewThingy(
 
         val style = if (textStyle?.fontStyle == FontStyle.Companion.Italic) "italic" else "normal"
 
-        return TextStyling(fontSize, family, txtColor, textAlign,style,weight)
+        return TextStyling(fontSize, family, txtColor, textAlign, style, weight)
     }
+
     private data class TextStyling(
         val fontSize: Float,
         val fontFamily: String,
@@ -260,7 +298,7 @@ open class ComposeTextViewThingy(
             styleDifferences["font-family"] = other.fontFamily
         }
 
-        if(fontStyle != other.fontStyle){
+        if (fontStyle != other.fontStyle) {
             styleDifferences["font-style"] = other.fontStyle
         }
 
@@ -335,13 +373,19 @@ open class ComposeTextViewThingy(
                 fontWeight != other.fontWeight
     }
 
-    protected fun getMaskedTextIfNeeded(node: SemanticsNode, text: String, shouldMask: Boolean): String {
+    protected fun getMaskedTextIfNeeded(
+        node: SemanticsNode,
+        text: String,
+        shouldMask: Boolean
+    ): String {
         if (text.isEmpty()) return text
 
         // Check current node and all parent nodes for privacy tags
         val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(node)
-        val isCustomMode = sessionReplayConfiguration.getMode().equals(ComposeSessionReplayConstants.Modes.CUSTOM)
-        val hasUnmaskTag = isCustomMode && privacyTag.equals(ComposeSessionReplayConstants.PrivacyTags.UNMASK)
+        val isCustomMode =
+            sessionReplayConfiguration.getMode().equals(ComposeSessionReplayConstants.Modes.CUSTOM)
+        val hasUnmaskTag =
+            isCustomMode && privacyTag.equals(ComposeSessionReplayConstants.PrivacyTags.UNMASK)
         val hasMaskTag = privacyTag.equals(ComposeSessionReplayConstants.PrivacyTags.MASK)
 
         return if ((shouldMask && !hasUnmaskTag) || (!shouldMask && hasMaskTag)) {
