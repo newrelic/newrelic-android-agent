@@ -34,14 +34,16 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
     private final OnTouchRecordedListener onTouchRecordedListener;
     private final ViewTouchHandler viewTouchHandler;
     private final SemanticsNodeTouchHandler semanticsNodeTouchHandler;
+    private final SessionReplayModeManager modeManager;
 
-    public SessionReplayActivityLifecycleCallbacks(OnTouchRecordedListener onTouchRecordedListener,Application application) {
+    public SessionReplayActivityLifecycleCallbacks(OnTouchRecordedListener onTouchRecordedListener,Application application,SessionReplayModeManager modeManager) {
         this.onTouchRecordedListener = onTouchRecordedListener;
         AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
         sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
         density = application.getApplicationContext().getResources().getDisplayMetrics().density;
         this.viewTouchHandler = new ViewTouchHandler(sessionReplayConfiguration);
         this.semanticsNodeTouchHandler = new SemanticsNodeTouchHandler(sessionReplayConfiguration);
+        this.modeManager = modeManager;
     }
 
 
@@ -135,7 +137,9 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 Log.d(TAG, "Adding End Event");
                 moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                 currentTouchTracker.addEndTouch(moveTouch);
-                SessionReplayActivityLifecycleCallbacks.this.onTouchRecordedListener.onTouchRecorded(currentTouchTracker);
+                if(modeManager.getCurrentMode() != SessionReplayMode.OFF) {
+                    SessionReplayActivityLifecycleCallbacks.this.onTouchRecordedListener.onTouchRecorded(currentTouchTracker);
+                }
                 currentTouchTracker = null;
                 currentTouchId = -1;
             }
