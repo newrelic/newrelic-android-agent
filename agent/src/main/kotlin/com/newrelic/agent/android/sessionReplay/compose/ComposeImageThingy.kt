@@ -12,10 +12,12 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.VectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.core.graphics.createBitmap
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
+import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
 import com.newrelic.agent.android.sessionReplay.internal.ComposePainterReflectionUtils
 import com.newrelic.agent.android.sessionReplay.models.Attributes
@@ -90,6 +92,8 @@ open class ComposeImageThingy(
 
     protected val sessionReplayConfiguration: SessionReplayConfiguration =
         agentConfiguration.sessionReplayConfiguration
+    protected val sessionReplayLocalConfiguration: SessionReplayLocalConfiguration =
+        agentConfiguration.sessionReplayLocalConfiguration
 
     init {
         contentScale = extractContentScale()
@@ -303,6 +307,7 @@ open class ComposeImageThingy(
             return null
         }
     }
+
     private fun generateCacheKey(painter: Painter): String {
         val intrinsicSize = painter.intrinsicSize
 
@@ -330,6 +335,7 @@ open class ComposeImageThingy(
     private fun bitmapToBase64(bitmap: Bitmap): String? {
         return ImageCompressionUtils.bitmapToBase64(bitmap)
     }
+
     private val imageDataUrl: String? by lazy {
         imageData?.let { ImageCompressionUtils.toImageDataUrl(it) }
     }
@@ -355,21 +361,43 @@ open class ComposeImageThingy(
      * @return true if image should be captured, false if should be masked (show placeholder)
      */
     private fun shouldUnMaskImage(node: SemanticsNode): Boolean {
-        // Check current node's effective privacy tag (already propagated during tree capture)
-        val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(node)
+        val testTag = try {
+            node.config.getOrElseNullable(SemanticsProperties.TestTag) { null }
+        } catch (e: IllegalStateException) {
+            null
+        }
 
-        // Null-safe mode comparison (use equals to handle Java interop)
+        when (testTag) {
+            "nr-unmask" -> return true
+            "nr-mask" -> return false
+        }
+
+        if (testTag != null && sessionReplayConfiguration.unmaskedViewTags.contains(testTag)) {
+            return true
+        }
+
+        if (testTag != null && sessionReplayConfiguration.maskedViewTags.contains(testTag)) {
+            return false
+        }
+
+        if (testTag != null && sessionReplayLocalConfiguration.unmaskedViewTags.contains(testTag)) {
+            return true
+        }
+
+        if (testTag != null && sessionReplayLocalConfiguration.maskedViewTags.contains(testTag)) {
+            return false
+        }
+
+        val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(node)
         val isCustomMode = ComposeSessionReplayConstants.Modes.CUSTOM.equals(
             sessionReplayConfiguration.mode
         )
 
         return if (isCustomMode) {
-            // CUSTOM mode: Check both privacy tag and global flag
             val hasMaskTag = ComposeSessionReplayConstants.PrivacyTags.MASK.equals(privacyTag)
-                || sessionReplayConfiguration.isMaskAllImages
-            !hasMaskTag  // Unmask (capture) if no mask indicators
+                    || sessionReplayConfiguration.isMaskAllImages
+            !hasMaskTag
         } else {
-            // DEFAULT mode: Capture all images
             true
         }
     }
