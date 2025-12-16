@@ -60,6 +60,13 @@ class ComposeEditTextThingy(
             return true
         }
 
+        val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(semanticsNode)
+        if (privacyTag.isNotEmpty() && ComposeSessionReplayConstants.PrivacyTags.MASK.equals(privacyTag)) {
+            return true
+        } else if (privacyTag.isNotEmpty() && ComposeSessionReplayConstants.PrivacyTags.UNMASK.equals(privacyTag)) {
+            return false
+        }
+
         if (testTag != null && sessionReplayConfig.unmaskedViewTags.contains(testTag)) {
             return false
         }

@@ -112,6 +112,13 @@ open class ComposeTextViewThingy(
             return true
         }
 
+        val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(semanticsNode)
+        if (privacyTag.isNotEmpty() && ComposeSessionReplayConstants.PrivacyTags.MASK.equals(privacyTag)) {
+            return true
+        } else if (privacyTag.isNotEmpty() && ComposeSessionReplayConstants.PrivacyTags.UNMASK.equals(privacyTag)) {
+            return false
+        }
+
         if (testTag != null && sessionReplayConfiguration.unmaskedViewTags.contains(testTag)) {
             return false
         }
