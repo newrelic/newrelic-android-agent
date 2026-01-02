@@ -196,9 +196,25 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             log.warn("Failed to extract first event timestamp");
         }
 
+        // Extract last timestamp from the last event in the JsonArray
+        long lastTimestamp = System.currentTimeMillis();
+        try {
+            if (!jsonArray.isEmpty()) {
+                JsonObject lastEvent = jsonArray.get(jsonArray.size() - 1).getAsJsonObject();
+                if (lastEvent.has("timestamp")) {
+                    long eventTimestamp = lastEvent.get("timestamp").getAsLong();
+                    if (eventTimestamp > 0) {
+                        lastTimestamp = eventTimestamp;
+                    }
+                }
+            }
+            log.debug("Using last event timestamp from file: " + lastTimestamp);
+        } catch (Exception e) {
+            log.warn("Failed to extract last event timestamp, using current time");
+        }
+
         attributes.put(FIRST_TIMESTAMP, firstTimestamp);
-        // Use current time as last timestamp to match with Mobile Session Event
-        attributes.put(LAST_TIMESTAMP, System.currentTimeMillis());
+        attributes.put(LAST_TIMESTAMP, lastTimestamp);
         attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
 
         // Convert JsonArray to JSON string and report
