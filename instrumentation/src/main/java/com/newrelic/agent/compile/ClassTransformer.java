@@ -60,8 +60,11 @@ public final class ClassTransformer {
         log.debug("logInstrumentationEnabled Parsed Value: {}", Boolean.parseBoolean(agentOptions.get("logInstrumentationEnabled")));
         log.debug("defaultInteractionsEnabled: {}", agentOptions.get("defaultInteractionsEnabled"));
         log.debug("defaultInteractionsEnabled Parsed Value: {}", Boolean.parseBoolean(agentOptions.get("defaultInteractionsEnabled")));
+        log.debug("webviewInstrumentationEnabled: {}", agentOptions.get("webviewInstrumentationEnabled"));
+        log.debug("webviewInstrumentationEnabled Parsed Value: {}", Boolean.parseBoolean(agentOptions.get("webviewInstrumentationEnabled")));
+
         try {
-            return new InvocationDispatcher(log,Boolean.parseBoolean(agentOptions.get("logInstrumentationEnabled")), Boolean.parseBoolean(agentOptions.get("defaultInteractionsEnabled")));
+            return new InvocationDispatcher(log, Boolean.parseBoolean(agentOptions.get("logInstrumentationEnabled")), Boolean.parseBoolean(agentOptions.get("defaultInteractionsEnabled")), Boolean.parseBoolean(agentOptions.get("webviewInstrumentationEnabled")));
         } catch (Exception e) {
             log.error("ClassTransformer: could not allocate InvocationDispatcher! " + e);
         }
