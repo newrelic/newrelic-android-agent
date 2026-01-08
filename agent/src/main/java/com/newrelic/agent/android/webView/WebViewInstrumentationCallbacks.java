@@ -5,15 +5,14 @@ import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.util.Log;
 import android.view.View;
-import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.AdapterView;
 import android.widget.CompoundButton;
 import android.widget.RadioGroup;
-import android.widget.Toast;
 
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.stats.StatsEngine;
 
 public class WebViewInstrumentationCallbacks {
@@ -128,7 +127,26 @@ public class WebViewInstrumentationCallbacks {
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 super.onReceivedError(view, errorCode, description, failingUrl);
             }
+
+
         });
+
+        var0.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+                Log.d("WebViewLifecycle", "WebView attached to window");
+                // WebView is now visible and active
+
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                Log.d("WebViewLifecycle", "WebView detached from window - cleaning up");
+                // WebView is being removed/destroyed
+                SessionReplay.getInstance().setTakeFullSnapshot(true);
+            }
+        });
+
 
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_LOAD_URL);
     }

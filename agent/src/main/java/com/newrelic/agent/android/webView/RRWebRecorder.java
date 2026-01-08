@@ -7,6 +7,7 @@ import android.util.Log;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
 
 import org.json.JSONObject;
@@ -24,12 +25,14 @@ public class RRWebRecorder implements RRWebJavaScriptInterface.RRWebEventListene
     private Context context;
     private String rrwebScript;
     private boolean isRecording = false;
+    private AgentConfiguration agentConfiguration;
 
     public RRWebRecorder(WebView webView) {
         this.webView = webView;
         this.context = webView.getContext();
         this.jsInterface = new RRWebJavaScriptInterface(this);
         this.rrwebScript = loadRRWebScript();
+        this.agentConfiguration = AgentConfiguration.getInstance();
         setupWebView();
     }
 
@@ -154,6 +157,9 @@ public class RRWebRecorder implements RRWebJavaScriptInterface.RRWebEventListene
                 "        }" +
                 "      }," +
                 "      checkoutEveryNms: 10000," +
+                "      maskAllInputs: "+agentConfiguration.getSessionReplayConfiguration().isMaskUserInputText()+","+
+                "      maskTextClass: 'rr-mask',inlineStylesheet: true,"+
+                "      inlineImages: 'false',"+
                 "      sampling: {" +
                 "        mousemove: true," +
                 "        mouseInteraction: true," +
