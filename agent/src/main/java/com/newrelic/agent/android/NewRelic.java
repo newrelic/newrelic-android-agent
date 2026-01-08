@@ -13,6 +13,8 @@ import com.newrelic.agent.android.agentdata.AgentDataController;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.EventListener;
+import com.newrelic.agent.android.analytics.EventManager;
+import com.newrelic.agent.android.analytics.EventManagerImpl;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
@@ -31,6 +33,7 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
+import com.newrelic.agent.android.sessionReplay.CompositeEventListener;
 import com.newrelic.agent.android.sessionReplay.TextMaskingStrategy;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -878,6 +881,9 @@ public final class NewRelic {
 
             if (userIdAttr != null) {
                 if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
+                    // Stop session replay before starting new session
+                    pauseReplay();
+
                     Harvest.harvestNow(true, false);// call non-blocking harvest
                     controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
                             .setStringValue(agentConfiguration.provideSessionId())  // start a new session
@@ -1043,6 +1049,11 @@ public final class NewRelic {
             handledExceptionAttributes = new HashMap<>(attributes);
         }
 
+        // Notify SessionReplay about the error for mode switching (if enabled)
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.onError();
+        }
+
         return AgentDataController.sendAgentData(throwable, handledExceptionAttributes);
     }
 
@@ -1082,7 +1093,20 @@ public final class NewRelic {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setEventListener"));
 
-        AnalyticsControllerImpl.getInstance().getEventManager().setEventListener(eventListener);
+        EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
+        EventListener currentListener = ((EventManagerImpl) eventManager).getListener();
+
+        // If current listener is a CompositeEventListener, update its user listener
+        if (currentListener instanceof CompositeEventListener) {
+            ((CompositeEventListener) currentListener).setUserListener(eventListener);
+        } else {
+            // Otherwise, create a new CompositeEventListener with SessionReplay and user listener
+            // Note: This handles the case where user sets a listener before SessionReplay initializes
+            EventListener sessionReplayListener = currentListener;
+            CompositeEventListener composite = new CompositeEventListener(sessionReplayListener);
+            composite.setUserListener(eventListener);
+            eventManager.setEventListener(composite);
+        }
     }
 
     /**
@@ -1157,6 +1181,9 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name()));
 
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.onError();
+        }
         LogReporting.getLogger().log(LogLevel.ERROR, message);
     }
 
@@ -1171,6 +1198,9 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_NAME, "log/" + MetricNames.TAG_STATE)
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
+        if (logLevel.equals(LogLevel.ERROR) && agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.onError();
+        }
         if (LogReporting.isLevelEnabled(logLevel)) {
             LogReporting.getLogger().log(logLevel, message);
         }
@@ -1314,8 +1344,8 @@ public final class NewRelic {
 
     /**
      * Adds a view class to be masked during session replay.
-
-    /**
+     * <p>
+     * /**
      * Adds a view class to be masked during session replay.
      * All instances of the specified class and its subclasses will have their text content masked.
      * <p>
@@ -1417,6 +1447,62 @@ public final class NewRelic {
         }
 
         return false;
+    }
+
+    /**
+     * Starts or transitions session replay to full recording mode programmatically.
+     * This API allows developers to trigger session replay recording on-demand, even if not
+     * enabled via configuration sampling.
+     * <p>
+     * Behavior:
+     * - If SessionReplay is disabled in configuration: returns false
+     * - If SessionReplay not yet initialized but enabled: initializes in FULL mode
+     * - If initialized in ERROR mode: transitions to FULL mode
+     * - If already in FULL mode: idempotent, returns true
+     * - Sets hasReplay attribute on success
+     *
+     * @return true if recording is now active in FULL mode, false if disabled in configuration
+     */
+    public static boolean recordReplay() {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "recordReplay"));
+
+        if (!agentConfiguration.getSessionReplayConfiguration().isEnabled()) {
+            log.debug("recordReplay: SessionReplay is not enabled in configuration");
+            return false;
+        }
+
+        return AndroidAgentImpl.recordReplay();
+    }
+
+    /**
+     * Stops session replay recording programmatically.
+     * This API allows developers to stop session replay collection and immediately send
+     * any buffered data.
+     * <p>
+     * Behavior:
+     * - Stops recording regardless of how it was started (via sampling or API)
+     * - Immediately triggers a harvest cycle to send buffered data
+     * - File is cleared after harvest completes
+     * - hasReplay attribute remains true for the session
+     *
+     * @return true if recording was stopped and harvest triggered, false if already stopped or not recording
+     */
+    public static boolean pauseReplay() {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "pauseReplay"));
+
+        if (!agentConfiguration.getSessionReplayConfiguration().isEnabled()) {
+            log.debug("pauseReplay: SessionReplay is not enabled in configuration");
+            return false;
+        }
+
+        try {
+            return AndroidAgentImpl.pauseReplay();
+        } catch (Exception e) {
+            log.error("pauseReplay: Failed to stop recording: " + e.getMessage(), e);
+            return false;
+        }
     }
 
     /**
