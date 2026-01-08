@@ -2,6 +2,9 @@ package com.newrelic.agent.android.webView;
 
 import android.util.Log;
 import android.webkit.JavascriptInterface;
+
+import com.newrelic.agent.android.sessionReplay.SessionReplay;
+
 import org.json.JSONObject;
 
 public class RRWebJavaScriptInterface {
@@ -18,6 +21,7 @@ public class RRWebJavaScriptInterface {
             Log.d(TAG, "Received rrweb event: " + eventJson);
             JSONObject eventObject = new JSONObject(eventJson);
 
+            SessionReplay.getInstance().recordSessionReplayEvent(eventObject.toString());
             if (eventListener != null) {
                 eventListener.onRRWebEvent(eventObject);
             }

@@ -99,9 +99,10 @@ public class WebViewInstrumentationCallbacks {
     }
 
     public static void loadUrlCalled(WebView var0) {
+        var0.addJavascriptInterface(new RRWebJavaScriptInterface(null), "RRWebAndroid");
+
 
            var0.setWebViewClient(new WebViewClient() {
-
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
 
