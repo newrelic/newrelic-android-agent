@@ -157,7 +157,9 @@ public class ViewBackgroundHelper {
 
         Paint strokePaint = ReflectionUtils.getStrokePaint(backgroundDrawable);
         if (strokePaint != null) {
-            backgroundColorStringBuilder.append(" border:").append(getPixel(strokePaint.getStrokeWidth(), density)).append("px").append(" solid #").append(Integer.toHexString(strokePaint.getColor()).substring(2)).append(";");
+            // Extract RGB color safely, masking off alpha channel
+            String borderColor = String.format("%06x", strokePaint.getColor() & 0xFFFFFF);
+            backgroundColorStringBuilder.append(" border:").append(getPixel(strokePaint.getStrokeWidth(), density)).append("px").append(" solid #").append(borderColor).append(";");
         }
     }
 

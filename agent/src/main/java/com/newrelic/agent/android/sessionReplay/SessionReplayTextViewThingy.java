@@ -111,7 +111,8 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
                 break;
         }
 
-        this.textColor = Integer.toHexString(view.getCurrentTextColor()).substring(2);
+        // Extract RGB color safely, masking off alpha channel
+        this.textColor = String.format("%06x", view.getCurrentTextColor() & 0xFFFFFF);
     }
 
     @Override
@@ -185,13 +186,21 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         cssBuilder.append("font-size: ");
         cssBuilder.append(String.format("%.2f", this.fontSize));
         cssBuilder.append("px; ");
-        cssBuilder.append(this.fontFamily);
-        cssBuilder.append("; ");
+
+        // Null-safe append for fontFamily
+        if (this.fontFamily != null) {
+            cssBuilder.append(this.fontFamily);
+            cssBuilder.append("; ");
+        }
+
+        // Null-safe append for textColor
         cssBuilder.append("color: #");
-        cssBuilder.append(this.textColor);
+        cssBuilder.append(this.textColor != null ? this.textColor : "000000");
         cssBuilder.append("; ");
+
+        // Null-safe append for textAlign
         cssBuilder.append("text-align: ");
-        cssBuilder.append(this.textAlign);
+        cssBuilder.append(this.textAlign != null ? this.textAlign : "left");
         cssBuilder.append("; ");
     }
 
