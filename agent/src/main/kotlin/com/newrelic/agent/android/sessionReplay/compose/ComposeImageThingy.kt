@@ -88,7 +88,7 @@ open class ComposeImageThingy(
     var shouldRecordSubviews = false
 
     private val contentScale: ContentScale
-    private val backgroundColor: String = viewDetails.backgroundColor
+    private val backgroundColor: String = viewDetails.backgroundColor ?: "transparent"
 
     protected val sessionReplayConfiguration: SessionReplayConfiguration =
         agentConfiguration.sessionReplayConfiguration
@@ -512,7 +512,7 @@ open class ComposeImageThingy(
         }
 
         if (viewDetails.backgroundColor != otherViewDetails.backgroundColor) {
-            styleDifferences["background-color"] = otherViewDetails.backgroundColor
+            styleDifferences["background-color"] = otherViewDetails.backgroundColor ?: "transparent"
         }
 
         if (imageData != other.imageData) {

@@ -156,7 +156,7 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
         this.access = access;
-        context.markModified();
+        // Don't mark as modified here - only mark when we actually instrument a method
         super.visit(version, access, name, signature, superName, interfaces);
     }
 
@@ -202,7 +202,11 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
         //   0 = 'this' (the WebViewClient instance)
         //   1 = first parameter (WebView view)
         //   2 = second parameter (String url)
-        if (methodName.equals("onPageFinished")) {
+        //
+        // IMPORTANT: Check both name AND descriptor to avoid instrumenting custom methods
+        // in WebView subclasses that happen to have the same name but different signatures.
+        if (methodName.equals("onPageFinished") && desc.equals("(Landroid/webkit/WebView;Ljava/lang/String;)V")) {
+            context.markModified(); // Mark class as modified since we're instrumenting this method
             return new MethodVisitor(ASM9, mv) {
                 @Override
                 public void visitCode() {
@@ -241,6 +245,7 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
         //   0 = 'this' (the WebView instance)
         //   1 = url parameter (String)
         if (methodName.equals("loadUrl") && desc.equals("(Ljava/lang/String;)V")) {
+            context.markModified(); // Mark class as modified since we're instrumenting this method
             return new MethodVisitor(ASM9, mv) {
                 @Override
                 public void visitCode() {
@@ -273,6 +278,7 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
         //   1 = url parameter (String)
         //   2 = additionalHttpHeaders parameter (Map)
         if (methodName.equals("loadUrl") && desc.equals("(Ljava/lang/String;Ljava/util/Map;)V")) {
+            context.markModified(); // Mark class as modified since we're instrumenting this method
             return new MethodVisitor(ASM9, mv) {
                 @Override
                 public void visitCode() {
@@ -306,6 +312,7 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
         //   1 = url parameter (String)
         //   2 = postData parameter (byte[])
         if (methodName.equals("postUrl") && desc.equals("(Ljava/lang/String;[B)V")) {
+            context.markModified(); // Mark class as modified since we're instrumenting this method
             return new MethodVisitor(ASM9, mv) {
                 @Override
                 public void visitCode() {
