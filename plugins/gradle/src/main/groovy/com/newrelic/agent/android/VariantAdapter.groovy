@@ -212,13 +212,34 @@ abstract class VariantAdapter {
                 // be evaluated at task execution time, not during configuration.
                 def tag = "${Proguard.NR_MAP_PREFIX}${mapUploadTask.buildId.get()}"
                 def mf = it.mappingFile.asFile.get()
-                mf.exists() && !mf.text.contains(tag)
+                def exists = mf.exists()
+                def containsTag = exists && mf.text.contains(tag)
+                def shouldExecute = exists && !containsTag
+
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Checking execution conditions for variant [${variantName}]")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file path: ${mf.absolutePath}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file exists: ${exists}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Build ID tag: ${tag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file contains tag: ${containsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Should execute: ${shouldExecute}")
+
+                return shouldExecute
             }
 
             mapUploadTask.outputs.upToDateWhen {
                 def mf = it.mappingFile.asFile.get()
                 def tag = "${Proguard.NR_MAP_PREFIX}${mapUploadTask.buildId.get()}"
-                mf.exists() && mf.text.contains(tag)
+                def exists = mf.exists()
+                def containsTag = exists && mf.text.contains(tag)
+                def isUpToDate = exists && containsTag
+
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Checking up-to-date status for variant [${variantName}]")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Mapping file path: ${mf.absolutePath}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Mapping file exists: ${exists}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Contains tag: ${containsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Is up-to-date: ${isUpToDate}")
+
+                return isUpToDate
             }
         }
 
