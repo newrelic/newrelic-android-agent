@@ -179,10 +179,8 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     private void generateTextCss(StringBuilder cssBuilder) {
-        cssBuilder.append("white-space: pre-wrap;");
+        cssBuilder.append("white-space: pre-wrap;overflow: hidden;text-overflow: ellipsis;");
         cssBuilder.append("");
-        cssBuilder.append("word-wrap: break-word;");
-        cssBuilder.append(" ");
         cssBuilder.append("font-size: ");
         cssBuilder.append(String.format("%.2f", this.fontSize));
         cssBuilder.append("px; ");
@@ -230,7 +228,6 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             styleDifferences.put("top", otherViewDetails.frame.top + "px");
             styleDifferences.put("width", otherViewDetails.frame.width() + "px");
             styleDifferences.put("height", otherViewDetails.frame.height() + "px");
-            styleDifferences.put("line-height", otherViewDetails.frame.height() + "px");
         }
 
         // Compare background colors if available
