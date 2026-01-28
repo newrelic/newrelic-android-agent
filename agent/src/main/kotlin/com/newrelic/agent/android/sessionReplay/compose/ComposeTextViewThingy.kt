@@ -191,17 +191,23 @@ open class ComposeTextViewThingy(
     }
 
     private fun generateTextCss(cssBuilder: StringBuilder) {
-        cssBuilder.append("white-space: pre-wrap;")
-        cssBuilder.append("word-wrap: break-word;")
-        cssBuilder.append(" ")
+        cssBuilder.append("display: flex; ")
+        cssBuilder.append("align-items: center; ")
+
+        cssBuilder.append("justify-content: ")
+        when (textAlign) {
+            "center" -> cssBuilder.append("center; ")
+            "right" -> cssBuilder.append("flex-end; ")
+            else -> cssBuilder.append("flex-start; ")
+        }
+
+        cssBuilder.append("white-space: pre-wrap; ")
+        cssBuilder.append("word-wrap: break-word; ")
         cssBuilder.append("font-size: ")
         cssBuilder.append(formattedFontSize)
         cssBuilder.append("px; ")
         cssBuilder.append("color: #")
         cssBuilder.append(textColor)
-        cssBuilder.append("; ")
-        cssBuilder.append("text-align: ")
-        cssBuilder.append(textAlign)
         cssBuilder.append("; ")
         cssBuilder.append("line-height: normal; ")
         cssBuilder.append("font-family: ")
@@ -243,7 +249,6 @@ open class ComposeTextViewThingy(
             styleDifferences["top"] = "${otherComposeViewDetails.frame.top}px"
             styleDifferences["width"] = "${otherComposeViewDetails.frame.width()}px"
             styleDifferences["height"] = "${otherComposeViewDetails.frame.height()}px"
-            styleDifferences["line-height"] = "${otherComposeViewDetails.frame.height()}px"
         }
 
         if (viewDetails.backgroundColor != otherComposeViewDetails.backgroundColor) {
@@ -269,7 +274,11 @@ open class ComposeTextViewThingy(
         }
 
         if (textAlign != other.textAlign) {
-            styleDifferences["text-align"] = other.textAlign
+            when (other.textAlign) {
+                "center" -> styleDifferences["justify-content"] = "center"
+                "right" -> styleDifferences["justify-content"] = "flex-end"
+                else -> styleDifferences["justify-content"] = "flex-start"
+            }
         }
 
         if (fontSize != other.fontSize) {

@@ -179,8 +179,25 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     private void generateTextCss(StringBuilder cssBuilder) {
+        cssBuilder.append("display: flex; ");
+        cssBuilder.append("align-items: center; ");
+
+        cssBuilder.append("justify-content: ");
+        switch (this.textAlign != null ? this.textAlign : "left") {
+            case "center":
+                cssBuilder.append("center; ");
+                break;
+            case "right":
+                cssBuilder.append("flex-end; ");
+                break;
+            case "left":
+            default:
+                cssBuilder.append("flex-start; ");
+                break;
+        }
+
         cssBuilder.append("white-space: pre-wrap;");
-        cssBuilder.append("");
+        cssBuilder.append(" ");
         cssBuilder.append("word-wrap: break-word;");
         cssBuilder.append(" ");
         cssBuilder.append("font-size: ");
@@ -196,11 +213,6 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         // Null-safe append for textColor
         cssBuilder.append("color: #");
         cssBuilder.append(this.textColor != null ? this.textColor : "000000");
-        cssBuilder.append("; ");
-
-        // Null-safe append for textAlign
-        cssBuilder.append("text-align: ");
-        cssBuilder.append(this.textAlign != null ? this.textAlign : "left");
         cssBuilder.append("; ");
     }
 
@@ -222,6 +234,24 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         // Create a map to store style differences
         java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
+        // Compare text alignment
+        if(this.textAlign != null) {
+            String otherTextAlign = ((SessionReplayTextViewThingy) other).textAlign;
+            if (!this.textAlign.equals(otherTextAlign)) {
+                // Update justify-content instead of text-align
+                switch (otherTextAlign != null ? otherTextAlign : "left") {
+                    case "center":
+                        styleDifferences.put("justify-content", "center");
+                        break;
+                    case "right":
+                        styleDifferences.put("justify-content", "flex-end");
+                        break;
+                    default:
+                        styleDifferences.put("justify-content", "flex-start");
+                        break;
+                }
+            }
+        }
 
         ViewDetails otherViewDetails = (ViewDetails) other.getViewDetails();
         // Compare frames
@@ -230,7 +260,6 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             styleDifferences.put("top", otherViewDetails.frame.top + "px");
             styleDifferences.put("width", otherViewDetails.frame.width() + "px");
             styleDifferences.put("height", otherViewDetails.frame.height() + "px");
-            styleDifferences.put("line-height", otherViewDetails.frame.height() + "px");
         }
 
         // Compare background colors if available
@@ -246,7 +275,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         if(this.textColor != null) {
             String otherTextColor = ((SessionReplayTextViewThingy) other).getTextColor();
             if (!this.textColor.equals(otherTextColor)) {
-                styleDifferences.put("color", '#'+otherTextColor);
+                styleDifferences.put("color", "#" + otherTextColor);
             }
         }
 
@@ -254,15 +283,6 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             String otherFontFamily = ((SessionReplayTextViewThingy) other).getFontFamily();
             if (!this.fontFamily.equals(otherFontFamily)) {
                 styleDifferences.put("font-family", otherFontFamily);
-            }
-        }
-
-
-        // Compare text alignment
-        if(this.textAlign != null) {
-            String otherTextAlign = ((SessionReplayTextViewThingy) other).textAlign;
-            if (!this.textAlign.equals(otherTextAlign)) {
-                styleDifferences.put("text-align", otherTextAlign);
             }
         }
 
