@@ -69,7 +69,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
     public void setupTouchInterceptorForWindow(View view) {
         boolean shouldMaskTouches = sessionReplayConfiguration.isMaskAllUserTouches();
-        Log.d(TAG, "Root View Changed in Listener");
+        Log.d(TAG, "setupTouchInterceptorForWindow called");
         Windows.WindowType windowType = Windows.getWindowType(view);
         if (windowType == Windows.WindowType.POPUP_WINDOW) {
             return;
@@ -80,12 +80,20 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
             return;
         }
 
+        // Check if this window already has interceptors registered - if yes, skip to prevent duplicates
+        if (!WindowCallbackWrapper.Companion.getListeners(window).getTouchEventInterceptors().isEmpty()) {
+            Log.d(TAG, "Touch interceptor already exists for this window, skipping setup");
+            return;
+        }
+
+        Log.d(TAG, "Adding new touch interceptor for window");
+
         OnTouchEventListener touchEventInterceptor = new OnTouchEventListener() {
 
             @NonNull
             @Override
             public DispatchState intercept(@NonNull MotionEvent motionEvent, @NonNull Function1<? super MotionEvent, ? extends DispatchState> function1) {
-
+                // Process the touch event
                 onTouchEvent(motionEvent);
                 // Call the dispatch function and return its result
                 return function1.invoke(motionEvent);
@@ -135,6 +143,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 Log.d(TAG, "Adding End Event");
                 moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                 currentTouchTracker.addEndTouch(moveTouch);
+                Log.d(TAG, "Calling onTouchRecorded for touch tracker: " + System.identityHashCode(currentTouchTracker));
                 SessionReplayActivityLifecycleCallbacks.this.onTouchRecordedListener.onTouchRecorded(currentTouchTracker);
                 currentTouchTracker = null;
                 currentTouchId = -1;
@@ -142,7 +151,9 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
             }
         };
 
+        // Add interceptor to window
         WindowCallbackWrapper.Companion.getListeners(window).getTouchEventInterceptors().add(touchEventInterceptor);
+        Log.d(TAG, "Touch interceptor successfully added");
     }
 
 
