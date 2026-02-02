@@ -49,6 +49,14 @@ public class ViewBackgroundHelper {
      */
     @NonNull
     private static String getDrawableColor(Drawable drawable) {
+        // Check for React Native BackgroundDrawable first
+        // This must be done via reflection since BackgroundDrawable is part of React Native
+        // and may not be present in all apps
+        Integer rnBackgroundColor = ReflectionUtils.getReactNativeBackgroundColor(drawable);
+        if (rnBackgroundColor != null) {
+            return toRGBAHexString(rnBackgroundColor);
+        }
+
         if (drawable instanceof ColorDrawable) {
             int color = ((ColorDrawable) drawable).getColor();
             String colorString = toRGBAHexString(color);
@@ -128,7 +136,7 @@ public class ViewBackgroundHelper {
         int green = Color.green(color);
         int blue = Color.blue(color);
         int alpha = Color.alpha(color);
-        return String.format("#%02x%02x%02x%02x", red, green, blue, alpha);
+        return String.format("#%02x%02x%02x", red, green, blue, alpha);
     }
 
 
