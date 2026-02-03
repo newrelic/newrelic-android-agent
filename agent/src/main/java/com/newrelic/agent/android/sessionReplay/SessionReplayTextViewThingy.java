@@ -6,6 +6,7 @@ import android.widget.TextView;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.sessionReplay.internal.TextViewUtil;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
@@ -111,8 +112,11 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
                 break;
         }
 
-        // Extract RGB color safely, masking off alpha channel
-        this.textColor = String.format("%06x", view.getCurrentTextColor() & 0xFFFFFF);
+        // Extract text color with special handling for React Native TextViews
+        int textColorInt = TextViewUtil.getTextColor(view);
+        this.textColor = TextViewUtil.colorToRgbHex(textColorInt);
+
+
     }
 
     @Override

@@ -412,4 +412,205 @@ public class ReflectionUtilsTest {
             return android.graphics.PixelFormat.OPAQUE;
         }
     }
+
+    // ============================================
+    // REACT NATIVE SPANNABLE EXTRACTION TESTS
+    // ============================================
+
+    @Test
+    public void testGetReactNativeSpannable_withNull_returnsNull() {
+        android.text.Spannable result = ReflectionUtils.getReactNativeSpannable(null);
+
+        assertNull("Should return null for null TextView", result);
+    }
+
+    @Test
+    public void testGetReactNativeSpannable_withStandardTextView_returnsNull() {
+        // Standard TextView doesn't have mSpanned field or getSpanned() method
+        android.widget.TextView textView = new android.widget.TextView(
+            org.robolectric.RuntimeEnvironment.application
+        );
+        textView.setText("Standard text");
+
+        android.text.Spannable result = ReflectionUtils.getReactNativeSpannable(textView);
+
+        // Should return null since it's not a ReactTextView
+        assertNull("Should return null for standard TextView", result);
+    }
+
+    @Test
+    public void testGetReactNativeSpannable_withMockReactTextView_simulatesExtraction() throws Exception {
+        // Create a test TextView that simulates ReactTextView structure
+        TestReactTextView testReactTextView = new TestReactTextView();
+
+        // Set a Spannable with color
+        android.text.SpannableString spannable = new android.text.SpannableString("Colored React Native text");
+        spannable.setSpan(
+            new android.text.style.ForegroundColorSpan(Color.RED),
+            0, 7,
+            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        );
+        testReactTextView.mSpanned = spannable;
+
+        // Test extraction via reflection
+        android.text.Spannable result = ReflectionUtils.getReactNativeSpannable(testReactTextView);
+
+        assertNotNull("Should extract Spannable from simulated ReactTextView", result);
+        assertEquals("Should extract correct text", "Colored React Native text", result.toString());
+
+        // Verify color span is preserved
+        android.text.style.ForegroundColorSpan[] spans = result.getSpans(
+            0, result.length(),
+            android.text.style.ForegroundColorSpan.class
+        );
+        assertEquals("Should have one color span", 1, spans.length);
+        assertEquals("Should preserve red color", Color.RED, spans[0].getForegroundColor());
+    }
+
+    @Test
+    public void testGetReactNativeSpannable_withPublicMethod_prefersMethodOverField() throws Exception {
+        // Test that public getSpanned() method is tried before private field
+        TestReactTextViewWithMethod testView = new TestReactTextViewWithMethod();
+
+        android.text.SpannableString spannable = new android.text.SpannableString("Method text");
+        testView.spannedFromMethod = spannable;
+        testView.mSpanned = new android.text.SpannableString("Field text"); // Different text
+
+        android.text.Spannable result = ReflectionUtils.getReactNativeSpannable(testView);
+
+        assertNotNull("Should extract Spannable", result);
+        // Should use method result, not field
+        assertEquals("Should prefer public method over private field", "Method text", result.toString());
+    }
+
+    @Test
+    public void testGetReactNativeSpannable_withNullSpanned_returnsNull() throws Exception {
+        TestReactTextView testView = new TestReactTextView();
+        testView.mSpanned = null; // Simulate null Spannable
+
+        android.text.Spannable result = ReflectionUtils.getReactNativeSpannable(testView);
+
+        // Should handle null Spannable gracefully
+        assertNull("Should return null when mSpanned is null", result);
+    }
+
+    @Test
+    public void testGetReactNativeSpannable_withEmptySpannable_returnsEmpty() throws Exception {
+        TestReactTextView testView = new TestReactTextView();
+        testView.mSpanned = new android.text.SpannableString(""); // Empty string
+
+        android.text.Spannable result = ReflectionUtils.getReactNativeSpannable(testView);
+
+        assertNotNull("Should return empty Spannable", result);
+        assertEquals("Should be empty string", "", result.toString());
+    }
+
+    @Test
+    public void testGetReactNativeSpannable_withMultipleColorSpans_preservesAll() throws Exception {
+        TestReactTextView testView = new TestReactTextView();
+
+        // Create spannable with multiple colors
+        android.text.SpannableString spannable = new android.text.SpannableString("Red Green Blue");
+        spannable.setSpan(new android.text.style.ForegroundColorSpan(Color.RED), 0, 3, 0);
+        spannable.setSpan(new android.text.style.ForegroundColorSpan(Color.GREEN), 4, 9, 0);
+        spannable.setSpan(new android.text.style.ForegroundColorSpan(Color.BLUE), 10, 14, 0);
+        testView.mSpanned = spannable;
+
+        android.text.Spannable result = ReflectionUtils.getReactNativeSpannable(testView);
+
+        assertNotNull("Should extract Spannable", result);
+
+        // Verify all color spans are preserved
+        android.text.style.ForegroundColorSpan[] spans = result.getSpans(
+            0, result.length(),
+            android.text.style.ForegroundColorSpan.class
+        );
+        assertEquals("Should preserve all 3 color spans", 3, spans.length);
+    }
+
+    // ============================================
+    // PERFORMANCE TESTS FOR SPANNABLE EXTRACTION
+    // ============================================
+
+    @Test
+    public void testGetReactNativeSpannable_performanceTest() throws Exception {
+        // Test that multiple calls are reasonably fast
+        TestReactTextView testView = new TestReactTextView();
+        testView.mSpanned = new android.text.SpannableString("Performance test");
+
+        long startTime = System.nanoTime();
+        for (int i = 0; i < 100; i++) {
+            ReflectionUtils.getReactNativeSpannable(testView);
+        }
+        long endTime = System.nanoTime();
+
+        long durationMs = (endTime - startTime) / 1_000_000;
+
+        System.out.println("100 Spannable extractions took: " + durationMs + "ms");
+
+        // Should complete in reasonable time (< 100ms for 100 iterations)
+        assertTrue("Spannable extraction should be performant", durationMs < 100);
+    }
+
+    // ============================================
+    // INTEGRATION TESTS - SPANNABLE COLOR EXTRACTION
+    // ============================================
+
+    @Test
+    public void testIntegration_spannableExtractionAndColorDetection() throws Exception {
+        // End-to-end test: Extract Spannable from ReactTextView and get color
+        TestReactTextView testView = new TestReactTextView();
+
+        android.text.SpannableString spannable = new android.text.SpannableString("Colored text");
+        spannable.setSpan(
+            new android.text.style.ForegroundColorSpan(0xFFFF5733), // Orange
+            0, 7,
+            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        );
+        testView.mSpanned = spannable;
+
+        // Extract Spannable
+        android.text.Spannable extractedSpannable = ReflectionUtils.getReactNativeSpannable(testView);
+        assertNotNull("Should extract Spannable", extractedSpannable);
+
+        // Extract color from Spannable (this is what TextViewUtil does)
+        android.text.style.ForegroundColorSpan[] colorSpans = extractedSpannable.getSpans(
+            0, extractedSpannable.length(),
+            android.text.style.ForegroundColorSpan.class
+        );
+
+        assertEquals("Should have one color span", 1, colorSpans.length);
+        assertEquals("Should extract orange color", 0xFFFF5733, colorSpans[0].getForegroundColor());
+    }
+
+    // ============================================
+    // TEST HELPER CLASSES FOR SPANNABLE TESTS
+    // ============================================
+
+    /**
+     * Simulates React Native's ReactTextView with mSpanned field
+     */
+    private static class TestReactTextView extends android.widget.TextView {
+        public android.text.Spannable mSpanned;
+
+        public TestReactTextView() {
+            super(org.robolectric.RuntimeEnvironment.application);
+        }
+    }
+
+    /**
+     * Simulates React Native's ReactTextView with public getSpanned() method
+     */
+    private static class TestReactTextViewWithMethod extends android.widget.TextView {
+        public android.text.Spannable mSpanned;
+        public android.text.Spannable spannedFromMethod;
+
+        public TestReactTextViewWithMethod() {
+            super(org.robolectric.RuntimeEnvironment.application);
+        }
+
+        public android.text.Spannable getSpanned() {
+            return spannedFromMethod;
+        }
+    }
 }

@@ -2,6 +2,7 @@ package com.newrelic.agent.android.sessionReplay.internal;
 
 import android.graphics.Paint;
 import android.graphics.drawable.GradientDrawable;
+import android.text.Spannable;
 
 import androidx.compose.ui.Modifier;
 import androidx.compose.ui.geometry.Offset;
@@ -382,4 +383,49 @@ public class ReflectionUtils {
 
         return null;
     }
+
+    /**
+     * Gets the Spannable text from a React Native TextView using reflection.
+     * React Native's ReactTextView stores styled text in a private mSpanned field.
+     *
+     * @param textView The TextView to extract the Spannable from (must be ReactTextView)
+     * @return The Spannable object or null if extraction fails
+     */
+    public static Spannable getReactNativeSpannable(android.widget.TextView textView) {
+        if (textView == null) {
+            return null;
+        }
+
+        try {
+            // First try the public getSpanned() method if it exists
+            try {
+                java.lang.reflect.Method getSpannedMethod = textView.getClass().getMethod("getSpanned");
+                Object result = getSpannedMethod.invoke(textView);
+                if (result instanceof Spannable) {
+                    return (Spannable) result;
+                }
+            } catch (NoSuchMethodException e) {
+                // Method doesn't exist, fall through to field access
+                log.debug(TAG + ": getSpanned() method not found, trying field access");
+            }
+
+            // Try to access the private mSpanned field
+            java.lang.reflect.Field mSpannedField = textView.getClass().getDeclaredField("mSpanned");
+            mSpannedField.setAccessible(true);
+            Object spannedObject = mSpannedField.get(textView);
+
+            if (spannedObject instanceof Spannable) {
+                return (Spannable) spannedObject;
+            }
+        } catch (NoSuchFieldException e) {
+            log.debug(TAG + ": mSpanned field not found in TextView (not a ReactTextView): " + e.getMessage());
+        } catch (IllegalAccessException e) {
+            log.debug(TAG + ": Cannot access mSpanned field: " + e.getMessage());
+        } catch (Exception e) {
+            log.error(TAG + ": Unexpected error getting React Native Spannable: " + e.getMessage());
+        }
+
+        return null;
+    }
+
 }
