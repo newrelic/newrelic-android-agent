@@ -68,7 +68,7 @@ abstract class VariantAdapter {
             return new AGP4Adapter(buildHelper)
         }
 
-        if (currentGradleVersion < GradleVersion.version("9.0")) {
+        if (currentAgpVersion < GradleVersion.version("9.0")) {
             return new AGP74Adapter(buildHelper)
         }
 

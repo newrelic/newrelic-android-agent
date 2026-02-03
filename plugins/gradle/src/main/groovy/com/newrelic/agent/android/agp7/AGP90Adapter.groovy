@@ -9,7 +9,9 @@ package com.newrelic.agent.android.agp7
 import com.android.build.api.artifact.ScopedArtifact
 import com.android.build.api.variant.ScopedArtifacts
 import com.newrelic.agent.android.BuildHelper
+import com.newrelic.agent.android.ClassTransformWrapperTask
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.util.GradleVersion
 
 class AGP90Adapter extends AGP70Adapter {
@@ -17,6 +19,12 @@ class AGP90Adapter extends AGP70Adapter {
         super(buildHelper)
     }
 
+    @Override
+    TaskProvider getTransformProvider(String variantName) {
+        // AGP 8.0+ removed the Transform API, so we only use ClassTransformWrapperTask
+        // Avoid referencing NewRelicTransform.class to prevent ClassNotFoundException
+        return registerOrNamed("${ClassTransformWrapperTask.NAME}${variantName.capitalize()}", ClassTransformWrapperTask.class)
+    }
 
     @Override
     Provider<BuildTypeAdapter> getBuildTypeProvider(String variantName) {
