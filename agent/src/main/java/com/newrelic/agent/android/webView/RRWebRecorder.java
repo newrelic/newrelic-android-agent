@@ -12,18 +12,13 @@ import com.newrelic.agent.android.sessionReplay.SessionReplay;
 
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-
 public class RRWebRecorder implements RRWebJavaScriptInterface.RRWebEventListener {
     private static final String TAG = "RRWebRecorder";
-    private static final String RRWEB_ASSET_FILE = "rrweb.min.js";
+    // CDN URL for rrweb library
+    private static final String RRWEB_CDN_URL = "https://cdn.jsdelivr.net/npm/rrweb@2.0.0-alpha.4/dist/rrweb.min.js";
     private WebView webView;
     private RRWebJavaScriptInterface jsInterface;
     private Context context;
-    private String rrwebScript;
     private boolean isRecording = false;
     private AgentConfiguration agentConfiguration;
 
@@ -31,7 +26,6 @@ public class RRWebRecorder implements RRWebJavaScriptInterface.RRWebEventListene
         this.webView = webView;
         this.context = webView.getContext();
         this.jsInterface = new RRWebJavaScriptInterface(this);
-        this.rrwebScript = loadRRWebScript();
         this.agentConfiguration = AgentConfiguration.getInstance();
         setupWebView();
     }
@@ -79,11 +73,6 @@ public class RRWebRecorder implements RRWebJavaScriptInterface.RRWebEventListene
     }
 
     public void startRecording() {
-        if (rrwebScript == null || rrwebScript.isEmpty()) {
-            Log.e(TAG, "Cannot start recording - rrweb script not loaded");
-            return;
-        }
-
         Log.d(TAG, "Starting RRWeb recording");
         isRecording = true;
 
@@ -95,10 +84,6 @@ public class RRWebRecorder implements RRWebJavaScriptInterface.RRWebEventListene
 
     private void injectScript() {
         String script = getInjectionScript();
-        if (script.isEmpty()) {
-            Log.e(TAG, "Cannot inject script - rrweb script not loaded");
-            return;
-        }
 
         // Ensure execution on main thread
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -119,60 +104,98 @@ public class RRWebRecorder implements RRWebJavaScriptInterface.RRWebEventListene
     }
 
     private String getInjectionScript() {
-        if (rrwebScript == null || rrwebScript.isEmpty()) {
-            Log.e(TAG, "RRWeb script not loaded");
-            return "";
-        }
-        return "console.log('WebView Started');\n" +
-                rrwebScript + ";\n" +  // Add semicolon and newline to properly terminate the rrweb script
+        return "console.log('WebView Started - Loading rrweb from CDN');\n" +
                 "(function() {" +
-                "  console.log('Starting RRWeb initialization...');" +
-                "  if (window.rrwebRecorder) {" +
-                "    console.log('RRWeb already initialized');" +
-                "    RRWebAndroid.logError('RRWeb already initialized');" +
+                "  \n// Check if rrweb is already loaded\n" +
+                "  if (typeof rrweb !== 'undefined') {" +
+                "    console.log('rrweb already loaded, starting recording...');" +
+                "    initRRWebRecording();" +
                 "    return;" +
                 "  }" +
-                "  if (typeof rrweb === 'undefined') {" +
-                "    console.error('rrweb is not defined - script failed to load');" +
-                "    RRWebAndroid.logError('rrweb is not defined - script failed to load');" +
-                "    return;" +
-                "  }" +
-                "  if (typeof rrweb.record !== 'function') {" +
-                "    console.error('rrweb.record is not a function');" +
-                "    RRWebAndroid.logError('rrweb.record is not a function');" +
-                "    return;" +
-                "  }" +
-                "  try {" +
-                "    console.log('Calling rrweb.record...');" +
-                "    window.rrwebRecorder = rrweb.record({" +
-                "      emit: function(event) {" +
-                "        try {" +
-                "          console.log('RRWeb sending Events:', event.type);" +
-                "          RRWebAndroid.sendEvent(JSON.stringify(event));" +
-                "        } catch(e) {" +
-                "          console.error('Failed to send event:', e);" +
-                "          if (typeof RRWebAndroid !== 'undefined' && RRWebAndroid.logError) {" +
-                "            RRWebAndroid.logError('Failed to send event: ' + e.message);" +
-                "          }" +
-                "        }" +
-                "      }," +
-                "      checkoutEveryNms: 10000," +
-                "      maskAllInputs: "+agentConfiguration.getSessionReplayConfiguration().isMaskUserInputText()+","+
-                "      maskTextClass: 'rr-mask',inlineStylesheet: true,"+
-                "      inlineImages: 'false',"+
-                "      sampling: {" +
-                "        mousemove: true," +
-                "        mouseInteraction: true," +
-                "        scroll: 150," +
-                "        input: 'last'" +
-                "      }" +
-                "    });" +
-                "    console.log('RRWeb recording started successfully');" +
-                "    RRWebAndroid.logError('RRWeb recording started successfully');" +
-                "  } catch(e) {" +
-                "    console.error('Failed to start recording:', e);" +
+                "  \n" +
+                "  // Load rrweb from CDN\n" +
+                "  console.log('Loading rrweb from CDN...');" +
+                "  var script = document.createElement('script');" +
+                "  script.src = '" + RRWEB_CDN_URL + "';" +
+                "  script.type = 'text/javascript';" +
+                "  " +
+                "  script.onload = function() {" +
+                "    console.log('rrweb script loaded successfully from CDN');" +
+                "    initRRWebRecording();" +
+                "  };" +
+                "  " +
+                "  script.onerror = function() {" +
+                "    console.error('Failed to load rrweb script from CDN');" +
                 "    if (typeof RRWebAndroid !== 'undefined' && RRWebAndroid.logError) {" +
-                "      RRWebAndroid.logError('Failed to start recording: ' + e.message + ', Stack: ' + e.stack);" +
+                "      RRWebAndroid.logError('Failed to load rrweb from CDN: " + RRWEB_CDN_URL + "');" +
+                "    }" +
+                "  };" +
+                "  " +
+                "  document.head.appendChild(script);" +
+                "  " +
+                " \n // Function to initialize rrweb recording \n" +
+                "  function initRRWebRecording() {" +
+                "    if (window.rrwebRecorder) {" +
+                "      console.log('RRWeb already initialized');" +
+                "      if (typeof RRWebAndroid !== 'undefined' && RRWebAndroid.logError) {" +
+                "        RRWebAndroid.logError('RRWeb already initialized');" +
+                "      }" +
+                "      return;" +
+                "    }" +
+                "    " +
+                "    if (typeof rrweb === 'undefined') {" +
+                "      console.error('rrweb is not defined after load');" +
+                "      if (typeof RRWebAndroid !== 'undefined' && RRWebAndroid.logError) {" +
+                "        RRWebAndroid.logError('rrweb is not defined after load');" +
+                "      }" +
+                "      return;" +
+                "    }" +
+                "    " +
+                "    if (typeof rrweb.record !== 'function') {" +
+                "      console.error('rrweb.record is not a function');" +
+                "      if (typeof RRWebAndroid !== 'undefined' && RRWebAndroid.logError) {" +
+                "        RRWebAndroid.logError('rrweb.record is not a function');" +
+                "      }" +
+                "      return;" +
+                "    }" +
+                "    " +
+                "    try {" +
+                "      console.log('Calling rrweb.record...');" +
+                "      window.rrwebRecorder = rrweb.record({" +
+                "        emit: function(event) {" +
+                "          try {" +
+                "            console.log('RRWeb sending Events:', event.type);" +
+                "            if (typeof RRWebAndroid !== 'undefined' && RRWebAndroid.sendEvent) {" +
+                "              RRWebAndroid.sendEvent(JSON.stringify(event));" +
+                "            }" +
+                "          } catch(e) {" +
+                "            console.error('Failed to send event:', e);" +
+                "            if (typeof RRWebAndroid !== 'undefined' && RRWebAndroid.logError) {" +
+                "              RRWebAndroid.logError('Failed to send event: ' + e.message);" +
+                "            }" +
+                "          }" +
+                "        }," +
+                "        checkoutEveryNms: 10000," +
+                "        maskAllInputs: " + agentConfiguration.getSessionReplayConfiguration().isMaskUserInputText() + "," +
+                "        maskTextClass: 'rr-mask'," +
+                "        inlineStylesheet: true," +
+                "        inlineImages: false," +
+                "        sampling: {" +
+                "          mousemove: true," +
+                "          mouseInteraction: true," +
+                "          scroll: 150," +
+                "          input: 'last'" +
+                "        }" +
+                "      });" +
+                "      console.log('RRWeb recording started successfully');" +
+                "      if (typeof RRWebAndroid !== 'undefined' && RRWebAndroid.logError) {" +
+                "        RRWebAndroid.logError('RRWeb recording started successfully');" +
+                "      }" +
+                "    } catch(e) {" +
+                "      console.error('Failed to start recording:', e);" +
+                "      if (typeof RRWebAndroid !== 'undefined' && RRWebAndroid.logError) {" +
+                "        RRWebAndroid.logError('Failed to start recording: ' + e.message + ', Stack: ' + e.stack);" +
+                "      }" +
                 "    }" +
                 "  }" +
                 "})();";
@@ -234,27 +257,5 @@ public class RRWebRecorder implements RRWebJavaScriptInterface.RRWebEventListene
         // For example: send to server, store locally, etc.
 
         SessionReplay.getInstance().recordSessionReplayEvent(event.toString());
-    }
-
-    private String loadRRWebScript() {
-        try {
-            BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(
-                            context.getAssets().open(RRWEB_ASSET_FILE),
-                            StandardCharsets.UTF_8
-                    )
-            );
-            StringBuilder script = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                script.append(line);
-            }
-            reader.close();
-            Log.d(TAG, "Successfully loaded rrweb script from assets, size: " + script.length() + " bytes");
-            return script.toString();
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to load rrweb script from assets. Ensure rrweb.min.js exists in agent/src/main/assets/", e);
-            return "";
-        }
     }
 }
