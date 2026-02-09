@@ -1,25 +1,11 @@
 name: Compatibility Matrix Test
 
 on:
-  # Run every morning at 9 AM UTC (adjust to your timezone)
+  # Run every morning at 9 AM UTC on the main branch
   schedule:
     - cron: '0 9 * * *'
 
-  # Trigger on pull requests to develop or main
-  pull_request:
-    branches:
-      - develop
-      - main
-    paths:
-      - 'agent/**'
-      - 'agent-core/**'
-      - 'instrumentation/**'
-      - 'plugins/gradle/**'
-      - 'samples/agent-test-app/**'
-      - '.github/workflows/compatibility-matrix-test.yml'
-      - '.github/workflows/compatibility-matrix.json'
-
-  # Allow manual trigger
+  # Allow manual trigger from any branch
   workflow_dispatch:
     inputs:
       combination:
@@ -46,13 +32,22 @@ jobs:
       - name: Set up matrix from JSON
         id: set-matrix
         run: |
-          # Read the compatibility matrix JSON
-          MATRIX=$(cat .github/workflows/compatibility-matrix.json | jq -c '.combinations')
+          # Read the compatibility matrix JSON and filter out disabled combinations
+          MATRIX=$(cat .github/workflows/compatibility-matrix.json | jq -c '[.combinations[] | select(.enabled // true == true)]')
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
           # Print the matrix for debugging
-          echo "Test combinations:"
+          echo "Enabled test combinations:"
           echo "$MATRIX" | jq -r '.[] | "  - \(.name): AGP \(.agp), Gradle \(.gradle), Java \(.java), Kotlin \(.kotlin)"'
+
+          # Print disabled combinations for reference
+          DISABLED=$(cat .github/workflows/compatibility-matrix.json | jq -c '[.combinations[] | select(.enabled == false)]')
+          DISABLED_COUNT=$(echo "$DISABLED" | jq 'length')
+          if [ "$DISABLED_COUNT" -gt 0 ]; then
+            echo ""
+            echo "Disabled combinations (future versions):"
+            echo "$DISABLED" | jq -r '.[] | "  - \(.name): \(.note // "Future version")"'
+          fi
 
   # Build the agent once and cache it for all test jobs
   build-agent:
@@ -230,7 +225,9 @@ jobs:
 
           EOF
 
-  # Comment on PR with results (if this was triggered by a PR)
+  # Comment on PR with results (only runs if workflow is triggered by a pull_request event)
+  # Note: This job is disabled by default since the workflow runs on schedule/manual trigger
+  # Re-enable by adding 'pull_request:' trigger if needed
   comment:
     name: Post PR Comment
     runs-on: ubuntu-latest

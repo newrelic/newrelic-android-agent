@@ -331,6 +331,16 @@ main() {
             continue
         fi
 
+        # Check if combination is enabled (default to true if not specified)
+        local enabled=$(jq -r ".combinations[$i].enabled // true" "$MATRIX_JSON")
+        if [[ "$enabled" == "false" ]]; then
+            log_info "Skipping disabled combination: $name"
+            local note=$(jq -r ".combinations[$i].note // \"Future version\"" "$MATRIX_JSON")
+            log_info "Note: $note"
+            echo ""
+            continue
+        fi
+
         local agp=$(jq -r ".combinations[$i].agp" "$MATRIX_JSON")
         local gradle=$(jq -r ".combinations[$i].gradle" "$MATRIX_JSON")
         local java=$(jq -r ".combinations[$i].java" "$MATRIX_JSON")
