@@ -209,18 +209,27 @@ test_combination() {
     cd "$TEST_APP_DIR"
     log_info "Updating Gradle wrapper to $gradle..."
 
-    # Try using gradle command if available, otherwise use gradlew
-    if command -v gradle &> /dev/null; then
-        gradle wrapper --gradle-version "$gradle" > /dev/null 2>&1 || {
-            log_warning "Using installed Gradle to update wrapper"
-        }
-    else
-        # Fallback: update the wrapper properties file directly
-        local wrapper_props="$PROJECT_ROOT/gradle/wrapper/gradle-wrapper.properties"
-        if [[ -f "$wrapper_props" ]]; then
-            sed -i.bak "s|gradle-[0-9.]*-bin.zip|gradle-$gradle-bin.zip|g" "$wrapper_props"
+    local wrapper_props="$TEST_APP_DIR/gradle/wrapper/gradle-wrapper.properties"
+
+    # Update the wrapper properties file directly
+    if [[ -f "$wrapper_props" ]]; then
+        # Update the distribution URL
+        sed -i.bak "s|gradle-[0-9.]*-bin.zip|gradle-$gradle-bin.zip|g" "$wrapper_props"
+
+        # Remove SHA256 checksum line to avoid verification failures
+        # (Gradle will download without verification, which is acceptable for CI testing)
+        sed -i.bak2 '/distributionSha256Sum/d' "$wrapper_props"
+
+        # Clean up backup files
+        rm -f "$wrapper_props.bak" "$wrapper_props.bak2"
+
+        if $VERBOSE; then
             log_info "Updated wrapper properties file"
+            log_info "Gradle version: $(grep distributionUrl "$wrapper_props" | sed 's/.*gradle-//' | sed 's/-bin.zip//')"
         fi
+    else
+        log_error "Wrapper properties file not found at: $wrapper_props"
+        return 1
     fi
 
     # Backup and update gradle.properties with version parameters
