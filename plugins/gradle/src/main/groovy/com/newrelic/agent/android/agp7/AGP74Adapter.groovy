@@ -32,11 +32,20 @@ class AGP74Adapter extends AGP70Adapter {
     @Override
     Provider<BuildTypeAdapter> getBuildTypeProvider(String variantName) {
         def variant = withVariant(variantName)
-        def isMinifyEnabled = variant.properties.getOrDefault('minifyEnabled',
-                variant.properties.get("minifiedEnabled"))  // really?
+
+        // Access minifyEnabled through BuildType configuration to avoid AGP warnings
+        def isMinifyEnabled = false
+        try {
+            def buildTypeConfig = buildHelper.androidExtension.buildTypes.getByName(variant.buildType)
+            isMinifyEnabled = buildTypeConfig.minifyEnabled
+        } catch (Exception e) {
+            logger.warn("Could not determine minify state for variant ${variantName}: ${e.message}")
+        }
+
         if (buildHelper.dexguardHelper && buildHelper.dexguardHelper.enabled) {
             isMinifyEnabled |= buildHelper.dexguardHelper.variantConfigurations.get().containsKey(variantName)
         }
+
         def buildTypeAdapter = new BuildTypeAdapter(variant.name, isMinifyEnabled, variant.flavorName, variant.buildType)
 
         return objectFactory.property(BuildTypeAdapter).value(buildTypeAdapter)

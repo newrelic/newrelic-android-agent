@@ -7,7 +7,7 @@ package com.newrelic.agent.android
 
 import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.agp7.AGP74Adapter
-import com.newrelic.agent.android.agp7.AGP90Adapter
+import com.newrelic.agent.android.agp9.AGP90Adapter
 import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.util.BuildId
 import org.gradle.api.Action
@@ -68,7 +68,7 @@ abstract class VariantAdapter {
             return new AGP4Adapter(buildHelper)
         }
 
-        if (currentGradleVersion < GradleVersion.version("9.0")) {
+        if (currentAgpVersion < GradleVersion.version("9.0")) {
             return new AGP74Adapter(buildHelper)
         }
 
