@@ -191,8 +191,7 @@ open class ComposeTextViewThingy(
     }
 
     private fun generateTextCss(cssBuilder: StringBuilder) {
-        cssBuilder.append("white-space: pre-wrap;")
-        cssBuilder.append("word-wrap: break-word;")
+        cssBuilder.append("white-space: pre-wrap;overflow: hidden;text-overflow: ellipsis;")
         cssBuilder.append(" ")
         cssBuilder.append("font-size: ")
         cssBuilder.append(formattedFontSize)
@@ -203,7 +202,6 @@ open class ComposeTextViewThingy(
         cssBuilder.append("text-align: ")
         cssBuilder.append(textAlign)
         cssBuilder.append("; ")
-        cssBuilder.append("line-height: normal; ")
         cssBuilder.append("font-family: ")
         cssBuilder.append(fontFamily)
         cssBuilder.append("; ")
