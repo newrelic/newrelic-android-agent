@@ -13,7 +13,7 @@ import java.util.Objects; // For hashCode and equals
 
 public class ViewDetails {
     public final int viewId;
-    public final Rect frame;
+    public Rect frame; // Changed from final to support testing
     public final String backgroundColor;
     public final float alpha;
     public final boolean isHidden;
@@ -143,9 +143,6 @@ public class ViewDetails {
                 .append(frame.width())
                 .append("px;")
                 .append("height: ")
-                .append(frame.height())
-                .append("px;")
-                .append("line-height: ")
                 .append(frame.height())
                 .append("px;");
 

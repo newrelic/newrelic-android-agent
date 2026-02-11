@@ -7,7 +7,7 @@ package com.newrelic.agent.android
 
 import com.newrelic.agent.android.agp4.AGP4Adapter
 import com.newrelic.agent.android.agp7.AGP74Adapter
-import com.newrelic.agent.android.agp7.AGP90Adapter
+import com.newrelic.agent.android.agp9.AGP90Adapter
 import com.newrelic.agent.android.obfuscation.Proguard
 import com.newrelic.agent.util.BuildId
 import org.gradle.api.Action
@@ -68,7 +68,7 @@ abstract class VariantAdapter {
             return new AGP4Adapter(buildHelper)
         }
 
-        if (currentGradleVersion < GradleVersion.version("9.0")) {
+        if (currentAgpVersion < GradleVersion.version("9.0")) {
             return new AGP74Adapter(buildHelper)
         }
 
@@ -216,12 +216,12 @@ abstract class VariantAdapter {
                 def containsTag = exists && mf.text.contains(tag)
                 def shouldExecute = exists && !containsTag
 
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Checking execution conditions for variant [${variantName}]")
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file path: ${mf.absolutePath}")
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file exists: ${exists}")
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Build ID tag: ${tag}")
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file contains tag: ${containsTag}")
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Should execute: ${shouldExecute}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Checking execution conditions for variant [${variantName}]")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file path: ${mf.absolutePath}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file exists: ${exists}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Build ID tag: ${tag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file contains tag: ${containsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Should execute: ${shouldExecute}")
 
                 return shouldExecute
             }
@@ -233,11 +233,11 @@ abstract class VariantAdapter {
                 def containsTag = exists && mf.text.contains(tag)
                 def isUpToDate = exists && containsTag
 
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Checking up-to-date status for variant [${variantName}]")
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Mapping file path: ${mf.absolutePath}")
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Mapping file exists: ${exists}")
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Contains tag: ${containsTag}")
-                buildHelper.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Is up-to-date: ${isUpToDate}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Checking up-to-date status for variant [${variantName}]")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Mapping file path: ${mf.absolutePath}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Mapping file exists: ${exists}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Contains tag: ${containsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Is up-to-date: ${isUpToDate}")
 
                 return isUpToDate
             }
