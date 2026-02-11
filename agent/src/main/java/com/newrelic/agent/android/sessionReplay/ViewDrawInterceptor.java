@@ -37,86 +37,92 @@ public class ViewDrawInterceptor  {
 
 
     public void Intercept(View[] decorViews) {
-        stopInterceptAndRemove(decorViews);
-        ViewTreeObserver.OnDrawListener listener = () -> {
-            long currentTime = System.currentTimeMillis();
-            Log.d("ViewDrawInterceptor", "onDraw() called" + " at " + currentTime + " lastCaptureTime: " + lastCaptureTime + " interval: " + CAPTURE_INTERVAL);
-
-            captureDebouncer.debounce(() -> {
-                // Use debouncer to limit capture frequency
-                lastCaptureTime = currentTime;
-                Log.d("ViewDrawInterceptor", "Capturing frame");
-
-                // Safely get context - the view may have been detached by the time this runs
-                if (decorViews == null || decorViews.length == 0) {
-                    Log.w("ViewDrawInterceptor", "decorViews is null or empty, skipping frame capture");
-                    return;
-                }
-
-                View firstView = decorViews[0];
-                if (firstView == null) {
-                    Log.w("ViewDrawInterceptor", "First decor view is null, skipping frame capture");
-                    return;
-                }
-
-                Context viewContext = firstView.getContext();
-                if (viewContext == null) {
-                    Log.w("ViewDrawInterceptor", "View context is null (view may be detached), skipping frame capture");
-                    return;
-                }
-
-                Context context = viewContext.getApplicationContext();
-                if (context == null) {
-                    Log.w("ViewDrawInterceptor", "Application context is null, skipping frame capture");
-                    return;
-                }
-
-                float density = context.getResources().getDisplayMetrics().density;
-
-                // Get screen dimensions
-                Point screenSize = getScreenDimensions(context);
-                int width = (int) (screenSize.x / density);
-                int height = (int) (screenSize.y / density);
-
-                // Start timing the frame creation
-                long frameCreationStart = System.currentTimeMillis();
-
-
-                // Capture the LAST decorView (most recently added window)
-                //
-                // Why the last element?
-                // - Android maintains decorViews in a stack ordered by z-index (rendering order)
-                // - Index 0: Base activity window (bottom layer)
-                // - Index 1..n-1: Dialogs, popups, toasts (middle layers)
-                // - Index n-1: Most recent window (top layer) - THIS IS WHAT USER SEES
-                //
-                // Examples:
-                // - MainActivity (index 0) + AlertDialog (index 1) → We capture index 1 (the visible dialog)
-                // - Activity + Popup Menu → We capture the popup (most recent interaction)
-                // - Activity only → We capture index 0 (the only window)
-                //
-                // This approach captures what the user is currently interacting with, which is
-                // always the topmost (most recent) window in the decorViews array.
-                //
-                // Alternative considered: Merge all decorViews into a composite snapshot
-                // Reason not implemented: Performance overhead + complexity of merging z-indexed views
-                View topMostView = decorViews[decorViews.length - 1];
-                SessionReplayFrame frame = new SessionReplayFrame(
-                    capture.capture(topMostView, agentConfiguration),
-                    System.currentTimeMillis(),
-                    width,
-                    height
-                );
-
-                // Calculate frame creation time
-                long frameCreationTime = System.currentTimeMillis() - frameCreationStart;
-                Log.d("ViewDrawInterceptor", "Frame creation took: " + frameCreationTime + "ms");
-                // Create a SessionReplayFrame, then add it to a thing to wait for processing
-                ViewDrawInterceptor.this.listener.onFrameTaken(frame);
-            });
-        };
-
         for(View decorView : decorViews) {
+            // Remove existing listener if present
+            ViewTreeObserver.OnDrawListener existingListener = decorViewListeners.remove(decorView);
+            if (existingListener != null) {
+                safeObserverRemoval(decorView, existingListener);
+            }
+
+            // Create NEW unique listener for THIS view
+            ViewTreeObserver.OnDrawListener listener = () -> {
+                long currentTime = System.currentTimeMillis();
+                Log.d("ViewDrawInterceptor", "onDraw() called" + " at " + currentTime + " lastCaptureTime: " + lastCaptureTime + " interval: " + CAPTURE_INTERVAL);
+
+                captureDebouncer.debounce(() -> {
+                    // Use debouncer to limit capture frequency
+                    lastCaptureTime = currentTime;
+                    Log.d("ViewDrawInterceptor", "Capturing frame");
+
+                    // Safely get context - the view may have been detached by the time this runs
+                    if (decorViews == null || decorViews.length == 0) {
+                        Log.w("ViewDrawInterceptor", "decorViews is null or empty, skipping frame capture");
+                        return;
+                    }
+
+                    View firstView = decorViews[0];
+                    if (firstView == null) {
+                        Log.w("ViewDrawInterceptor", "First decor view is null, skipping frame capture");
+                        return;
+                    }
+
+                    Context viewContext = firstView.getContext();
+                    if (viewContext == null) {
+                        Log.w("ViewDrawInterceptor", "View context is null (view may be detached), skipping frame capture");
+                        return;
+                    }
+
+                    Context context = viewContext.getApplicationContext();
+                    if (context == null) {
+                        Log.w("ViewDrawInterceptor", "Application context is null, skipping frame capture");
+                        return;
+                    }
+
+                    float density = context.getResources().getDisplayMetrics().density;
+
+                    // Get screen dimensions
+                    Point screenSize = getScreenDimensions(context);
+                    int width = (int) (screenSize.x / density);
+                    int height = (int) (screenSize.y / density);
+
+                    // Start timing the frame creation
+                    long frameCreationStart = System.currentTimeMillis();
+
+
+                    // Capture the LAST decorView (most recently added window)
+                    //
+                    // Why the last element?
+                    // - Android maintains decorViews in a stack ordered by z-index (rendering order)
+                    // - Index 0: Base activity window (bottom layer)
+                    // - Index 1..n-1: Dialogs, popups, toasts (middle layers)
+                    // - Index n-1: Most recent window (top layer) - THIS IS WHAT USER SEES
+                    //
+                    // Examples:
+                    // - MainActivity (index 0) + AlertDialog (index 1) → We capture index 1 (the visible dialog)
+                    // - Activity + Popup Menu → We capture the popup (most recent interaction)
+                    // - Activity only → We capture index 0 (the only window)
+                    //
+                    // This approach captures what the user is currently interacting with, which is
+                    // always the topmost (most recent) window in the decorViews array.
+                    //
+                    // Alternative considered: Merge all decorViews into a composite snapshot
+                    // Reason not implemented: Performance overhead + complexity of merging z-indexed views
+                    View topMostView = decorViews[decorViews.length - 1];
+                    SessionReplayFrame frame = new SessionReplayFrame(
+                        capture.capture(topMostView, agentConfiguration),
+                        System.currentTimeMillis(),
+                        width,
+                        height
+                    );
+
+                    // Calculate frame creation time
+                    long frameCreationTime = System.currentTimeMillis() - frameCreationStart;
+                    Log.d("ViewDrawInterceptor", "Frame creation took: " + frameCreationTime + "ms");
+                    // Create a SessionReplayFrame, then add it to a thing to wait for processing
+                    ViewDrawInterceptor.this.listener.onFrameTaken(frame);
+                });
+            };
+
             ViewTreeObserver viewTreeObserver = decorView.getViewTreeObserver();
             if(viewTreeObserver != null && viewTreeObserver.isAlive()) {
                 try{
@@ -138,13 +144,17 @@ public class ViewDrawInterceptor  {
 
     private void stopInterceptAndRemove(View[] decorViews) {
         for(View view : decorViews) {
-            ViewTreeObserver.OnDrawListener listener = decorViewListeners.get(view);
-            safeObserverRemoval(view, listener);
+            ViewTreeObserver.OnDrawListener listener = decorViewListeners.remove(view);
+            if (listener != null) {
+                safeObserverRemoval(view, listener);
+            }
         }
-        decorViewListeners.clear();
     }
 
     private void safeObserverRemoval(View view, ViewTreeObserver.OnDrawListener listener) {
+        if (listener == null) {
+            return;
+        }
         if(view.getViewTreeObserver().isAlive()) {
             try {
                 view.getViewTreeObserver().removeOnDrawListener(listener);
