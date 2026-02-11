@@ -55,6 +55,8 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
 
         // Use ApplicationContext (this.context) instead of input context to avoid
         // ClassCastException with Microsoft Intune MAM's MAMContext wrapper
+
+        AppTracer.getInstance().setAppOnCreateTime(SystemClock.uptimeMillis());
         if (this.context instanceof Application) {
             ((Application) this.context).registerActivityLifecycleCallbacks(this);
         } else {
@@ -113,22 +115,25 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
 
             log.debug(activity.getLocalClassName());
             AppTracer tracer = AppTracer.getInstance();
-            tracer.setFirstActivityResumeTime(SystemClock.uptimeMillis());
-            AppStartUpMetrics metrics = new AppStartUpMetrics();
             if (!firstActivityResumed
                     && (agentConfiguration.getLaunchActivityClassName() == null
                     || (agentConfiguration.getLaunchActivityClassName().equalsIgnoreCase(activity.getLocalClassName())))) {
                 firstActivityResumed = true;
+                tracer.setFirstActivityResumeTime(SystemClock.uptimeMillis());
+                AppStartUpMetrics metrics = new AppStartUpMetrics();
                 if (tracer.isColdStart()) {
                     StatsEngine.get().sample(MetricNames.APP_LAUNCH_COLD, metrics.getColdStartTime() / 1000.0f);
                 }
+                log.debug("App launch time " + metrics.toString());
             } else {
                 if (isForegrounded) {
                     isForegrounded = false;
+                    tracer.setFirstActivityResumeTime(SystemClock.uptimeMillis());
+                    AppStartUpMetrics metrics = new AppStartUpMetrics();
                     StatsEngine.get().sample(MetricNames.APP_LAUNCH_HOT, metrics.getHotStartTime() / 1000.0f);
+                    log.debug("App launch time " + metrics.toString());
                 }
             }
-            log.debug("App launch time " + metrics.toString());
         } catch (Exception ex) {
             log.error("App launch time exception: " + ex);
         }
