@@ -225,7 +225,7 @@ public class SessionReplayConfiguration {
     }
 
     public boolean isSessionReplayEnabled() {
-        return this.enabled && isSampled();
+        return this.enabled;
     }
 
     /**
@@ -235,6 +235,9 @@ public class SessionReplayConfiguration {
         return sampleSeed <= samplingRate;
     }
 
+    public boolean isErrorSampled() {
+        return sampleSeed <= errorSamplingRate;
+    }
 
 
 
