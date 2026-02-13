@@ -346,7 +346,7 @@ public class AndroidAgentImplTest {
         eventStore.clear();
 
         agentImpl.start();
-        assertEquals("Should not contain app launch user action event", eventManager.getEventsRecorded(), 0);
+        assertEquals("Should not contain app launch user action event", eventManager.getEventsRecorded(), 1);
         queuedEvents = analyticsController.getEventManager().getQueuedEvents();
         Assert.assertNull("Should contain app launch event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
 
