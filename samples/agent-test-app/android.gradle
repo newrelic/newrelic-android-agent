@@ -11,8 +11,14 @@ android {
     compileSdk versions.agp.compileSdk
 
     defaultConfig {
+        def agpMajor = versions.agp.plugin.tokenize('.')[0].toInteger()
+        if (agpMajor < 8) {
+            targetSdkVersion 33
+            compileSdkVersion 33
+        } else {
+            targetSdkVersion versions.agp.targetSdk
+        }
         minSdkVersion versions.agp.minSdk
-        targetSdkVersion versions.agp.targetSdk
         versionCode 1
         versionName "1.1"
     }
@@ -39,6 +45,19 @@ android {
                 break
 
             case 'r8':
+                debug {
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), "${rootDir}/proguard-rules.pro"
+                    minifyEnabled project.minifyEnabled.toBoolean()
+                }
+                qa {
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), "${rootDir}/proguard-rules.pro"
+                    minifyEnabled project.minifyEnabled.toBoolean()
+                }
+                release {
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), "${rootDir}/proguard-rules.pro"
+                    minifyEnabled project.minifyEnabled.toBoolean()
+                }
+                break
             case 'proguard':
                 debug {
                     proguardFiles getDefaultProguardFile('proguard-android.txt'), "${rootDir}/proguard-rules.pro"
@@ -85,6 +104,19 @@ dependencies {
 
     implementation fileTree(dir: 'libs', include: '*.jar')
     implementation "org.bouncycastle:bcprov-jdk18on:${versions.bcprov}"
+
+    def agpMajor = versions.agp.plugin.tokenize('.')[0].toInteger()
+    if (agpMajor > 8) {
+        // Force newer vectordrawable versions for AGP 9.0 compatibility (namespace uniqueness)
+        constraints {
+            implementation('androidx.vectordrawable:vectordrawable:1.2.0') {
+                because 'AGP 9.0 requires unique namespaces'
+            }
+            implementation('androidx.vectordrawable:vectordrawable-animated:1.2.0') {
+                because 'AGP 9.0 requires unique namespaces'
+            }
+        }
+    }
 }
 
 //

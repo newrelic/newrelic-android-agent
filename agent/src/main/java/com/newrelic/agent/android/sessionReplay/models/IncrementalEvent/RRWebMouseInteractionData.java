@@ -7,7 +7,7 @@ public class RRWebMouseInteractionData extends RRWebIncrementalData {
     public float y;
     
     public RRWebMouseInteractionData(int type, int id, float x, float y) {
-        this.source = RRWebIncrementalSource.MOUSE_INTERACTION;
+        this.source = RRWebIncrementalSource.TOUCH_MOVE;
         this.type = type;
         this.id = id;
         this.x = x;

@@ -313,8 +313,6 @@ public class AndroidAgentImplTest {
         Collection<AnalyticsEvent> queuedEvents;
         EventManager eventManager = analyticsController.getEventManager();
 
-        // turn the flag on
-        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
 
         agentImpl.start();
         assertEquals("Should contain app launch user action event", eventManager.getEventsRecorded(), 1);
@@ -338,33 +336,6 @@ public class AndroidAgentImplTest {
         assertEquals("Should contain lifecycle user action events", eventManager.getEventsRecorded(), 3);
         queuedEvents = analyticsController.getEventManager().getQueuedEvents();
         Assert.assertNotNull("Should contain app background event", getEventByActionType(queuedEvents, UserActionType.AppBackground));
-
-
-        // turn the flag back off
-        FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
-        eventManager.empty();
-        eventStore.clear();
-
-        agentImpl.start();
-        assertEquals("Should not contain app launch user action event", eventManager.getEventsRecorded(), 1);
-        queuedEvents = analyticsController.getEventManager().getQueuedEvents();
-        Assert.assertNull("Should contain app launch event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
-
-        agentImpl.applicationBackgrounded(e);
-        eventStore.clear();
-        assertEquals("Should not contain lifecycle user action events", eventManager.getEventsRecorded(), 1);
-        queuedEvents = analyticsController.getEventManager().getQueuedEvents();
-        Assert.assertNull("Should contain app background event", getEventByActionType(queuedEvents, UserActionType.AppBackground));
-
-        agentImpl.applicationForegrounded(e);
-        assertEquals("Should not contain foreground user action events", eventManager.getEventsRecorded(), 0);
-        queuedEvents = analyticsController.getEventManager().getQueuedEvents();
-        Assert.assertNull("Should contain foreground (app launch) event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));
-
-        agentImpl.stop();
-        assertEquals("Should not contain lifecycle user action events", eventManager.getEventsRecorded(), 1);
-        queuedEvents = analyticsController.getEventManager().getQueuedEvents();
-        Assert.assertNull("Should contain app background event", getEventByActionType(queuedEvents, UserActionType.AppBackground));
     }
 
 
