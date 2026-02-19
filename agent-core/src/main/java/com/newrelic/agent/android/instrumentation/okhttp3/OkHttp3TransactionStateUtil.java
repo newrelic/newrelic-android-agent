@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.instrumentation.okhttp3;
 
+import static com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.HttpHeaders;
 import com.newrelic.agent.android.TaskQueue;
@@ -75,6 +76,7 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
             try {
                 contentLength = exhaustiveContentLength(response);
             } catch (Exception e) {
+                // Silently handle - content length is optional
             }
             if (contentLength < 0) {
                 log.debug("OkHttp3TransactionStateUtil: Missing body or content length");
@@ -127,20 +129,9 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
             }
         }
 
-        // If body().contentLength() returns -1, try to peek the buffer to get actual size
-        // Limit peek to New Relic's attribute limit to prevent memory issues
-        if (contentLength < 0L) {
-            try {
-                // Peek up to 4KB + some extra to detect if body is larger
-                long peekLimit = com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH + 1;
-                contentLength = response.peekBody(peekLimit).contentLength();
-                if (contentLength > 0) {
-                    log.debug("Got content length from peekBody: " + contentLength + " bytes");
-                }
-            } catch (IOException e) {
-                log.debug("Failed to peek response body: " + e);
-            }
-        }
+        // NOTE: Do NOT use peekBody() to determine content length for responses with unknown length.
+        // peekBody() can block indefinitely for streaming responses (SSE, chunked transfers, etc.)
+        // causing ~100 second delays. It's acceptable for content length to remain unknown (-1).
 
         return contentLength;
     }
@@ -158,7 +149,7 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
             if (response != null && transactionState.isErrorOrFailure()) {
                 // If there is a Content-Type header present, add it to the error param map.
                 final String contentTypeHeader = response.header(Constants.Network.CONTENT_TYPE_HEADER);
-                Map<String, String> params = new TreeMap<String, String>();
+                Map<String, String> params = new TreeMap<>();
 
                 if (contentTypeHeader != null && !contentTypeHeader.isEmpty()) {
                     params.put(Constants.Transactions.CONTENT_TYPE, contentTypeHeader);
@@ -172,16 +163,19 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
                 String responseBodyString = "";
                 try {
                     long contentLength = exhaustiveContentLength(response);
+                    // Only capture body if content length is known and positive.
+                    // Streaming responses (SSE, chunked) have contentLength = -1,
+                    // so peekBody() won't be called and won't block.
                     if (contentLength > 0) {
                         // Limit response body capture to New Relic's attribute value limit (4096 bytes)
                         // to prevent memory issues and respect platform constraints
-                        long bytesToRead = Math.min(contentLength, com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
+                        long bytesToRead = Math.min(contentLength, ATTRIBUTE_VALUE_MAX_LENGTH);
                         responseBodyString = response.peekBody(bytesToRead).string();
 
                         // Truncate if the string exceeds the limit (multi-byte characters can cause this)
-                        if (responseBodyString.length() > com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH) {
-                            responseBodyString = responseBodyString.substring(0, com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
-                            log.debug("Response body truncated to " + com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH + " characters");
+                        if (responseBodyString.length() > ATTRIBUTE_VALUE_MAX_LENGTH) {
+                            responseBodyString = responseBodyString.substring(0, ATTRIBUTE_VALUE_MAX_LENGTH);
+                            log.debug("Response body truncated to " + ATTRIBUTE_VALUE_MAX_LENGTH + " characters");
                         }
 
                         if (contentLength > bytesToRead) {
@@ -194,16 +188,14 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
                         log.debug("Using response message as fallback");
                         responseBodyString = response.message();
                         // Ensure response message also respects the limit
-                        if (responseBodyString.length() > com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH) {
-                            responseBodyString = responseBodyString.substring(0, com.newrelic.agent.android.analytics.AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
+                        if (responseBodyString.length() > ATTRIBUTE_VALUE_MAX_LENGTH) {
+                            responseBodyString = responseBodyString.substring(0, ATTRIBUTE_VALUE_MAX_LENGTH);
                         }
                     }
                 }
 
                 transactionData.setResponseBody(responseBodyString);
                 transactionData.getParams().putAll(params);
-
-
             }
 
             HttpTransactionMeasurement httpTransactionMeasurement = new HttpTransactionMeasurement(transactionData);
