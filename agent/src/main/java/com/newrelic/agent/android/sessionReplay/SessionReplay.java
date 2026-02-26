@@ -129,6 +129,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         registerCallbacks();
     }
 
+    public static SessionReplay getInstance() {
+        return instance;
+    }
+
     /**
      * Deinitializes the SessionReplay system.
      * This method cleans up resources, unregisters callbacks, and stops recording.
@@ -609,5 +613,22 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         }
 
         return modeManager.transitionTo(newMode, trigger);
+    }
+
+    /**
+     * Records a session replay event from WebView.
+     * This method writes WebView rrweb events to the file manager for persistence and harvest.
+     * Events are stored in the working session replay file and will be included in the next harvest.
+     *
+     * @param jsonString The JSON string representing the session replay event from WebView
+     */
+    public void recordSessionReplayEvent(String jsonString) {
+        // Write to file manager so it gets included in harvest
+        if (fileManager != null) {
+            fileManager.addJsonEventToFile(jsonString);
+            log.debug("WebView event recorded to file manager");
+        } else {
+            log.warn("FileManager is null, WebView event not persisted to file");
+        }
     }
 }

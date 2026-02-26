@@ -2,6 +2,7 @@ package com.newrelic.agent.android.webView;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.graphics.Bitmap;
 import android.util.Log;
 import android.view.View;
 import android.webkit.WebView;
@@ -11,10 +12,12 @@ import android.widget.CompoundButton;
 import android.widget.RadioGroup;
 
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.stats.StatsEngine;
 
 public class WebViewInstrumentationCallbacks {
 
+    private static RRWebRecorder rrwebRecorder;
 
     public static void ButtonClicked(View view) {
         try {
@@ -95,10 +98,61 @@ public class WebViewInstrumentationCallbacks {
     }
 
     public static void loadUrlCalled(WebView var0) {
+        var0.addJavascriptInterface(new RRWebJavaScriptInterface(null), "RRWebAndroid");
+
+
+           var0.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+
+                super.onPageStarted(view, url, favicon);
+
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                try {
+                    if (rrwebRecorder == null) {
+                        rrwebRecorder = new RRWebRecorder(view);
+                    }
+                    rrwebRecorder.startRecording();
+                    Log.d("WebViewInstrumentation", "RRWeb recording enabled");
+                } catch (Exception e) {
+                    Log.e("WebViewInstrumentation", "Failed to enable RRWeb recording", e);
+                }
+                super.onPageFinished(view, url);
+            }
+
+            @Override
+            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                super.onReceivedError(view, errorCode, description, failingUrl);
+            }
+
+
+        });
+
+        var0.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+                Log.d("WebViewLifecycle", "WebView attached to window");
+                // WebView is now visible and active
+
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                Log.d("WebViewLifecycle", "WebView detached from window - cleaning up");
+                // WebView is being removed/destroyed
+                SessionReplay.getInstance().setTakeFullSnapshot(true);
+            }
+        });
+
+
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_LOAD_URL);
     }
 
     public static void postUrlCalled(WebView var0) {
+
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_POST_URL);
     }
 

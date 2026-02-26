@@ -297,6 +297,8 @@ public final class NewRelic {
         }
 
         try {
+//            sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks();
+//            ((Application) context.getApplicationContext()).registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
             AgentLogManager.setAgentLog(loggingEnabled ? new AndroidAgentLog() : new NullAgentLog());
             log.setLevel(logLevel);
 
@@ -1502,5 +1504,47 @@ public final class NewRelic {
             return false;
         }
     }
+
+    /**
+     * Records a session replay event from a JSON string.
+     * <p>
+     * This method allows recording session replay events by providing a JSON string
+     * that represents the event data. The JSON will be parsed and processed as a
+     * session replay event.
+     * <p>
+     * Example: recordSessionReplayEvent("{\"type\":2,\"data\":{...},\"timestamp\":1234567890}")
+     *
+     * @param jsonString The JSON string representing the session replay event
+     * @return true if the event was successfully recorded and queued for delivery
+     */
+    public static void recordSessionReplayEvent(String jsonString) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "recordSessionReplayEvent"));
+
+        if (jsonString == null || jsonString.isEmpty()) {
+            log.error("recordSessionReplayEvent: jsonString must not be null or empty");
+            return;
+        }
+
+        if (!started) {
+            log.error("recordSessionReplayEvent: NewRelic agent is not started");
+            return;
+        }
+
+        try {
+            // Parse the JSON string and validate it represents a valid session replay event
+            // This would integrate with the existing session replay infrastructure
+             SessionReplay.getInstance().recordSessionReplayEvent(jsonString);
+        } catch (Exception e) {
+            log.error("recordSessionReplayEvent: Failed to parse or record session replay event", e);
+            if (FeatureFlag.featureEnabled(FeatureFlag.HandledExceptions)) {
+                recordHandledException(e);
+            }
+            return;
+        }
+    }
+
+
+
 
 }

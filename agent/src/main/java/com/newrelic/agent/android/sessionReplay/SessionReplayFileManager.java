@@ -183,6 +183,41 @@ public class SessionReplayFileManager {
         submitFileWriteTask(fileWriteTask);
     }
 
+    /**
+     * Adds a JSON event (from WebView) to the working session replay file.
+     * This method handles session replay events coming from WebViews as JSON strings.
+     *
+     * @param jsonString The JSON string representing the session replay event
+     */
+    public void addJsonEventToFile(final String jsonString) {
+        Callable<Void> fileWriteTask = new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                synchronized (fileSyncLock) {
+                    try {
+                        if (workingSessionReplayFileWriter.get() != null) {
+                            // Parse JSON to ensure it's valid before writing
+                            JsonObject jsonObject = JsonParser.parseString(jsonString).getAsJsonObject();
+                            workingSessionReplayFileWriter.get().write(gson.toJson(jsonObject));
+                            workingSessionReplayFileWriter.get().newLine();
+                        }
+                        BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
+                        if (currentWriter != null) {
+                            currentWriter.flush();
+                        }
+                    } catch (IOException e) {
+                        log.error("Error writing JSON event to file", e);
+                    } catch (Exception e) {
+                        log.error("Error parsing JSON event: " + jsonString, e);
+                    }
+                }
+                return null;
+            }
+        };
+
+        submitFileWriteTask(fileWriteTask);
+    }
+
     public void clearWorkingFileWhileRunningSession() {
         Callable<Void> clearFileTask = new Callable<Void>() {
             @Override
