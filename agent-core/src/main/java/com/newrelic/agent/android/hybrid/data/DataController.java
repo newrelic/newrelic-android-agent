@@ -12,6 +12,7 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.agentdata.AgentDataReporter;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.crash.ApplicationInfo;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -29,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 public class DataController {
     protected static final AgentConfiguration agentConfiguration = new AgentConfiguration();
@@ -139,6 +141,30 @@ public class DataController {
             } catch (Exception error) {
                 log.error("HandledJSError: exception " + stackTrace.getClass().getName() + " failed to record data.");
             }
+        }
+
+        return false;
+    }
+
+    public static boolean sendJSErrorData(StackTrace stackTrace) {
+        final HashMap<String, Object> eventAttributes = new HashMap<>();
+        try {
+            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORID, UUID.randomUUID().toString());
+            eventAttributes.put(AnalyticsAttribute.JSERROR_THREADS, stackTrace.getStacks());
+            eventAttributes.put(AnalyticsAttribute.JSERROR_ISFATAL, stackTrace.isFatal());
+            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORTYPE, "***Missing Error Type****");
+            eventAttributes.put(AnalyticsAttribute.JSERROR_DESCRIPTION, "***Missing Description***");
+            eventAttributes.put(AnalyticsAttribute.JSERROR_CAUSE, stackTrace.getCause());
+            eventAttributes.put(AnalyticsAttribute.JSERROR_TIMESTAMP, System.currentTimeMillis());
+            eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_JSERROR);
+
+            JSErrorDataReporter jsErrorReporter = JSErrorDataReporter.getInstance();
+            final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+            JSError jsError = new JSError(analyticsController.getSessionAttributes(), eventAttributes);
+            jsErrorReporter.reportJSErrorData(jsError.asJsonObject().toString().getBytes());
+            return true;
+        }catch(Exception ex){
+            log.error("HandledJSError: exception " + ex.getClass().getName() + " failed to send data.");
         }
 
         return false;
