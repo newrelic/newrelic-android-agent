@@ -1129,6 +1129,15 @@ public final class NewRelic {
     }
 
     /**
+     * Records a JSError exception.
+     *
+     * @param stackTrace Stack trace of the exception
+     */
+    public static boolean recordJavaScriptErrorException(StackTrace stackTrace) {
+        return DataController.sendJSErrorData(stackTrace);
+    }
+
+    /**
      * Adds a set of request header instrumentation targets
      *
      * @param headers
