@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+
+import com.android.Version
 import org.slf4j.LoggerFactory
 
 buildscript {
@@ -28,8 +30,8 @@ buildscript {
                 gradle  : hasOptional("newrelic.gradle.version", "7.6"),
                 agp     : [
                         plugin    : hasOptional('newrelic.agp.version', "7.0.+"),
-                        targetSdk : 31,
-                        compileSdk: 31,
+                        targetSdk : 35,
+                        compileSdk: 35,
                         minSdk    : 26,
                         supportLib: "28.+"
                 ],
@@ -45,6 +47,14 @@ buildscript {
 
     dependencies {
         classpath newrelic.deps.plugin
+
+        // Only add Kotlin plugin classpath for AGP < 9.0
+        // AGP 9.0+ has built-in Kotlin support
+        def agpMajor = versions.agp.plugin.tokenize('.')[0].toInteger()
+        if (agpMajor < 9) {
+            classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
+        }
+
         if (project.compiler.startsWith('dexguard')) {
             classpath "com.guardsquare:dexguard-gradle-plugin:${versions.dexguard.plugin}"
         }
@@ -53,7 +63,13 @@ buildscript {
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+}
+
+// Conditionally apply Kotlin plugin only for AGP < 9.0
+// AGP 9.0+ has built-in Kotlin support
+def agpVersion = Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger()
+if (agpVersion < 9) {
+    apply plugin: 'org.jetbrains.kotlin.android'
 }
 
 allprojects {
@@ -73,6 +89,16 @@ android {
 
     namespace "com.newrelic.agent.android.testapp"
 
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    if (agpVersion < 9) {
+        kotlinOptions {
+            jvmTarget = '11'
+        }
+    }
 
     if (findProject(":feature")) {
         dynamicFeatures = [':feature']

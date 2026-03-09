@@ -347,7 +347,7 @@ public class MobileSessionReplayConfiguration {
      * @return The current text masking strategy
      */
     public TextMaskingStrategy getTextMaskingStrategy() {
-        return textMaskingStrategy;
+        return this.textMaskingStrategy;
     }
 
     /**

@@ -49,6 +49,14 @@ public class ViewBackgroundHelper {
      */
     @NonNull
     private static String getDrawableColor(Drawable drawable) {
+        // Check for React Native BackgroundDrawable first
+        // This must be done via reflection since BackgroundDrawable is part of React Native
+        // and may not be present in all apps
+        Integer rnBackgroundColor = ReflectionUtils.getReactNativeBackgroundColor(drawable);
+        if (rnBackgroundColor != null) {
+            return toRGBAHexString(rnBackgroundColor);
+        }
+
         if (drawable instanceof ColorDrawable) {
             int color = ((ColorDrawable) drawable).getColor();
             String colorString = toRGBAHexString(color);
@@ -89,12 +97,18 @@ public class ViewBackgroundHelper {
             }
         } else if (drawable instanceof LayerDrawable) {
             // LayerDrawable is a stack of drawables.
-            // The background color might be the color of the bottom layer.
+            // Check ALL layers to find a valid color (handles React Native's CompositeBackgroundDrawable)
             LayerDrawable layerDrawable = (LayerDrawable) drawable;
-            if (layerDrawable.getNumberOfLayers() > 0) {
-                // Get the bottom layer
-                Drawable bottomLayer = layerDrawable.getDrawable(0);
-                return getDrawableColor(bottomLayer);
+
+            for (int i = 0; i < layerDrawable.getNumberOfLayers(); i++) {
+                Drawable layer = layerDrawable.getDrawable(i);
+                if (layer != null) {
+                    String color = getDrawableColor(layer);
+                    // Return the first valid color we find
+                    if (!color.isEmpty()) {
+                        return color;
+                    }
+                }
             }
         } else if (drawable instanceof BitmapDrawable) {
             // BitmapDrawable represents an image. It doesn't have a single background color.
@@ -122,7 +136,7 @@ public class ViewBackgroundHelper {
         int green = Color.green(color);
         int blue = Color.blue(color);
         int alpha = Color.alpha(color);
-        return String.format("#%02x%02x%02x%02x", red, green, blue, alpha);
+        return String.format("#%02x%02x%02x", red, green, blue, alpha);
     }
 
 

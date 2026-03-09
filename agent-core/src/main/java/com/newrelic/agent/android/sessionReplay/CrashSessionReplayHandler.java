@@ -134,18 +134,19 @@ public class CrashSessionReplayHandler {
     
     /**
      * Processes a single session replay file.
-     * 
+     * Package-private for testing.
+     *
      * @param file The file to process
      * @param sessionAttributes Base session attributes
      */
-    private void processSessionReplayFile(File file, Map<String, Object> sessionAttributes) {
+    void processSessionReplayFile(File file, Map<String, Object> sessionAttributes) {
         JsonArray replayJsonArray = new JsonArray();
         AtomicReference<Long> firstTimestamp = new AtomicReference<>(0L);
         AtomicReference<Long> lastTimestamp = new AtomicReference<>(0L);
         
         try (BufferedReader reader = Streams.newBufferedFileReader(file)) {
             reader.lines().forEach(line -> {
-                if (line != null && !line.isEmpty()) {
+                if (line != null && !line.trim().isEmpty()) {
                     processSessionReplayLine(line, replayJsonArray, firstTimestamp, lastTimestamp);
                 }
             });
@@ -154,7 +155,7 @@ public class CrashSessionReplayHandler {
             return;
         }
         
-        if (!replayJsonArray.isEmpty()) {
+        if (!replayJsonArray.isEmpty() && sessionAttributes != null) {
             // Add timestamp attributes
             Map<String, Object> enhancedAttributes = new HashMap<>(sessionAttributes);
             enhancedAttributes.put(FIRST_TIMESTAMP, firstTimestamp.get());
@@ -167,15 +168,16 @@ public class CrashSessionReplayHandler {
     
     /**
      * Processes a single line from a session replay file.
-     * 
+     * Package-private for testing.
+     *
      * @param line The line to process
      * @param replayJsonArray The array to add processed data to
      * @param firstTimestamp Reference to track first timestamp
      * @param lastTimestamp Reference to track last timestamp
      */
-    private void processSessionReplayLine(String line, JsonArray replayJsonArray,
-                                        AtomicReference<Long> firstTimestamp, 
-                                        AtomicReference<Long> lastTimestamp) {
+    void processSessionReplayLine(String line, JsonArray replayJsonArray,
+                                 AtomicReference<Long> firstTimestamp,
+                                 AtomicReference<Long> lastTimestamp) {
         try {
             JsonObject frame = new Gson().fromJson(line, JsonObject.class);
             if (frame.has("type") && (frame.get("type").getAsInt() == 2 || frame.get("type").getAsInt() == 3)) {
@@ -190,13 +192,14 @@ public class CrashSessionReplayHandler {
     
     /**
      * Updates the first and last timestamp references based on frame data.
-     * 
+     * Package-private for testing.
+     *
      * @param frame The frame object
      * @param firstTimestamp Reference to first timestamp
      * @param lastTimestamp Reference to last timestamp
      */
-    private void updateTimestamps(JsonObject frame, AtomicReference<Long> firstTimestamp, 
-                                AtomicReference<Long> lastTimestamp) {
+    void updateTimestamps(JsonObject frame, AtomicReference<Long> firstTimestamp,
+                         AtomicReference<Long> lastTimestamp) {
         if (!frame.has("timestamp")) {
             return;
         }

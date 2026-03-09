@@ -63,7 +63,7 @@ public class SessionReplayReporter extends PayloadReporter {
     public static boolean reportSessionReplayData(byte[] bytes, Map<String, Object> attributes) {
         boolean reported = false;
 
-        if (isInitialized()) {
+        if (isInitialized() && attributes != null) {
             Payload payload = new Payload(bytes);
             instance.get().storeAndReportSessionReplayData(payload, attributes);
             reported = true;

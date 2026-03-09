@@ -2,10 +2,16 @@
  * Copyright (c) 2023. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
+import com.android.Version
 
 plugins {
     id("com.android.dynamic-feature")
-    id("org.jetbrains.kotlin.android")
+}
+
+// Conditionally apply Kotlin plugin only for AGP < 9.0
+def agpVersion = Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger()
+if (agpVersion < 9) {
+    apply plugin: 'org.jetbrains.kotlin.android'
 }
 
 project.compiler = "none"
@@ -15,6 +21,18 @@ apply from: "${rootDir}/android.gradle"
 
 android {
     namespace "com.newrelic.feature"
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    if(agpVersion < 9) {
+        kotlinOptions {
+            jvmTarget = '11'
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false

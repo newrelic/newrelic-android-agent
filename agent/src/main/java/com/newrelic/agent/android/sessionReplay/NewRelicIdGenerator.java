@@ -2,7 +2,6 @@ package com.newrelic.agent.android.sessionReplay;
 
 
 
-import android.util.Log;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

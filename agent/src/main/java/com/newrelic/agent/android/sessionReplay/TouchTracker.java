@@ -39,7 +39,7 @@ public class TouchTracker {
                 movePositions.add(position);
             }
 
-            RRWebTouchMoveData moveData = new RRWebTouchMoveData(1, movePositions);
+            RRWebTouchMoveData moveData = new RRWebTouchMoveData(6, movePositions);
             touches.add(new RRWebTouch(lastTimestamp, 3, moveData));
         }
 
