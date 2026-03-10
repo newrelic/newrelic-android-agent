@@ -24,15 +24,15 @@ public class Reachability {
             ConnectivityManager cm =
                     (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
             if (cm != null) {
-                    // Modern approach for Android M (API 23) and above
-                    Network network = cm.getActiveNetwork();
-                    if (network != null) {
-                        NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
-                        isReachable = capabilities != null &&
-                                (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-                                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
-                                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
-                                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN));
+                // Modern approach for Android M (API 23) and above
+                Network network = cm.getActiveNetwork();
+                if (network != null) {
+                    NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
+                    isReachable = capabilities != null &&
+                            (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
+                                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN));
                 }
 
                 // if connection is active and a host was specified, verify it is reachable
@@ -47,6 +47,9 @@ public class Reachability {
                 isReachable = true;
             }
 
+        } catch (NoSuchMethodError e) {
+            // getActiveNetwork() is not available on <API 23, so return true and hope for the best
+            isReachable = true;
         } catch (Exception e) {
             isReachable = false;
         }
