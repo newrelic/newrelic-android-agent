@@ -83,4 +83,13 @@ public class ReachabilityTest {
         Assert.assertTrue(Reachability.hasReachableNetworkConnection(context, "newrelic.com"));
     }
 
+    @Test
+    public void testNoSuchMethodErrorHandling() {
+        // Simulate NoSuchMethodError that occurs on API < 23 when getActiveNetwork() doesn't exist
+        when(connectivityManager.getActiveNetwork()).thenThrow(new NoSuchMethodError("getActiveNetwork"));
+
+        // Should return true (assume connected) when we can't determine connectivity
+        Assert.assertTrue(Reachability.hasReachableNetworkConnection(context, null));
+    }
+
 }

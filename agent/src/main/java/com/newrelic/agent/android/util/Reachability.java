@@ -47,8 +47,10 @@ public class Reachability {
                 isReachable = true;
             }
 
-        } catch (Exception e) {
-            isReachable = false;
+        } catch (Throwable t) {
+            // Catch Throwable to handle NoSuchMethodError on API < 23 where getActiveNetwork() doesn't exist.
+            // When we can't determine connectivity (e.g., on older devices), assume we're connected.
+            isReachable = true;
         }
 
         return isReachable;
