@@ -123,6 +123,9 @@ dependencies {
     implementation( 'com.squareup.curtains:curtains:1.2.5')
     implementation("org.jetbrains.kotlin:kotlin-stdlib:${versions.java.kotlin}")
 
+    // Socket.IO client for session replay debugging (streams events to localhost)
+    implementation 'io.socket:socket.io-client:2.1.0'
+
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk
 
@@ -222,6 +225,9 @@ def toFatJarTask(def variant) {
         exclude 'android/**'
         exclude 'proguard.txt'
         exclude 'R.txt'
+        exclude 'io/socket/**'
+        exclude 'okhttp3/**'
+        exclude 'okio/**'
         duplicatesStrategy = DuplicatesStrategy.INHERIT
         from unshadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }
         from shadedJarProvider.get().outputs.files.collect { it.isDirectory() ? it : zipTree(it) }

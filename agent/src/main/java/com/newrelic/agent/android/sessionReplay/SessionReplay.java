@@ -146,6 +146,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Shutdown file manager
         SessionReplayFileManager.shutdown();
 
+        // Disconnect Socket.IO streamer
+        SocketIOStreamer.getInstance().disconnect();
+
         log.debug("Session replay deinitialized");
     }
 
@@ -244,6 +247,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         instance.fileManager = new SessionReplayFileManager(processor);
         SessionReplayFileManager.initialize(application);
 
+        // Reset Socket.IO streamer state for new session
+        SocketIOStreamer.getInstance().resetRecorderState();
+
         if(mode == SessionReplayMode.ERROR) {
             // Register SessionReplay as event listener using composite pattern
             // This allows SessionReplay to always listen for NetworkRequestErrorEvent while also supporting user-provided listeners
@@ -322,6 +328,14 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)),takeFullSnapshot.get());
 
+        // Stream events to Socket.IO server in real-time if enabled
+        if (SocketIOStreamer.getInstance().isEnabled()) {
+            Gson gson = new Gson();
+            for (RRWebEvent event : events) {
+                SocketIOStreamer.getInstance().sendEvent(gson.toJson(event));
+            }
+        }
+
         // If harvest is in progress, buffer frames for later writing
         if (isHarvesting.get()) {
             log.debug("Frame received during harvest, buffering for later write");
@@ -337,6 +351,14 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     @Override
     public void onTouchRecorded(TouchTracker touchTracker) {
+        // Stream touch events to Socket.IO server in real-time if enabled
+        if (SocketIOStreamer.getInstance().isEnabled()) {
+            Gson gson = new Gson();
+            touchTracker.processTouchData().forEach(position -> {
+                SocketIOStreamer.getInstance().sendEvent(gson.toJson(position));
+            });
+        }
+
         // If harvest is in progress, buffer touch data for later writing
         if (isHarvesting.get()) {
             log.debug("Touch data received during harvest, buffering for later write");
