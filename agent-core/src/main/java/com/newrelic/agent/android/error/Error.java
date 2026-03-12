@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.aei;
+package com.newrelic.agent.android.error;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -10,6 +10,7 @@ import com.google.gson.JsonPrimitive;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentImpl;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.aei.AEISessionMapper;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.crash.CrashReporter;
@@ -27,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -168,7 +168,7 @@ public class Error extends HarvestableObject {
         //add AccountId as Session Attribute for Debug Purpose
         attrs.add(new AnalyticsAttribute(AnalyticsAttribute.HARVEST_ACCOUNT_ID_ATTRIBUTE, Harvest.getHarvestConfiguration().getAccount_id()));
 
-        return Collections.unmodifiableSet(attrs);
+        return attrs;
     }
 
     @Override

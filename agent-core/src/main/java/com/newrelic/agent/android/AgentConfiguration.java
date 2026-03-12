@@ -45,6 +45,9 @@ public class AgentConfiguration implements HarvestConfigurable {
     private static final String HEX_COLLECTOR_PATH = "/mobile/f";
     private static final int HEX_COLLECTOR_TIMEOUT = 5000; // 5 seconds
 
+    private static final String ERROR_COLLECTOR_PATH = "/mobile/errors";
+    private static final int ERROR_COLLECTOR_TIMEOUT = 5000;
+
     private static final int NUM_IO_THREADS = 3;    // Harvest + Crash + Flatbuffer
     private static final int PAYLOAD_TTL = 2 * 24 * 60 * 60 * 1000;    // 2 days in ms
 
@@ -237,12 +240,24 @@ public class AgentConfiguration implements HarvestConfigurable {
         return HEX_COLLECTOR_PATH;
     }
 
+    public String getErrorCollectorPath() {
+        return ERROR_COLLECTOR_PATH;
+    }
+
     public String getHexCollectorHost() {
         return getCollectorHost();
     }
 
     public int getHexCollectorTimeout() {
         return HEX_COLLECTOR_TIMEOUT;
+    }
+
+    public String getErrorCollectorHost() {
+        return getCollectorHost();
+    }
+
+    public int getErrorCollectorTimeout() {
+        return ERROR_COLLECTOR_TIMEOUT;
     }
 
     public String getAppTokenHeader() {
