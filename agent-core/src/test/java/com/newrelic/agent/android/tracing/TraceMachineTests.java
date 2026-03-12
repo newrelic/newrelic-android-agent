@@ -19,6 +19,7 @@ import org.junit.runners.JUnit4;
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -33,6 +34,8 @@ public class TraceMachineTests {
     @Before
     public void setUp() throws Exception {
         TraceMachine.setTraceMachineInterface(null);
+        // Ensure clean state between tests
+        TraceMachine.haltTracing();
     }
 
     @Before
@@ -54,9 +57,12 @@ public class TraceMachineTests {
         TraceMachine.exitMethod();
         Assert.assertTrue(traceListener.onExitMethodCalled);
 
-        // Starting another AT will cause the current AT to complete.
+        // Starting another AT now keeps both active (multi-trace support).
+        // The first trace is still active, so onTraceComplete is NOT called.
+        traceListener.onTraceCompleteCalled = false;
         TraceMachine.startTracing("anotherActivityTrace");
-        Assert.assertTrue(traceListener.onTraceCompleteCalled);
+        Assert.assertTrue(traceListener.onTraceStartCalled);
+        Assert.assertEquals(2, TraceMachine.getActiveTraceCount());
 
         TraceMachine.setCurrentDisplayName("renamedTrace");
         Assert.assertTrue(traceListener.onTraceRenameCalled);
@@ -299,28 +305,169 @@ public class TraceMachineTests {
         final CountDownLatch latch = new CountDownLatch(iterations);
         final AtomicBoolean gotNpe = new AtomicBoolean(false);
 
-        for (int i = 0; i < iterations; i++) {
-            final int finalI = i;
-            Thread thread = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        TraceMachine.startTracing("interaction" + finalI);
-                        TraceMachine.setCurrentDisplayName("renamedInteraction" + finalI);
-                    } catch (NullPointerException e) {
-                        gotNpe.set(true);
-                        Assert.fail("TraceMachine should not be null: " + e.toString());
-                    } finally {
-                        latch.countDown();
+        // Increase max concurrent traces for this stress test
+        int originalMax = TraceMachine.MAX_CONCURRENT_TRACES;
+        TraceMachine.MAX_CONCURRENT_TRACES = iterations + 1;
+
+        try {
+            for (int i = 0; i < iterations; i++) {
+                final int finalI = i;
+                Thread thread = new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            TraceMachine.startTracing("interaction" + finalI);
+                            TraceMachine.setCurrentDisplayName("renamedInteraction" + finalI);
+                        } catch (NullPointerException e) {
+                            gotNpe.set(true);
+                            Assert.fail("TraceMachine should not be null: " + e.toString());
+                        } finally {
+                            latch.countDown();
+                        }
                     }
-                }
-            };
-            thread.start();
+                };
+                thread.start();
+            }
+            if (gotNpe.get()) {
+                Assert.fail();
+            }
+            latch.await();
+        } finally {
+            TraceMachine.MAX_CONCURRENT_TRACES = originalMax;
+            TraceMachine.haltTracing();
         }
-        if (gotNpe.get()) {
-            Assert.fail();
+    }
+
+    @Test
+    public void testConcurrentTraces() throws Exception {
+        // Start two traces, verify both are active
+        TraceMachine.startTracing("traceA", true, true);
+        String traceAId = TraceMachine.getActivityTrace().getId();
+
+        TraceMachine.startTracing("traceB", true, true);
+        String traceBId = TraceMachine.getActivityTrace().getId();
+
+        Assert.assertNotEquals("Traces should have different IDs", traceAId, traceBId);
+        Assert.assertEquals("Both traces should be active", 2, TraceMachine.getActiveTraceCount());
+        Assert.assertTrue(TraceMachine.isTracingActive());
+
+        // End trace A by ID
+        TraceMachine.endTrace(traceAId);
+        Assert.assertEquals("One trace should remain", 1, TraceMachine.getActiveTraceCount());
+        Assert.assertTrue(TraceMachine.isTracingActive());
+
+        // End trace B by ID
+        TraceMachine.endTrace(traceBId);
+        Assert.assertEquals("No traces should remain", 0, TraceMachine.getActiveTraceCount());
+        Assert.assertTrue(TraceMachine.isTracingInactive());
+    }
+
+    @Test
+    public void testConcurrentTracesOnDifferentThreads() throws Exception {
+        final CountDownLatch startLatch = new CountDownLatch(2);
+        final CountDownLatch doneLatch = new CountDownLatch(2);
+        final String[] traceIds = new String[2];
+        final AtomicBoolean error = new AtomicBoolean(false);
+
+        // Increase max concurrent traces
+        int originalMax = TraceMachine.MAX_CONCURRENT_TRACES;
+        TraceMachine.MAX_CONCURRENT_TRACES = 5;
+
+        try {
+            for (int i = 0; i < 2; i++) {
+                final int index = i;
+                new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            TraceMachine.startTracing("thread" + index + "Trace", true, true);
+                            traceIds[index] = TraceMachine.getActivityTrace().getId();
+                            startLatch.countDown();
+                            startLatch.await();
+
+                            // Both traces should be active
+                            if (TraceMachine.getActiveTraceCount() < 2) {
+                                error.set(true);
+                            }
+
+                            // Enter a method on this thread - it should be associated with this thread's trace
+                            TraceMachine.enterMethod("method" + index);
+                            TraceMachine.exitMethod();
+                        } catch (Exception e) {
+                            error.set(true);
+                        } finally {
+                            doneLatch.countDown();
+                        }
+                    }
+                }.start();
+            }
+
+            doneLatch.await();
+            Assert.assertFalse("Should not have errors in concurrent trace threads", error.get());
+            Assert.assertNotNull(traceIds[0]);
+            Assert.assertNotNull(traceIds[1]);
+            Assert.assertNotEquals("Trace IDs should differ", traceIds[0], traceIds[1]);
+
+            TraceMachine.haltTracing();
+        } finally {
+            TraceMachine.MAX_CONCURRENT_TRACES = originalMax;
         }
-        latch.await();
+    }
+
+    @Test
+    public void testMaxConcurrentTracesLimit() throws Exception {
+        int originalMax = TraceMachine.MAX_CONCURRENT_TRACES;
+        TraceMachine.MAX_CONCURRENT_TRACES = 3;
+
+        try {
+            TraceMachine.startTracing("trace1", true, true);
+            TraceMachine.startTracing("trace2", true, true);
+            TraceMachine.startTracing("trace3", true, true);
+            Assert.assertEquals(3, TraceMachine.getActiveTraceCount());
+
+            // Starting a 4th should complete the oldest
+            TraceMachine.startTracing("trace4", true, true);
+            Assert.assertEquals(3, TraceMachine.getActiveTraceCount());
+
+            TraceMachine.haltTracing();
+            Assert.assertEquals(0, TraceMachine.getActiveTraceCount());
+        } finally {
+            TraceMachine.MAX_CONCURRENT_TRACES = originalMax;
+        }
+    }
+
+    @Test
+    public void testHaltSpecificTrace() throws Exception {
+        TraceMachine.startTracing("traceA", true, true);
+        String traceAId = TraceMachine.getActivityTrace().getId();
+
+        TraceMachine.startTracing("traceB", true, true);
+        Assert.assertEquals(2, TraceMachine.getActiveTraceCount());
+
+        // Halt specific trace
+        TraceMachine.haltTracing(traceAId);
+        Assert.assertEquals(1, TraceMachine.getActiveTraceCount());
+        Assert.assertTrue(TraceMachine.isTracingActive());
+
+        TraceMachine.haltTracing();
+        Assert.assertTrue(TraceMachine.isTracingInactive());
+    }
+
+    @Test
+    public void testEndTraceById() throws Exception {
+        TraceMachine.startTracing("traceA", true, true);
+        String traceAId = TraceMachine.getActivityTrace().getId();
+
+        TraceMachine.startTracing("traceB", true, true);
+        String traceBId = TraceMachine.getActivityTrace().getId();
+
+        // End traceA specifically
+        TraceMachine.endTrace(traceAId);
+        Assert.assertEquals(1, TraceMachine.getActiveTraceCount());
+        Assert.assertTrue(TraceMachine.isTracingActive(traceBId));
+        Assert.assertFalse(TraceMachine.isTracingActive(traceAId));
+
+        TraceMachine.haltTracing();
     }
 
     // Utility stubs

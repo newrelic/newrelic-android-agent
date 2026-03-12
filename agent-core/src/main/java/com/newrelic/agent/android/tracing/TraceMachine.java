@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,6 +38,8 @@ public class TraceMachine extends HarvestAdapter {
     public static final String ACTIVITY_BACKGROUND_METRIC_PREFIX = "Mobile/Activity/Background/Name/";
     public static final String ACTIVTY_DISPLAY_NAME_PREFIX = "Display ";
     public static final AtomicBoolean enabled = new AtomicBoolean(true);    // enabled by default
+
+    public static int MAX_CONCURRENT_TRACES = 5;
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final Object TRACE_MACHINE_LOCK = new Object();
@@ -51,26 +54,31 @@ public class TraceMachine extends HarvestAdapter {
     // After this timeout (in ms) the trace will automatically be closed regardless of missing children
     public static int UNHEALTHY_TRACE_TIMEOUT = 60000;
 
-    private static TraceMachine traceMachine = null;
+    // Map of all active traces keyed by root trace UUID string
+    private static final ConcurrentHashMap<String, TraceMachine> activeTraces = new ConcurrentHashMap<>();
+
+    // Most recently started TraceMachine for backward-compatible "current trace" resolution
+    private static volatile TraceMachine lastStartedTraceMachine = null;
+
     private static TraceMachineInterface traceMachineInterface;
 
     private ActivityTrace activityTrace;
+    private final String traceId;
 
     protected static boolean isEnabled() {
         return enabled.get() && FeatureFlag.featureEnabled(FeatureFlag.InteractionTracing);
     }
 
-    // There can be only one
     protected TraceMachine(Trace rootTrace) {
-        // downstream lock contention starts here:
         activityTrace = new ActivityTrace(rootTrace);
+        traceId = rootTrace.myUUID.toString();
 
         // Register with the harvester
         Harvest.addHarvestListener(this);
     }
 
     public static TraceMachine getTraceMachine() {
-        return traceMachine;
+        return lastStartedTraceMachine;
     }
 
     public static void addTraceListener(TraceLifecycleAware listener) {
@@ -111,12 +119,16 @@ public class TraceMachine extends HarvestAdapter {
             }
 
             synchronized (TRACE_MACHINE_LOCK) {
-                // If we're starting a new tracing session and one pre-exists, close it out and replace it.
-                if (isTracingActive()) {
-                    traceMachine.completeActivityTrace();
+                // If we've hit the max concurrent traces limit, complete the oldest trace
+                if (activeTraces.size() >= MAX_CONCURRENT_TRACES) {
+                    TraceMachine oldest = findOldestTrace();
+                    if (oldest != null) {
+                        log.debug("Max concurrent traces reached, completing oldest trace");
+                        oldest.completeActivityTrace();
+                    }
                 }
 
-                // Make sure to clear things out before we get started.
+                // Make sure to clear things out before we get started on this thread.
                 threadLocalTrace.remove();
                 threadLocalTraceStack.set(new TraceStack());
 
@@ -137,18 +149,22 @@ public class TraceMachine extends HarvestAdapter {
                 log.debug("Started trace of " + name + ":" + rootTrace.myUUID.toString());
 
                 // Downstream lock contention starts by creating a new TraceMachine:
-                traceMachine = new TraceMachine(rootTrace);
-                rootTrace.traceMachine = traceMachine;
+                TraceMachine newTraceMachine = new TraceMachine(rootTrace);
+                rootTrace.traceMachine = newTraceMachine;
+
+                // Add to active traces map
+                activeTraces.put(newTraceMachine.traceId, newTraceMachine);
+                lastStartedTraceMachine = newTraceMachine;
 
                 // Place this trace in ThreadLocal storage (must be called from invoking thread)
                 pushTraceContext(rootTrace);
 
                 // Store the last activity and record this activity in the history
-                traceMachine.activityTrace.previousActivity = getLastActivitySighting();
+                newTraceMachine.activityTrace.previousActivity = getLastActivitySighting();
                 activityHistory.add(new ActivitySighting(rootTrace.entryTimestamp, rootTrace.displayName));
 
                 for (TraceLifecycleAware listener : traceListeners) {
-                    listener.onTraceStart(traceMachine.activityTrace);
+                    listener.onTraceStart(newTraceMachine.activityTrace);
                 }
             }
         } catch (Exception e) {
@@ -156,10 +172,22 @@ public class TraceMachine extends HarvestAdapter {
 
             AgentHealth.noticeException(e);
 
-            traceMachine = null;
+            lastStartedTraceMachine = null;
             threadLocalTrace.remove();
             threadLocalTraceStack.remove();
         }
+    }
+
+    private static TraceMachine findOldestTrace() {
+        TraceMachine oldest = null;
+        long oldestTime = Long.MAX_VALUE;
+        for (TraceMachine tm : activeTraces.values()) {
+            if (tm.activityTrace.startedAt < oldestTime) {
+                oldestTime = tm.activityTrace.startedAt;
+                oldest = tm;
+            }
+        }
+        return oldest;
     }
 
     // This should only really be used in dire situations as tracing completes based on timeouts.
@@ -172,23 +200,59 @@ public class TraceMachine extends HarvestAdapter {
                 return;
             }
 
-            final TraceMachine finishedMachine = traceMachine;
-            traceMachine = null;
+            // Halt all active traces
+            for (TraceMachine tm : new ArrayList<>(activeTraces.values())) {
+                tm.activityTrace.discard();
+                Harvest.removeHarvestListener(tm);
+            }
+            activeTraces.clear();
+            lastStartedTraceMachine = null;
 
-            finishedMachine.activityTrace.discard();
             endLastActivitySighting();
-
-            // Deregister with the harvester
-            Harvest.removeHarvestListener(finishedMachine);
 
             threadLocalTrace.remove();
             threadLocalTraceStack.remove();
         }
     }
 
+    public static void haltTracing(String traceId) {
+        synchronized (TRACE_MACHINE_LOCK) {
+            TraceMachine tm = activeTraces.remove(traceId);
+            if (tm == null) {
+                return;
+            }
+
+            tm.activityTrace.discard();
+            Harvest.removeHarvestListener(tm);
+
+            // Update lastStartedTraceMachine if it was the one we removed
+            if (lastStartedTraceMachine == tm) {
+                lastStartedTraceMachine = findMostRecentTrace();
+            }
+
+            endLastActivitySighting();
+
+            threadLocalTrace.remove();
+            threadLocalTraceStack.remove();
+        }
+    }
+
+    private static TraceMachine findMostRecentTrace() {
+        TraceMachine mostRecent = null;
+        long mostRecentTime = Long.MIN_VALUE;
+        for (TraceMachine tm : activeTraces.values()) {
+            if (tm.activityTrace.startedAt > mostRecentTime) {
+                mostRecentTime = tm.activityTrace.startedAt;
+                mostRecent = tm;
+            }
+        }
+        return mostRecent;
+    }
+
     public static void endTrace() {
-        if (isTracingActive()) {
-            traceMachine.completeActivityTrace();
+        TraceMachine tm = lastStartedTraceMachine;
+        if (tm != null) {
+            tm.completeActivityTrace();
         } else {
             log.debug("Attempted to end trace with no trace machine!");
         }
@@ -196,11 +260,22 @@ public class TraceMachine extends HarvestAdapter {
 
     public static void endTrace(String id) {
         try {
-            if (getActivityTrace().rootTrace.myUUID.toString().equals(id) && isTracingActive()) {
-                traceMachine.completeActivityTrace();
+            // First try direct lookup in activeTraces
+            TraceMachine tm = activeTraces.get(id);
+            if (tm != null) {
+                tm.completeActivityTrace();
+                return;
             }
-        } catch (TracingInactiveException e) {
-            log.error("Tried to end trace with no trace machine!");
+
+            // Fall back to checking root trace UUID (for backward compat with UUID-based IDs)
+            for (TraceMachine candidate : activeTraces.values()) {
+                if (candidate.activityTrace.rootTrace.myUUID.toString().equals(id)) {
+                    candidate.completeActivityTrace();
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Tried to end trace: " + e.getMessage());
         }
     }
 
@@ -224,10 +299,19 @@ public class TraceMachine extends HarvestAdapter {
 
         Trace parentTrace = getCurrentTrace();
 
+        // Resolve the TraceMachine from the parent trace's back-reference, or fall back to lastStarted
+        TraceMachine owningMachine = parentTrace.traceMachine;
+        if (owningMachine == null) {
+            owningMachine = lastStartedTraceMachine;
+        }
+        if (owningMachine == null) {
+            throw new TracingInactiveException();
+        }
+
         // Create a new trace with the parent id
-        Trace childTrace = new Trace(name, parentTrace.myUUID, traceMachine);
+        Trace childTrace = new Trace(name, parentTrace.myUUID, owningMachine);
         try {
-            traceMachine.activityTrace.addTrace(childTrace);
+            owningMachine.activityTrace.addTrace(childTrace);
         } catch (Exception e) {
             throw new TracingInactiveException();
         }
@@ -244,21 +328,22 @@ public class TraceMachine extends HarvestAdapter {
 
     protected void completeActivityTrace() {
         synchronized (TRACE_MACHINE_LOCK) {
-            if (isTracingInactive()) {
-                return;
+            // Remove this trace from the active map
+            activeTraces.remove(this.traceId);
+
+            // Update lastStartedTraceMachine if it was the one we completed
+            if (lastStartedTraceMachine == this) {
+                lastStartedTraceMachine = findMostRecentTrace();
             }
 
-            final TraceMachine finishedMachine = traceMachine;
-            traceMachine = null;
-
-            finishedMachine.activityTrace.complete();
+            this.activityTrace.complete();
             endLastActivitySighting();
 
             for (final TraceLifecycleAware listener : traceListeners) {
-                listener.onTraceComplete(finishedMachine.activityTrace);
+                listener.onTraceComplete(this.activityTrace);
             }
             // Deregister with the harvester
-            Harvest.removeHarvestListener(finishedMachine);
+            Harvest.removeHarvestListener(this);
         }
     }
 
@@ -303,24 +388,33 @@ public class TraceMachine extends HarvestAdapter {
                 return;
             }
 
-            final long currentTime = System.currentTimeMillis();
-            final long lastUpdatedAt = traceMachine.activityTrace.lastUpdatedAt;
-            final long inception = traceMachine.activityTrace.startedAt;
+            // Resolve the owning TraceMachine from thread-local context or lastStarted
+            TraceMachine owningMachine = null;
+            Trace currentThreadTrace = threadLocalTrace.get();
+            if (currentThreadTrace != null && currentThreadTrace.traceMachine != null) {
+                owningMachine = currentThreadTrace.traceMachine;
+            }
+            if (owningMachine == null) {
+                owningMachine = lastStartedTraceMachine;
+            }
+            if (owningMachine == null) {
+                return;
+            }
 
-            if ((lastUpdatedAt + HEALTHY_TRACE_TIMEOUT) < currentTime && !traceMachine.activityTrace.hasMissingChildren()) {
+            final long currentTime = System.currentTimeMillis();
+            final long lastUpdatedAt = owningMachine.activityTrace.lastUpdatedAt;
+            final long inception = owningMachine.activityTrace.startedAt;
+
+            if ((lastUpdatedAt + HEALTHY_TRACE_TIMEOUT) < currentTime && !owningMachine.activityTrace.hasMissingChildren()) {
                 log.debug(String.format("LastUpdated[%d] CurrentTime[%d] Trigger[%d]", lastUpdatedAt, currentTime, currentTime - lastUpdatedAt));
                 log.debug("Completing activity trace after hitting healthy timeout (" + HEALTHY_TRACE_TIMEOUT + "ms)");
-                if (isTracingActive()) {
-                    traceMachine.completeActivityTrace();
-                }
+                owningMachine.completeActivityTrace();
                 return;
             }
 
             if (inception + UNHEALTHY_TRACE_TIMEOUT < currentTime) {
                 log.debug("Completing activity trace after hitting unhealthy timeout (" + UNHEALTHY_TRACE_TIMEOUT + "ms)");
-                if (isTracingActive()) {
-                    traceMachine.completeActivityTrace();
-                }
+                owningMachine.completeActivityTrace();
                 return;
             }
 
@@ -545,15 +639,15 @@ public class TraceMachine extends HarvestAdapter {
 
     public static void setCurrentDisplayName(String name) {
         synchronized (TRACE_MACHINE_LOCK) {
-            traceMachine = getTraceMachine();
-            if (traceMachine != null) {
+            TraceMachine tm = resolveCurrentTraceMachine();
+            if (tm != null) {
                 try {
                     Trace currentTrace = getCurrentTrace();
                     if (currentTrace != null) {
                         currentTrace.displayName = name;
                         for (TraceLifecycleAware listener : traceListeners) {
                             try {
-                                listener.onTraceRename(traceMachine.activityTrace);
+                                listener.onTraceRename(tm.activityTrace);
                             } catch (Exception e) {
                                 log.error("Cannot name trace. Tracing is not available: " + e.toString());
                             }
@@ -564,6 +658,17 @@ public class TraceMachine extends HarvestAdapter {
                 }
             }
         }
+    }
+
+    /**
+     * Resolve the TraceMachine from the current thread's trace context, falling back to lastStartedTraceMachine.
+     */
+    private static TraceMachine resolveCurrentTraceMachine() {
+        Trace currentThreadTrace = threadLocalTrace.get();
+        if (currentThreadTrace != null && currentThreadTrace.traceMachine != null) {
+            return currentThreadTrace.traceMachine;
+        }
+        return lastStartedTraceMachine;
     }
 
     // This essentially allows one to rename the scope of the current Interaction/Activity trace.
@@ -602,12 +707,17 @@ public class TraceMachine extends HarvestAdapter {
                 return null;
             }
 
-            // If the interface isn't up yet, we'll assume we're on the main UI thread
-            if (traceMachineInterface == null || traceMachineInterface.isUIThread()) {
-                return traceMachine.activityTrace.rootTrace.metricName;
+            TraceMachine tm = resolveCurrentTraceMachine();
+            if (tm == null) {
+                return null;
             }
 
-            return traceMachine.activityTrace.rootTrace.metricBackgroundName;
+            // If the interface isn't up yet, we'll assume we're on the main UI thread
+            if (traceMachineInterface == null || traceMachineInterface.isUIThread()) {
+                return tm.activityTrace.rootTrace.metricName;
+            }
+
+            return tm.activityTrace.rootTrace.metricBackgroundName;
         } catch (Exception e) {
             log.error("Caught error while calling getCurrentScope()", e);
             AgentHealth.noticeException(e);
@@ -616,17 +726,21 @@ public class TraceMachine extends HarvestAdapter {
     }
 
     public static boolean isTracingActive() {
-        return traceMachine != null;
+        return !activeTraces.isEmpty();
+    }
+
+    public static boolean isTracingActive(String traceId) {
+        return activeTraces.containsKey(traceId);
     }
 
     public static boolean isTracingInactive() {
-        return isTracingActive() == false;
+        return activeTraces.isEmpty();
     }
 
     public void storeCompletedTrace(Trace trace) {
         try {
-            if (isTracingInactive()) {
-                log.debug("Attempted to store a completed trace with no trace machine!");
+            if (activityTrace == null) {
+                log.debug("Attempted to store a completed trace with no activity trace!");
                 return;
             }
 
@@ -639,7 +753,13 @@ public class TraceMachine extends HarvestAdapter {
 
     public static Trace getRootTrace() throws TracingInactiveException {
         try {
-            return traceMachine.activityTrace.rootTrace;
+            // Try to resolve from thread-local context first
+            Trace currentThreadTrace = threadLocalTrace.get();
+            if (currentThreadTrace != null && currentThreadTrace.traceMachine != null) {
+                return currentThreadTrace.traceMachine.activityTrace.rootTrace;
+            }
+            // Fall back to lastStartedTraceMachine
+            return lastStartedTraceMachine.activityTrace.rootTrace;
         } catch (NullPointerException e) {
             throw new TracingInactiveException();
         }
@@ -647,10 +767,28 @@ public class TraceMachine extends HarvestAdapter {
 
     public static ActivityTrace getActivityTrace() throws TracingInactiveException {
         try {
-            return traceMachine.activityTrace;
+            // Try to resolve from thread-local context first
+            Trace currentThreadTrace = threadLocalTrace.get();
+            if (currentThreadTrace != null && currentThreadTrace.traceMachine != null) {
+                return currentThreadTrace.traceMachine.activityTrace;
+            }
+            // Fall back to lastStartedTraceMachine
+            return lastStartedTraceMachine.activityTrace;
         } catch (NullPointerException e) {
             throw new TracingInactiveException();
         }
+    }
+
+    public static ActivityTrace getActivityTrace(String traceId) throws TracingInactiveException {
+        TraceMachine tm = activeTraces.get(traceId);
+        if (tm == null) {
+            throw new TracingInactiveException();
+        }
+        return tm.activityTrace;
+    }
+
+    public static int getActiveTraceCount() {
+        return activeTraces.size();
     }
 
     public static ActivityHistory getActivityHistory() {
@@ -678,33 +816,30 @@ public class TraceMachine extends HarvestAdapter {
 
     @Override
     public void onHarvestBefore() {
-        if (isTracingActive()) {
-            final long currentTime = System.currentTimeMillis();
-            final long lastUpdatedAt = traceMachine.activityTrace.lastUpdatedAt;
-            final long inception = traceMachine.activityTrace.startedAt;
+        // Check timeout for this specific TraceMachine's activity trace
+        final long currentTime = System.currentTimeMillis();
+        final long lastUpdatedAt = this.activityTrace.lastUpdatedAt;
+        final long inception = this.activityTrace.startedAt;
 
-            if (lastUpdatedAt + HEALTHY_TRACE_TIMEOUT < currentTime && !traceMachine.activityTrace.hasMissingChildren()) {
-                log.debug("Completing activity trace after hitting healthy timeout (" + HEALTHY_TRACE_TIMEOUT + "ms)");
-                completeActivityTrace();
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_TRACES_HEALTHY);
-                return;
-            }
+        if (lastUpdatedAt + HEALTHY_TRACE_TIMEOUT < currentTime && !this.activityTrace.hasMissingChildren()) {
+            log.debug("Completing activity trace after hitting healthy timeout (" + HEALTHY_TRACE_TIMEOUT + "ms)");
+            completeActivityTrace();
+            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_TRACES_HEALTHY);
+            return;
+        }
 
-            if (inception + UNHEALTHY_TRACE_TIMEOUT < currentTime) {
-                log.debug("Completing activity trace after hitting unhealthy timeout (" + UNHEALTHY_TRACE_TIMEOUT + "ms)");
-                completeActivityTrace();
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_TRACES_UNHEALTHY);
-                return;
-            }
-        } else {
-            log.debug("TraceMachine is inactive");
+        if (inception + UNHEALTHY_TRACE_TIMEOUT < currentTime) {
+            log.debug("Completing activity trace after hitting unhealthy timeout (" + UNHEALTHY_TRACE_TIMEOUT + "ms)");
+            completeActivityTrace();
+            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_TRACES_UNHEALTHY);
+            return;
         }
     }
 
     @Override
     public void onHarvestSendFailed() {
         try {
-            traceMachine.activityTrace.incrementReportAttemptCount();
+            this.activityTrace.incrementReportAttemptCount();
         } catch (NullPointerException e) {
             // no-op, tracing must not be active.
         }

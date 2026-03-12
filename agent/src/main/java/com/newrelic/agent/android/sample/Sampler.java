@@ -34,6 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Sampler implements TraceLifecycleAware, Runnable {
@@ -48,6 +49,7 @@ public class Sampler implements TraceLifecycleAware, Runnable {
 
     protected static Sampler sampler;
     protected static boolean cpuSamplingDisabled = false;
+    private static final AtomicInteger activeTraceCount = new AtomicInteger(0);
 
     private final ActivityManager activityManager;
     private final EnumMap<Sample.SampleType, Collection<Sample>> samples = new EnumMap<Sample.SampleType, Collection<Sample>>(Sample.SampleType.class);
@@ -141,6 +143,7 @@ public class Sampler implements TraceLifecycleAware, Runnable {
             if (sampler != null) {
                 TraceMachine.removeTraceListener(sampler);
                 stopNow();
+                activeTraceCount.set(0);
                 sampler = null;
                 log.debug("Sampler shutdown");
             }
@@ -423,21 +426,26 @@ public class Sampler implements TraceLifecycleAware, Runnable {
 
     @Override
     public void onTraceStart(ActivityTrace activityTrace) {
+        activeTraceCount.incrementAndGet();
         start();
     }
 
     @Override
     public void onTraceComplete(final ActivityTrace activityTrace) {
+        final int remaining = activeTraceCount.decrementAndGet();
         // put this work on the b/g to return asap
         scheduler.execute(new Runnable() {
             @Override
             public void run() {
-                // stop the sample task immediately so as not to lag the interaction involved
-                // if stopped while processing a crash, the sampleLock may throw a sync exception.
                 try {
-                    stop(true);
                     activityTrace.setVitals(copySamples());
-                    clear();
+                    // Only stop the sampler when the last active trace completes
+                    if (remaining <= 0) {
+                        // stop the sample task immediately so as not to lag the interaction involved
+                        // if stopped while processing a crash, the sampleLock may throw a sync exception.
+                        stop(true);
+                        clear();
+                    }
                 } catch (RuntimeException e) {
                     log.error(e.toString());
                 }
