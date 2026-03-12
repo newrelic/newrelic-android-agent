@@ -25,6 +25,7 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Streams;
+import com.newrelic.agent.android.error.Error;
 
 import java.io.File;
 import java.io.FileOutputStream;
