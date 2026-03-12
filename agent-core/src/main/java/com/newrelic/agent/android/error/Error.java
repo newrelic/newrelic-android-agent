@@ -1,9 +1,4 @@
-/*
- * Copyright (c) 2022-present New Relic Corporation. All rights reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
-
-package com.newrelic.agent.android.hybrid.data;
+package com.newrelic.agent.android.error;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -15,6 +10,7 @@ import com.google.gson.JsonPrimitive;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentImpl;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.aei.AEISessionMapper;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.crash.CrashReporter;
@@ -36,7 +32,7 @@ import java.util.List;
 import java.util.Set;
 
 
-public class JSError extends HarvestableObject {
+public class Error extends HarvestableObject {
     public static final int PROTOCOL_VERSION = 1;
 
     final private String agentName;
@@ -52,7 +48,7 @@ public class JSError extends HarvestableObject {
     private static final Gson gson = new GsonBuilder().create();
 
 
-    public JSError(String buildId, long timestamp) {
+    public Error(String buildId, long timestamp) {
         final AgentImpl agentImpl = Agent.getImpl();
 
         this.agentVersion = Agent.getVersion();
@@ -66,7 +62,12 @@ public class JSError extends HarvestableObject {
         this.dataToken = Harvest.getHarvestConfiguration().getDataToken();
     }
 
-    public JSError(Set<AnalyticsAttribute> sessionAttributes, HashMap<String, Object> event) {
+
+    public Error(Set<AnalyticsAttribute> sessionAttributes, HashMap<String, Object> events) {
+        this(sessionAttributes, events, null);
+    }
+
+    public Error(Set<AnalyticsAttribute> sessionAttributes, HashMap<String, Object> event, AEISessionMapper.AEISessionMeta sessionMeta) {
         final AgentImpl agentImpl = Agent.getImpl();
 
         this.agentVersion = Agent.getVersion();
@@ -78,6 +79,10 @@ public class JSError extends HarvestableObject {
         this.agentName = agentImpl.getDeviceInformation().getAgentName();
         this.event = event;
         this.dataToken = Harvest.getHarvestConfiguration().getDataToken();
+
+        if (sessionMeta != null) {
+            this.dataToken.setAgentId(sessionMeta.realAgentId);
+        }
     }
 
     protected String getAppToken() {
@@ -163,7 +168,7 @@ public class JSError extends HarvestableObject {
         //add AccountId as Session Attribute for Debug Purpose
         attrs.add(new AnalyticsAttribute(AnalyticsAttribute.HARVEST_ACCOUNT_ID_ATTRIBUTE, Harvest.getHarvestConfiguration().getAccount_id()));
 
-        return Collections.unmodifiableSet(attrs);
+        return attrs;
     }
 
     @Override
@@ -199,13 +204,13 @@ public class JSError extends HarvestableObject {
         return data;
     }
 
-    public static JSError ErrorFromJsonString(String json) {
+    public static Error ErrorFromJsonString(String json) {
         final JsonObject errorObject = JsonParser.parseString(json).getAsJsonObject();
 
         final String buildIdentifier = errorObject.get("buildId").getAsString();
         final long timestamp = errorObject.get("timestamp").getAsLong();
 
-        JSError error = new JSError(buildIdentifier, timestamp);
+        Error error = new Error(buildIdentifier, timestamp);
 
         error.deviceInfo = DeviceInfo.newFromJson(errorObject.get("deviceInfo").getAsJsonObject());
         error.applicationInfo = ApplicationInfo.newFromJson(errorObject.get("appInfo").getAsJsonObject());

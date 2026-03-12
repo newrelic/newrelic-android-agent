@@ -16,6 +16,7 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
+import com.newrelic.agent.android.error.Error;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
