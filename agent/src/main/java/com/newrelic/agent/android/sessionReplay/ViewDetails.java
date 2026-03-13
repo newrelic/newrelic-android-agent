@@ -144,9 +144,6 @@ public class ViewDetails {
                 .append("px;")
                 .append("height: ")
                 .append(frame.height())
-                .append("px;")
-                .append("line-height: ")
-                .append(frame.height())
                 .append("px;");
 
 

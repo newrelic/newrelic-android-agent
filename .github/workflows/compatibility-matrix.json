@@ -1,0 +1,69 @@
+{
+  "description": "AGP/Gradle/Java/Kotlin compatibility matrix for testing",
+  "combinations": [
+    {
+      "name": "AGP 7.4 - Stable",
+      "agp": "7.4.2",
+      "gradle": "7.6",
+      "java": "11",
+      "kotlin": "1.7.20"
+    },
+    {
+      "name": "AGP 8.5 - Stable",
+      "agp": "8.5.0",
+      "gradle": "8.7",
+      "java": "17",
+      "kotlin": "1.8.20"
+    },
+    {
+      "name": "AGP 8.9 - Latest 8.x",
+      "agp": "8.9.1",
+      "gradle": "8.11.1",
+      "java": "17",
+      "kotlin": "1.9.20"
+    },
+    {
+      "name": "AGP 9.0 - Stable",
+      "agp": "9.0.0",
+      "gradle": "9.1.0",
+      "java": "17",
+      "kotlin": "2.2.10"
+    },
+    {
+      "name": "AGP 9.1 - Future",
+      "agp": "9.1.0-alpha05",
+      "gradle": "9.3.1",
+      "java": "17",
+      "kotlin": "2.2.10",
+      "enabled": false,
+      "note": "Future version - will be tested when released"
+    },
+    {
+      "name": "AGP 9.2 - Future",
+      "agp": "9.2.0",
+      "gradle": "9.3.0",
+      "java": "17",
+      "kotlin": "2.3.0",
+      "enabled": false,
+      "note": "Future version - will be tested when released"
+    },
+    {
+      "name": "AGP 10.0 - Future",
+      "agp": "10.0.0",
+      "gradle": "9.5.0",
+      "java": "21",
+      "kotlin": "2.3.0",
+      "enabled": false,
+      "note": "Future major version - may require significant changes"
+    }
+  ],
+  "compatibility_notes": {
+    "agp_7.4": "Requires Gradle 7.5+, Java 11+. Uses external Kotlin plugin.",
+    "agp_8.5": "Requires Gradle 8.0+, Java 17+. Uses external Kotlin plugin.",
+    "agp_8.9": "Requires Gradle 8.5+, Java 17+. Uses external Kotlin plugin.",
+    "agp_9.0": "Requires Gradle 9.1.0+, Java 17+, Kotlin 2.2.10+. Uses AGP 9.0's built-in Kotlin support. External Kotlin plugin is NOT applied for AGP 9.0+.",
+    "agp_9.1": "Future version. Expected to require Gradle 9.2+, Java 17+. Built-in Kotlin support.",
+    "agp_9.2": "Future version. Expected to require Gradle 9.3+, Java 17+, Kotlin 2.3+. Built-in Kotlin support.",
+    "agp_10.0": "Future major version. Expected to require Gradle 9.5+, Java 21+, Kotlin 2.3+. May introduce breaking changes."
+  }
+}

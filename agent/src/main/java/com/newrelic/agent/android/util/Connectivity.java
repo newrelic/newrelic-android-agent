@@ -64,6 +64,9 @@ public final class Connectivity {
             } else {
                 return CarrierType.UNKNOWN;
             }
+        } catch (NoSuchMethodError e) {
+            log.warn("Cannot determine network state. Method does not exist."); 
+            return CarrierType.UNKNOWN;
         } catch (SecurityException e) {
             log.warn("Cannot determine network state. Enable android.permission.ACCESS_NETWORK_STATE in your manifest.");
             return CarrierType.UNKNOWN;
@@ -97,7 +100,10 @@ public final class Connectivity {
             } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
                 return WanType.ETHERNET;
             }
-            
+
+            return WanType.UNKNOWN;
+        } catch (NoSuchMethodError e) {
+            log.audit("Cannot determine network state. Method does not exist.");
             return WanType.UNKNOWN;
         } catch (SecurityException e) {
             log.audit("Cannot determine network state. Enable android.permission.ACCESS_NETWORK_STATE in your manifest.");

@@ -6,6 +6,7 @@ import android.widget.TextView;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.sessionReplay.internal.TextViewUtil;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
@@ -111,8 +112,11 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
                 break;
         }
 
-        // Extract RGB color safely, masking off alpha channel
-        this.textColor = String.format("%06x", view.getCurrentTextColor() & 0xFFFFFF);
+        // Extract text color with special handling for React Native TextViews
+        int textColorInt = TextViewUtil.getTextColor(view);
+        this.textColor = TextViewUtil.colorToRgbHex(textColorInt);
+
+
     }
 
     @Override
@@ -179,10 +183,8 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     private void generateTextCss(StringBuilder cssBuilder) {
-        cssBuilder.append("white-space: pre-wrap;");
+        cssBuilder.append("white-space: pre-wrap;overflow: hidden;text-overflow: ellipsis;");
         cssBuilder.append("");
-        cssBuilder.append("word-wrap: break-word;");
-        cssBuilder.append(" ");
         cssBuilder.append("font-size: ");
         cssBuilder.append(String.format("%.2f", this.fontSize));
         cssBuilder.append("px; ");
@@ -230,7 +232,6 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             styleDifferences.put("top", otherViewDetails.frame.top + "px");
             styleDifferences.put("width", otherViewDetails.frame.width() + "px");
             styleDifferences.put("height", otherViewDetails.frame.height() + "px");
-            styleDifferences.put("line-height", otherViewDetails.frame.height() + "px");
         }
 
         // Compare background colors if available

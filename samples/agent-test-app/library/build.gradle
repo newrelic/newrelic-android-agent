@@ -1,3 +1,5 @@
+import com.android.Version
+
 /*
  * Copyright (c) 2023. New Relic Corporation. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
@@ -9,7 +11,12 @@
 
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
+}
+
+// Conditionally apply Kotlin plugin only for AGP < 9.0
+def agpVersion = Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger()
+if (agpVersion < 9) {
+    apply plugin: 'org.jetbrains.kotlin.android'
 }
 
 if (project.applyPlugin && Boolean.valueOf(project.applyPlugin)) {
@@ -26,8 +33,10 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = '1.8'
+    if(agpVersion < 9) {
+        kotlinOptions {
+            jvmTarget = '11'
+        }
     }
     buildFeatures {
         viewBinding true
