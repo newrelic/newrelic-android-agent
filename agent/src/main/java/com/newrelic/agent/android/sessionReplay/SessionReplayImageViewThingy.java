@@ -54,6 +54,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     private final ImageView.ScaleType scaleType;
     private final String backgroundColor;
     private String imageData; // Base64 encoded image data
+    private final boolean isMasked;
     protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
     protected SessionReplayConfiguration sessionReplayConfiguration;
 
@@ -63,7 +64,8 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         this.sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
         this.scaleType = view.getScaleType();
         this.backgroundColor = getBackgroundColor(view);
-        if( !shouldMaskImage(view)) {
+        this.isMasked = shouldMaskImage(view);
+        if (!isMasked) {
             this.imageData = getImageFromImageView(view);
         }
     }
@@ -278,6 +280,9 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
+        if (isMasked) {
+            attributes.getMetadata().put("data-nr-masked", "image");
+        }
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), new ArrayList<>());
     }
 
@@ -304,6 +309,13 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
 
         if (this.getImageData() != null && !this.getImageData().equals(((SessionReplayImageViewThingy) other).getImageData())) {
             styleDifferences.put("background-image"," url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
+        }
+
+        SessionReplayImageViewThingy otherImage = (SessionReplayImageViewThingy) other;
+        if (otherImage.isMasked) {
+            styleDifferences.put("data-nr-masked", "image");
+        } else if (this.isMasked) {
+            styleDifferences.put("data-nr-masked", "");
         }
 
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());

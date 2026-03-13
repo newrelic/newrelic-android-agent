@@ -87,6 +87,7 @@ open class ComposeImageThingy(
 
     private val contentScale: ContentScale
     private val backgroundColor: String = viewDetails.backgroundColor ?: "transparent"
+    val isMasked: Boolean
 
     protected val sessionReplayConfiguration: SessionReplayConfiguration =
         agentConfiguration.sessionReplayConfiguration
@@ -94,7 +95,8 @@ open class ComposeImageThingy(
     init {
         contentScale = extractContentScale()
 
-        if (shouldUnMaskImage(semanticsNode)) {
+        isMasked = !shouldUnMaskImage(semanticsNode)
+        if (!isMasked) {
             imageExtractionExecutor.execute {
                 try {
                     imageData = extractImageFromModifierInfo()
@@ -460,6 +462,9 @@ open class ComposeImageThingy(
 
     override fun generateRRWebNode(): RRWebElementNode {
         val attributes = Attributes(viewDetails.cssSelector)
+        if (isMasked) {
+            attributes.metadata["data-nr-masked"] = "image"
+        }
         return RRWebElementNode(
             attributes,
             RRWebElementNode.TAG_TYPE_DIV,
@@ -499,8 +504,15 @@ open class ComposeImageThingy(
                 if (otherViewDetails.isHidden()) "hidden" else "visible"
             )
         }
+
+        if (other.isMasked) {
+            styleDifferences["data-nr-masked"] = "image"
+        } else if (this.isMasked) {
+            styleDifferences["data-nr-masked"] = ""
+        }
+
         if (styleDifferences.isEmpty()) {
-            return emptyList()  // or emptyList()
+            return emptyList()
         }
 
         val attributes = Attributes(viewDetails.cssSelector)
