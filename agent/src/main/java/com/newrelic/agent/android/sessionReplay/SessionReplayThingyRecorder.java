@@ -13,6 +13,7 @@ import androidx.compose.ui.semantics.SemanticsProperties;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeEditTextThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeImageThingy;
+import com.newrelic.agent.android.sessionReplay.compose.ComposeRadioButtonThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails;
 import com.newrelic.agent.android.sessionReplay.compose.SessionReplayComposeViewThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeTextViewThingy;
@@ -63,6 +64,8 @@ public class SessionReplayThingyRecorder {
                     break;
                 case "Image":
                     return new ComposeImageThingy(composeViewDetails, node, agentConfiguration);
+                case "RadioButton":
+                    return new ComposeRadioButtonThingy(composeViewDetails, node, agentConfiguration);
                 default:
                     // Handle other roles or default case
                     break;

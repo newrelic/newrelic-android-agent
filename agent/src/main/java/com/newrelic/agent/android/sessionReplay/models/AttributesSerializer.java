@@ -41,10 +41,16 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
         if (src.getType() != null) {
             jsonObject.addProperty("type", src.getType());
         }
+        if (src.inputType != null) {
+            jsonObject.addProperty("inputType", src.inputType);
+        }
         if (src.getValue() != null) {
             jsonObject.addProperty("value", src.getValue());
         }
-        
+        if (src.checked != null && src.checked) {
+            jsonObject.addProperty("checked", true);
+        }
+
         return jsonObject;
     }
 }

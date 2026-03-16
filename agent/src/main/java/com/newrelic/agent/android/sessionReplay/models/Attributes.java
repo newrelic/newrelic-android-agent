@@ -9,7 +9,9 @@ import java.util.Map;
 public class Attributes{
     public String id;
     public String type;
+    public String inputType;
     public String value;
+    public Boolean checked;
     public Map<String, String> metadata = new HashMap<>();
 
     public Map<String, String> getMetadata() {
