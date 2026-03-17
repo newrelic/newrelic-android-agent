@@ -21,7 +21,7 @@ public class JSErrorDataController {
     protected static final AgentConfiguration agentConfiguration = new AgentConfiguration();
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
-    public static boolean sendJSErrorData(String name, String message, String stackTrace, boolean isFatal, String jsAppVersion, Map<String, Object> additionalAttributes) {
+    public static boolean sendJSErrorData(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
         final HashMap<String, Object> eventAttributes = new HashMap<>();
         try {
             //map attributes first, then all internal attributes will overwrite if any duplicate
@@ -40,8 +40,6 @@ public class JSErrorDataController {
             JSErrorDataReporter jsErrorReporter = JSErrorDataReporter.getInstance();
             final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
             Error jsError = new Error(analyticsController.getSessionAttributes(), eventAttributes);
-            //add jsAppVersion to sessionAttribute key value
-            jsError.getSessionAttributes().add(new AnalyticsAttribute(AnalyticsAttribute.JSERROR_APP_VERSION, jsAppVersion));
 
             jsErrorReporter.reportJSErrorData(jsError.asJsonObject().toString().getBytes());
             return true;

@@ -1123,8 +1123,8 @@ public final class NewRelic {
      *
      * @param stackTrace Stack trace of the exception
      */
-    public static boolean recordJavaScriptError(String name, String message, String stackTrace, boolean isFatal, String jsAppVersion, Map<String, Object> additionalAttributes) {
-        return JSErrorDataController.sendJSErrorData(name, message, stackTrace, isFatal, jsAppVersion, additionalAttributes);
+    public static boolean recordJavaScriptError(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
+        return JSErrorDataController.sendJSErrorData(name, message, stackTrace, isFatal, additionalAttributes);
     }
 
     /**
