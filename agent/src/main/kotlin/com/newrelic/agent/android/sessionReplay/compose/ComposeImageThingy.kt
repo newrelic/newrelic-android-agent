@@ -463,7 +463,7 @@ open class ComposeImageThingy(
     override fun generateRRWebNode(): RRWebElementNode {
         val attributes = Attributes(viewDetails.cssSelector)
         if (isMasked) {
-            attributes.metadata["data-nr-masked"] = "image"
+            attributes.dataNrMasked = "image"
         }
         return RRWebElementNode(
             attributes,
@@ -505,18 +505,18 @@ open class ComposeImageThingy(
             )
         }
 
-        if (other.isMasked) {
-            styleDifferences["data-nr-masked"] = "image"
-        } else if (this.isMasked) {
-            styleDifferences["data-nr-masked"] = ""
-        }
-
-        if (styleDifferences.isEmpty()) {
+        if (styleDifferences.isEmpty() && other.isMasked == this.isMasked) {
             return emptyList()
         }
 
         val attributes = Attributes(viewDetails.cssSelector)
         attributes.metadata = styleDifferences
+
+        if (other.isMasked) {
+            attributes.dataNrMasked = "image"
+        } else if (this.isMasked) {
+            attributes.dataNrMasked = ""
+        }
         return listOf(RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes))
     }
 

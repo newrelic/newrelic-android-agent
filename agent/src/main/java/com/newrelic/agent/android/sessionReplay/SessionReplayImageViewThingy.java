@@ -281,7 +281,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
         if (isMasked) {
-            attributes.getMetadata().put("data-nr-masked", "image");
+            attributes.dataNrMasked = "image";
         }
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), new ArrayList<>());
     }
@@ -311,15 +311,15 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             styleDifferences.put("background-image"," url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
         }
 
-        SessionReplayImageViewThingy otherImage = (SessionReplayImageViewThingy) other;
-        if (otherImage.isMasked) {
-            styleDifferences.put("data-nr-masked", "image");
-        } else if (this.isMasked) {
-            styleDifferences.put("data-nr-masked", "");
-        }
-
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
         attributes.setMetadata(styleDifferences);
+
+        SessionReplayImageViewThingy otherImage = (SessionReplayImageViewThingy) other;
+        if (otherImage.isMasked) {
+            attributes.dataNrMasked = "image";
+        } else if (this.isMasked) {
+            attributes.dataNrMasked = "";
+        }
         List<MutationRecord> mutations = new ArrayList<>();
         mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.getViewId(), attributes));
         return mutations;

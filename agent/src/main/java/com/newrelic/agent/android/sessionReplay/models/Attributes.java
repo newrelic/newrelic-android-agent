@@ -12,6 +12,7 @@ public class Attributes{
     public String inputType;
     public String value;
     public Boolean checked;
+    public String dataNrMasked;
     public String min;
     public String max;
     public String step;
