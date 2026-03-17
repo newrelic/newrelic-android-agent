@@ -50,6 +50,15 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
         if (src.checked != null && src.checked) {
             jsonObject.addProperty("checked", true);
         }
+        if (src.min != null) {
+            jsonObject.addProperty("min", src.min);
+        }
+        if (src.max != null) {
+            jsonObject.addProperty("max", src.max);
+        }
+        if (src.step != null) {
+            jsonObject.addProperty("step", src.step);
+        }
 
         return jsonObject;
     }
