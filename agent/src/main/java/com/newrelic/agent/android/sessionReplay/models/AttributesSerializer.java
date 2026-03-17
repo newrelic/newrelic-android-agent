@@ -25,7 +25,7 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
                 // Handle style separately - add it as a nested object
                 jsonObject.addProperty(entry.getKey(), entry.getValue());
             } else {
-                // Add all other metadata entries directly to the root JSON object
+                // All other metadata entries become inline style properties
                 metadataObject.addProperty(entry.getKey(), entry.getValue());
             }
         }
@@ -49,6 +49,9 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
         }
         if (src.checked != null && src.checked) {
             jsonObject.addProperty("checked", true);
+        }
+        if (src.dataNrMasked != null) {
+            jsonObject.addProperty("data-nr-masked", src.dataNrMasked);
         }
 
         return jsonObject;

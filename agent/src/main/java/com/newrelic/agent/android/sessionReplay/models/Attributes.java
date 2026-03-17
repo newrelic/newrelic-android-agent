@@ -12,6 +12,7 @@ public class Attributes{
     public String inputType;
     public String value;
     public Boolean checked;
+    public String dataNrMasked;
     public Map<String, String> metadata = new HashMap<>();
 
     public Map<String, String> getMetadata() {
