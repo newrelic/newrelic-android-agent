@@ -14,6 +14,7 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeEditTextThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeImageThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeRadioButtonThingy;
+import com.newrelic.agent.android.sessionReplay.compose.ComposeSliderThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails;
 import com.newrelic.agent.android.sessionReplay.compose.SessionReplayComposeViewThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeTextViewThingy;
@@ -55,6 +56,8 @@ public class SessionReplayThingyRecorder {
              return new ComposeEditTextThingy(composeViewDetails, node, agentConfiguration);
         } else if(node.getConfig().contains(SemanticsProperties.INSTANCE.getText())) {
             return new ComposeTextViewThingy(composeViewDetails, node, agentConfiguration);
+        } else if(node.getConfig().contains(SemanticsProperties.INSTANCE.getProgressBarRangeInfo())) {
+            return new ComposeSliderThingy(composeViewDetails, node, agentConfiguration);
         } else if(node.getConfig().contains(SemanticsProperties.INSTANCE.getRole())) {
 
             Role role = node.getConfig().get(SemanticsProperties.INSTANCE.getRole());
