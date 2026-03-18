@@ -91,7 +91,13 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -332,11 +338,31 @@ public class AndroidAgentImpl implements
         }
 
         // Safely sample memory usage, handling potential null returns
-        Sample memorySample = Sampler.sampleMemory(activityManager);
-        if (memorySample != null && memorySample.getSampleValue() != null) {
-            envInfo.setMemoryUsage(memorySample.getSampleValue().asLong());
-        } else {
+        final ExecutorService executor = Executors.newSingleThreadExecutor();
+        final Future<Sample> future = executor.submit(new Callable<Sample>() {
+            @Override
+            public Sample call() throws Exception {
+                return Sampler.sampleMemory(activityManager);
+            }
+        });
+
+        try {
+            Sample memorySample = future.get(100, TimeUnit.MILLISECONDS);
+            if (memorySample != null && memorySample.getSampleValue() != null) {
+                envInfo.setMemoryUsage(memorySample.getSampleValue().asLong());
+            } else {
+                envInfo.setMemoryUsage(0L);
+            }
+        } catch (TimeoutException e) {
+            log.warn("Timed out while sampling memory, returning 0.");
+            future.cancel(true);
             envInfo.setMemoryUsage(0L);
+        } catch (Exception e) {
+            log.error("Exception while sampling memory", e);
+            AgentHealth.noticeException(e);
+            envInfo.setMemoryUsage(0L);
+        } finally {
+            executor.shutdownNow();
         }
 
         envInfo.setOrientation(context.getResources().getConfiguration().orientation);

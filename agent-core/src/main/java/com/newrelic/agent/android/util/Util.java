@@ -7,10 +7,11 @@ package com.newrelic.agent.android.util;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.SecureRandom;
 import java.util.Random;
 
 public class Util {
-    private static final Random random = new Random();
+    private static final Random random = new SecureRandom();
 
     public static String sanitizeUrl(String urlString) {
         if (urlString == null) {
