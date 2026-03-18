@@ -62,6 +62,7 @@ open class ComposeTextViewThingy(
     private val textAlign: String
     private val fontWeight:String
     private val fontStyle:String
+    private val isSingleLine: Boolean
 
     protected val sessionReplayConfiguration: SessionReplayConfiguration = agentConfiguration.sessionReplayConfiguration
 
@@ -76,6 +77,7 @@ open class ComposeTextViewThingy(
         val rawText = extractTextFromSemantics(layoutInput)
         val shouldMaskText = shouldMaskComposeText(semanticsNode)
         labelText = getMaskedTextIfNeeded(semanticsNode, rawText, shouldMaskText)
+        isSingleLine = (layoutResult?.lineCount ?: 1) <= 1
 
         val textStyling = extractTextStyling(textStyle)
         fontSize = textStyling.fontSize
@@ -191,7 +193,11 @@ open class ComposeTextViewThingy(
     }
 
     private fun generateTextCss(cssBuilder: StringBuilder) {
-        cssBuilder.append("white-space: pre-wrap;overflow: hidden;text-overflow: ellipsis;")
+        if (isSingleLine) {
+            cssBuilder.append("white-space: nowrap;overflow: hidden;text-overflow: ellipsis;")
+        } else {
+            cssBuilder.append("white-space: pre-wrap;overflow: hidden;text-overflow: ellipsis;")
+        }
         cssBuilder.append(" ")
         cssBuilder.append("font-size: ")
         cssBuilder.append(formattedFontSize)

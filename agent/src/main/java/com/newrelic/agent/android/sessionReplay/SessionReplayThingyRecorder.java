@@ -68,7 +68,10 @@ public class SessionReplayThingyRecorder {
                 case "Image":
                     return new ComposeImageThingy(composeViewDetails, node, agentConfiguration);
                 case "RadioButton":
-                    return new ComposeRadioButtonThingy(composeViewDetails, node, agentConfiguration);
+                    // otherwise we are not showing text underlying the radio button for time picker
+                    if(node.getChildren().isEmpty()) {
+                         return new ComposeRadioButtonThingy(composeViewDetails, node, agentConfiguration);
+                    }
                 default:
                     // Handle other roles or default case
                     break;

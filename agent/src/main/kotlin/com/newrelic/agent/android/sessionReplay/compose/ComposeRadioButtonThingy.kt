@@ -62,7 +62,7 @@ class ComposeRadioButtonThingy(
         if (hasCheckedChange) {
             val attributes = Attributes(viewDetails.cssSelector)
             attributes.type = "radio"
-        attributes.inputType = "radio"
+            attributes.inputType = "radio"
             if (other.isChecked) {
                 attributes.checked = true
             } else {
