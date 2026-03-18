@@ -88,7 +88,7 @@ open class ComposeTextViewThingy(
     }
 
     private fun extractTextFromSemantics(layoutInput: TextLayoutInput?): String {
-        return layoutInput?.text.toString()
+        return layoutInput?.text?.toString().orEmpty()
     }
 
     private fun shouldMaskComposeText(node: SemanticsNode): Boolean {
