@@ -193,7 +193,20 @@ public class JSErrorDataReporter extends PayloadReporter {
 
     @Override
     public void onHarvest() {
-        PayloadController.submitCallable(reportCachedJSErrorDataCallable);
+        byte[] cachedData = JSErrorDataController.getStoredJSErrorData();
+
+        if (cachedData != null) {
+            Payload payload = new Payload(cachedData);
+            storeAndReportJSErrorData(payload);
+            log.info("JSErrorDataReporter: Cached JS errors added to harvest.");
+        }
+
+        super.onHarvest();
     }
 
+    @Override
+    public void onHarvestComplete() {
+        JSErrorDataController.deleteCacheFile();
+        super.onHarvestComplete();
+    }
 }
