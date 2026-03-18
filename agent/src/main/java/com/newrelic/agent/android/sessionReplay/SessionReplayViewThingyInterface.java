@@ -3,7 +3,7 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
-import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode; // Assuming ElementNodeData maps to this
+import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 
 import java.util.List;
 

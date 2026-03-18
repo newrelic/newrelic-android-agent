@@ -6,7 +6,9 @@ import androidx.compose.ui.semantics.getOrNull
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
 import com.newrelic.agent.android.sessionReplay.models.Attributes
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.InputCapable
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebInputData
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode
 
@@ -14,7 +16,7 @@ class ComposeSliderThingy(
     private val viewDetails: ComposeViewDetails,
     semanticsNode: SemanticsNode,
     agentConfiguration: AgentConfiguration
-) : SessionReplayComposeViewThingy(viewDetails, semanticsNode, agentConfiguration) {
+) : SessionReplayComposeViewThingy(viewDetails, semanticsNode, agentConfiguration), InputCapable {
 
     private val currentValue: Float
     private val minValue: Float
@@ -95,6 +97,12 @@ class ComposeSliderThingy(
 
         val viewAddRecord = RRWebMutationData.AddRecord(parentId, null, viewNode)
         return listOf(viewAddRecord)
+    }
+
+    override fun generateInputData(other: SessionReplayViewThingyInterface): RRWebInputData? {
+        if (other !is ComposeSliderThingy) return null
+        if (currentValue == other.currentValue) return null
+        return RRWebInputData(viewDetails.viewId, other.currentValue.toString(), false)
     }
 
     override fun hasChanged(other: SessionReplayViewThingyInterface?): Boolean {

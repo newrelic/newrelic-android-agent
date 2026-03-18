@@ -7,7 +7,9 @@ import androidx.compose.ui.state.ToggleableState
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
 import com.newrelic.agent.android.sessionReplay.models.Attributes
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.InputCapable
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebInputData
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode
 
@@ -15,7 +17,7 @@ class ComposeRadioButtonThingy(
     private val viewDetails: ComposeViewDetails,
     semanticsNode: SemanticsNode,
     agentConfiguration: AgentConfiguration
-) : SessionReplayComposeViewThingy(viewDetails, semanticsNode, agentConfiguration) {
+) : SessionReplayComposeViewThingy(viewDetails, semanticsNode, agentConfiguration), InputCapable {
 
     private val isChecked: Boolean
 
@@ -30,8 +32,6 @@ class ComposeRadioButtonThingy(
         attributes.inputType = "radio"
         if (isChecked) {
             attributes.checked = true
-        } else {
-            attributes.checked = false
         }
         return RRWebElementNode(
             attributes,
@@ -65,8 +65,6 @@ class ComposeRadioButtonThingy(
             attributes.inputType = "radio"
             if (other.isChecked) {
                 attributes.checked = true
-            } else {
-                attributes.checked = false
             }
             mutations.add(RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes))
         }
@@ -80,8 +78,6 @@ class ComposeRadioButtonThingy(
         attributes.inputType = "radio"
         if (isChecked) {
             attributes.checked = true
-        }  else {
-            attributes.checked = false
         }
 
         val viewNode = RRWebElementNode(
@@ -95,6 +91,12 @@ class ComposeRadioButtonThingy(
 
         val viewAddRecord = RRWebMutationData.AddRecord(parentId, null, viewNode)
         return listOf(viewAddRecord)
+    }
+
+    override fun generateInputData(other: SessionReplayViewThingyInterface): RRWebInputData? {
+        if (other !is ComposeRadioButtonThingy) return null
+        if (isChecked == other.isChecked) return null
+        return RRWebInputData(viewDetails.viewId, "", other.isChecked)
     }
 
     override fun hasChanged(other: SessionReplayViewThingyInterface?): Boolean {
