@@ -238,6 +238,12 @@ public class ViewDetails {
      * outline-based clip. Returns 0 if no radius is available.
      */
     private float getOutlineRadius(View view) {
+        // Only extract radius when the view clips to its outline. Without
+        // clipToOutline, the outline only affects the shadow shape — the
+        // view itself renders with sharp corners.
+        if (!view.getClipToOutline()) {
+            return 0;
+        }
         try {
             ViewOutlineProvider provider = view.getOutlineProvider();
             if (provider == null) {

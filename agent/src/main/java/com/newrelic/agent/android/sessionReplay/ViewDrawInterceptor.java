@@ -105,11 +105,20 @@ public class ViewDrawInterceptor  {
                     // both the background activity and the dialog are included
                     // in a single replay snapshot.
                     List<SessionReplayViewThingyInterface> windowRoots = new ArrayList<>();
+                    boolean hasWindowWithDimBehind = false;
                     for (View dv : allRootViews) {
                         if (dv != null && dv.getVisibility() == View.VISIBLE) {
                             SessionReplayViewThingyInterface windowRoot = capture.capture(dv, agentConfiguration);
                             if (windowRoot != null) {
                                 windowRoots.add(windowRoot);
+                                // Check if this secondary window dims the background
+                                if (windowRoots.size() > 1
+                                        && dv.getLayoutParams() instanceof WindowManager.LayoutParams) {
+                                    int flags = ((WindowManager.LayoutParams) dv.getLayoutParams()).flags;
+                                    if ((flags & WindowManager.LayoutParams.FLAG_DIM_BEHIND) != 0) {
+                                        hasWindowWithDimBehind = true;
+                                    }
+                                }
                             }
                         }
                     }
@@ -121,6 +130,7 @@ public class ViewDrawInterceptor  {
 
                     SessionReplayFrame frame = new SessionReplayFrame(
                         windowRoots,
+                        hasWindowWithDimBehind,
                         System.currentTimeMillis(),
                         width,
                         height

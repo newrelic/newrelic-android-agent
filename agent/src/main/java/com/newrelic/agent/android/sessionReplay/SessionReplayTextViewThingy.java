@@ -35,6 +35,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String textColor;
     private String textAlign;
     private boolean verticallyCentered;
+    private boolean singleLine;
     private float lineHeight;
     protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
     protected SessionReplayConfiguration sessionReplayConfiguration;
@@ -100,6 +101,10 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         int verticalGravity = view.getGravity() & android.view.Gravity.VERTICAL_GRAVITY_MASK;
         this.verticallyCentered = verticalGravity == android.view.Gravity.CENTER_VERTICAL
                 || (view.getGravity() & android.view.Gravity.CENTER) == android.view.Gravity.CENTER;
+
+        // Determine if this is a single-line or multi-line text view.
+        // getMaxLines() returns Integer.MAX_VALUE when unconstrained.
+        this.singleLine = view.getMaxLines() == 1;
 
         // First check if gravity is set to something that would affect alignment
         this.textAlign = resolveAlignmentFromGravity(view);
@@ -197,7 +202,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         if (this.verticallyCentered) {
             cssBuilder.append("display: flex; align-items: center; justify-content: center; ");
         }
-        cssBuilder.append("white-space: nowrap;");
+        cssBuilder.append(this.singleLine ? "white-space: nowrap;" : "white-space: pre-wrap;");
         cssBuilder.append("font-size: ");
         cssBuilder.append(String.format(Locale.US, "%.2f", this.fontSize));
         cssBuilder.append("px; ");
