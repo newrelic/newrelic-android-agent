@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.graphics.Typeface;
 import android.widget.TextView;
 
+import java.util.Locale;
+
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.internal.TextViewUtil;
@@ -32,6 +34,8 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String fontFamily;
     private String textColor;
     private String textAlign;
+    private boolean verticallyCentered;
+    private float lineHeight;
     protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
     protected SessionReplayConfiguration sessionReplayConfiguration;
 
@@ -84,11 +88,18 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         // Apply masking if needed
         this.labelText = getMaskedTextIfNeeded(view, rawText, shouldMaskText);
 
-        this.fontSize = view.getTextSize() / view.getContext().getResources().getDisplayMetrics().density;
+        float density = view.getContext().getResources().getDisplayMetrics().density;
+        this.fontSize = view.getTextSize() / density;
+        this.lineHeight = view.getLineHeight() / density;
         Typeface typeface = view.getTypeface();
 
         this.fontName = "default";
         this.fontFamily = getFontFamily(typeface);
+
+        // Check if gravity vertically centers the text (common for buttons)
+        int verticalGravity = view.getGravity() & android.view.Gravity.VERTICAL_GRAVITY_MASK;
+        this.verticallyCentered = verticalGravity == android.view.Gravity.CENTER_VERTICAL
+                || (view.getGravity() & android.view.Gravity.CENTER) == android.view.Gravity.CENTER;
 
         // First check if gravity is set to something that would affect alignment
         this.textAlign = resolveAlignmentFromGravity(view);
@@ -183,10 +194,16 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     private void generateTextCss(StringBuilder cssBuilder) {
-        cssBuilder.append("white-space: pre-wrap;overflow: hidden;text-overflow: ellipsis;");
-        cssBuilder.append("");
+        if (this.verticallyCentered) {
+            cssBuilder.append("display: flex; align-items: center; justify-content: center; ");
+        }
+        cssBuilder.append("white-space: nowrap;");
         cssBuilder.append("font-size: ");
-        cssBuilder.append(String.format("%.2f", this.fontSize));
+        cssBuilder.append(String.format(Locale.US, "%.2f", this.fontSize));
+        cssBuilder.append("px; ");
+
+        cssBuilder.append("line-height: ");
+        cssBuilder.append(String.format(Locale.US, "%.2f", this.lineHeight));
         cssBuilder.append("px; ");
 
         // Null-safe append for fontFamily
@@ -331,28 +348,28 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
     private String getFontFamily(Typeface typeface) {
         if (typeface == null) {
-            return "font-weight: normal; font-style: normal;";
+            return "font-family: sans-serif; font-weight: normal; font-style: normal";
         }
 
         StringBuilder style = new StringBuilder();
 
         // Handle font family
         if (typeface.equals(Typeface.MONOSPACE)) {
-            style.append("font-family: monospace;");
+            style.append("font-family: monospace");
         } else if (typeface.equals(Typeface.SERIF)) {
-            style.append("font-family: serif;");
+            style.append("font-family: serif");
         } else {
             // Default, SANS_SERIF, and custom typefaces
-            style.append("font-family: sans-serif;");
+            style.append("font-family: sans-serif");
         }
 
         // Handle font weight and style
         int typefaceStyle = typeface.getStyle();
         if ((typefaceStyle & Typeface.BOLD) != 0) {
-            style.append(" font-weight: bold;");
+            style.append("; font-weight: bold");
         }
         if ((typefaceStyle & Typeface.ITALIC) != 0) {
-            style.append(" font-style: italic;");
+            style.append("; font-style: italic");
         }
 
         return style.toString();

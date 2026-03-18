@@ -13,7 +13,11 @@ import android.view.WindowMetrics;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
 
+import curtains.Curtains;
+
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -54,13 +58,17 @@ public class ViewDrawInterceptor  {
                     lastCaptureTime = currentTime;
                     Log.d("ViewDrawInterceptor", "Capturing frame");
 
-                    // Safely get context - the view may have been detached by the time this runs
-                    if (decorViews == null || decorViews.length == 0) {
-                        Log.w("ViewDrawInterceptor", "decorViews is null or empty, skipping frame capture");
+                    // Get ALL current root views (windows) at capture time.
+                    // Using Curtains.getRootViews() instead of the captured decorViews
+                    // parameter ensures we see every visible window, not just the ones
+                    // that were present when this listener was registered.
+                    List<View> allRootViews = Curtains.getRootViews();
+                    if (allRootViews == null || allRootViews.isEmpty()) {
+                        Log.w("ViewDrawInterceptor", "No root views available, skipping frame capture");
                         return;
                     }
 
-                    View firstView = decorViews[0];
+                    View firstView = allRootViews.get(0);
                     if (firstView == null) {
                         Log.w("ViewDrawInterceptor", "First decor view is null, skipping frame capture");
                         return;
@@ -88,28 +96,31 @@ public class ViewDrawInterceptor  {
                     // Start timing the frame creation
                     long frameCreationStart = System.currentTimeMillis();
 
-
-                    // Capture the LAST decorView (most recently added window)
-                    //
-                    // Why the last element?
-                    // - Android maintains decorViews in a stack ordered by z-index (rendering order)
+                    // Capture ALL visible windows, layered by z-order.
+                    // Curtains maintains root views in rendering order:
                     // - Index 0: Base activity window (bottom layer)
-                    // - Index 1..n-1: Dialogs, popups, toasts (middle layers)
-                    // - Index n-1: Most recent window (top layer) - THIS IS WHAT USER SEES
+                    // - Index 1..n: Dialogs, popups, toasts (higher layers)
                     //
-                    // Examples:
-                    // - MainActivity (index 0) + AlertDialog (index 1) → We capture index 1 (the visible dialog)
-                    // - Activity + Popup Menu → We capture the popup (most recent interaction)
-                    // - Activity only → We capture index 0 (the only window)
-                    //
-                    // This approach captures what the user is currently interacting with, which is
-                    // always the topmost (most recent) window in the decorViews array.
-                    //
-                    // Alternative considered: Merge all decorViews into a composite snapshot
-                    // Reason not implemented: Performance overhead + complexity of merging z-indexed views
-                    View topMostView = decorViews[decorViews.length - 1];
+                    // We capture all windows so that when a dialog is open,
+                    // both the background activity and the dialog are included
+                    // in a single replay snapshot.
+                    List<SessionReplayViewThingyInterface> windowRoots = new ArrayList<>();
+                    for (View dv : allRootViews) {
+                        if (dv != null && dv.getVisibility() == View.VISIBLE) {
+                            SessionReplayViewThingyInterface windowRoot = capture.capture(dv, agentConfiguration);
+                            if (windowRoot != null) {
+                                windowRoots.add(windowRoot);
+                            }
+                        }
+                    }
+
+                    if (windowRoots.isEmpty()) {
+                        Log.w("ViewDrawInterceptor", "No visible windows to capture, skipping frame");
+                        return;
+                    }
+
                     SessionReplayFrame frame = new SessionReplayFrame(
-                        capture.capture(topMostView, agentConfiguration),
+                        windowRoots,
                         System.currentTimeMillis(),
                         width,
                         height
