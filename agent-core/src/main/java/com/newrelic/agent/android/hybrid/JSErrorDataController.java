@@ -56,9 +56,7 @@ public class JSErrorDataController {
             if (jsErrorReporter.payloadStore != null) {
                 String rootPath = jsErrorReporter.payloadStore.getRootPath();
                 File file = new File(rootPath, JSERROR_FILE_PATH);
-
-                Error jsError = new Error(analyticsController.getSessionAttributes(), eventAttributes);
-                String currentErrorJson = jsError.asJsonObject().toString();
+                String currentErrorJson = "{}";
 
                 JsonObject rootContainer = new JsonObject();
                 JsonArray events = new JsonArray();
@@ -69,15 +67,18 @@ public class JSErrorDataController {
                         rootContainer = JsonParser.parseReader(isr).getAsJsonObject();
                         if (rootContainer.has(Error.ANALYTICS_EVENTS_KEY)) {
                             events = rootContainer.getAsJsonArray(Error.ANALYTICS_EVENTS_KEY);
+                            events.add(gson.toJsonTree(eventAttributes));
                         }
+
+                        rootContainer.add(Error.ANALYTICS_EVENTS_KEY, events);
+                        currentErrorJson = rootContainer.toString();
                     } catch (Exception e) {
                         log.warn("JSErrorDataController: Failed to read existing cache, resetting: " + e.getMessage());
                     }
+                } else {
+                    Error jsError = new Error(analyticsController.getSessionAttributes(), eventAttributes);
+                    currentErrorJson = jsError.asJsonObject().toString();
                 }
-
-                jsError.asJsonObject().get(Error.ANALYTICS_EVENTS_KEY).getAsJsonArray().add(gson.toJsonTree(eventAttributes));
-                currentErrorJson = jsError.asJsonObject().toString();
-
                 saveJsonToDisk(rootPath, currentErrorJson);
             }
 
