@@ -11,6 +11,7 @@ import androidx.compose.ui.semantics.SemanticsNode;
 import androidx.compose.ui.semantics.SemanticsProperties;
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.sessionReplay.compose.ComposeBlockedViewThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeEditTextThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeImageThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeRadioButtonThingy;
@@ -25,6 +26,11 @@ public class SessionReplayThingyRecorder {
 
     public SessionReplayThingyRecorder(AgentConfiguration agentConfiguration) {
         this.agentConfiguration = agentConfiguration;
+    }
+
+    public SessionReplayViewThingyInterface recordBlockedView(View view) {
+        ViewDetails viewDetails = new ViewDetails(view);
+        return new SessionReplayBlockedViewThingy(viewDetails);
     }
 
     public SessionReplayViewThingyInterface recordView(View view) {
@@ -80,5 +86,11 @@ public class SessionReplayThingyRecorder {
         }
         return new SessionReplayComposeViewThingy(composeViewDetails,node,agentConfiguration);
 
+    }
+
+    @androidx.compose.ui.InternalComposeUiApi
+    public SessionReplayViewThingyInterface recordBlockedComposeView(SemanticsNode node, float density) {
+        ComposeViewDetails details = new ComposeViewDetails(node, density);
+        return new ComposeBlockedViewThingy(details, node, agentConfiguration);
     }
 }
