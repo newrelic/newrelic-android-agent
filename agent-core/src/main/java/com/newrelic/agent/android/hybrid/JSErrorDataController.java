@@ -75,9 +75,8 @@ public class JSErrorDataController {
                     }
                 }
 
-                events.add(gson.toJsonTree(eventAttributes));
-                rootContainer.add(Error.ANALYTICS_EVENTS_KEY, events);
-                currentErrorJson = rootContainer.toString();
+                jsError.asJsonObject().get(Error.ANALYTICS_EVENTS_KEY).getAsJsonArray().add(gson.toJsonTree(eventAttributes));
+                currentErrorJson = jsError.asJsonObject().toString();
 
                 saveJsonToDisk(rootPath, currentErrorJson);
             }
