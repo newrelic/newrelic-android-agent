@@ -64,8 +64,10 @@ public class SessionReplayThingyRecorder {
             return new ComposeTextViewThingy(composeViewDetails, node, agentConfiguration);
         } else if(node.getConfig().contains(SemanticsProperties.INSTANCE.getProgressBarRangeInfo())) {
             return new ComposeSliderThingy(composeViewDetails, node, agentConfiguration);
-        } else if(node.getConfig().contains(SemanticsProperties.INSTANCE.getRole())) {
-
+        } else if (layoutNode.getMeasurePolicy().toString().contains("Image")) {
+             // There is no reliable way to identify image role for compose nodes, so we are checking measure policy for now
+             return new ComposeImageThingy(composeViewDetails, node, agentConfiguration);
+         } else if(node.getConfig().contains(SemanticsProperties.INSTANCE.getRole())) {
             Role role = node.getConfig().get(SemanticsProperties.INSTANCE.getRole());
             switch (role.toString()) {
                 case "Button":

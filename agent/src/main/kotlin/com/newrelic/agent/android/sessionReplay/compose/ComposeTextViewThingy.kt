@@ -247,7 +247,6 @@ open class ComposeTextViewThingy(
             styleDifferences["top"] = "${otherComposeViewDetails.frame.top}px"
             styleDifferences["width"] = "${otherComposeViewDetails.frame.width()}px"
             styleDifferences["height"] = "${otherComposeViewDetails.frame.height()}px"
-            styleDifferences["line-height"] = "${otherComposeViewDetails.frame.height()}px"
         }
 
         if (viewDetails.backgroundColor != otherComposeViewDetails.backgroundColor) {
