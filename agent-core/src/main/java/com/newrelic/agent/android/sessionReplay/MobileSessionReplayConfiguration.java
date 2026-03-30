@@ -90,9 +90,9 @@ public class MobileSessionReplayConfiguration {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         if (this.enabled) {
-            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ENABLED + "/1");
+            StatsEngine.get().sample(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ENABLED, 1);
         } else {
-            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ENABLED + "/0");
+            StatsEngine.get().sample(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ENABLED, 0);
         }
     }
 
@@ -102,7 +102,7 @@ public class MobileSessionReplayConfiguration {
 
     public void setSamplingRate(double samplingRate) {
         this.samplingRate = samplingRate;
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_SAMPLING_RATE_VALUE + "/" + samplingRate);
+        StatsEngine.get().sample(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_SAMPLING_RATE_VALUE, (float) samplingRate);
     }
 
     public double getErrorSamplingRate() {
@@ -111,7 +111,7 @@ public class MobileSessionReplayConfiguration {
 
     public void setErrorSamplingRate(double errorSamplingRate) {
         this.errorSamplingRate = errorSamplingRate;
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ERROR_SAMPLING_RATE_VALUE + "/" + errorSamplingRate);
+        StatsEngine.get().sample(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ERROR_SAMPLING_RATE_VALUE, (float) errorSamplingRate);
     }
 
     public String getMode() {
