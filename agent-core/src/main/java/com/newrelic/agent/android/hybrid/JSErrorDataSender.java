@@ -104,8 +104,7 @@ public class JSErrorDataSender extends PayloadSender {
     }
 
     public String getErrorCollectorPath() {
-//        return JSERROR_COLLECTOR_PATH + agentConfiguration.getApplicationFramework().toString();
-        return JSERROR_COLLECTOR_PATH + "reactnative";
+        return JSERROR_COLLECTOR_PATH + agentConfiguration.getApplicationFramework().toString();
     }
 
     @Override

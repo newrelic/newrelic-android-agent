@@ -33,6 +33,7 @@ public class JSErrorDataController {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final Gson gson = new GsonBuilder().create();
     private static final String JSERROR_FILE_PATH = "js-errors-cache.json";
+    public static volatile String jsErrorPayloadString = "";
 
     public static boolean sendJSErrorData(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
         final HashMap<String, Object> eventAttributes = new HashMap<>();
@@ -67,18 +68,22 @@ public class JSErrorDataController {
                         rootContainer = JsonParser.parseReader(isr).getAsJsonObject();
                         if (rootContainer.has(Error.ANALYTICS_EVENTS_KEY)) {
                             events = rootContainer.getAsJsonArray(Error.ANALYTICS_EVENTS_KEY);
-                            events.add(gson.toJsonTree(eventAttributes));
+                        } else {
+                            events = new JsonArray();
                         }
+                        events.add(gson.toJsonTree(eventAttributes));
 
                         rootContainer.add(Error.ANALYTICS_EVENTS_KEY, events);
                         currentErrorJson = rootContainer.toString();
                     } catch (Exception e) {
+                        currentErrorJson = "{}";
                         log.warn("JSErrorDataController: Failed to read existing cache, resetting: " + e.getMessage());
                     }
                 } else {
                     Error jsError = new Error(analyticsController.getSessionAttributes(), eventAttributes);
                     currentErrorJson = jsError.asJsonObject().toString();
                 }
+                jsErrorPayloadString = currentErrorJson;
                 saveJsonToDisk(rootPath, currentErrorJson);
             }
 
@@ -107,7 +112,7 @@ public class JSErrorDataController {
         }
     }
 
-    public static byte[] getStoredJSErrorData() {
+    public static String getStoredJSErrorData() {
         JSErrorDataReporter jsErrorReporter = JSErrorDataReporter.getInstance();
         if (jsErrorReporter.payloadStore != null) {
             String rootPath = jsErrorReporter.payloadStore.getRootPath();
@@ -118,7 +123,7 @@ public class JSErrorDataController {
                      InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8)) {
 
                     JsonObject rootContainer = JsonParser.parseReader(isr).getAsJsonObject();
-                    return rootContainer.toString().getBytes(StandardCharsets.UTF_8);
+                    return rootContainer.toString();
 
                 } catch (Exception e) {
                     log.error("JSErrorDataController: Failed to read cached JS errors: " + e.getMessage());
