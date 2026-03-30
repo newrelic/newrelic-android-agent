@@ -19,6 +19,7 @@ import com.newrelic.agent.android.payload.PayloadStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -192,13 +193,25 @@ public class JSErrorDataReporter extends PayloadReporter {
     }
 
     @Override
-    public void onHarvest() {
-        byte[] cachedData = JSErrorDataController.getStoredJSErrorData();
+    public void onHarvestConnected() {
+        try {
+            String cachedJSErrorData = JSErrorDataController.getStoredJSErrorData();
+            JSErrorDataController.jsErrorPayloadString = cachedJSErrorData;
+        } catch (Exception ex) {
+            log.error("JSErrorDataReporter: Retrieve cached JSError: " + ex.getMessage());
+        }
+    }
 
-        if (cachedData != null) {
-            Payload payload = new Payload(cachedData);
-            storeAndReportJSErrorData(payload);
-            log.info("JSErrorDataReporter: Cached JS errors added to harvest.");
+    @Override
+    public void onHarvest() {
+        if (JSErrorDataController.jsErrorPayloadString != null && !JSErrorDataController.jsErrorPayloadString.isEmpty()) {
+            byte[] cachedData = JSErrorDataController.jsErrorPayloadString.getBytes(StandardCharsets.UTF_8);
+
+            if (cachedData != null) {
+                Payload payload = new Payload(cachedData);
+                storeAndReportJSErrorData(payload);
+                log.info("JSErrorDataReporter: Cached JS errors added to harvest.");
+            }
         }
 
         super.onHarvest();
@@ -207,6 +220,7 @@ public class JSErrorDataReporter extends PayloadReporter {
     @Override
     public void onHarvestComplete() {
         JSErrorDataController.deleteCacheFile();
+        JSErrorDataController.jsErrorPayloadString = "";
         super.onHarvestComplete();
     }
 }
