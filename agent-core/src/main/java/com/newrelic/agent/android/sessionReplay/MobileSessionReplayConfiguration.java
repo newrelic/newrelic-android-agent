@@ -6,6 +6,8 @@
 package com.newrelic.agent.android.sessionReplay;
 
 import com.google.gson.annotations.SerializedName;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -87,6 +89,11 @@ public class MobileSessionReplayConfiguration {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+        if (this.enabled) {
+            StatsEngine.get().sample(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ENABLED, 1);
+        } else {
+            StatsEngine.get().sample(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ENABLED, 0);
+        }
     }
 
     public double getSamplingRate() {
@@ -95,6 +102,7 @@ public class MobileSessionReplayConfiguration {
 
     public void setSamplingRate(double samplingRate) {
         this.samplingRate = samplingRate;
+        StatsEngine.get().sample(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_SAMPLING_RATE_VALUE, (float) samplingRate);
     }
 
     public double getErrorSamplingRate() {
@@ -103,6 +111,7 @@ public class MobileSessionReplayConfiguration {
 
     public void setErrorSamplingRate(double errorSamplingRate) {
         this.errorSamplingRate = errorSamplingRate;
+        StatsEngine.get().sample(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ERROR_SAMPLING_RATE_VALUE, (float) errorSamplingRate);
     }
 
     public String getMode() {
