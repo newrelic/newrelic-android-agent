@@ -42,6 +42,8 @@ public class ReactNativeSourceMap {
     public static final String NR_PROPERTIES = "newrelic.properties";
 
     public static final String SOURCE_MAP_FILENAME = "index.android.bundle.map";
+    public static final String BUNDLE_FILENAME = "index.android.bundle";
+    public static final String BUNDLE_RELATIVE_PATH = "build/generated/assets/react/release/" + BUNDLE_FILENAME;
     public static final String PROJECT_ROOT_KEY = "com.newrelic.projectroot";
 
     static final String PROP_NR_APP_TOKEN = "com.newrelic.application_token";
@@ -56,6 +58,7 @@ public class ReactNativeSourceMap {
     static final String DEFAULT_SOURCEMAP_API_PATH = "/v1/react-native/sourcemaps";
 
     static final int USEFUL_BUFFER_SIZE = 0x10000;  // 64k
+    static final long MAX_COMPRESSED_SIZE = 200L * 1024 * 1024;  // 200MB
 
     static final class Network {
         public static final String APPLICATION_LICENSE_HEADER = "X-APP-LICENSE-KEY";
@@ -64,6 +67,7 @@ public class ReactNativeSourceMap {
         public static final String AGENT_VERSION_HEADER = "X-NewRelic-Agent-Version";
         public static final String AGENT_OSNAME_HEADER = "X-NewRelic-OS-Name";
         public static final String AGENT_PLATFORM_HEADER = "X-NewRelic-Platform";
+        public static final String TELEMETRY_DATA_HEADER = "x-telemetry-data";
 
         static final class ContentType {
             public static final String HEADER = "Content-Type";
@@ -190,59 +194,56 @@ public class ReactNativeSourceMap {
     }
 
     protected void sendSourceMap(File sourceMapFile) throws IOException {
+        // Prepare file data - optionally compress
+        byte[] fileData;
+        String fileName;
+        long originalSize = sourceMapFile.length();
+
+        try (FileInputStream fis = new FileInputStream(sourceMapFile)) {
+            if (compressedUploads) {
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+                    ZipEntry zipEntry = new ZipEntry(sourceMapFile.getName());
+                    zos.putNextEntry(zipEntry);
+                    Streams.copy(fis, zos, USEFUL_BUFFER_SIZE);
+                    zos.closeEntry();
+                }
+                fileData = baos.toByteArray();
+                fileName = sourceMapFile.getName() + ".zip";
+                log.info("Compressed source map from " + originalSize + " to " + fileData.length + " bytes (" +
+                        String.format(Locale.US, "%.1f", (100.0 - (fileData.length * 100.0 / originalSize))) + "% reduction)");
+            } else {
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                Streams.copy(fis, baos, USEFUL_BUFFER_SIZE);
+                fileData = baos.toByteArray();
+                fileName = sourceMapFile.getName();
+            }
+        }
+
+        // Check compressed size against the 200MB server limit
+        if (fileData.length > MAX_COMPRESSED_SIZE) {
+            log.warn("Compressed source map size is " + fileData.length + " bytes, " +
+                    "which exceeds the 200 MB limit supported by New Relic.");
+            sendTelemetryOnly(sourceMapFile.getName(), fileName, fileData.length);
+            return;
+        }
+
         HttpURLConnection connection = getHttpURLConnection();
 
         try {
             connection.setRequestProperty(Network.ContentType.HEADER, Network.ContentType.MULTIPART_FORM_DATA
                     + "; boundary=" + MultipartFormWriter.boundary);
 
-
             final OutputStream outputStrm = connection.getOutputStream();
-
-            // Prepare file data - optionally compress
-            byte[] fileData;
-            String fileName;
-            long originalSize = sourceMapFile.length();
-
-            try (FileInputStream fis = new FileInputStream(sourceMapFile)) {
-                if (compressedUploads) {
-                    // Zip compress the source map (server accepts .zip extension)
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    try (ZipOutputStream zos = new ZipOutputStream(baos)) {
-                        ZipEntry zipEntry = new ZipEntry(sourceMapFile.getName());
-                        zos.putNextEntry(zipEntry);
-                        Streams.copy(fis, zos, USEFUL_BUFFER_SIZE);
-                        zos.closeEntry();
-                    }
-                    fileData = baos.toByteArray();
-                    fileName = sourceMapFile.getName() + ".zip";
-                    log.info("Compressed source map from " + originalSize + " to " + fileData.length + " bytes (" +
-                            String.format("%.1f", (100.0 - (fileData.length * 100.0 / originalSize))) + "% reduction)");
-                } else {
-                    // Read uncompressed
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    Streams.copy(fis, baos, USEFUL_BUFFER_SIZE);
-                    fileData = baos.toByteArray();
-                    fileName = sourceMapFile.getName();
-                }
-            }
 
             try (ByteArrayInputStream bis = new ByteArrayInputStream(fileData);
                  DataOutputStream dos = new DataOutputStream(outputStrm)) {
 
                 MultipartFormWriter formWriter = new MultipartFormWriter(dos, USEFUL_BUFFER_SIZE);
 
-                // Write form fields first (matching curl order)
-                // Write the appVersionId
                 formWriter.writeFieldPart("appVersionId", appVersionId);
-
-                // Write the jsBundleId
                 formWriter.writeFieldPart("jsBundleId", appVersionId);
-
-                // Write the sourcemapName (original filename without .gz)
                 formWriter.writeFieldPart("sourcemapName", sourceMapFile.getName());
-
-                // Write the source map file last
                 formWriter.writeFilePart("sourcemap", fileName, bis, compressedUploads);
 
                 formWriter.finish();
@@ -254,61 +255,145 @@ public class ReactNativeSourceMap {
                 outputStrm.close();
             }
 
-            final int responseCode = connection.getResponseCode();
-            log.debug("React Native source map upload returns [" + responseCode + "]");
-
-            switch (responseCode) {
-                case HttpURLConnection.HTTP_OK:
-                    log.debug("React Native source map updated.");
-                    break;
-
-                case HttpURLConnection.HTTP_CREATED:
-                    log.info("Successfully sent React Native source map to New Relic.");
-                    break;
-
-                case HttpURLConnection.HTTP_ACCEPTED:
-                    log.info("Successfully sent React Native source map to New Relic for background processing.");
-                    break;
-
-                case HttpURLConnection.HTTP_BAD_REQUEST:
-                    try (InputStream inputStream = connection.getErrorStream()) {
-                        String response = Streams.slurp(inputStream, "UTF-8");
-                        if (Strings.isNullOrEmpty(response)) {
-                            response = connection.getResponseMessage();
-                        }
-                        log.error("Unable to send React Native source map to New Relic: " + response);
-                        logRecourse();
-                    }
-                    break;
-
-                case HttpURLConnection.HTTP_CONFLICT:
-                    log.info("A React Native source map with build ID [" + buildId + "] has already been stored.");
-                    break;
-
-                default:
-                    if (responseCode > HttpURLConnection.HTTP_BAD_REQUEST) {
-                        try (InputStream inputStream = connection.getErrorStream()) {
-                            String response = Streams.slurp(inputStream, "UTF-8");
-                            if (Strings.isNullOrEmpty(response)) {
-                                response = connection.getResponseMessage();
-                            }
-                            log.error("Unable to send React Native source map to New Relic - received status " + responseCode + ": " + response);
-                            logRecourse();
-                        }
-                    } else {
-                        log.error("React Native source map upload returned [" + responseCode + "]");
-                    }
-                    break;
-            }
+            handleResponse(connection);
 
         } catch (Exception e) {
             log.error("An error occurred uploading React Native source map to New Relic: " + e.getLocalizedMessage());
             logRecourse();
 
         } finally {
-            if (connection != null) {
-                connection.disconnect();
+            connection.disconnect();
+        }
+    }
+
+    /**
+     * Send telemetry-only request when the compressed source map exceeds the 200MB server limit.
+     * Sends a POST with the x-telemetry-data header containing Base64-encoded JSON and no file body.
+     */
+    protected void sendTelemetryOnly(String originalFileName, String zippedFileName, long zippedSize) throws IOException {
+        // Resolve the JS bundle file size from the build output
+        long bundleSize = 0;
+        File bundleFile = new File(getProjectRoot() + File.separator + BUNDLE_RELATIVE_PATH);
+        if (bundleFile.exists()) {
+            bundleSize = bundleFile.length();
+            log.info("Found JS bundle at " + bundleFile.getAbsolutePath() + " (" + bundleSize + " bytes)");
+        } else {
+            log.warn("JS bundle not found at " + bundleFile.getAbsolutePath() + ", reporting bundle size as 0");
+        }
+
+        String telemetryJson = buildTelemetryJson(originalFileName, zippedFileName, zippedSize, bundleSize);
+        String encodedTelemetry = BaseEncoding.base64().encode(telemetryJson.getBytes("UTF-8"));
+
+        log.info("Sending telemetry data for oversized source map: " + originalFileName +
+                " (compressed size: " + zippedSize + " bytes)");
+
+        HttpURLConnection connection = getHttpURLConnection();
+
+        try {
+            connection.setRequestProperty(Network.TELEMETRY_DATA_HEADER, encodedTelemetry);
+            connection.setRequestProperty(Network.ContentType.HEADER, Network.ContentType.MULTIPART_FORM_DATA
+                    + "; boundary=" + MultipartFormWriter.boundary);
+
+            final OutputStream outputStrm = connection.getOutputStream();
+            try (DataOutputStream dos = new DataOutputStream(outputStrm)) {
+                MultipartFormWriter formWriter = new MultipartFormWriter(dos, USEFUL_BUFFER_SIZE);
+
+                formWriter.writeFieldPart("appVersionId", appVersionId);
+                formWriter.writeFieldPart("jsBundleId", appVersionId);
+                formWriter.writeFieldPart("sourcemapName", originalFileName);
+
+                formWriter.finish();
+                dos.flush();
+            } finally {
+                outputStrm.close();
             }
+
+            // The server may return a non-2xx status (e.g. 400) because no source map file
+            // is included. This is expected — the telemetry header is the payload, not the body.
+            final int responseCode = connection.getResponseCode();
+            log.info("Source map telemetry data sent successfully (server returned " + responseCode + ").");
+
+        } catch (Exception e) {
+            log.debug("Unable to send source map telemetry: " + e.getLocalizedMessage() + " (non-critical).");
+
+        } finally {
+            connection.disconnect();
+        }
+
+        log.warn("New Relic currently supports source map files up to 200 MB (compressed). " +
+                "The source map for this build exceeds that limit. " +
+                "Source map and bundle telemetry has been collected for future enhancement.");
+        log.warn("JavaScript errors for this build will not be symbolicated.");
+    }
+
+    /**
+     * Build the telemetry JSON payload for oversized source maps.
+     */
+    String buildTelemetryJson(String originalFileName, String zippedFileName, long zippedSize, long bundleSize) {
+        // Build JSON manually to avoid adding a dependency for a simple structure
+        return "{" +
+                "\"bundler\":\"metro\"," +
+                "\"bundles\":[{" +
+                "\"name\":\"" + escapeJsonString(originalFileName.replace(".map", "")) + "\"," +
+                "\"size\":" + bundleSize +
+                "}]," +
+                "\"sourcemaps\":[{" +
+                "\"name\":\"" + escapeJsonString(zippedFileName) + "\"," +
+                "\"size\":" + zippedSize +
+                "}]" +
+                "}";
+    }
+
+    private String escapeJsonString(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private void handleResponse(HttpURLConnection connection) throws IOException {
+        final int responseCode = connection.getResponseCode();
+        log.debug("React Native source map upload returns [" + responseCode + "]");
+
+        switch (responseCode) {
+            case HttpURLConnection.HTTP_OK:
+                log.debug("React Native source map updated.");
+                break;
+
+            case HttpURLConnection.HTTP_CREATED:
+                log.info("Successfully sent React Native source map to New Relic.");
+                break;
+
+            case HttpURLConnection.HTTP_ACCEPTED:
+                log.info("Successfully sent React Native source map to New Relic for background processing.");
+                break;
+
+            case HttpURLConnection.HTTP_BAD_REQUEST:
+                try (InputStream inputStream = connection.getErrorStream()) {
+                    String response = Streams.slurp(inputStream, "UTF-8");
+                    if (Strings.isNullOrEmpty(response)) {
+                        response = connection.getResponseMessage();
+                    }
+                    log.error("Unable to send React Native source map to New Relic: " + response);
+                    logRecourse();
+                }
+                break;
+
+            case HttpURLConnection.HTTP_CONFLICT:
+                log.info("A React Native source map with build ID [" + buildId + "] has already been stored.");
+                break;
+
+            default:
+                if (responseCode > HttpURLConnection.HTTP_BAD_REQUEST) {
+                    try (InputStream inputStream = connection.getErrorStream()) {
+                        String response = Streams.slurp(inputStream, "UTF-8");
+                        if (Strings.isNullOrEmpty(response)) {
+                            response = connection.getResponseMessage();
+                        }
+                        log.error("Unable to send React Native source map to New Relic - received status " + responseCode + ": " + response);
+                        logRecourse();
+                    }
+                } else {
+                    log.error("React Native source map upload returned [" + responseCode + "]");
+                }
+                break;
         }
     }
 
