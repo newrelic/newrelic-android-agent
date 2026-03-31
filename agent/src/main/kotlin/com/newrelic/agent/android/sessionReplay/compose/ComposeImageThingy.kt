@@ -97,13 +97,11 @@ open class ComposeImageThingy(
 
         isMasked = !shouldUnMaskImage(semanticsNode)
         if (!isMasked) {
-            imageExtractionExecutor.execute {
                 try {
                     imageData = extractImageFromModifierInfo()
                 } catch (e: Exception) {
                     Log.e(LOG_TAG, "Error extracting image", e)
                 }
-            }
         }
     }
 
@@ -492,7 +490,7 @@ open class ComposeImageThingy(
             styleDifferences["background-color"] = otherViewDetails.backgroundColor ?: "transparent"
         }
 
-        if (imageData != other.imageData) {
+        if (!imageData.equals(other.imageData) ){
             other.imageDataUrl?.let { url ->
                 styleDifferences["background-image"] = "url($url)"
             }

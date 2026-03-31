@@ -12,7 +12,7 @@ import androidx.compose.ui.semantics.SemanticsOwner;
  */
 public class SemanticsNodeTouchHandler {
     private static final String TAG = "SemanticsNodeTouchHandler";
-    private static final int MASKED_TOUCH_ID = 0;
+    private static final int MASKED_TOUCH_ID = -1;
 
     private final SessionReplayConfiguration sessionReplayConfiguration;
 
@@ -102,6 +102,11 @@ public class SemanticsNodeTouchHandler {
     private boolean shouldMaskTouch(SemanticsNode semanticsNode) {
         // Check global touch masking setting
         if (sessionReplayConfiguration.isMaskAllUserTouches()) {
+            return true;
+        }
+
+        // Block check — walk ancestor chain (block always suppresses, regardless of mode)
+        if (com.newrelic.agent.android.sessionReplay.compose.ComposePrivacyUtils.INSTANCE.hasBlockedAncestor(semanticsNode)) {
             return true;
         }
 

@@ -9,6 +9,7 @@ object ComposeSessionReplayConstants {
     object PrivacyTags {
         const val MASK = "nr-mask"
         const val UNMASK = "nr-unmask"
+        const val BLOCK = "nr-block"
     }
 
     // Session Replay Modes
