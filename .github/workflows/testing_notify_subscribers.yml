@@ -1,0 +1,49 @@
+# This is a basic workflow that is manually triggered
+
+name: Notify subscribers of release
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      name:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: 'Notify subscribers'
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Changelog
+      uses: Bullrich/generate-release-changelog@master
+      id: Changelog
+      env:
+        REPO: ${{ github.repository }}
+    - name: Create release
+      uses: actions/create-release@v1
+      id: create_release
+      with:
+        draft: true
+        prerelease: false
+        release_name: ${{github.ref}}
+        tag_name: ${{ github.ref }}
+        body: |
+            ${{ steps.Changelog.outputs.changelog }}
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+    - name: The Slack GitHub Action
+      uses: slackapi/slack-github-action@v3.0.1
+      id: notify
+      with:
+        slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
+        slack-channel: C03QPGL40BT
+        slack-text: Hello! Event "${{ github.event_name }}" in "${{ github.repository }}" 🤓
+    - name: Result from "Send Message"
+      run: echo "The result was ${{ steps.notify.outputs.slack-result }}"
