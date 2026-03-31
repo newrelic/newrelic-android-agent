@@ -330,4 +330,59 @@ public class ReactNativeSourceMapTest {
         Assert.assertTrue(sourceMapUploader.fetchConfiguration());
         Assert.assertTrue(sourceMapUploader.compressedUploads);
     }
+
+    @Test
+    public void buildTelemetryJson() {
+        String json = sourceMapUploader.buildTelemetryJson(
+                "index.android.bundle.map",
+                "index.android.bundle.map.zip",
+                250000000L,
+                1000000L
+        );
+
+        Assert.assertTrue(json.contains("\"bundler\":\"metro\""));
+        Assert.assertTrue(json.contains("\"name\":\"index.android.bundle\""));
+        Assert.assertTrue(json.contains("\"name\":\"index.android.bundle.map.zip\""));
+        Assert.assertTrue(json.contains("\"size\":250000000"));
+        Assert.assertTrue(json.contains("\"size\":1000000"));
+    }
+
+    @Test
+    public void buildTelemetryJsonHasCorrectStructure() {
+        String json = sourceMapUploader.buildTelemetryJson(
+                "main.map",
+                "main.map.zip",
+                300000000L,
+                5000000L
+        );
+
+        Assert.assertTrue(json.contains("\"bundles\":["));
+        Assert.assertTrue(json.contains("\"sourcemaps\":["));
+        Assert.assertTrue(json.contains("\"bundler\":\"metro\""));
+        // Bundle name should strip .map extension
+        Assert.assertTrue(json.contains("\"name\":\"main\""));
+        // Sourcemap name should be the zip filename
+        Assert.assertTrue(json.contains("\"name\":\"main.map.zip\""));
+        Assert.assertTrue(json.contains("\"size\":300000000"));
+        // Bundle size
+        Assert.assertTrue(json.contains("\"size\":5000000"));
+    }
+
+    @Test
+    public void buildTelemetryJsonWithZeroBundleSize() {
+        String json = sourceMapUploader.buildTelemetryJson(
+                "index.android.bundle.map",
+                "index.android.bundle.map.zip",
+                250000000L,
+                0L
+        );
+
+        // When bundle file is not found, size should be 0
+        Assert.assertTrue(json.contains("\"bundles\":[{\"name\":\"index.android.bundle\",\"size\":0}]"));
+    }
+
+    @Test
+    public void maxCompressedSizeIs200MB() {
+        Assert.assertEquals(200L * 1024 * 1024, ReactNativeSourceMap.MAX_COMPRESSED_SIZE);
+    }
 }
