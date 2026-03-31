@@ -15,4 +15,21 @@ object ComposePrivacyUtils {
         }
         return ""
     }
+
+    /**
+     * Checks if this node or any ancestor has the BLOCK privacy tag.
+     * This walks up the parent chain because block propagation during
+     * tree capture may not have run yet (e.g., touch events arrive independently).
+     */
+    fun hasBlockedAncestor(node: SemanticsNode): Boolean {
+        var current: SemanticsNode? = node
+        while (current != null) {
+            val tag = current.config.getOrNull(NewRelicPrivacyKey)
+            if (ComposeSessionReplayConstants.PrivacyTags.BLOCK == tag) {
+                return true
+            }
+            current = current.parent
+        }
+        return false
+    }
 }
