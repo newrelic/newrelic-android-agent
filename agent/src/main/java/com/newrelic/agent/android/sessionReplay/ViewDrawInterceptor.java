@@ -115,10 +115,11 @@ public class ViewDrawInterceptor  {
                         height
                     );
 
-                    // Calculate frame creation time
-                    long frameCreationTime = System.currentTimeMillis() - frameCreationStart;
-                    Log.d("ViewDrawInterceptor", "Frame creation took: " + frameCreationTime + "ms");
-                    // Create a SessionReplayFrame, then add it to a thing to wait for processing
+                    // Measure frame creation time for perf metrics
+                    long captureTimeMs = System.currentTimeMillis() - frameCreationStart;
+                    SocketIOStreamer.getInstance().setLastCaptureTimeMs(captureTimeMs);
+                    Log.d("ViewDrawInterceptor", "Frame creation took: " + captureTimeMs + "ms");
+
                     ViewDrawInterceptor.this.listener.onFrameTaken(frame);
                 });
             };

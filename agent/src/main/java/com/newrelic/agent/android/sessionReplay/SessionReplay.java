@@ -10,6 +10,8 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 
+import org.json.JSONObject;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -146,6 +148,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Shutdown file manager
         SessionReplayFileManager.shutdown();
 
+        // Disconnect Socket.IO streamer
+        SocketIOStreamer.getInstance().disconnect();
+
         log.debug("Session replay deinitialized");
     }
 
@@ -244,6 +249,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         instance.fileManager = new SessionReplayFileManager(processor);
         SessionReplayFileManager.initialize(application);
 
+        // Reset Socket.IO streamer state for new session
+        SocketIOStreamer.getInstance().resetRecorderState();
+
         if(mode == SessionReplayMode.ERROR) {
             // Register SessionReplay as event listener using composite pattern
             // This allows SessionReplay to always listen for NetworkRequestErrorEvent while also supporting user-provided listeners
@@ -322,6 +330,31 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
         List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)),takeFullSnapshot.get());
 
+        // Stream events to Socket.IO server in real-time if enabled
+        if (SocketIOStreamer.getInstance().isEnabled()) {
+            Gson gson = new Gson();
+            int totalPayloadBytes = 0;
+            for (RRWebEvent event : events) {
+                String json = gson.toJson(event);
+                totalPayloadBytes += json.length();
+                SocketIOStreamer.getInstance().sendEvent(json);
+            }
+
+            // Send perf metric alongside the events
+            try {
+                JSONObject metric = new JSONObject();
+                metric.put("captureTimeMs", SocketIOStreamer.getInstance().getLastCaptureTimeMs());
+                metric.put("nodeCount", countNodes(newFrame.rootThingy));
+                metric.put("windowCount", 1);
+                metric.put("snapshotType", takeFullSnapshot.get() ? "full" : "incremental");
+                metric.put("payloadSizeBytes", totalPayloadBytes);
+                metric.put("timestamp", System.currentTimeMillis());
+                SocketIOStreamer.getInstance().emitMetric(metric);
+            } catch (Exception e) {
+                log.error("Failed to emit perf metric: " + e.getMessage());
+            }
+        }
+
         // If harvest is in progress, buffer frames for later writing
         if (isHarvesting.get()) {
             log.debug("Frame received during harvest, buffering for later write");
@@ -337,6 +370,14 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     @Override
     public void onTouchRecorded(TouchTracker touchTracker) {
+        // Stream touch events to Socket.IO server in real-time if enabled
+        if (SocketIOStreamer.getInstance().isEnabled()) {
+            Gson gson = new Gson();
+            touchTracker.processTouchData().forEach(position -> {
+                SocketIOStreamer.getInstance().sendEvent(gson.toJson(position));
+            });
+        }
+
         // If harvest is in progress, buffer touch data for later writing
         if (isHarvesting.get()) {
             log.debug("Touch data received during harvest, buffering for later write");
@@ -609,5 +650,17 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         }
 
         return modeManager.transitionTo(newMode, trigger);
+    }
+
+    /**
+     * Counts total nodes in a view thingy tree (for perf metrics).
+     */
+    private static int countNodes(SessionReplayViewThingyInterface root) {
+        if (root == null) return 0;
+        int count = 1;
+        for (SessionReplayViewThingyInterface child : root.getSubviews()) {
+            count += countNodes(child);
+        }
+        return count;
     }
 }
