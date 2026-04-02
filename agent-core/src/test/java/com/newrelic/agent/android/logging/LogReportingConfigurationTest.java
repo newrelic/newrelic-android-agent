@@ -95,13 +95,13 @@ public class LogReportingConfigurationTest {
         LogReportingConfiguration config = new LogReportingConfiguration(true, LogLevel.VERBOSE, 15, 3600, 33);
 
         LogReportingConfiguration.sampleSeed = 10.0;
-        Assert.assertTrue(config.getLoggingEnabled());
+        Assert.assertTrue(config.getLoggingEnabledAndSessionSampled());
 
         LogReportingConfiguration.sampleSeed = 100.0;
-        Assert.assertFalse(config.getLoggingEnabled());
+        Assert.assertFalse(config.getLoggingEnabledAndSessionSampled());
 
         config.enabled = false;
-        Assert.assertFalse(config.getLoggingEnabled());
+        Assert.assertFalse(config.getLoggingEnabledAndSessionSampled());
     }
 
     @Test
@@ -178,5 +178,66 @@ public class LogReportingConfigurationTest {
         Assert.assertEquals(localConfiguration, localConfiguration);
         Assert.assertNotEquals(remoteConfig, localConfiguration);
 
+    }
+
+    @Test
+    public void testSamplingOverride_isSampledReturnsTrueWhenOverrideSet() {
+        // Config with 0% sample rate — normally not sampled
+        LogReportingConfiguration config = new LogReportingConfiguration(true, LogLevel.DEBUG, 30, 3600, 0);
+        LogReportingConfiguration.sampleSeed = 50.0;
+
+        Assert.assertFalse("Should not be sampled without override", config.isSampled());
+
+        config.setSamplingOverride(true);
+        Assert.assertTrue("Should be sampled with override", config.isSampled());
+        Assert.assertTrue("isSamplingOverridden should return true", config.isSamplingOverridden());
+    }
+
+    @Test
+    public void testSamplingOverride_getLoggingEnabledAndSessionSampledRespectsOverride() {
+        LogReportingConfiguration config = new LogReportingConfiguration(true, LogLevel.DEBUG, 30, 3600, 0);
+        LogReportingConfiguration.sampleSeed = 50.0;
+
+        Assert.assertFalse("Logging+sampling should be disabled (not sampled)", config.getLoggingEnabledAndSessionSampled());
+
+        config.setSamplingOverride(true);
+        Assert.assertTrue("Logging+sampling should be enabled (override active)", config.getLoggingEnabledAndSessionSampled());
+    }
+
+    @Test
+    public void testSamplingOverride_clearOverrideRestoresNormalBehavior() {
+        LogReportingConfiguration config = new LogReportingConfiguration(true, LogLevel.DEBUG, 30, 3600, 0);
+        LogReportingConfiguration.sampleSeed = 50.0;
+
+        config.setSamplingOverride(true);
+        Assert.assertTrue(config.isSampled());
+
+        config.setSamplingOverride(false);
+        Assert.assertFalse("Should revert to normal sampling after override cleared", config.isSampled());
+        Assert.assertFalse(config.isSamplingOverridden());
+    }
+
+    @Test
+    public void testSamplingOverride_setConfigurationDoesNotCopyOverride() {
+        LogReportingConfiguration source = new LogReportingConfiguration(true, LogLevel.DEBUG, 30, 3600, 50);
+        source.setSamplingOverride(true);
+
+        LogReportingConfiguration target = new LogReportingConfiguration(true, LogLevel.DEBUG, 30, 3600, 0);
+        LogReportingConfiguration.sampleSeed = 100.0;
+        target.setConfiguration(source);
+
+        Assert.assertFalse("Override should not be copied via setConfiguration", target.isSamplingOverridden());
+    }
+
+    @Test
+    public void testSamplingOverride_normalSamplingStillWorksWithoutOverride() {
+        LogReportingConfiguration config = new LogReportingConfiguration(true, LogLevel.DEBUG, 30, 3600, 75);
+
+        LogReportingConfiguration.sampleSeed = 50.0;
+        Assert.assertTrue("Should be sampled: seed 50 <= rate 75", config.isSampled());
+        Assert.assertFalse("Override should not be set", config.isSamplingOverridden());
+
+        LogReportingConfiguration.sampleSeed = 80.0;
+        Assert.assertFalse("Should not be sampled: seed 80 > rate 75", config.isSampled());
     }
 }
