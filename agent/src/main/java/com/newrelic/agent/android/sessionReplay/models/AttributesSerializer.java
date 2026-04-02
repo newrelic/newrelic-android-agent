@@ -13,7 +13,7 @@ import java.util.Map;
  * in the JSON without the "attributes" wrapper.
  */
 public class AttributesSerializer implements JsonSerializer<Attributes> {
-    
+
     @Override
     public JsonElement serialize(Attributes src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject jsonObject = new JsonObject();
@@ -25,7 +25,7 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
                 // Handle style separately - add it as a nested object
                 jsonObject.addProperty(entry.getKey(), entry.getValue());
             } else {
-                // Add all other metadata entries directly to the root JSON object
+                // All other metadata entries become inline style properties
                 metadataObject.addProperty(entry.getKey(), entry.getValue());
             }
         }
@@ -41,10 +41,28 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
         if (src.getType() != null) {
             jsonObject.addProperty("type", src.getType());
         }
+        if (src.inputType != null) {
+            jsonObject.addProperty("inputType", src.inputType);
+        }
         if (src.getValue() != null) {
             jsonObject.addProperty("value", src.getValue());
         }
-        
+        if (src.checked != null && src.checked) {
+            jsonObject.addProperty("checked", true);
+        }
+        if (src.dataNrMasked != null) {
+            jsonObject.addProperty("data-nr-masked", src.dataNrMasked);
+        }
+        if (src.min != null) {
+            jsonObject.addProperty("min", src.min);
+        }
+        if (src.max != null) {
+            jsonObject.addProperty("max", src.max);
+        }
+        if (src.step != null) {
+            jsonObject.addProperty("step", src.step);
+        }
+
         return jsonObject;
     }
 }

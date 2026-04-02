@@ -2,7 +2,9 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.sessionReplay.models.Data;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.InputCapable;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebIncrementalEvent;
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebInputData;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.InitialOffset;
 import com.newrelic.agent.android.sessionReplay.models.Node;
@@ -35,7 +37,7 @@ public class SessionReplayProcessor {
                 addFullFrameSnapshot(snapshot, rawFrame);
             } else {
                 if (rawFrame.rootThingy.getViewId() == lastFrame.rootThingy.getViewId()) {
-                    snapshot.add(processIncrementalFrame(lastFrame, rawFrame));
+                    snapshot.addAll(processIncrementalFrame(lastFrame, rawFrame));
                 } else if (rawFrame.width != lastFrame.width || rawFrame.height != lastFrame.height) {
                     addFullFrameSnapshot(snapshot, rawFrame);
                 } else {
@@ -97,7 +99,7 @@ public class SessionReplayProcessor {
         return elementNode;
     }
 
-    private RRWebIncrementalEvent processIncrementalFrame(SessionReplayFrame oldFrame, SessionReplayFrame newFrame) {
+    private List<RRWebIncrementalEvent> processIncrementalFrame(SessionReplayFrame oldFrame, SessionReplayFrame newFrame) {
         List<SessionReplayViewThingyInterface> oldThingies = flattenTree(oldFrame.rootThingy);
         List<SessionReplayViewThingyInterface> newThingies = flattenTree(newFrame.rootThingy);
 
@@ -108,6 +110,7 @@ public class SessionReplayProcessor {
         List<RRWebMutationData.RemoveRecord> removes = new ArrayList<>();
         List<RRWebMutationData.TextRecord> texts = new ArrayList<>();
         List<RRWebMutationData.AttributeRecord> attributes = new ArrayList<>();
+        List<RRWebInputData> inputEvents = new ArrayList<>();
 
         // Process added items
         for (SessionReplayViewThingyInterface addedItem : diffResult.getAddedItems()) {
@@ -146,6 +149,14 @@ public class SessionReplayProcessor {
                         attributes.add(attributeRecord);
                     }
                 }
+
+                // Generate input events for input-capable elements
+                if (oldItem instanceof InputCapable) {
+                    RRWebInputData inputData = ((InputCapable) oldItem).generateInputData(updatedNewItem);
+                    if (inputData != null) {
+                        inputEvents.add(inputData);
+                    }
+                }
             }
         }
 
@@ -155,8 +166,15 @@ public class SessionReplayProcessor {
         incrementalUpdate.texts = texts;
         incrementalUpdate.attributes = attributes;
 
-        // Return the incremental event
-        return new RRWebIncrementalEvent(newFrame.timestamp, incrementalUpdate);
+        List<RRWebIncrementalEvent> events = new ArrayList<>();
+        events.add(new RRWebIncrementalEvent(newFrame.timestamp, incrementalUpdate));
+
+        // Add separate input events (source=5) for each input state change
+        for (RRWebInputData inputData : inputEvents) {
+            events.add(new RRWebIncrementalEvent(newFrame.timestamp, inputData));
+        }
+
+        return events;
     }
 
     private List<SessionReplayViewThingyInterface> flattenTree(SessionReplayViewThingyInterface rootThingy) {

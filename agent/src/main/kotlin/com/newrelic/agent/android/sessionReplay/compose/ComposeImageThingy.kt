@@ -87,6 +87,7 @@ open class ComposeImageThingy(
 
     private val contentScale: ContentScale
     private val backgroundColor: String = viewDetails.backgroundColor ?: "transparent"
+    val isMasked: Boolean
 
     protected val sessionReplayConfiguration: SessionReplayConfiguration =
         agentConfiguration.sessionReplayConfiguration
@@ -94,14 +95,13 @@ open class ComposeImageThingy(
     init {
         contentScale = extractContentScale()
 
-        if (shouldUnMaskImage(semanticsNode)) {
-            imageExtractionExecutor.execute {
+        isMasked = !shouldUnMaskImage(semanticsNode)
+        if (!isMasked) {
                 try {
                     imageData = extractImageFromModifierInfo()
                 } catch (e: Exception) {
                     Log.e(LOG_TAG, "Error extracting image", e)
                 }
-            }
         }
     }
 
@@ -460,6 +460,9 @@ open class ComposeImageThingy(
 
     override fun generateRRWebNode(): RRWebElementNode {
         val attributes = Attributes(viewDetails.cssSelector)
+        if (isMasked) {
+            attributes.dataNrMasked = "image"
+        }
         return RRWebElementNode(
             attributes,
             RRWebElementNode.TAG_TYPE_DIV,
@@ -487,7 +490,7 @@ open class ComposeImageThingy(
             styleDifferences["background-color"] = otherViewDetails.backgroundColor ?: "transparent"
         }
 
-        if (imageData != other.imageData) {
+        if (!imageData.equals(other.imageData) ){
             other.imageDataUrl?.let { url ->
                 styleDifferences["background-image"] = "url($url)"
             }
@@ -499,12 +502,19 @@ open class ComposeImageThingy(
                 if (otherViewDetails.isHidden()) "hidden" else "visible"
             )
         }
-        if (styleDifferences.isEmpty()) {
-            return emptyList()  // or emptyList()
+
+        if (styleDifferences.isEmpty() && other.isMasked == this.isMasked) {
+            return emptyList()
         }
 
         val attributes = Attributes(viewDetails.cssSelector)
         attributes.metadata = styleDifferences
+
+        if (other.isMasked) {
+            attributes.dataNrMasked = "image"
+        } else if (this.isMasked) {
+            attributes.dataNrMasked = ""
+        }
         return listOf(RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes))
     }
 

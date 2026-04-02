@@ -7,7 +7,9 @@ import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
 import com.newrelic.agent.android.sessionReplay.models.Attributes
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.InputCapable
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
+import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebInputData
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode
@@ -20,7 +22,7 @@ class ComposeEditTextThingy(
     private val viewDetails: ComposeViewDetails,
     semanticsNode: SemanticsNode,
     agentConfiguration: AgentConfiguration
-) : ComposeTextViewThingy(viewDetails, semanticsNode, agentConfiguration),SessionReplayViewThingyInterface {
+) : ComposeTextViewThingy(viewDetails, semanticsNode, agentConfiguration), SessionReplayViewThingyInterface, InputCapable {
 
     private val editableText: String
     private val hintText: String
@@ -159,6 +161,14 @@ class ComposeEditTextThingy(
         val textAddRecord = RRWebMutationData.AddRecord(viewDetails.viewId, null, textNode)
 
         return listOf(viewAddRecord, textAddRecord)
+    }
+
+    override fun generateInputData(other: SessionReplayViewThingyInterface): RRWebInputData? {
+        if (other !is ComposeEditTextThingy) return null
+        val otherText = other.getCurrentDisplayText()
+        val currentText = getCurrentDisplayText()
+        if (currentText == otherText) return null
+        return RRWebInputData(viewDetails.viewId, otherText, false)
     }
 
     override fun hasChanged(other: SessionReplayViewThingyInterface?): Boolean {
