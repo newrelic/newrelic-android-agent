@@ -11,7 +11,6 @@ import com.newrelic.agent.android.agentdata.AgentDataReporter;
 import com.newrelic.agent.android.crash.CrashReporter;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
-import com.newrelic.agent.android.hybrid.JSErrorDataReporter;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -93,13 +92,6 @@ public class PayloadController implements HarvestLifecycleAware {
                 sessionReplayReporter.start();
             }else{
                 log.warn("SessionReplayController: No session replay reporter - session replay reporting will be disabled");
-            }
-
-            JSErrorDataReporter jsErrorDataReporter = JSErrorDataReporter.initialize(agentConfiguration);
-            if (jsErrorDataReporter != null) {
-                jsErrorDataReporter.start();
-            } else {
-                log.warn("JSErrorDataController: No JSError reporter - JSError reporting will be disabled");
             }
 
             Harvest.addHarvestListener(instance.get());

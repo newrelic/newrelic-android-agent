@@ -27,12 +27,10 @@ public abstract class SharedPrefsStore {
 
     protected final SharedPreferences sharedPrefs;
     protected final String storeFilename;
-    protected final Context context;
 
     public SharedPrefsStore(Context context, String storeFilename) {
         this.sharedPrefs = context.getSharedPreferences(storeFilename, Context.MODE_PRIVATE);
         this.storeFilename = storeFilename;
-        this.context = context;
     }
 
     public String getStoreFilename() {

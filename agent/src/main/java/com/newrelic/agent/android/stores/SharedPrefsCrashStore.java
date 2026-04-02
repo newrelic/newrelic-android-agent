@@ -82,9 +82,4 @@ public class SharedPrefsCrashStore extends SharedPrefsStore implements CrashStor
         }
     }
 
-    @Override
-    public String getRootPath() {
-        return context.getCacheDir().getAbsolutePath();
-    }
-
 }
