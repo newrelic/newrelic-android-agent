@@ -138,7 +138,7 @@ public class LogReporter extends PayloadReporter {
 
     public LogReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
-        setEnabled((agentConfiguration.getLogReportingConfiguration().getLoggingEnabled()));
+        setEnabled((agentConfiguration.getLogReportingConfiguration().getLoggingEnabledAndSessionSampled()));
         try {
             resetWorkingLogfile();
         } catch (IOException e) {
@@ -231,7 +231,7 @@ public class LogReporter extends PayloadReporter {
     @Override
     public void onHarvestConfigurationChanged() {
         //  Some aspect of logging configuration has changed. Update model...
-        setEnabled(agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        setEnabled(agentConfiguration.getLogReportingConfiguration().getLoggingEnabledAndSessionSampled());
 
         if (agentConfiguration.getLogReportingConfiguration().getExpirationPeriod() != reportTTL) {
             reportTTL = Math.max(agentConfiguration.getLogReportingConfiguration().getExpirationPeriod(),
