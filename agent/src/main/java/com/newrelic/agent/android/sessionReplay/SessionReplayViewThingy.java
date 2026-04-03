@@ -84,7 +84,10 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
             styleDifferences.put("background-color", otherDetails.backgroundColor);
         }
 
-        // Create and return a MutationRecord with the style differences
+        if (styleDifferences.isEmpty()) {
+            return Collections.emptyList();
+        }
+
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
         attributes.setMetadata(styleDifferences);
         List<MutationRecord> mutations = new ArrayList<>();

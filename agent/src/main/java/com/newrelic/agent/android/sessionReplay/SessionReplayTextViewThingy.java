@@ -271,11 +271,14 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             styleDifferences.put("font-size", String.format("%.2fpx", ((SessionReplayTextViewThingy) other).getFontSize()));
         }
 
-        // Create and return a MutationRecord with the style differences
-        Attributes attributes = new Attributes(viewDetails.getCSSSelector());
-        attributes.setMetadata(styleDifferences);
         List<MutationRecord> mutations = new ArrayList<>();
-        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+
+        // Only emit an AttributeRecord when there are actual style differences
+        if (!styleDifferences.isEmpty()) {
+            Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+            attributes.setMetadata(styleDifferences);
+            mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+        }
 
         // Check if label text has changed
         if (!this.labelText.equals(((SessionReplayTextViewThingy) other).getLabelText())) {

@@ -123,10 +123,13 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
             }
         }
 
-        // Create and return a MutationRecord with the style differences
-        Attributes attributes = new Attributes(viewDetails.getCSSSelector());
-        attributes.setMetadata(styleDifferences);    List<MutationRecord> mutations = new ArrayList<>();
-        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+        List<MutationRecord> mutations = new ArrayList<>();
+
+        if (!styleDifferences.isEmpty()) {
+            Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+            attributes.setMetadata(styleDifferences);
+            mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+        }
 
         // Check if label text has changed
         if (!super.getLabelText().equals(((SessionReplayTextViewThingy) other).getLabelText())) {
