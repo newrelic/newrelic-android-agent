@@ -275,6 +275,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         cssBuilder.append("; ");
         cssBuilder.append("background-repeat: no-repeat; ");
         cssBuilder.append("background-position: center; ");
+        cssBuilder.append("overflow: hidden; ");
     }
 
     @Override
@@ -311,10 +312,15 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             styleDifferences.put("background-image"," url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
         }
 
+        SessionReplayImageViewThingy otherImage = (SessionReplayImageViewThingy) other;
+        boolean hasMaskChange = this.isMasked != otherImage.isMasked;
+
+        if (styleDifferences.isEmpty() && !hasMaskChange) {
+            return Collections.emptyList();
+        }
+
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
         attributes.setMetadata(styleDifferences);
-
-        SessionReplayImageViewThingy otherImage = (SessionReplayImageViewThingy) other;
         if (otherImage.isMasked) {
             attributes.dataNrMasked = "image";
         } else if (this.isMasked) {
@@ -367,9 +373,12 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
                 return "cover";
             case FIT_CENTER:
             case CENTER_INSIDE:
+            case FIT_START:
+            case FIT_END:
                 return "contain";
+            case CENTER:
             default:
-                return "auto";
+                return "contain";
         }
     }
 

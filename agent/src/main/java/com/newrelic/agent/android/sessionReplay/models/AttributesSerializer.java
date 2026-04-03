@@ -53,6 +53,9 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
         if (src.dataNrMasked != null) {
             jsonObject.addProperty("data-nr-masked", src.dataNrMasked);
         }
+        if (src.dataNrType != null) {
+            jsonObject.addProperty("data-nr-type", src.dataNrType);
+        }
         if (src.min != null) {
             jsonObject.addProperty("min", src.min);
         }

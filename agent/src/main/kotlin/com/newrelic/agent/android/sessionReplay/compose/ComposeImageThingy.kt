@@ -381,7 +381,7 @@ open class ComposeImageThingy(
             ContentScale.Fit, ContentScale.Inside -> "contain"
             ContentScale.FillWidth -> "100% auto"
             ContentScale.FillHeight -> "auto 100%"
-            else -> "auto"
+            else -> "contain"
         }
     }
 
@@ -450,6 +450,7 @@ open class ComposeImageThingy(
             cssBuilder.append("; ")
             cssBuilder.append("background-repeat: no-repeat; ")
             cssBuilder.append("background-position: center; ")
+            cssBuilder.append("overflow: hidden; ")
         } else {
             // Masked image: show gray placeholder (privacy-protected)
             // This indicates to replay viewers that an image was present but masked
