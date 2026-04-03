@@ -108,7 +108,7 @@ public class Harvest implements HarvestConfigurable {
         harvester = new Harvester();
         harvester.setHarvestConnection(harvestConnection);
         harvester.setHarvestData(harvestData);
-        harvestTimer = new HarvestTimer(harvester);
+        harvestTimer = new HarvestTimer(harvester, harvester.getAgentConfiguration());
         harvestDataValidator = new HarvestDataValidator();
         Harvest.addHarvestListener(harvestDataValidator);
     }
@@ -408,7 +408,7 @@ public class Harvest implements HarvestConfigurable {
         return harvestConfiguration.getAt_capture();
     }
 
-    void finalizeSession() {
+    public void finalizeSession() {
         long sessionDuration = Harvest.getMillisSinceStart();
 
         if (sessionDuration == Harvest.INVALID_SESSION_DURATION) {

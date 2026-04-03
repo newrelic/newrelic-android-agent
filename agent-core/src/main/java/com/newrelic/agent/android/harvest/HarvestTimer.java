@@ -5,12 +5,16 @@
 
 package com.newrelic.agent.android.harvest;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.analytics.AnalyticsAttribute;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.NamedThreadFactory;
+import com.newrelic.agent.android.harvest.AgentHealth;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -22,6 +26,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class HarvestTimer implements Runnable {
     public final static long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.toMillis(60);
     private final static long HARVEST_PERIOD_LEEWAY = TimeUnit.SECONDS.toMillis(1);
+    private final static long SESSION_REPLAY_SESSION_PERIOD = TimeUnit.HOURS.toMillis(4);
     private final static long NEVER_TICKED = -1;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Harvester"));
     private final AgentLog log = AgentLogManager.getAgentLog();
@@ -30,11 +35,15 @@ public class HarvestTimer implements Runnable {
     protected final Harvester harvester;
     protected long lastTickTime;
     private long startTimeMs;
+    private long sessionReplayStartTimeMs;
     private final Lock lock = new ReentrantLock();
+    private final AgentConfiguration agentConfiguration;
 
-    public HarvestTimer(Harvester harvester) {
+    public HarvestTimer(Harvester harvester, AgentConfiguration agentConfiguration) {
         this.harvester = harvester;
+        this.agentConfiguration = agentConfiguration;
         this.startTimeMs = 0;
+        this.sessionReplayStartTimeMs = 0;
     }
 
     public void run() {
@@ -102,6 +111,9 @@ public class HarvestTimer implements Runnable {
         }
 
         log.debug("HarvestTimer tick took " + t.toc() + "ms");
+
+        // check session 4-hour
+        checkAndResetSessionIfExpired();
     }
 
     public void start() {
@@ -124,6 +136,8 @@ public class HarvestTimer implements Runnable {
 
         log.debug("HarvestTimer: Starting with a period of " + period + "ms");
         startTimeMs = now();
+        sessionReplayStartTimeMs = now();
+
 
         // Harvest timer MUST always start immediately, per the spec
         tickFuture = scheduler.scheduleWithFixedDelay(this, 0, period, TimeUnit.MILLISECONDS);
@@ -140,6 +154,7 @@ public class HarvestTimer implements Runnable {
         cancelPendingTasks();
         log.debug("HarvestTimer: Stopped");
         startTimeMs = 0;
+        sessionReplayStartTimeMs = 0;
         harvester.stop();
     }
 
@@ -192,6 +207,13 @@ public class HarvestTimer implements Runnable {
         return now() - startTimeMs;
     }
 
+    public long sessionReplayTimeSinceStart() {
+        if (sessionReplayStartTimeMs == 0) {
+            return 0;
+        }
+        return now() - sessionReplayStartTimeMs;
+    }
+
     private long now() {
         return System.currentTimeMillis();
     }
@@ -210,5 +232,28 @@ public class HarvestTimer implements Runnable {
 
     public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
         // setPeriod(TimeUnit.MILLISECONDS.convert(harvestConfiguration.getData_report_period(), TimeUnit.SECONDS));
+    }
+
+    /**
+     * Automatic session termination for the New Relic agent after 4 hours of continuous session time.
+     */
+    public void checkAndResetSessionIfExpired() {
+        if (sessionReplayTimeSinceStart() >= SESSION_REPLAY_SESSION_PERIOD) {
+            log.debug("HarvestTimer: Session replay limit reached (4 hours). Resetting session start time.");
+            sessionReplayStartTimeMs = now();
+
+            // start a new session
+            log.debug("HarvestTimer: Session replay limit reached (4 hours). Creating new session.");
+            final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+            controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
+                    .setStringValue(agentConfiguration.provideSessionId())
+                    .setPersistent(false);
+            // remove session duration attribute
+            controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
+
+            // finalize session and send supportability metrics
+            Harvest instance = new Harvest();
+            instance.finalizeSession();
+        }
     }
 }
