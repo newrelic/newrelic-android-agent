@@ -23,6 +23,14 @@ import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails;
 import com.newrelic.agent.android.sessionReplay.compose.SessionReplayComposeViewThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeTextViewThingy;
 import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayCompoundButtonThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayEditTextThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayImageViewThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayProgressBarThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplaySeekBarThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplaySliderThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayTextViewThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ViewDetails;
 
 public class SessionReplayThingyRecorder {
     private final AgentConfiguration agentConfiguration;

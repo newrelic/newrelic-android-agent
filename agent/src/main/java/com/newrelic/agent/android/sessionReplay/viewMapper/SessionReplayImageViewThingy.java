@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.viewMapper;
 
 import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
@@ -21,6 +21,10 @@ import androidx.annotation.WorkerThread;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 
+import com.newrelic.agent.android.sessionReplay.ImageCompressionUtils;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;

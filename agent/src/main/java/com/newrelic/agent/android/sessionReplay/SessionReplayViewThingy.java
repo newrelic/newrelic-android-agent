@@ -4,6 +4,7 @@ import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ViewDetails;
 
 import java.util.ArrayList;
 import java.util.Collections;

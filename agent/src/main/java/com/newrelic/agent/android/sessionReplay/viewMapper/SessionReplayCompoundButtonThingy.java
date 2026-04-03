@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.viewMapper;
 
 import android.widget.CompoundButton;
 import android.widget.RadioButton;
@@ -7,6 +7,8 @@ import android.widget.TextView;
 import android.widget.ToggleButton;
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator;
+import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.InputCapable;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
