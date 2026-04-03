@@ -1,0 +1,170 @@
+{
+  "timestamp": "2026-04-02T20:54:36.368Z",
+  "noAgent": {
+    "runs": 5,
+    "memory": {
+      "avg": {
+        "mean": 160.52,
+        "stdDev": 1.36,
+        "min": 158.9,
+        "max": 162.29
+      },
+      "peak": {
+        "mean": 218.2,
+        "stdDev": 1.62,
+        "min": 215.81,
+        "max": 220.16
+      }
+    },
+    "cpu": {
+      "avg": {
+        "mean": 19.45,
+        "stdDev": 0.55,
+        "min": 18.66,
+        "max": 20.08
+      },
+      "peak": {
+        "mean": 31.75,
+        "stdDev": 1.29,
+        "min": 30.74,
+        "max": 34.06
+      }
+    },
+    "startup": null
+  },
+  "baseline": {
+    "runs": 5,
+    "memory": {
+      "avg": {
+        "mean": 164.57,
+        "stdDev": 1.83,
+        "min": 161,
+        "max": 166.1
+      },
+      "peak": {
+        "mean": 223.27,
+        "stdDev": 2.21,
+        "min": 220.25,
+        "max": 226.11
+      }
+    },
+    "cpu": {
+      "avg": {
+        "mean": 20.63,
+        "stdDev": 0.83,
+        "min": 19.07,
+        "max": 21.49
+      },
+      "peak": {
+        "mean": 38.2,
+        "stdDev": 1.09,
+        "min": 36.79,
+        "max": 39.97
+      }
+    },
+    "startup": null
+  },
+  "sessionReplay": {
+    "runs": 5,
+    "memory": {
+      "avg": {
+        "mean": 164.98,
+        "stdDev": 4.01,
+        "min": 159.44,
+        "max": 171.25
+      },
+      "peak": {
+        "mean": 228.76,
+        "stdDev": 8.7,
+        "min": 216.7,
+        "max": 239.71
+      }
+    },
+    "cpu": {
+      "avg": {
+        "mean": 25.1,
+        "stdDev": 0.55,
+        "min": 24.13,
+        "max": 25.69
+      },
+      "peak": {
+        "mean": 43.87,
+        "stdDev": 1.11,
+        "min": 42.23,
+        "max": 45.43
+      }
+    },
+    "startup": null
+  },
+  "overhead": {
+    "agent": {
+      "memory": {
+        "avg": {
+          "absolute": 4.05,
+          "percent": 2.52
+        },
+        "peak": {
+          "absolute": 5.07,
+          "percent": 2.32
+        }
+      },
+      "cpu": {
+        "avg": {
+          "absolute": 1.18,
+          "percent": 6.07
+        },
+        "peak": {
+          "absolute": 6.45,
+          "percent": 20.31
+        }
+      },
+      "startup": null
+    },
+    "sessionReplay": {
+      "memory": {
+        "avg": {
+          "absolute": 0.41,
+          "percent": 0.25
+        },
+        "peak": {
+          "absolute": 5.49,
+          "percent": 2.46
+        }
+      },
+      "cpu": {
+        "avg": {
+          "absolute": 4.47,
+          "percent": 21.67
+        },
+        "peak": {
+          "absolute": 5.67,
+          "percent": 14.84
+        }
+      },
+      "startup": null
+    },
+    "total": {
+      "memory": {
+        "avg": {
+          "absolute": 4.46,
+          "percent": 2.78
+        },
+        "peak": {
+          "absolute": 10.56,
+          "percent": 4.84
+        }
+      },
+      "cpu": {
+        "avg": {
+          "absolute": 5.65,
+          "percent": 29.05
+        },
+        "peak": {
+          "absolute": 12.12,
+          "percent": 38.17
+        }
+      },
+      "startup": null
+    }
+  }
+}

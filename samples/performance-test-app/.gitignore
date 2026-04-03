@@ -16,6 +16,3 @@ local.properties
 # Node.js dependencies (anywhere in project)
 node_modules/
 package-lock.json
-
-# LambdaTest test artifacts
-LambdaTest/**/results/

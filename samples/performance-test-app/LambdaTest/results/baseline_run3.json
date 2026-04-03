@@ -1,0 +1,27 @@
+{
+  "agentEnabled": true,
+  "sessionReplayEnabled": false,
+  "testDuration": 126,
+  "resourceMetrics": {
+    "count": 63,
+    "memory": {
+      "avg": 210.63,
+      "peak": 273.6,
+      "min": 121.54,
+      "range": 152.06
+    },
+    "cpu": {
+      "avg": 26.76,
+      "peak": 143.86
+    }
+  },
+  "performanceMetrics": {
+    "startupTime": 102,
+    "ttiCount": 0,
+    "renderingCount": 0
+  },
+  "healthCheck": {
+    "fatalHangs": 0,
+    "memoryLeaks": 0
+  }
+}
