@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NR Performance Test</string>
+
+    <!-- Screen titles -->
+    <string name="home_screen">Home</string>
+    <string name="infinite_scroll_screen">Infinite Scroll</string>
+    <string name="image_gallery_screen">Image Gallery</string>
+    <string name="ui_elements_screen">UI Elements</string>
+    <string name="network_test_screen">Network Test</string>
+    <string name="navigation_test_screen">Navigation Test</string>
+
+    <!-- Home screen -->
+    <string name="welcome_title">Performance Testing App</string>
+    <string name="welcome_subtitle">Test New Relic Android Agent with various UI patterns</string>
+
+    <!-- Button labels -->
+    <string name="btn_infinite_scroll">Test Infinite Scroll</string>
+    <string name="btn_image_gallery">Test Image Gallery</string>
+    <string name="btn_ui_elements">Test UI Elements</string>
+    <string name="btn_network_test">Test Network Calls</string>
+    <string name="btn_navigation_test">Test Navigation</string>
+
+    <!-- UI Elements screen -->
+    <string name="ui_buttons_section">Buttons</string>
+    <string name="ui_inputs_section">Text Inputs</string>
+    <string name="ui_switches_section">Switches &amp; Toggles</string>
+    <string name="ui_cards_section">Cards</string>
+
+    <!-- Network test -->
+    <string name="network_make_request">Make Request</string>
+    <string name="network_loading">Loading…</string>
+    <string name="network_success">Success!</string>
+    <string name="network_error">Error occurred</string>
+</resources>

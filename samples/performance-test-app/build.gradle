@@ -1,0 +1,152 @@
+/*
+ * Copyright (c) 2022 - present. New Relic Corporation. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+buildscript {
+    repositories {
+        mavenCentral()
+        google()
+    }
+    dependencies {
+        classpath "com.newrelic.agent.android:agent-gradle-plugin:7.7.1"
+    }
+}
+
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+apply plugin: 'newrelic'
+
+android {
+    namespace 'com.newrelic.agent.android.perftest'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.newrelic.agent.android.perftest"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        vectorDrawables {
+            useSupportLibrary true
+        }
+
+        // Support for 16KB page size
+        ndk {
+            //noinspection ChromeOsAbiSupport
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        debug {
+            // Use release variant of agent library since it only has release builds
+            matchingFallbacks = ['release']
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    flavorDimensions = ["agent"]
+    productFlavors {
+        noAgent {
+            dimension "agent"
+            applicationIdSuffix ".noagent"
+            versionNameSuffix "-noagent"
+            buildConfigField "String", "NEWRELIC_TOKEN", '""'
+            buildConfigField "boolean", "AGENT_ENABLED", "false"
+            buildConfigField "boolean", "SESSION_REPLAY_ENABLED", "false"
+        }
+        baseline {
+            dimension "agent"
+            applicationIdSuffix ".baseline"
+            versionNameSuffix "-baseline"
+            buildConfigField "String", "NEWRELIC_TOKEN", '"YOUR_BASELINE_TOKEN_HERE"'
+            buildConfigField "boolean", "AGENT_ENABLED", "true"
+            buildConfigField "boolean", "SESSION_REPLAY_ENABLED", "false"
+        }
+        sessionReplay {
+            dimension "agent"
+            applicationIdSuffix ".sr"
+            versionNameSuffix "-sr"
+            buildConfigField "String", "NEWRELIC_TOKEN", '"YOUR_SESSION_REPLAY_TOKEN_HERE"'
+            buildConfigField "boolean", "AGENT_ENABLED", "true"
+            buildConfigField "boolean", "SESSION_REPLAY_ENABLED", "true"
+        }
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion versions.composeCompiler
+    }
+
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+}
+
+dependencies {
+    // New Relic Agent - included in all flavors but only initialized when AGENT_ENABLED
+    // To use local agent code instead, uncomment the line below and comment out the maven versions
+    // implementation project(':agent')
+
+    implementation "com.newrelic.agent.android:android-agent:7.7.1"
+    implementation "com.newrelic.agent.android:agent-ndk:1.+"
+
+    // Compose BOM for version management
+    implementation platform('androidx.compose:compose-bom:2023.01.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3:1.1.0'
+
+    // Compose additional
+    implementation 'androidx.activity:activity-compose:1.7.2'
+    implementation 'androidx.navigation:navigation-compose:2.6.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.6.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1'
+
+    // Core AndroidX
+    implementation 'androidx.core:core-ktx:1.10.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
+
+    // Image loading with Coil for Compose
+    implementation 'io.coil-kt:coil-compose:2.4.0'
+
+    // Coroutines
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
+
+    // Networking (for testing)
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+
+    // Gson for JSON
+    implementation "com.google.code.gson:gson:${versions.java.gson}"
+
+    // Debug tooling
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".PerformanceTestApplication"
+        android:allowBackup="true"
+        android:icon="@android:drawable/ic_menu_info_details"
+        android:label="Performance Test XML"
+        android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="Performance Test">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.InfiniteScrollActivity"
+            android:label="Infinite Scroll"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.ImageGalleryActivity"
+            android:label="Image Gallery"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.UIElementsActivity"
+            android:label="UI Elements"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.NetworkTestActivity"
+            android:label="Network Test"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.NavigationFlowActivity"
+            android:label="Navigation Flow"
+            android:parentActivityName=".MainActivity" />
+    </application>
+
+</manifest>

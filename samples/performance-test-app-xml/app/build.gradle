@@ -1,0 +1,90 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+apply plugin: 'newrelic'
+
+android {
+    namespace 'com.newrelic.agent.android.perftest.xml'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.newrelic.agent.android.perftest.xml"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    flavorDimensions = ["agent"]
+    productFlavors {
+        noAgent {
+            dimension "agent"
+            applicationIdSuffix ".noagent"
+            buildConfigField "String", "NEWRELIC_TOKEN", '""'
+            buildConfigField "boolean", "AGENT_ENABLED", "false"
+            buildConfigField "boolean", "SESSION_REPLAY_ENABLED", "false"
+        }
+        baseline {
+            dimension "agent"
+            applicationIdSuffix ".baseline"
+            buildConfigField "String", "NEWRELIC_TOKEN", '"YOUR_BASELINE_TOKEN_HERE"'
+            buildConfigField "boolean", "AGENT_ENABLED", "true"
+            buildConfigField "boolean", "SESSION_REPLAY_ENABLED", "false"
+        }
+        sessionReplay {
+            dimension "agent"
+            applicationIdSuffix ".sr"
+            buildConfigField "String", "NEWRELIC_TOKEN", '"YOUR_SESSION_REPLAY_TOKEN_HERE"'
+            buildConfigField "boolean", "AGENT_ENABLED", "true"
+            buildConfigField "boolean", "SESSION_REPLAY_ENABLED", "true"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    buildFeatures {
+        buildConfig = true
+        viewBinding = true
+    }
+}
+
+dependencies {
+    implementation "androidx.core:core-ktx:1.12.0"
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    implementation "com.google.android.material:material:1.11.0"
+    implementation "androidx.constraintlayout:constraintlayout:2.1.4"
+    implementation "androidx.recyclerview:recyclerview:1.3.2"
+    implementation "androidx.cardview:cardview:1.0.0"
+
+    // New Relic
+    implementation "com.newrelic.agent.android:android-agent:7.7.1"
+    implementation "com.newrelic.agent.android:agent-ndk:1.+"
+
+    // Image loading
+    implementation "com.github.bumptech.glide:glide:4.16.0"
+
+    // Coroutines
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+
+    // Gson
+    implementation "com.google.code.gson:gson:2.10.1"
+}

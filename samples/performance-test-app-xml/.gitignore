@@ -1,0 +1,21 @@
+# Android build outputs
+.gradle/
+build/
+*.apk
+*.ap_
+*.aab
+
+# Local configuration
+local.properties
+
+# IDE files
+.idea/
+*.iml
+.DS_Store
+
+# Node.js dependencies (anywhere in project)
+node_modules/
+package-lock.json
+
+# LambdaTest test artifacts
+LambdaTest/**/results/
