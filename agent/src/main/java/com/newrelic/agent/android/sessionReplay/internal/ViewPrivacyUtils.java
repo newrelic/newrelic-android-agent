@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.internal;
 
 import android.view.View;
 import android.view.ViewParent;

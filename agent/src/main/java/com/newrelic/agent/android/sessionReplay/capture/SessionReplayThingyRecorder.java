@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.capture;
 
 import android.view.View;
 import android.widget.AbsSeekBar;
@@ -23,6 +23,7 @@ import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails;
 import com.newrelic.agent.android.sessionReplay.compose.SessionReplayComposeViewThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeTextViewThingy;
 import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayBlockedViewThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayCompoundButtonThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayEditTextThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayImageViewThingy;
@@ -30,6 +31,8 @@ import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayProgress
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplaySeekBarThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplaySliderThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayTextViewThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ViewDetails;
 
 public class SessionReplayThingyRecorder {

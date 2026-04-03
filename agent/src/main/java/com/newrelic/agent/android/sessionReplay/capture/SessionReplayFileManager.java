@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.capture;
 
 import static com.newrelic.agent.android.util.Constants.SessionReplay.SESSION_REPLAY_DATA_DIR;
 import static com.newrelic.agent.android.util.Constants.SessionReplay.SESSION_REPLAY_FILE_MASK;
@@ -11,6 +11,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.sessionReplay.touch.TouchTracker;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;

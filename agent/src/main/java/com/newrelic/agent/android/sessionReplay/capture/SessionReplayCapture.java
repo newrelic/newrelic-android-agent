@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.capture;
 
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -11,6 +11,8 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeTreeCapture;
+import com.newrelic.agent.android.sessionReplay.internal.ViewPrivacyUtils;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.util.ComposeChecker;
 
 import java.util.ArrayList;

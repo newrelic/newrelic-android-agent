@@ -4,8 +4,7 @@ import android.annotation.SuppressLint;
 import android.widget.EditText;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator;
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface;
+import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;

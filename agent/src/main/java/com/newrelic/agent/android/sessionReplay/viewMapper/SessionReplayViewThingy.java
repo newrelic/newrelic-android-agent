@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.viewMapper;
 
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;

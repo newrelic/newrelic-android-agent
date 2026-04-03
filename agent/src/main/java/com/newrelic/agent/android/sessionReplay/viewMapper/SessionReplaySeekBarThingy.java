@@ -3,8 +3,6 @@ package com.newrelic.agent.android.sessionReplay.viewMapper;
 import android.os.Build;
 import android.widget.AbsSeekBar;
 
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingy;
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.InputCapable;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;

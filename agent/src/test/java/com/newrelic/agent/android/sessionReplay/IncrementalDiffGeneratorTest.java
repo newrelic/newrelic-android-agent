@@ -10,7 +10,10 @@ import android.view.View;
 
 import androidx.test.core.app.ApplicationProvider;
 
-import com.newrelic.agent.android.sessionReplay.IncrementalDiffGenerator.Operation;
+import com.newrelic.agent.android.sessionReplay.capture.IncrementalDiffGenerator;
+import com.newrelic.agent.android.sessionReplay.capture.IncrementalDiffGenerator.Operation;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ViewDetails;
 
 import org.junit.Assert;

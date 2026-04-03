@@ -9,8 +9,8 @@ import androidx.compose.ui.semantics.SemanticsConfiguration;
 import androidx.compose.ui.semantics.SemanticsNode;
 import androidx.compose.ui.semantics.SemanticsOwner;
 
-import com.newrelic.agent.android.sessionReplay.SessionReplayThingyRecorder;
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface;
+import com.newrelic.agent.android.sessionReplay.capture.SessionReplayThingyRecorder;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
 
 import java.util.ArrayList;

@@ -189,7 +189,7 @@ public class ViewDetails {
         Integer idValue = null;
         idValue = (Integer) view.getTag(keyCode);
         if(idValue == null) {
-            idValue = com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator.generateId();
+            idValue = com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator.generateId();
             view.setTag(keyCode, idValue);
         }
         int id = idValue;
