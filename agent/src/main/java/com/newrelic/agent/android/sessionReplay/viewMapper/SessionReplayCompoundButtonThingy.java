@@ -3,7 +3,6 @@ package com.newrelic.agent.android.sessionReplay.viewMapper;
 import android.widget.CompoundButton;
 import android.widget.RadioButton;
 import android.widget.Switch;
-import android.widget.TextView;
 import android.widget.ToggleButton;
 
 import com.newrelic.agent.android.AgentConfiguration;
@@ -30,15 +29,13 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
     private final boolean isRadioButton;
     private final boolean isToggle;
     private final ViewDetails viewDetails;
-    private final int inputId;
 
     public SessionReplayCompoundButtonThingy(ViewDetails viewDetails, CompoundButton view, AgentConfiguration agentConfiguration) {
-        super(viewDetails, (TextView) view, agentConfiguration);
+        super(viewDetails, view, agentConfiguration);
         this.viewDetails = viewDetails;
         this.isChecked = view.isChecked();
         this.isRadioButton = view instanceof RadioButton;
         this.isToggle = view instanceof Switch || view instanceof ToggleButton;
-        this.inputId = NewRelicIdGenerator.generateId();
     }
 
     @Override
@@ -57,7 +54,7 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
         RRWebElementNode inputNode = new RRWebElementNode(
                 inputAttrs,
                 RRWebElementNode.TAG_TYPE_INPUT,
-                inputId,
+                viewDetails.viewId,
                 new ArrayList<>()
         );
 
@@ -107,7 +104,7 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
             if (isToggle) {
                 attributes.dataNrType = "toggle";
             }
-            mutations.add(new RRWebMutationData.AttributeRecord(inputId, attributes));
+            mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
         }
 
         return mutations;
@@ -129,7 +126,7 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
         RRWebElementNode inputNode = new RRWebElementNode(
                 inputAttrs,
                 RRWebElementNode.TAG_TYPE_INPUT,
-                inputId,
+                viewDetails.viewId,
                 new ArrayList<>()
         );
 
@@ -161,12 +158,12 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
         if (!(other instanceof SessionReplayCompoundButtonThingy)) return null;
         SessionReplayCompoundButtonThingy otherButton = (SessionReplayCompoundButtonThingy) other;
         if (isChecked == otherButton.isChecked) return null;
-        return new RRWebInputData(inputId, "", otherButton.isChecked);
+        return new RRWebInputData(viewDetails.viewId, "", otherButton.isChecked);
     }
 
     @Override
     public boolean hasChanged(SessionReplayViewThingyInterface other) {
-        if (other == null || !(other instanceof SessionReplayCompoundButtonThingy)) {
+        if (!(other instanceof SessionReplayCompoundButtonThingy)) {
             return true;
         }
         return this.hashCode() != other.hashCode();
