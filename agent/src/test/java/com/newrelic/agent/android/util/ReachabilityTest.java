@@ -83,4 +83,10 @@ public class ReachabilityTest {
         Assert.assertTrue(Reachability.hasReachableNetworkConnection(context, "newrelic.com"));
     }
 
+    @Test
+    public void testNoSuchMethodErrorHandling() {
+        when(connectivityManager.getActiveNetwork()).thenThrow(new NoSuchMethodError("getActiveNetwork"));
+        Assert.assertTrue(Reachability.hasReachableNetworkConnection(context, null));
+    }
+
 }

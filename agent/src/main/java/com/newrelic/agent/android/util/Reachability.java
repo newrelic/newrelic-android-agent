@@ -47,6 +47,9 @@ public class Reachability {
                 isReachable = true;
             }
 
+        } catch (NoSuchMethodError e) {
+            // getActiveNetwork() is not available on <API 23, so return true and hope for the best
+            isReachable = true;
         } catch (Exception e) {
             isReachable = false;
         }
