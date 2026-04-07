@@ -300,11 +300,11 @@ public class HarvestTimerTests {
         private long ticks = 0;
 
         public TestHarvestTimer() {
-            super(new MockHarvester(), new AgentConfiguration());
+            super(new MockHarvester());
         }
 
         public TestHarvestTimer(Harvester harvester) {
-            super(harvester, new AgentConfiguration());
+            super(harvester);
         }
 
         @Override

@@ -33,6 +33,7 @@ public class Harvest implements HarvestConfigurable {
     private HarvestTimer harvestTimer;
     protected HarvestData harvestData;
     private HarvestDataValidator harvestDataValidator;
+    private AgentConfiguration agentConfig;
 
     // A list of entities that want to listen to lifecycle events. Used for pre-initialization.
     private static final Collection<HarvestLifecycleAware> unregisteredLifecycleListeners = new ArrayList<HarvestLifecycleAware>();
@@ -54,6 +55,7 @@ public class Harvest implements HarvestConfigurable {
         harvester.setAgentConfiguration(agentConfiguration);
         harvester.setHarvestConfiguration(instance.getConfiguration());
         flushHarvestableCaches();
+        agentConfig = agentConfiguration;
     }
 
     public static void start() {
@@ -108,7 +110,7 @@ public class Harvest implements HarvestConfigurable {
         harvester = new Harvester();
         harvester.setHarvestConnection(harvestConnection);
         harvester.setHarvestData(harvestData);
-        harvestTimer = new HarvestTimer(harvester, harvester.getAgentConfiguration());
+        harvestTimer = new HarvestTimer(harvester);
         harvestDataValidator = new HarvestDataValidator();
         Harvest.addHarvestListener(harvestDataValidator);
     }
@@ -408,24 +410,45 @@ public class Harvest implements HarvestConfigurable {
         return harvestConfiguration.getAt_capture();
     }
 
-    public void finalizeSession() {
-        long sessionDuration = Harvest.getMillisSinceStart();
-
-        if (sessionDuration == Harvest.INVALID_SESSION_DURATION) {
-            log.error("Session duration is invalid!");
-            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_INVALID_DURATION);
+    public void startSession() {
+        try {
+            // start a new session
+            log.debug("Harvest: Session replay limit reached (4 hours). Creating new session.");
+            final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+            if (controller != null) {
+                controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
+                        .setStringValue(agentConfig.provideSessionId())
+                        .setPersistent(false);
+                // remove session duration attribute
+                controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
+            }
+        } catch (Exception e) {
+            log.debug("Harvest: Session replay limit reached (4 hours). Creating new session failed with exception: " + e.getMessage());
         }
+    }
 
-        float sessionDurationAsSeconds = (float) sessionDuration / 1000.0f;
+    public void finalizeSession() {
+        try {
+            long sessionDuration = Harvest.getMillisSinceStart();
 
-        StatsEngine.get().sample(MetricNames.SESSION_DURATION, sessionDurationAsSeconds);
+            if (sessionDuration == Harvest.INVALID_SESSION_DURATION) {
+                log.error("Session duration is invalid!");
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_INVALID_DURATION);
+            }
 
-        log.debug("Harvest: Generating sessionDuration attribute with value " + sessionDurationAsSeconds);
-        AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-        analyticsController.setAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE, sessionDurationAsSeconds, false);
+            float sessionDurationAsSeconds = (float) sessionDuration / 1000.0f;
 
-        log.debug("Harvest: Generating session event.");
-        SessionEvent sessionEvent = new SessionEvent();
-        analyticsController.addEvent(sessionEvent);
+            StatsEngine.get().sample(MetricNames.SESSION_DURATION, sessionDurationAsSeconds);
+
+            log.debug("Harvest: Generating sessionDuration attribute with value " + sessionDurationAsSeconds);
+            AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+            analyticsController.setAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE, sessionDurationAsSeconds, false);
+
+            log.debug("Harvest: Generating session event.");
+            SessionEvent sessionEvent = new SessionEvent();
+            analyticsController.addEvent(sessionEvent);
+        } catch (Exception e) {
+            log.debug("Harvest: Finalize session failed with exception: " + e.getMessage());
+        }
     }
 }

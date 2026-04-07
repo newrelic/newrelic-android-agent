@@ -5,16 +5,12 @@
 
 package com.newrelic.agent.android.harvest;
 
-import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.analytics.AnalyticsAttribute;
-import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.NamedThreadFactory;
-import com.newrelic.agent.android.harvest.AgentHealth;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class HarvestTimer implements Runnable {
     public final static long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.toMillis(60);
     private final static long HARVEST_PERIOD_LEEWAY = TimeUnit.SECONDS.toMillis(1);
-    private final static long SESSION_REPLAY_SESSION_PERIOD = TimeUnit.HOURS.toMillis(4);
+    private final static long DEFAULT_SESSION_DURATION_PERIOD = TimeUnit.HOURS.toMillis(4);
     private final static long NEVER_TICKED = -1;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Harvester"));
     private final AgentLog log = AgentLogManager.getAgentLog();
@@ -37,11 +33,9 @@ public class HarvestTimer implements Runnable {
     private long startTimeMs;
     private long sessionReplayStartTimeMs;
     private final Lock lock = new ReentrantLock();
-    private final AgentConfiguration agentConfiguration;
 
-    public HarvestTimer(Harvester harvester, AgentConfiguration agentConfiguration) {
+    public HarvestTimer(Harvester harvester) {
         this.harvester = harvester;
-        this.agentConfiguration = agentConfiguration;
         this.startTimeMs = 0;
         this.sessionReplayStartTimeMs = 0;
     }
@@ -238,22 +232,20 @@ public class HarvestTimer implements Runnable {
      * Automatic session termination for the New Relic agent after 4 hours of continuous session time.
      */
     public void checkAndResetSessionIfExpired() {
-        if (sessionReplayTimeSinceStart() >= SESSION_REPLAY_SESSION_PERIOD) {
-            log.debug("HarvestTimer: Session replay limit reached (4 hours). Resetting session start time.");
-            sessionReplayStartTimeMs = now();
+        try {
+            if (sessionReplayTimeSinceStart() >= DEFAULT_SESSION_DURATION_PERIOD) {
+                // finalize session, reset and send supportability metrics
+                Harvest instance = Harvest.getInstance();
+                if (instance != null) {
+                    instance.startSession();
+                    instance.finalizeSession();
 
-            // start a new session
-            log.debug("HarvestTimer: Session replay limit reached (4 hours). Creating new session.");
-            final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
-            controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
-                    .setStringValue(agentConfiguration.provideSessionId())
-                    .setPersistent(false);
-            // remove session duration attribute
-            controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
-
-            // finalize session and send supportability metrics
-            Harvest instance = new Harvest();
-            instance.finalizeSession();
+                    log.debug("HarvestTimer: Session replay limit reached (4 hours). Resetting session start time.");
+                    sessionReplayStartTimeMs = now();
+                }
+            }
+        } catch (Exception e) {
+            log.error("HarvestTimer: Session replay limit reached (4 hours). Resetting session start time failed with exception: " + e.getMessage());
         }
     }
 }

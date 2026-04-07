@@ -301,7 +301,7 @@ public class AndroidAgentImplTest {
         Harvest.setInstance(new Harvest() {
             @Override
             public HarvestTimer getHarvestTimer() {
-                return new HarvestTimer(new Harvester(), new AgentConfiguration()) {
+                return new HarvestTimer(new Harvester()) {
                     @Override
                     public void start() {
                         super.start();
