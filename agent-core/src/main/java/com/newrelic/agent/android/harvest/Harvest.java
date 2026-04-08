@@ -413,6 +413,9 @@ public class Harvest implements HarvestConfigurable {
     public void startSession() {
         try {
             // start a new session
+            harvestTimer.setSessionStartTimeMs(System.currentTimeMillis());
+            log.debug("Harvest: Session replay limit reached (4 hours). Resetting session start time.");
+
             log.debug("Harvest: Session replay limit reached (4 hours). Creating new session.");
             final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
             if (controller != null) {

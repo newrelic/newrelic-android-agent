@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class HarvestTimer implements Runnable {
     public final static long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.toMillis(60);
     private final static long HARVEST_PERIOD_LEEWAY = TimeUnit.SECONDS.toMillis(1);
-    private final static long DEFAULT_SESSION_DURATION_PERIOD = TimeUnit.HOURS.toMillis(4);
+    final static long DEFAULT_SESSION_DURATION_PERIOD = TimeUnit.HOURS.toMillis(4);
     private final static long NEVER_TICKED = -1;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Harvester"));
     private final AgentLog log = AgentLogManager.getAgentLog();
@@ -31,13 +31,13 @@ public class HarvestTimer implements Runnable {
     protected final Harvester harvester;
     protected long lastTickTime;
     private long startTimeMs;
-    private long sessionReplayStartTimeMs;
+    private long sessionStartTimeMs;
     private final Lock lock = new ReentrantLock();
 
     public HarvestTimer(Harvester harvester) {
         this.harvester = harvester;
         this.startTimeMs = 0;
-        this.sessionReplayStartTimeMs = 0;
+        this.sessionStartTimeMs = 0;
     }
 
     public void run() {
@@ -105,9 +105,6 @@ public class HarvestTimer implements Runnable {
         }
 
         log.debug("HarvestTimer tick took " + t.toc() + "ms");
-
-        // check session 4-hour
-        checkAndResetSessionIfExpired();
     }
 
     public void start() {
@@ -130,7 +127,7 @@ public class HarvestTimer implements Runnable {
 
         log.debug("HarvestTimer: Starting with a period of " + period + "ms");
         startTimeMs = now();
-        sessionReplayStartTimeMs = now();
+        sessionStartTimeMs = now();
 
 
         // Harvest timer MUST always start immediately, per the spec
@@ -148,7 +145,7 @@ public class HarvestTimer implements Runnable {
         cancelPendingTasks();
         log.debug("HarvestTimer: Stopped");
         startTimeMs = 0;
-        sessionReplayStartTimeMs = 0;
+        sessionStartTimeMs = 0;
         harvester.stop();
     }
 
@@ -201,15 +198,23 @@ public class HarvestTimer implements Runnable {
         return now() - startTimeMs;
     }
 
-    public long sessionReplayTimeSinceStart() {
-        if (sessionReplayStartTimeMs == 0) {
+    public long sessionTimeSinceStart() {
+        if (sessionStartTimeMs == 0) {
             return 0;
         }
-        return now() - sessionReplayStartTimeMs;
+        return now() - sessionStartTimeMs;
     }
 
     private long now() {
         return System.currentTimeMillis();
+    }
+
+    public long getSessionStartTimeMs() {
+        return sessionStartTimeMs;
+    }
+
+    public void setSessionStartTimeMs(long sessionStartTimeMs) {
+        this.sessionStartTimeMs = sessionStartTimeMs;
     }
 
     protected void cancelPendingTasks() {
@@ -226,26 +231,5 @@ public class HarvestTimer implements Runnable {
 
     public void updateConfiguration(HarvestConfiguration harvestConfiguration) {
         // setPeriod(TimeUnit.MILLISECONDS.convert(harvestConfiguration.getData_report_period(), TimeUnit.SECONDS));
-    }
-
-    /**
-     * Automatic session termination for the New Relic agent after 4 hours of continuous session time.
-     */
-    public void checkAndResetSessionIfExpired() {
-        try {
-            if (sessionReplayTimeSinceStart() >= DEFAULT_SESSION_DURATION_PERIOD) {
-                // finalize session, reset and send supportability metrics
-                Harvest instance = Harvest.getInstance();
-                if (instance != null) {
-                    instance.startSession();
-                    instance.finalizeSession();
-
-                    log.debug("HarvestTimer: Session replay limit reached (4 hours). Resetting session start time.");
-                    sessionReplayStartTimeMs = now();
-                }
-            }
-        } catch (Exception e) {
-            log.error("HarvestTimer: Session replay limit reached (4 hours). Resetting session start time failed with exception: " + e.getMessage());
-        }
     }
 }
