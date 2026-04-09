@@ -827,8 +827,7 @@ public class Harvester implements HarvestConfigurable {
      */
     public void checkAndResetSessionIfExpired() {
         try {
-            HarvestTimer harvestTimer = Harvest.getInstance().getHarvestTimer();
-            if (harvestTimer.sessionTimeSinceStart() >= HarvestTimer.DEFAULT_SESSION_DURATION_PERIOD) {
+            if (Harvest.getMillisSinceStart() >= HarvestTimer.DEFAULT_SESSION_DURATION_PERIOD) {
                 Harvest.harvestNow(true, false);// call non-blocking harvest
 
                 Harvest instance = Harvest.getInstance();
