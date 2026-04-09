@@ -1,6 +1,8 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.capture;
 
+import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.models.Data;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.InputCapable;

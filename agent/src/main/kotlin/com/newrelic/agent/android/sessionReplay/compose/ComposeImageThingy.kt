@@ -14,9 +14,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.core.graphics.createBitmap
 import com.newrelic.agent.android.AgentConfiguration
-import com.newrelic.agent.android.sessionReplay.ImageCompressionUtils
+import com.newrelic.agent.android.sessionReplay.internal.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface
 import com.newrelic.agent.android.sessionReplay.internal.ComposePainterReflectionUtils
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
@@ -381,7 +381,7 @@ open class ComposeImageThingy(
             ContentScale.Fit, ContentScale.Inside -> "contain"
             ContentScale.FillWidth -> "100% auto"
             ContentScale.FillHeight -> "auto 100%"
-            else -> "auto"
+            else -> "contain"
         }
     }
 
@@ -450,6 +450,7 @@ open class ComposeImageThingy(
             cssBuilder.append("; ")
             cssBuilder.append("background-repeat: no-repeat; ")
             cssBuilder.append("background-position: center; ")
+            cssBuilder.append("overflow: hidden; ")
         } else {
             // Masked image: show gray placeholder (privacy-protected)
             // This indicates to replay viewers that an image was present but masked

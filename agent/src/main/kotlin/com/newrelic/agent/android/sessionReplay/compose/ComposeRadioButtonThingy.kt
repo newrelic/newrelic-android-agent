@@ -5,7 +5,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.state.ToggleableState
 import com.newrelic.agent.android.AgentConfiguration
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.InputCapable
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord

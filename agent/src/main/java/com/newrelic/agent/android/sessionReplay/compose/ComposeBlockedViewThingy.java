@@ -3,7 +3,7 @@ package com.newrelic.agent.android.sessionReplay.compose;
 import androidx.compose.ui.semantics.SemanticsNode;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;

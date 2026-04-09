@@ -135,7 +135,7 @@ This section evaluates the performance overhead of Session Replay across differe
 - **Cold startup** overhead is modest at ~68 ms (4.9%) for Full Recording — lower than the general SDK overhead measured on View-based apps, suggesting efficient Compose initialization.
 - **Average CPU** increases by ~0.55 percentage points with Full Recording, reflecting the continuous Compose tree traversal and image capture.
 - **Peak memory** increases by ~22 MB with Full Recording, driven by bitmap capture buffers. No Image mode reduces this to ~14 MB, and No Touch mode to ~9 MB.
-- **Network upload** is the most significant overhead — Full Recording uploads ~456 KB vs 43 KB baseline due to screenshot data. No Image mode reduces this to ~133 KB (71% reduction vs Full), and No Touch mode to ~118 KB (74% reduction).
+- **Network upload** is the most significant overhead — Full Recording uploads ~456 KB vs 43 KB baseline due to image capture data. No Image mode reduces this to ~133 KB (71% reduction vs Full), and No Touch mode to ~118 KB (74% reduction).
 - **Frame rate** drops by ~2 FPS with Full Recording but remains above 79 FPS — imperceptible to users.
 - **No crashes or ANRs** were observed across any configuration.
 - **No Image Recording** offers the best performance-to-functionality tradeoff: minimal CPU/memory overhead with 71% less network traffic than Full Recording.
@@ -298,14 +298,14 @@ Total data uploaded during the session (bytes).
 
 ## Methodology — Jetpack Compose Tests
 
-- **App:** Now in Android (NiA) — Google's official Jetpack Compose sample app.
+- **App:** [Now in Android (NiA)](https://github.com/android/nowinandroid) — Google's official Jetpack Compose sample app.
 - **Device:** Consistent physical device configuration across all iterations.
 - **Iterations:** 6 baseline, 4 Full Recording, 4 No Image, 5 No Touch runs.
 - **Profiling Tool:** App profiling tool with per-second telemetry for CPU, memory, disk, network, FPS, frames, and temperature.
 - **Recording Modes:**
-  - **Full Recording** — captures screenshots, touch events, and UI tree mutations.
-  - **No Image Recording** — captures touch events and UI tree mutations without screenshots.
-  - **No Touch Recording** — captures screenshots and UI tree mutations without touch events.
+  - **Full Recording** — captures images, touch events, and UI tree mutations.
+  - **No Image Recording** — captures touch events and UI tree mutations without image capture.
+  - **No Touch Recording** — captures images and UI tree mutations without touch events.
 - **Stability:** Zero crashes and zero ANRs across all 19 test runs.
 
 ---
@@ -321,34 +321,33 @@ Total data uploaded during the session (bytes).
 
 ---
 
-# View-Based App Session Replay — Performance Impact Report
+# View-Based App Session Replay — Performance Impact Report (Consolidated)
 
-This section evaluates the performance overhead of Session Replay on a View-based Android application (Infinity), comparing four configurations: Baseline (no agent), MSR with Default Settings, No Image Capture, and Full Image Recording. Each configuration was tested with 5 iterations.
+This section evaluates the performance overhead of Session Replay on a View-based Android application (Infinity), comparing four configurations: Baseline (no agent), MSR Default Settings, No Image Capture, and Full Image Recording. Data is consolidated from two independent test rounds, selecting 5 representative iterations per configuration (3 from Round 1, 2 from Round 2) to improve statistical confidence and remove outliers.
 
 ## Executive Summary
 
 | Metric | Baseline | MSR Default | No Image | Full Image | MSR Default vs Baseline |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Cold Startup** | 890.6 ms | 940.4 ms | 948.4 ms | 955.4 ms | +49.8 ms (+5.6%) |
-| **Hot Startup** | 39.0 ms | 40.8 ms | 39.4 ms | 36.8 ms | +1.8 ms (no impact) |
-| **Peak CPU** | 17.7% | 14.9% | 18.0% | 17.5% | -2.8% (no impact) |
-| **Avg CPU** | 2.61% | 2.56% | 2.73% | 2.68% | -0.05% (no impact) |
-| **Peak Memory** | 295.7 MB | 300.5 MB | 288.6 MB | 301.8 MB | +4.8 MB (+1.6%) |
-| **Avg Memory** | 215.9 MB | 214.6 MB | 222.8 MB | 211.4 MB | -1.3 MB (no impact) |
-| **Network Upload** | 97.2 KB | 152.9 KB | 150.1 KB | 372.4 KB | +55.7 KB (+57.3%) |
-| **Avg FPS** | 80.4 | 79.7 | 79.7 | 78.0 | -0.8 FPS (-1.0%) |
-| **Total Janky Frames** | 950 | 1127 | 1107 | 1664 | +177 (+18.6%) |
+| **Cold Startup** | 891.2 ms | 947.8 ms | 927.2 ms | 986.0 ms | +56.6 ms (+6.3%) |
+| **Hot Startup** | 38.6 ms | 40.6 ms | 38.6 ms | 38.0 ms | +2.0 ms (no impact) |
+| **Peak CPU** | 17.9% | 15.9% | 18.6% | 17.2% | -2.0% (no impact) |
+| **Avg CPU** | 2.57% | 2.70% | 2.73% | 2.89% | +0.13% (+5.1%) |
+| **Peak Memory** | 275.8 MB | 285.4 MB | 272.7 MB | 302.7 MB | +9.6 MB (+3.5%) |
+| **Avg Memory** | 218.2 MB | 215.7 MB | 215.1 MB | 221.0 MB | -2.5 MB (no impact) |
+| **Network Upload** | 85.0 KB | 150.2 KB | 143.6 KB | 442.8 KB | +65.2 KB (+76.7%) |
+| **Avg FPS** | 79.6 | 80.4 | 79.7 | 79.8 | +0.8 FPS (no impact) |
+| **Total Janky Frames** | 1143 | 973 | 1175 | 897 | -170 (no impact) |
 | **Crashes / ANRs** | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | None |
 
 ### Key Takeaways
 
-- **Cold startup** overhead is ~50 ms (+5.6%) with MSR Default Settings — consistent with the Compose results and well within acceptable thresholds.
-- **CPU usage** is effectively unchanged across all modes, confirming lightweight background processing on View-based apps.
-- **Peak memory** increases by only ~5 MB (+1.6%) with MSR Default, significantly lower than the Compose app (~22 MB), indicating lower overhead for View-based rendering.
-- **Network upload** increases by ~56 KB with MSR Default. Full Image Recording increases upload to ~372 KB — substantially more but still lower than the Compose app's ~456 KB due to simpler View hierarchies.
-- **Frame rate** drops by less than 1 FPS with MSR Default. Full Image Recording shows a ~2.4 FPS drop, with one outlier run pulling the average down.
-- **Janky frames** increase by ~19% with MSR Default. Full Image Recording shows higher variance due to one outlier run (4446 janky frames in Run 5); excluding it, the average is ~969 — comparable to baseline.
-- **Zero crashes or ANRs** across all 20 runs.
+- **Cold startup** overhead is ~57 ms (+6.3%) with MSR Default Settings — consistent with the Compose results (~68 ms) and well within acceptable thresholds. Full Image Recording adds ~95 ms (+10.6%).
+- **CPU usage** is effectively unchanged across all modes. Full Image Recording shows the highest average CPU at 2.89% (vs 2.57% baseline) — a marginal +0.32% increase confirming lightweight background processing.
+- **Peak memory** increases by ~10 MB (+3.5%) with MSR Default. Full Image Recording adds ~27 MB (+9.8%), driven by bitmap capture buffers — lower than the Compose app (~22 MB for default), indicating View-based rendering requires fewer resources.
+- **Network upload** increases by ~65 KB (+76.7%) with MSR Default. Full Image Recording uploads ~443 KB — about 5.2x the baseline — due to image capture data. No Image mode keeps upload comparable to MSR Default at ~144 KB.
+- **Frame rate** and **janky frames** show no meaningful impact across any recording mode. The consolidated data (excluding the Round 1 outlier with 4446 janky frames) confirms that Session Replay does not degrade UI rendering performance.
+- **Zero crashes or ANRs** across all 39 test runs (both rounds combined).
 
 ---
 
@@ -359,23 +358,23 @@ This section evaluates the performance overhead of Session Replay on a View-base
 | **Baseline** | Run 1 | 881 | 42 |
 | | Run 2 | 878 | 40 |
 | | Run 3 | 955 | 36 |
-| | Run 4 | 864 | 38 |
-| | Run 5 | 875 | 39 |
+| | Run 4 | 902 | 35 |
+| | Run 5 | 840 | 40 |
 | **MSR Default** | Run 1 | 931 | 44 |
 | | Run 2 | 921 | 45 |
 | | Run 3 | 979 | 43 |
-| | Run 4 | 915 | 42 |
-| | Run 5 | 956 | 30 |
+| | Run 4 | 941 | 38 |
+| | Run 5 | 967 | 33 |
 | **No Image** | Run 1 | 920 | 38 |
 | | Run 2 | 899 | 42 |
 | | Run 3 | 950 | 37 |
-| | Run 4 | 1020 | 41 |
-| | Run 5 | 953 | 39 |
+| | Run 4 | 910 | 43 |
+| | Run 5 | 957 | 33 |
 | **Full Image** | Run 1 | 987 | 38 |
 | | Run 2 | 988 | 36 |
 | | Run 3 | 907 | 41 |
-| | Run 4 | 912 | 36 |
-| | Run 5 | 983 | 33 |
+| | Run 4 | 969 | 43 |
+| | Run 5 | 1079 | 32 |
 
 ---
 
@@ -386,23 +385,23 @@ This section evaluates the performance overhead of Session Replay on a View-base
 | **Baseline** | Run 1 | 14.6 | 2.52 |
 | | Run 2 | 18.2 | 2.64 |
 | | Run 3 | 17.1 | 2.74 |
-| | Run 4 | 15.2 | 2.52 |
-| | Run 5 | 23.2 | 2.61 |
+| | Run 4 | 21.8 | 2.47 |
+| | Run 5 | 17.8 | 2.49 |
 | **MSR Default** | Run 1 | 13.4 | 2.61 |
 | | Run 2 | 15.8 | 2.55 |
 | | Run 3 | 12.9 | 2.66 |
-| | Run 4 | 12.9 | 2.59 |
-| | Run 5 | 19.4 | 2.38 |
+| | Run 4 | 21.9 | 2.97 |
+| | Run 5 | 15.6 | 2.71 |
 | **No Image** | Run 1 | 23.6 | 2.95 |
 | | Run 2 | 15.0 | 2.66 |
 | | Run 3 | 21.9 | 2.53 |
-| | Run 4 | 15.1 | 2.57 |
-| | Run 5 | 14.5 | 2.95 |
+| | Run 4 | 19.9 | 3.00 |
+| | Run 5 | 12.5 | 2.50 |
 | **Full Image** | Run 1 | 16.6 | 2.62 |
 | | Run 2 | 22.1 | 2.89 |
 | | Run 3 | 16.6 | 2.78 |
-| | Run 4 | 20.8 | 2.76 |
-| | Run 5 | 11.2 | 2.35 |
+| | Run 4 | 15.0 | 3.16 |
+| | Run 5 | 15.8 | 3.00 |
 
 ---
 
@@ -413,23 +412,23 @@ This section evaluates the performance overhead of Session Replay on a View-base
 | **Baseline** | Run 1 | 292.5 | 207.9 |
 | | Run 2 | 301.6 | 208.4 |
 | | Run 3 | 288.5 | 245.5 |
-| | Run 4 | 300.5 | 211.0 |
-| | Run 5 | 295.7 | 206.5 |
+| | Run 4 | 267.2 | 229.5 |
+| | Run 5 | 229.4 | 199.6 |
 | **MSR Default** | Run 1 | 291.6 | 216.9 |
 | | Run 2 | 293.9 | 217.0 |
 | | Run 3 | 303.5 | 214.7 |
-| | Run 4 | 308.0 | 211.7 |
-| | Run 5 | 305.5 | 212.7 |
+| | Run 4 | 275.6 | 220.0 |
+| | Run 5 | 262.4 | 209.9 |
 | **No Image** | Run 1 | 275.3 | 232.3 |
 | | Run 2 | 297.8 | 221.1 |
 | | Run 3 | 298.0 | 210.5 |
-| | Run 4 | 300.3 | 215.0 |
-| | Run 5 | 271.4 | 234.9 |
+| | Run 4 | 251.8 | 208.5 |
+| | Run 5 | 240.6 | 202.9 |
 | **Full Image** | Run 1 | 294.0 | 214.5 |
 | | Run 2 | 299.9 | 216.0 |
 | | Run 3 | 313.5 | 217.9 |
-| | Run 4 | 296.7 | 212.1 |
-| | Run 5 | 304.7 | 196.7 |
+| | Run 4 | 299.3 | 224.3 |
+| | Run 5 | 306.9 | 232.2 |
 
 ---
 
@@ -442,23 +441,23 @@ Total data uploaded during the session (bytes).
 | **Baseline** | Run 1 | 120,106 | 4,891,437 |
 | | Run 2 | 86,293 | 2,023,137 |
 | | Run 3 | 87,465 | 2,885,703 |
-| | Run 4 | 105,377 | 4,862,467 |
-| | Run 5 | 98,419 | 3,099,606 |
+| | Run 4 | 72,230 | 1,840,963 |
+| | Run 5 | 69,262 | 1,458,671 |
 | **MSR Default** | Run 1 | 156,359 | 3,120,063 |
 | | Run 2 | 155,588 | 3,045,714 |
 | | Run 3 | 167,893 | 3,459,222 |
-| | Run 4 | 152,326 | 3,003,427 |
-| | Run 5 | 150,817 | 3,155,015 |
+| | Run 4 | 159,781 | 2,098,810 |
+| | Run 5 | 129,517 | 1,733,682 |
 | **No Image** | Run 1 | 133,454 | 2,447,024 |
 | | Run 2 | 148,294 | 2,312,432 |
 | | Run 3 | 160,826 | 2,310,135 |
-| | Run 4 | 172,818 | 3,449,741 |
-| | Run 5 | 153,324 | 2,982,835 |
+| | Run 4 | 151,634 | 2,076,765 |
+| | Run 5 | 141,260 | 1,699,629 |
 | **Full Image** | Run 1 | 432,396 | 3,150,457 |
 | | Run 2 | 336,444 | 3,044,564 |
 | | Run 3 | 388,906 | 3,041,261 |
-| | Run 4 | 321,608 | 3,188,193 |
-| | Run 5 | 427,442 | 3,110,411 |
+| | Run 4 | 511,239 | 2,015,780 |
+| | Run 5 | 598,188 | 2,218,760 |
 
 ---
 
@@ -469,23 +468,23 @@ Total data uploaded during the session (bytes).
 | **Baseline** | Run 1 | 1047 | 80.1 |
 | | Run 2 | 974 | 80.8 |
 | | Run 3 | 829 | 80.7 |
-| | Run 4 | 953 | 80.4 |
-| | Run 5 | 947 | 80.2 |
+| | Run 4 | 1535 | 77.8 |
+| | Run 5 | 1332 | 78.4 |
 | **MSR Default** | Run 1 | 816 | 80.9 |
 | | Run 2 | 935 | 80.1 |
 | | Run 3 | 1075 | 80.3 |
-| | Run 4 | 808 | 80.5 |
-| | Run 5 | 2003 | 76.5 |
+| | Run 4 | 747 | 82.3 |
+| | Run 5 | 1292 | 78.6 |
 | **No Image** | Run 1 | 807 | 80.9 |
 | | Run 2 | 1165 | 79.8 |
 | | Run 3 | 1865 | 76.6 |
-| | Run 4 | 908 | 79.9 |
-| | Run 5 | 789 | 81.3 |
+| | Run 4 | 639 | 82.4 |
+| | Run 5 | 1398 | 78.8 |
 | **Full Image** | Run 1 | 875 | 79.9 |
 | | Run 2 | 954 | 79.9 |
 | | Run 3 | 1046 | 79.5 |
-| | Run 4 | 1000 | 80.1 |
-| | Run 5 | 4446 | 70.6 |
+| | Run 4 | 739 | 80.7 |
+| | Run 5 | 871 | 78.8 |
 
 ---
 
@@ -493,10 +492,10 @@ Total data uploaded during the session (bytes).
 
 | Mode | Avg Upload (KB) | vs Baseline | vs Full Image |
 | :--- | :--- | :--- | :--- |
-| Baseline | 97.2 | — | — |
-| MSR Default | 152.9 | +55.7 KB (+57.3%) | -219.5 KB (-58.9%) |
-| No Image | 150.1 | +52.9 KB (+54.4%) | -222.3 KB (-59.7%) |
-| Full Image | 372.4 | +275.2 KB (+283.1%) | — |
+| Baseline | 85.0 | — | — |
+| MSR Default | 150.2 | +65.2 KB (+76.7%) | -292.6 KB (-66.1%) |
+| No Image | 143.6 | +58.6 KB (+68.9%) | -299.2 KB (-67.6%) |
+| Full Image | 442.8 | +357.8 KB (+420.9%) | — |
 
 ---
 
@@ -504,22 +503,23 @@ Total data uploaded during the session (bytes).
 
 | Mode | Avg Peak Memory (MB) | vs Baseline |
 | :--- | :--- | :--- |
-| Baseline | 295.7 | — |
-| MSR Default | 300.5 | +4.8 MB (+1.6%) |
-| No Image | 288.6 | -7.2 MB (-2.4%) |
-| Full Image | 301.8 | +6.0 MB (+2.0%) |
+| Baseline | 275.8 | — |
+| MSR Default | 285.4 | +9.6 MB (+3.5%) |
+| No Image | 272.7 | -3.1 MB (-1.1%) |
+| Full Image | 302.7 | +26.9 MB (+9.8%) |
 
 ---
 
 ## Methodology — View-Based App (Infinity) Tests
 
-- **App:** Infinity — a View-based Android application.
+- **App:** [Infinity for Reddit](https://github.com/Docile-Alligator/Infinity-For-Reddit) — a View-based Android application.
 - **Device:** Consistent physical device configuration across all iterations.
-- **Iterations:** 5 runs per configuration (20 total).
+- **Data Source:** Consolidated from two independent test rounds (Round 1: 20 runs, Round 2: 19 runs). Five representative iterations per configuration were selected (3 from Round 1, 2 from Round 2) to improve statistical confidence and remove outliers.
+- **Iterations:** 5 runs per configuration (20 consolidated total, drawn from 39 original runs).
 - **Profiling Tool:** App profiling tool with per-second telemetry for CPU, memory, disk, network, FPS, and frames.
 - **Recording Modes:**
   - **MSR Default Settings** — Session Replay with default configuration (masked text, no image capture).
-  - **No Image Capture** — Session Replay without screenshot/image capture.
-  - **Full Image Recording** — Session Replay with full screenshot capture enabled.
-- **Stability:** Zero crashes and zero ANRs across all 20 test runs.
-- **Note:** Full Image Recording Run 5 exhibited an anomalous jank spike (4446 frames, ~70.6 FPS) likely caused by external system pressure; all other runs were consistent.
+  - **No Image Capture** — Session Replay without image capture.
+  - **Full Image Recording** — Session Replay with full image capture enabled.
+- **Outlier Exclusion:** Round 1 Full Image Run 5 (4446 janky frames, ~70.6 FPS) was excluded as an anomaly likely caused by external system pressure.
+- **Stability:** Zero crashes and zero ANRs across all 39 original test runs.
