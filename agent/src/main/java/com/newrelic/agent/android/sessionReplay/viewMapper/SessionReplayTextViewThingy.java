@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.viewMapper;
 
 import android.annotation.SuppressLint;
 import android.graphics.Typeface;
@@ -6,6 +6,9 @@ import android.widget.TextView;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration;
 import com.newrelic.agent.android.sessionReplay.internal.TextViewUtil;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
@@ -275,11 +278,14 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             styleDifferences.put("font-size", String.format("%.2fpx", ((SessionReplayTextViewThingy) other).getFontSize()));
         }
 
-        // Create and return a MutationRecord with the style differences
-        Attributes attributes = new Attributes(viewDetails.getCSSSelector());
-        attributes.setMetadata(styleDifferences);
         List<MutationRecord> mutations = new ArrayList<>();
-        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+
+        // Only emit an AttributeRecord when there are actual style differences
+        if (!styleDifferences.isEmpty()) {
+            Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+            attributes.setMetadata(styleDifferences);
+            mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+        }
 
         // Check if label text has changed
         if (this.labelText != null && !this.labelText.equals(((SessionReplayTextViewThingy) other).getLabelText())) {

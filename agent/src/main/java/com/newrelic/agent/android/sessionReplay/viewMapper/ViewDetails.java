@@ -1,6 +1,5 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.viewMapper;
 
-import android.graphics.Paint;
 import android.graphics.Rect; // Equivalent to CGRect for basic representation
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -8,7 +7,6 @@ import android.view.View; // Use Android's View class
 import android.view.ViewGroup;
 import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
 
-import java.lang.reflect.Field;
 import java.util.Objects; // For hashCode and equals
 
 public class ViewDetails {
@@ -191,7 +189,7 @@ public class ViewDetails {
         Integer idValue = null;
         idValue = (Integer) view.getTag(keyCode);
         if(idValue == null) {
-            idValue = com.newrelic.agent.android.sessionReplay.NewRelicIdGenerator.generateId();
+            idValue = com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator.generateId();
             view.setTag(keyCode, idValue);
         }
         int id = idValue;

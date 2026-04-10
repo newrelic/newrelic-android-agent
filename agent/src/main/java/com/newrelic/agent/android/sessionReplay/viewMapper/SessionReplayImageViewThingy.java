@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.viewMapper;
 
 import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
@@ -21,6 +21,9 @@ import androidx.annotation.WorkerThread;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
 
+import com.newrelic.agent.android.sessionReplay.internal.ImageCompressionUtils;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
+import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
@@ -54,6 +57,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     private final ImageView.ScaleType scaleType;
     private final String backgroundColor;
     private String imageData; // Base64 encoded image data
+    private final boolean isMasked;
     protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
     protected SessionReplayConfiguration sessionReplayConfiguration;
 
@@ -63,7 +67,8 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         this.sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
         this.scaleType = view.getScaleType();
         this.backgroundColor = getBackgroundColor(view);
-        if( !shouldMaskImage(view)) {
+        this.isMasked = shouldMaskImage(view);
+        if (!isMasked) {
             this.imageData = getImageFromImageView(view);
         }
     }
@@ -273,11 +278,15 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
         cssBuilder.append("; ");
         cssBuilder.append("background-repeat: no-repeat; ");
         cssBuilder.append("background-position: center; ");
+        cssBuilder.append("overflow: hidden; ");
     }
 
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
+        if (isMasked) {
+            attributes.dataNrMasked = "image";
+        }
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.getViewId(), new ArrayList<>());
     }
 
@@ -306,8 +315,20 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             styleDifferences.put("background-image"," url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
         }
 
+        SessionReplayImageViewThingy otherImage = (SessionReplayImageViewThingy) other;
+        boolean hasMaskChange = this.isMasked != otherImage.isMasked;
+
+        if (styleDifferences.isEmpty() && !hasMaskChange) {
+            return Collections.emptyList();
+        }
+
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
         attributes.setMetadata(styleDifferences);
+        if (otherImage.isMasked) {
+            attributes.dataNrMasked = "image";
+        } else if (this.isMasked) {
+            attributes.dataNrMasked = "";
+        }
         List<MutationRecord> mutations = new ArrayList<>();
         mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.getViewId(), attributes));
         return mutations;
@@ -355,9 +376,12 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
                 return "cover";
             case FIT_CENTER:
             case CENTER_INSIDE:
+            case FIT_START:
+            case FIT_END:
                 return "contain";
+            case CENTER:
             default:
-                return "auto";
+                return "contain";
         }
     }
 

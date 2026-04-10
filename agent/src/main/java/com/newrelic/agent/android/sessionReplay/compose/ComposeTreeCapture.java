@@ -9,8 +9,8 @@ import androidx.compose.ui.semantics.SemanticsConfiguration;
 import androidx.compose.ui.semantics.SemanticsNode;
 import androidx.compose.ui.semantics.SemanticsOwner;
 
-import com.newrelic.agent.android.sessionReplay.SessionReplayThingyRecorder;
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface;
+import com.newrelic.agent.android.sessionReplay.capture.SessionReplayThingyRecorder;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
 
 import java.util.ArrayList;
@@ -51,10 +51,16 @@ public class ComposeTreeCapture {
             return null;
         }
 
-        // Check if root node has MASK or UNMASK tags (both propagate, but MASK overrides UNMASK)
+        // Check if root node has privacy tags
         // Optimization: Check contains() once and reuse the result
         SemanticsConfiguration rootConfig = rootNode.getConfig();
         String rootTag = rootConfig.contains(NewRelicPrivacyKey) ? rootConfig.get(NewRelicPrivacyKey) : "";
+
+        // If root is blocked, return a black rectangle immediately — no children
+        if (ComposeSessionReplayConstants.PrivacyTags.BLOCK.equals(rootTag)) {
+            return recorder.recordBlockedComposeView(rootNode, density);
+        }
+
         boolean rootHasMask = ComposeSessionReplayConstants.PrivacyTags.MASK.equals(rootTag);
         boolean rootHasUnmask = ComposeSessionReplayConstants.PrivacyTags.UNMASK.equals(rootTag);
 
@@ -109,6 +115,13 @@ public class ComposeTreeCapture {
 
             // Optimization: Check contains() once and reuse the result
             String childTag = childConfig.contains(NewRelicPrivacyKey) ? childConfig.get(NewRelicPrivacyKey) : "";
+
+            // Block: render as a single black rectangle, skip entire subtree (no propagation)
+            if (ComposeSessionReplayConstants.PrivacyTags.BLOCK.equals(childTag)) {
+                childThingies.add(recorder.recordBlockedComposeView(child, density));
+                continue;
+            }
+
             boolean childHasMask = ComposeSessionReplayConstants.PrivacyTags.MASK.equals(childTag);
             boolean childHasUnmask = ComposeSessionReplayConstants.PrivacyTags.UNMASK.equals(childTag);
 

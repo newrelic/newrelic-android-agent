@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.internal;
 
 import android.annotation.SuppressLint;
 import android.graphics.Bitmap;

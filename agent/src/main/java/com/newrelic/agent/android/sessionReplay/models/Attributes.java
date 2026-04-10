@@ -9,7 +9,14 @@ import java.util.Map;
 public class Attributes{
     public String id;
     public String type;
+    public String inputType;
     public String value;
+    public Boolean checked;
+    public String dataNrMasked;
+    public String dataNrType;
+    public String min;
+    public String max;
+    public String step;
     public Map<String, String> metadata = new HashMap<>();
 
     public Map<String, String> getMetadata() {
