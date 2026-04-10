@@ -268,11 +268,6 @@ public class CrashTests {
         @Override
         public void delete(Crash crash) {
         }
-
-        @Override
-        public String getRootPath() {
-            return "";
-        }
     }
 
     private static class TestStubAgentImpl extends StubAgentImpl {

@@ -20,7 +20,8 @@ import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
 import com.newrelic.agent.android.harvest.Harvest;
-import com.newrelic.agent.android.hybrid.JSErrorDataController;
+import com.newrelic.agent.android.hybrid.StackTrace;
+import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
@@ -1048,6 +1049,7 @@ public final class NewRelic {
 
         // Notify SessionReplay about the error for mode switching (if enabled)
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
             SessionReplay.onError();
         }
 
@@ -1123,8 +1125,8 @@ public final class NewRelic {
      *
      * @param stackTrace Stack trace of the exception
      */
-    public static boolean recordJavaScriptError(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
-        return JSErrorDataController.sendJSErrorData(name, message, stackTrace, isFatal, additionalAttributes);
+    public static boolean recordJSErrorException(StackTrace stackTrace) {
+        return DataController.sendAgentData(stackTrace);
     }
 
     /**
@@ -1179,6 +1181,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name()));
 
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
             SessionReplay.onError();
         }
         LogReporting.getLogger().log(LogLevel.ERROR, message);
@@ -1196,6 +1199,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (logLevel.equals(LogLevel.ERROR) && agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
             SessionReplay.onError();
         }
         if (LogReporting.isLevelEnabled(logLevel)) {

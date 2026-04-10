@@ -90,9 +90,4 @@ public class SharedPrefsAnalyticsAttributeStore extends SharedPrefsStore impleme
             super.delete(attribute.getName());
         }
     }
-
-    @Override
-    public String getRootPath() {
-        return context.getCacheDir().getAbsolutePath();
-    }
 }

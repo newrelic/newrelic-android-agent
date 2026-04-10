@@ -34,11 +34,6 @@ public class SharedPrefsPayloadStore extends SharedPrefsStore implements Payload
     }
 
     @Override
-    public String getRootPath() {
-        return context.getCacheDir().getAbsolutePath();
-    }
-
-    @Override
     public List<Payload> fetchAll() {
         final List<Payload> payloads = new ArrayList<Payload>();
 

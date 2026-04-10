@@ -10,6 +10,10 @@ public class RRWebElementNode implements RRWebNode {
     public static String TAG_TYPE_STYLE = "style";
     public static String TAG_TYPE_BODY = "body";
     public static String TAG_TYPE_DIV = "div";
+    public static String TAG_TYPE_INPUT = "input";
+    public static String TAG_TYPE_LABEL = "label";
+    public static String TAG_TYPE_VALUE = "value";
+    public static String TAG_TYPE_PROGRESS = "progress";
 
     public int type = RRWEB_NODE_TYPE_ELEMENT;
     public String tagName;

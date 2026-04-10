@@ -42,10 +42,5 @@ public class TestEventStore implements AnalyticsEventStore {
     public void delete(AnalyticsEvent event) {
         events.remove(event);
     }
-
-    @Override
-    public String getRootPath() {
-        return "";
-    }
 }
 

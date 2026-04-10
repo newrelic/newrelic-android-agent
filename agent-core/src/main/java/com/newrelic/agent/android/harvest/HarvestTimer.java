@@ -22,6 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class HarvestTimer implements Runnable {
     public final static long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.toMillis(60);
     private final static long HARVEST_PERIOD_LEEWAY = TimeUnit.SECONDS.toMillis(1);
+    final static long DEFAULT_SESSION_DURATION_PERIOD = TimeUnit.HOURS.toMillis(4);
     private final static long NEVER_TICKED = -1;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Harvester"));
     private final AgentLog log = AgentLogManager.getAgentLog();
@@ -30,11 +31,13 @@ public class HarvestTimer implements Runnable {
     protected final Harvester harvester;
     protected long lastTickTime;
     private long startTimeMs;
+    private long sessionStartTimeMs;
     private final Lock lock = new ReentrantLock();
 
     public HarvestTimer(Harvester harvester) {
         this.harvester = harvester;
         this.startTimeMs = 0;
+        this.sessionStartTimeMs = 0;
     }
 
     public void run() {
@@ -124,6 +127,8 @@ public class HarvestTimer implements Runnable {
 
         log.debug("HarvestTimer: Starting with a period of " + period + "ms");
         startTimeMs = now();
+        sessionStartTimeMs = now();
+
 
         // Harvest timer MUST always start immediately, per the spec
         tickFuture = scheduler.scheduleWithFixedDelay(this, 0, period, TimeUnit.MILLISECONDS);
@@ -140,6 +145,7 @@ public class HarvestTimer implements Runnable {
         cancelPendingTasks();
         log.debug("HarvestTimer: Stopped");
         startTimeMs = 0;
+        sessionStartTimeMs = 0;
         harvester.stop();
     }
 
@@ -192,8 +198,23 @@ public class HarvestTimer implements Runnable {
         return now() - startTimeMs;
     }
 
+    public long sessionTimeSinceStart() {
+        if (sessionStartTimeMs == 0) {
+            return 0;
+        }
+        return now() - sessionStartTimeMs;
+    }
+
     private long now() {
         return System.currentTimeMillis();
+    }
+
+    public long getSessionStartTimeMs() {
+        return sessionStartTimeMs;
+    }
+
+    public void setSessionStartTimeMs(long sessionStartTimeMs) {
+        this.sessionStartTimeMs = sessionStartTimeMs;
     }
 
     protected void cancelPendingTasks() {

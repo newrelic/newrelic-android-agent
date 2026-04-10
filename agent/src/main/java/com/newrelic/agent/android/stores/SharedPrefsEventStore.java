@@ -78,9 +78,4 @@ public class SharedPrefsEventStore extends SharedPrefsStore implements Analytics
             log.error("SharedPrefsEventStore.delete(): ", e);
         }
     }
-
-    @Override
-    public String getRootPath() {
-        return context.getCacheDir().getAbsolutePath();
-    }
 }
