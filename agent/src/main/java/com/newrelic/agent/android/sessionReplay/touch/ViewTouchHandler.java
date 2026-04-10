@@ -1,9 +1,12 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.touch;
 
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.compose.ui.platform.ComposeView;
-import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
+import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants;
+import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator;
+import com.newrelic.agent.android.sessionReplay.internal.ViewPrivacyUtils;
 import com.newrelic.agent.android.util.ComposeChecker;
 
 import java.util.Set;
@@ -64,16 +67,19 @@ public class ViewTouchHandler {
 
     public View getMaskedViewIfNeeded(View view, boolean shouldMask) {
         if(view != null) {
+            // Walk up the hierarchy — if any ancestor is blocked, suppress the touch
+            if (ViewPrivacyUtils.hasBlockedAncestor(view)) {
+                return null;
+            }
+
             // Check if view has tags that prevent masking
-            Object viewTag = view.getTag();
-            Object privacyTag = view.getTag(R.id.newrelic_privacy);
-            boolean hasUnmaskTag = ("nr-unmask".equals(viewTag)) ||
-                    ("nr-unmask".equals(privacyTag)) ||
+            String effectiveTag = ViewPrivacyUtils.getEffectivePrivacyTag(view);
+            boolean hasUnmaskTag = ComposeSessionReplayConstants.PrivacyTags.UNMASK.equals(effectiveTag) ||
                     (view.getTag() != null && sessionReplayConfiguration.shouldUnmaskViewTag(view.getTag().toString())) ||
                     checkMaskUnMaskViewClass(sessionReplayConfiguration.getUnmaskedViewClasses(), view);
 
             // Check if view has tag that forces masking
-            boolean hasMaskTag = ("nr-mask".equals(viewTag) || "nr-mask".equals(privacyTag)) ||
+            boolean hasMaskTag = ComposeSessionReplayConstants.PrivacyTags.MASK.equals(effectiveTag) ||
                     (view.getTag() != null && sessionReplayConfiguration.shouldMaskViewTag(view.getTag().toString())) ||
                     checkMaskUnMaskViewClass(sessionReplayConfiguration.getMaskedViewClasses(), view);
 

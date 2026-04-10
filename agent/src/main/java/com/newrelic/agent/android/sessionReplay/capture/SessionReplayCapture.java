@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.capture;
 
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -9,7 +9,10 @@ import androidx.compose.ui.platform.AndroidComposeView;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeTreeCapture;
+import com.newrelic.agent.android.sessionReplay.internal.ViewPrivacyUtils;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.util.ComposeChecker;
 
 import java.util.ArrayList;
@@ -28,6 +31,11 @@ public class SessionReplayCapture {
     }
 
     private SessionReplayViewThingyInterface recursivelyCapture(View rootView,boolean shouldAddMask,boolean shouldAddUnMask) {
+        // Check if this view is blocked — return a black rectangle with no children
+        if (ViewPrivacyUtils.isBlocked(rootView)) {
+            return recorder.recordBlockedView(rootView);
+        }
+
         ArrayList<SessionReplayViewThingyInterface> childThingies = new ArrayList<>();
 
         if(rootView instanceof ViewGroup) {
@@ -43,22 +51,19 @@ public class SessionReplayCapture {
                     continue;
                 }
 
-                // Check privacy tags - use safe null-checking pattern
-                Object privacyTag = child.getTag(R.id.newrelic_privacy);
-                Object generalTag = child.getTag();
+                // Check privacy tags via shared utility
+                String effectiveTag = ViewPrivacyUtils.getEffectivePrivacyTag(child);
 
-                boolean shouldAddMask1 = (privacyTag != null && "nr-mask".equals(privacyTag)) ||
-                                         (generalTag != null && "nr-mask".equals(generalTag));
-                boolean shouldAddUnMask1 = (privacyTag != null && "nr-unmask".equals(privacyTag)) ||
-                                           (generalTag != null && "nr-unmask".equals(generalTag));
+                boolean shouldAddMask1 = ComposeSessionReplayConstants.PrivacyTags.MASK.equals(effectiveTag);
+                boolean shouldAddUnMask1 = ComposeSessionReplayConstants.PrivacyTags.UNMASK.equals(effectiveTag);
 
 
                 if(shouldAddMask &&  !shouldAddUnMask1 ) {
-                    child.setTag(R.id.newrelic_privacy,"nr-mask");
+                    child.setTag(R.id.newrelic_privacy, ComposeSessionReplayConstants.PrivacyTags.MASK);
                 }
 
                 if(shouldAddUnMask && !shouldAddMask1) {
-                    child.setTag(R.id.newrelic_privacy,"nr-unmask");
+                    child.setTag(R.id.newrelic_privacy, ComposeSessionReplayConstants.PrivacyTags.UNMASK);
                 }
 
                 childThingies.add(recursivelyCapture(((ViewGroup) rootView).getChildAt(i), shouldAddMask1, shouldAddUnMask1));

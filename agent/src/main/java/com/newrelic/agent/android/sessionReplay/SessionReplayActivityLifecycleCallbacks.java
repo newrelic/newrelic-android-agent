@@ -17,6 +17,10 @@ import androidx.compose.ui.semantics.SemanticsNode;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.models.RecordedTouchData;
+import com.newrelic.agent.android.sessionReplay.touch.OnTouchRecordedListener;
+import com.newrelic.agent.android.sessionReplay.touch.SemanticsNodeTouchHandler;
+import com.newrelic.agent.android.sessionReplay.touch.TouchTracker;
+import com.newrelic.agent.android.sessionReplay.touch.ViewTouchHandler;
 
 import curtains.Curtains;
 import curtains.DispatchState;

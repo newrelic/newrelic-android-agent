@@ -1,9 +1,10 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.viewMapper;
 
 import android.annotation.SuppressLint;
 import android.widget.EditText;
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
@@ -123,10 +124,13 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
             }
         }
 
-        // Create and return a MutationRecord with the style differences
-        Attributes attributes = new Attributes(viewDetails.getCSSSelector());
-        attributes.setMetadata(styleDifferences);    List<MutationRecord> mutations = new ArrayList<>();
-        mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+        List<MutationRecord> mutations = new ArrayList<>();
+
+        if (!styleDifferences.isEmpty()) {
+            Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+            attributes.setMetadata(styleDifferences);
+            mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+        }
 
         // Check if label text has changed
         if (!super.getLabelText().equals(((SessionReplayTextViewThingy) other).getLabelText())) {

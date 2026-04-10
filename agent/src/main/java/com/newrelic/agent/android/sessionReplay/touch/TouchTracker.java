@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.touch;
 
 import com.newrelic.agent.android.sessionReplay.models.RRWebRRWebTouchUpDownData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTouch;
