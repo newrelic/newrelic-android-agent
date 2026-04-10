@@ -827,7 +827,8 @@ public class Harvester implements HarvestConfigurable {
      */
     public void checkAndResetSessionIfExpired() {
         try {
-            if (Harvest.getMillisSinceStart() >= HarvestTimer.DEFAULT_SESSION_DURATION_PERIOD) {
+            HarvestTimer harvestTimer = Harvest.getInstance().getHarvestTimer();
+            if (harvestTimer.sessionTimeSinceStart() >= HarvestTimer.DEFAULT_SESSION_DURATION_PERIOD) {
                 Harvest.harvestNow(true, false);// call non-blocking harvest
 
                 Harvest instance = Harvest.getInstance();
@@ -836,7 +837,7 @@ public class Harvester implements HarvestConfigurable {
                 }
             }
         } catch (Exception e) {
-            log.error("Harvester: Session replay limit reached (4 hours). Resetting session failed with exception: " + e.getMessage());
+            log.error("Harvester: Session limit reached (4 hours). Resetting session failed with exception: " + e.getMessage());
         }
     }
 

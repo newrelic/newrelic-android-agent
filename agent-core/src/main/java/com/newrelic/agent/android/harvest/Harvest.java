@@ -414,11 +414,11 @@ public class Harvest implements HarvestConfigurable {
         try {
             // start a new session
             harvestTimer.setSessionStartTimeMs(System.currentTimeMillis());
-            log.debug("Harvest: Session replay limit reached (4 hours). Resetting session start time.");
+            log.debug("Harvest: Session limit reached (4 hours). Resetting session start time.");
 
-            log.debug("Harvest: Session replay limit reached (4 hours). Creating new session.");
+            log.debug("Harvest: Session limit reached (4 hours). Creating new session.");
             final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
-            if (controller != null) {
+            if (controller != null && agentConfig != null) {
                 controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
                         .setStringValue(agentConfig.provideSessionId())
                         .setPersistent(false);
@@ -426,11 +426,11 @@ public class Harvest implements HarvestConfigurable {
                 controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
             }
         } catch (Exception e) {
-            log.debug("Harvest: Session replay limit reached (4 hours). Creating new session failed with exception: " + e.getMessage());
+            log.debug("Harvest: Session limit reached (4 hours). Creating new session failed with exception: " + e.getMessage());
         }
     }
 
-    public void finalizeSession() {
+    protected void finalizeSession() {
         try {
             long sessionDuration = Harvest.getMillisSinceStart();
 
