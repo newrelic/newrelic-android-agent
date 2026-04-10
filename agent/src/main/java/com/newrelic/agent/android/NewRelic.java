@@ -1048,6 +1048,7 @@ public final class NewRelic {
 
         // Notify SessionReplay about the error for mode switching (if enabled)
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
             SessionReplay.onError();
         }
 
@@ -1179,6 +1180,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name()));
 
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
             SessionReplay.onError();
         }
         LogReporting.getLogger().log(LogLevel.ERROR, message);
@@ -1196,6 +1198,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (logLevel.equals(LogLevel.ERROR) && agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
             SessionReplay.onError();
         }
         if (LogReporting.isLevelEnabled(logLevel)) {

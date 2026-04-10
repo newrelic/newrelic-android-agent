@@ -87,6 +87,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_LOG_UNCOMPRESSED = SUPPORTABILITY_LOG_REPORTING + "Size/Uncompressed";
     public static final String SUPPORTABILITY_LOG_EXPIRED = SUPPORTABILITY_LOG_REPORTING + "Expired";
     public static final String SUPPORTABILITY_LOG_SAMPLED = SUPPORTABILITY_LOG_REPORTING + "Sampled/";
+    public static final String SUPPORTABILITY_LOG_SAMPLING_OVERRIDE = SUPPORTABILITY_LOG_REPORTING + "SamplingOverride";
 
 
     public static final String SUPPORTABILITY_AEI = SUPPORTABILITY_AGENT + "ApplicationExitInfo/";

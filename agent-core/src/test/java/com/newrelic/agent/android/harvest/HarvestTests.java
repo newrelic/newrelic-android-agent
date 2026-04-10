@@ -79,7 +79,6 @@ public class HarvestTests {
 
         Assert.assertEquals(Harvester.State.UNINITIALIZED, harvester.getCurrentState());
 
-        // DISCONNECTED -> CONNECTED
         harvester.execute();
         Assert.assertEquals(Harvester.State.CONNECTED, harvester.getCurrentState());
     }
@@ -127,7 +126,6 @@ public class HarvestTests {
         harvester.execute();
         Assert.assertEquals(Harvester.State.CONNECTED, harvester.getCurrentState());
 
-        // Nuke the DataToken which should cause a disconnect.
         HarvestData harvestData = harvester.getHarvestData();
         harvestData.setDataToken(new DataToken(-1, 2118782));
         addHarvestData(harvester.getHarvestData());
@@ -229,7 +227,6 @@ public class HarvestTests {
 
         Assert.assertTrue(TestHarvest.shouldCollectActivityTraces());
 
-        // All fields should be zero/empty
         HarvestConfiguration configuration = testHarvest.getConfiguration();
         Assert.assertNotNull(configuration.getAt_capture());
         configuration.getAt_capture().setMaxTotalTraceCount(0);
@@ -461,8 +458,6 @@ public class HarvestTests {
         harvester.execute();
         Thread.sleep(100);
 
-        // Harvester should remain connected even after a bad Agent ID is set.
-        // This may change in the future
         Assert.assertEquals(Harvester.State.DISCONNECTED, harvester.getCurrentState());
     }
 
@@ -516,10 +511,6 @@ public class HarvestTests {
         Assert.assertEquals(Harvester.State.DISCONNECTED, harvester.getCurrentState());
     }
 
-    /**
-     * Instances are used without checking throughout the code.
-     * Don't allow null instances through the settor
-     */
     @Test
     public void testInvalidInstance() {
         Assert.assertNotNull("Harvest instance should not be null", Harvest.getInstance());
@@ -564,6 +555,124 @@ public class HarvestTests {
             e.printStackTrace();
             Assert.fail("Harvest stop failed when harvest timer is null");
         }
+    }
+
+    @Test
+    public void testStartSession_SetsSessionStartTime() {
+        TestHarvest testHarvest = new TestHarvest();
+        TestHarvest.setInstance(testHarvest);
+        TestHarvest.initialize(config);
+
+        HarvestTimer harvestTimer = testHarvest.getHarvestTimer();
+        Assert.assertNotNull("HarvestTimer should not be null", harvestTimer);
+
+        long beforeStartSession = System.currentTimeMillis();
+        testHarvest.startSession();
+        long afterStartSession = System.currentTimeMillis();
+
+        long sessionStartTime = harvestTimer.getSessionStartTimeMs();
+        Assert.assertTrue("Session start time should be set during startSession",
+                         sessionStartTime >= beforeStartSession && sessionStartTime <= afterStartSession);
+    }
+
+    @Test
+    public void testStartSession_CreatesNewSessionId() {
+        lock.lock();
+        try {
+            AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+            AnalyticsControllerImpl.initialize(config, new StubAgentImpl());
+            controller.getEventManager().empty();
+
+            TestHarvest testHarvest = new TestHarvest();
+            TestHarvest.setInstance(testHarvest);
+            TestHarvest.initialize(config);
+
+            AnalyticsAttribute sessionIdAttr = controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE);
+            String initialSessionId = sessionIdAttr.getStringValue();
+
+            testHarvest.startSession();
+
+            AnalyticsAttribute newSessionIdAttr = controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE);
+            String newSessionId = newSessionIdAttr.getStringValue();
+
+            Assert.assertNotNull("Initial session ID should not be null", initialSessionId);
+            Assert.assertNotNull("New session ID should not be null", newSessionId);
+            Assert.assertNotEquals("Session ID should change after startSession", initialSessionId, newSessionId);
+            Assert.assertFalse("New session ID should not be persistent", newSessionIdAttr.isPersistent());
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Test
+    public void testStartSession_RemovesSessionDurationAttribute() {
+        lock.lock();
+        try {
+            AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+            AnalyticsControllerImpl.initialize(config, new StubAgentImpl());
+
+            TestHarvest testHarvest = new TestHarvest();
+            TestHarvest.setInstance(testHarvest);
+            TestHarvest.initialize(config);
+
+            controller.setAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE, 3600.0f, false);
+            AnalyticsAttribute durationAttr = controller.getAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
+            Assert.assertNotNull("Session duration should be set before startSession", durationAttr);
+
+            testHarvest.startSession();
+
+            AnalyticsAttribute removedAttr = controller.getAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
+            Assert.assertNull("Session duration should be removed after startSession", removedAttr);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Test
+    public void testStartSession_HandlesExceptionsGracefully() {
+        TestHarvest testHarvest = new TestHarvest();
+        TestHarvest.setInstance(testHarvest);
+        TestHarvest.initialize(config);
+
+        try {
+            testHarvest.startSession();
+        } catch (Exception e) {
+            Assert.fail("startSession should handle exceptions gracefully: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void testStartSession_HandlesAnalyticsControllerGracefully() {
+        TestHarvest testHarvest = new TestHarvest();
+        TestHarvest.setInstance(testHarvest);
+        TestHarvest.initialize(config);
+
+        try {
+            testHarvest.startSession();
+            HarvestTimer harvestTimer = testHarvest.getHarvestTimer();
+            Assert.assertTrue("Session start time should be set even with potential analytics issues",
+                             harvestTimer.getSessionStartTimeMs() > 0);
+        } catch (Exception e) {
+            Assert.fail("startSession should handle analytics issues gracefully: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void testStartSession_CompletesSuccessfully() {
+        TestHarvest testHarvest = new TestHarvest();
+        TestHarvest.setInstance(testHarvest);
+        TestHarvest.initialize(config);
+
+        testHarvest.startSession();
+
+        HarvestTimer harvestTimer = testHarvest.getHarvestTimer();
+        Assert.assertTrue("Session start time should be set after startSession",
+                         harvestTimer.getSessionStartTimeMs() > 0);
+
+        long now = System.currentTimeMillis();
+        long sessionStartTime = harvestTimer.getSessionStartTimeMs();
+        Assert.assertTrue("Session start time should be recent",
+                         (now - sessionStartTime) < 2000);
     }
 
     static class TestHarvestAdapter extends HarvestAdapter {
