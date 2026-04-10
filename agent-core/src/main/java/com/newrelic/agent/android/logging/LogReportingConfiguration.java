@@ -16,6 +16,13 @@ public class LogReportingConfiguration extends LoggingConfiguration {
      */
     static Double sampleSeed = 100.000000;
 
+    /**
+     * When true, isSampled() returns true regardless of seed/rate.
+     * Set by sampling coordination when Session Replay is active and logging is globally enabled.
+     * This is a runtime-only flag — not serialized from server config.
+     */
+    volatile boolean samplingOverride = false;
+
     static final long DEFAULT_HARVEST_PERIOD = TimeUnit.SECONDS.convert(30, TimeUnit.SECONDS);
     static final long DEFAULT_EXPIRATION_PERIOD = TimeUnit.SECONDS.convert(2, TimeUnit.DAYS);
 
@@ -85,6 +92,10 @@ public class LogReportingConfiguration extends LoggingConfiguration {
      */
     @Override
     public boolean getLoggingEnabled() {
+        return enabled;
+    }
+
+    public boolean getLoggingEnabledAndSessionSampled() {
         return enabled && isSampled();
     }
 
@@ -92,7 +103,22 @@ public class LogReportingConfiguration extends LoggingConfiguration {
      * @return true if the generated sample seed is less than or equal to the configured sampling rate
      */
     public boolean isSampled() {
-        return sampleSeed <= sampleRate;
+        return samplingOverride || sampleSeed <= sampleRate;
+    }
+
+    /**
+     * Enable or disable the sampling override. When enabled, isSampled() returns true
+     * regardless of seed/rate. Used by SR-to-Log coordination.
+     */
+    public void setSamplingOverride(boolean override) {
+        this.samplingOverride = override;
+    }
+
+    /**
+     * @return true if the sampling override is currently active
+     */
+    public boolean isSamplingOverridden() {
+        return samplingOverride;
     }
 
     /**

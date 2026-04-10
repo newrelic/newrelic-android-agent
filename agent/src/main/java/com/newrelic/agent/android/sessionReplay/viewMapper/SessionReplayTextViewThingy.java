@@ -250,9 +250,13 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         // Create a map to store style differences
         java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
 
+        if (other.getViewDetails() == null) {
+            return Collections.emptyList();
+        }
+
         ViewDetails otherViewDetails = (ViewDetails) other.getViewDetails();
         // Compare frames
-        if (!viewDetails.frame.equals(otherViewDetails.frame)) {
+        if (otherViewDetails != null && !viewDetails.frame.equals(otherViewDetails.frame)) {
             styleDifferences.put("left", otherViewDetails.frame.left + "px");
             styleDifferences.put("top", otherViewDetails.frame.top + "px");
             styleDifferences.put("width", otherViewDetails.frame.width() + "px");
@@ -264,21 +268,21 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             if (!viewDetails.backgroundColor.equals(otherViewDetails.backgroundColor)) {
                 styleDifferences.put("background-color", otherViewDetails.backgroundColor);
             }
-        } else if (otherViewDetails.backgroundColor != null) {
+        } else if (otherViewDetails != null && otherViewDetails.backgroundColor != null) {
             styleDifferences.put("background-color", otherViewDetails.backgroundColor);
         }
 
         // compare TextColor if available
         if(this.textColor != null) {
             String otherTextColor = ((SessionReplayTextViewThingy) other).getTextColor();
-            if (!this.textColor.equals(otherTextColor)) {
+            if (otherTextColor != null && !this.textColor.equals(otherTextColor)) {
                 styleDifferences.put("color", '#'+otherTextColor);
             }
         }
 
         if(this.fontFamily!= null) {
             String otherFontFamily = ((SessionReplayTextViewThingy) other).getFontFamily();
-            if (!this.fontFamily.equals(otherFontFamily)) {
+            if (otherFontFamily != null && !this.fontFamily.equals(otherFontFamily)) {
                 styleDifferences.put("font-family", otherFontFamily);
             }
         }
@@ -287,7 +291,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         // Compare text alignment
         if(this.textAlign != null) {
             String otherTextAlign = ((SessionReplayTextViewThingy) other).textAlign;
-            if (!this.textAlign.equals(otherTextAlign)) {
+            if (otherTextAlign != null && !this.textAlign.equals(otherTextAlign)) {
                 styleDifferences.put("text-align", otherTextAlign);
             }
         }
@@ -306,7 +310,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         }
 
         // Check if label text has changed
-        if (!this.labelText.equals(((SessionReplayTextViewThingy) other).getLabelText())) {
+        if (this.labelText != null && !this.labelText.equals(((SessionReplayTextViewThingy) other).getLabelText())) {
             mutations.add(new RRWebMutationData.TextRecord(viewDetails.viewId, ((SessionReplayTextViewThingy) other).getLabelText()));
         }
 
@@ -329,7 +333,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         viewNode.attributes.metadata.put("style", generateInlineCss());
 
-        RRWebTextNode textNode = new RRWebTextNode(this.labelText, false, NewRelicIdGenerator.generateId());
+        RRWebTextNode textNode = new RRWebTextNode(this.labelText != null ? this.labelText : "", false, NewRelicIdGenerator.generateId());
 
         RRWebMutationData.AddRecord viewAddRecord = new RRWebMutationData.AddRecord(
                 parentId,
