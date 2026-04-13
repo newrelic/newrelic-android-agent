@@ -1,6 +1,6 @@
 package com.newrelic.agent.android.sessionReplay.models.IncrementalEvent;
 
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 
 /**
  * Interface for thingies that represent input elements (radio, checkbox, slider, text input).

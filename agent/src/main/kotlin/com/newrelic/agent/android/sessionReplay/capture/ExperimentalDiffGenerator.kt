@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android.sessionReplay
+package com.newrelic.agent.android.sessionReplay.capture
+
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface
 
 /**
  * Experimental set-based diffing algorithm as an alternative to Heckel's algorithm.

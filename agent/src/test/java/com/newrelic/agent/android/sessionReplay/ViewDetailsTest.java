@@ -16,6 +16,8 @@ import android.widget.LinearLayout;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.newrelic.agent.android.sessionReplay.viewMapper.ViewDetails;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

@@ -23,6 +23,13 @@
       "kotlin": "1.9.20"
     },
     {
+      "name": "AGP 8.9 - Latest 8.x",
+      "agp": "8.9.1",
+      "gradle": "9.3.0",
+      "java": "17",
+      "kotlin": "1.9.20"
+    },
+    {
       "name": "AGP 9.0 - Stable",
       "agp": "9.0.0",
       "gradle": "9.1.0",

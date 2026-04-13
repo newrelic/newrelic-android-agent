@@ -14,9 +14,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.core.graphics.createBitmap
 import com.newrelic.agent.android.AgentConfiguration
-import com.newrelic.agent.android.sessionReplay.ImageCompressionUtils
+import com.newrelic.agent.android.sessionReplay.internal.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
-import com.newrelic.agent.android.sessionReplay.SessionReplayViewThingyInterface
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface
 import com.newrelic.agent.android.sessionReplay.internal.ComposePainterReflectionUtils
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord

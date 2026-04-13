@@ -1,7 +1,9 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.touch;
 
 import android.util.Log;
 import android.view.View;
+
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import androidx.compose.ui.geometry.Rect;
 import androidx.compose.ui.platform.AndroidComposeView;
 import androidx.compose.ui.semantics.SemanticsNode;

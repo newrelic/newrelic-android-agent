@@ -1,77 +1,66 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.viewMapper;
 
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ViewDetails;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class SessionReplayViewThingy implements SessionReplayViewThingyInterface {
-    ViewDetails viewDetails;
+public class SessionReplayBlockedViewThingy extends SessionReplayViewThingy {
 
-    private List<? extends SessionReplayViewThingyInterface> subviews = new ArrayList<>();
-
-    public SessionReplayViewThingy(ViewDetails viewDetails) {
-        this.viewDetails = viewDetails;
-    }
-
-    @Override
-    public ViewDetails getViewDetails() {
-        return viewDetails;
+    public SessionReplayBlockedViewThingy(ViewDetails viewDetails) {
+        super(viewDetails);
     }
 
     @Override
     public boolean shouldRecordSubviews() {
-        return true;
+        return false;
     }
 
     @Override
     public List<? extends SessionReplayViewThingyInterface> getSubviews() {
-        return this.subviews;
+        return Collections.emptyList();
     }
 
     @Override
     public void setSubviews(List<? extends SessionReplayViewThingyInterface> subviews) {
-        this.subviews = subviews;
-    }
-
-    @Override
-    public String getCssSelector() {
-        return viewDetails.getCssSelector();
+        // no-op — blocked views never have children
     }
 
     @Override
     public String generateCssDescription() {
-        return viewDetails.generateCssDescription();
+        return viewDetails.generateCssDescription() + " background-color: #000000;";
     }
 
     @Override
     public String generateInlineCss() {
-        return viewDetails.generateInlineCSS();
+        StringBuilder cssBuilder = new StringBuilder(this.viewDetails.generateInlineCSS());
+        cssBuilder.append(" ");
+        cssBuilder.append("background-color: #000000;");
+        return cssBuilder.toString();
     }
 
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+        attributes.dataNrMasked = "block";
         return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV, viewDetails.viewId,
                 new ArrayList<>());
     }
 
     @Override
     public List<MutationRecord> generateDifferences(SessionReplayViewThingyInterface other) {
-        // Make sure this is not null and is of the same type
-        if (!(other instanceof SessionReplayViewThingy)) {
+        if (!(other instanceof SessionReplayBlockedViewThingy)) {
             return Collections.emptyList();
         }
 
-        // Create a map to store style differences
         java.util.Map<String, String> styleDifferences = new java.util.HashMap<>();
-
         ViewDetails otherDetails = (ViewDetails) other.getViewDetails();
-        // Compare frames
+
         if (!viewDetails.frame.equals(otherDetails.frame)) {
             styleDifferences.put("left", otherDetails.frame.left + "px");
             styleDifferences.put("top", otherDetails.frame.top + "px");
@@ -79,16 +68,8 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
             styleDifferences.put("height", otherDetails.frame.height() + "px");
         }
 
-        // Compare background colors if available
-        if (!viewDetails.backgroundColor.equals(otherDetails.backgroundColor)) {
-            styleDifferences.put("background-color", otherDetails.backgroundColor);
-        }
-
-        if (styleDifferences.isEmpty()) {
-            return Collections.emptyList();
-        }
-
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+        attributes.dataNrMasked = "block";
         attributes.setMetadata(styleDifferences);
         List<MutationRecord> mutations = new ArrayList<>();
         mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
@@ -96,38 +77,11 @@ public class SessionReplayViewThingy implements SessionReplayViewThingyInterface
     }
 
     @Override
-    public List<RRWebMutationData.AddRecord> generateAdditionNodes(int parentId) {
-        RRWebElementNode node = generateRRWebNode();
-        node.attributes.metadata.put("style", generateInlineCss());
-        RRWebMutationData.AddRecord addRecord = new RRWebMutationData.AddRecord(
-                parentId,
-                null,
-                node
-        );
-
-        List<RRWebMutationData.AddRecord> adds = new ArrayList<>();
-        adds.add(addRecord);
-        return adds;
-    }
-
-    @Override
-    public int getViewId() {
-        return viewDetails.viewId;
-    }
-
-    @Override
-    public int getParentViewId() {
-        return viewDetails.parentId;
-    }
-
-    @Override
     public boolean hasChanged(SessionReplayViewThingyInterface other) {
-        // Quick check: if it's not the same type, it has changed
-        if (other == null || !(other instanceof SessionReplayViewThingy)) {
+        if (other == null || !(other instanceof SessionReplayBlockedViewThingy)) {
             return true;
         }
-
-        // Compare using hashCode (which should reflect the content)
-        return this.hashCode() != other.hashCode();
+        ViewDetails otherDetails = (ViewDetails) other.getViewDetails();
+        return !viewDetails.frame.equals(otherDetails.frame);
     }
 }

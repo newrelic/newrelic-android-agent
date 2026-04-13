@@ -1,9 +1,12 @@
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.touch;
 
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.compose.ui.platform.ComposeView;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants;
+import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator;
+import com.newrelic.agent.android.sessionReplay.internal.ViewPrivacyUtils;
 import com.newrelic.agent.android.util.ComposeChecker;
 
 import java.util.Set;
