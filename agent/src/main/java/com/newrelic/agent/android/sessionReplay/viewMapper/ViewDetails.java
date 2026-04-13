@@ -1,12 +1,17 @@
 package com.newrelic.agent.android.sessionReplay.viewMapper;
 
+import android.graphics.Outline;
+import android.graphics.Paint;
 import android.graphics.Rect; // Equivalent to CGRect for basic representation
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.View; // Use Android's View class
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
 
+import java.lang.reflect.Field;
+import java.util.Locale;
 import java.util.Objects; // For hashCode and equals
 
 public class ViewDetails {
@@ -19,6 +24,9 @@ public class ViewDetails {
     public final int parentId;
     public final String viewName;
     public final float density;
+    public final float elevation;
+    public final float outlineRadius;
+    public final boolean clipsContent;
 
 
     // Computed property: cssSelector
@@ -57,6 +65,19 @@ public class ViewDetails {
         this.backgroundDrawable = view.getBackground();
 
         this.alpha = view.getAlpha();
+
+        // Elevation produces shadows in Android's Material Design rendering.
+        // Convert from Android px to CSS px (divide by density).
+        this.elevation = view.getElevation() / density;
+
+        // Extract corner radius from the view's outline. This handles
+        // Material dialogs, CardViews, and any view using outline-based
+        // clipping — without hardcoding radius values per view type.
+        this.outlineRadius = getOutlineRadius(view);
+
+        // ViewGroups clip children by default (clipChildren=true). When a
+        // container clips, its CSS equivalent is overflow: hidden.
+        this.clipsContent = (view instanceof ViewGroup) && ((ViewGroup) view).getClipChildren();
 
         // View.GONE and View.INVISIBLE are considered hidden in a session replay context
         this.isHidden = view.getVisibility() == View.GONE || view.getVisibility() == View.INVISIBLE;
@@ -122,7 +143,9 @@ public class ViewDetails {
         StringBuilder cssString = new StringBuilder();
         cssString.append(generatePositionCss())
                 .append(" ")
-                .append(generateBackgroundColorCss());
+                .append(generateBackgroundColorCss())
+                .append(generateElevationCss())
+                .append(clipsContent ? " overflow: hidden;" : "");
 
         return cssString.toString();
     }
@@ -162,7 +185,32 @@ public class ViewDetails {
                 ViewBackgroundHelper.getBackGroundFromDrawable(backgroundColorStringBuilder,(GradientDrawable) backgroundDrawable,density);
             }
         }
+        // If GradientDrawable didn't produce a border-radius, fall back to
+        // the outline radius. This handles Material dialogs, CardViews with
+        // non-GradientDrawable backgrounds, and any outline-clipped view.
+        if (outlineRadius > 0 && backgroundColorStringBuilder.indexOf("border-radius") == -1) {
+            backgroundColorStringBuilder.append(String.format(Locale.US, " border-radius: %.1fpx;", outlineRadius));
+        }
         return backgroundColorStringBuilder.toString();
+    }
+
+    /**
+     * Converts Android elevation to a CSS box-shadow approximation.
+     * Android elevation creates both an ambient shadow (all around) and a key light
+     * shadow (below). This approximates with a single box-shadow using the elevation
+     * value to control blur radius and vertical offset.
+     */
+    private String generateElevationCss() {
+        if (elevation <= 0) {
+            return "";
+        }
+        // Approximate Material Design shadow:
+        // - Horizontal offset: 0
+        // - Vertical offset: half the elevation (key light from above)
+        // - Blur radius: elevation value
+        // - Color: semi-transparent black (Material Design ambient + key light blend)
+        return String.format(Locale.US, " box-shadow: 0px %.1fpx %.1fpx rgba(0, 0, 0, 0.24);",
+                elevation * 0.5f, elevation);
     }
 
     // Implementing hashCode and equals for equivalence to Swift's implicit Hashable for structs with Hashable members
@@ -182,6 +230,35 @@ public class ViewDetails {
     @Override
     public int hashCode() {
         return Objects.hash(viewId, frame, backgroundColor, alpha, isHidden, viewName);
+    }
+
+    /**
+     * Extracts the corner radius from a view's outline provider.
+     * Works for Material dialogs, CardViews, and any view that uses an
+     * outline-based clip. Returns 0 if no radius is available.
+     */
+    private float getOutlineRadius(View view) {
+        // Only extract radius when the view clips to its outline. Without
+        // clipToOutline, the outline only affects the shadow shape — the
+        // view itself renders with sharp corners.
+        if (!view.getClipToOutline()) {
+            return 0;
+        }
+        try {
+            ViewOutlineProvider provider = view.getOutlineProvider();
+            if (provider == null) {
+                return 0;
+            }
+            Outline outline = new Outline();
+            provider.getOutline(view, outline);
+            float radius = outline.getRadius();
+            if (radius > 0) {
+                return radius / density;
+            }
+        } catch (Exception e) {
+            // OutlineProvider.getOutline can throw if the view isn't laid out
+        }
+        return 0;
     }
 
     private int getStableId(View view) {

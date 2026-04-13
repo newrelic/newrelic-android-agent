@@ -12,6 +12,7 @@ import android.view.WindowMetrics;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 
 import java.util.Collections;
 import java.util.Map;
