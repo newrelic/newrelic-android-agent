@@ -92,6 +92,28 @@ public class Harvest implements HarvestConfigurable {
     }
 
     /**
+     * Trigger an immediate harvest with an optional session finalization,
+     * then run the onComplete callback after the harvest tick finishes.
+     * Does not block the calling thread.
+     *
+     * @param finalizeSession If true, finalize the current session before harvesting
+     * @param onComplete      Runnable to execute after the harvest completes, or null
+     */
+    public static void harvestNow(boolean finalizeSession, Runnable onComplete) {
+        if (isInitialized()) {
+            if (finalizeSession) {
+                instance.finalizeSession();
+                AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
+            }
+
+            final HarvestTimer harvestTimer = instance.getHarvestTimer();
+            if (harvestTimer != null) {
+                harvestTimer.tickNow(onComplete);
+            }
+        }
+    }
+
+    /**
      * Instances are used without checking throughout the code.
      * Don't allow null instances through the settor
      */

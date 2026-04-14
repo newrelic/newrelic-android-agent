@@ -829,12 +829,15 @@ public class Harvester implements HarvestConfigurable {
         try {
             HarvestTimer harvestTimer = Harvest.getInstance().getHarvestTimer();
             if (harvestTimer.sessionTimeSinceStart() >= HarvestTimer.DEFAULT_SESSION_DURATION_PERIOD) {
-                Harvest.harvestNow(true, false);// call non-blocking harvest
+                harvestTimer.setSessionStartTimeMs(System.currentTimeMillis());
+                Harvest.harvestNow(true, ()->{
+                    harvestTimer.setTimeSinceStart(System.currentTimeMillis());
+                    Harvest instance = Harvest.getInstance();
+                    if (instance != null) {
+                        instance.startSession();
+                    }
+                });// call non-blocking harvest
 
-                Harvest instance = Harvest.getInstance();
-                if (instance != null) {
-                    instance.startSession();
-                }
             }
         } catch (Exception e) {
             log.error("Harvester: Session limit reached (4 hours). Resetting session failed with exception: " + e.getMessage());
