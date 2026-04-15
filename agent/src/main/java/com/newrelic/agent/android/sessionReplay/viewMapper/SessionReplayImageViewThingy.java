@@ -11,7 +11,8 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.util.DisplayMetrics;
-import android.util.Log;
+import com.newrelic.agent.android.logging.AgentLog;
+import com.newrelic.agent.android.logging.AgentLogManager;
 import android.util.LruCache;
 import android.widget.ImageView;
 
@@ -38,7 +39,7 @@ import java.util.Objects;
 import java.util.Set;
 
 public class SessionReplayImageViewThingy implements SessionReplayViewThingyInterface {
-    private static final String LOG_TAG = "SessionReplayImageViewThingy";
+    private static final AgentLog log = AgentLogManager.getAgentLog();
     
     // Static cache shared across all instances
     // Increased cache size to 1MB for better performance
@@ -90,7 +91,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             
             String cachedData = imageCache.get(cacheKey);
             if (cachedData != null) {
-                Log.d(LOG_TAG, "Cache hit for image: " + cacheKey);
+                log.debug("Cache hit for image: " + cacheKey);
                 return cachedData;
             }
 
@@ -100,12 +101,12 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
                 String base64Data = bitmapToBase64(bitmap);
                 if (base64Data != null) {
                     imageCache.put(cacheKey, base64Data);
-                    Log.d(LOG_TAG, "Cached image data for key: " + cacheKey);
+                    log.debug("Cached image data for key: " + cacheKey);
                 }
                 return base64Data;
             }
         } catch (Exception e) {
-            Log.e(LOG_TAG, "Error processing image", e);
+            log.error("Error processing image", e);
             return null;
         }
         
@@ -213,7 +214,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
 
     public static void clearImageCache() {
         imageCache.evictAll();
-        Log.d(LOG_TAG, "Image cache cleared");
+        log.debug("Image cache cleared");
     }
 
     public static String getCacheStats() {
