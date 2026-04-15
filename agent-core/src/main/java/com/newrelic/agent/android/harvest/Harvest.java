@@ -432,6 +432,12 @@ public class Harvest implements HarvestConfigurable {
         return harvestConfiguration.getAt_capture();
     }
 
+    public static void notifySessionRestarted() {
+        if (isInitialized() && instance.getHarvester() != null) {
+            instance.getHarvester().fireOnSessionRestarted();
+        }
+    }
+
     public void startSession() {
         try {
             // start a new session

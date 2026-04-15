@@ -718,6 +718,11 @@ public class HarvestTests {
             events.add("completed");
         }
 
+        @Override
+        public void onSessionRestarted() {
+            events.add("sessionRestarted");
+        }
+
         boolean didStart() {
             return events.contains("started");
         }
@@ -748,6 +753,10 @@ public class HarvestTests {
 
         boolean didUpdateConfig() {
             return events.contains("configUpdated");
+        }
+
+        boolean didSessionRestart() {
+            return events.contains("sessionRestarted");
         }
 
         public void reset() {
