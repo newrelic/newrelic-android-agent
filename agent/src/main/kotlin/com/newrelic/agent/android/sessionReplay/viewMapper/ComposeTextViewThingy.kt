@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay.compose
+package com.newrelic.agent.android.sessionReplay.viewMapper
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -15,10 +15,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnitType
 import com.newrelic.agent.android.AgentConfiguration
-import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
 import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration
-import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface
+import com.newrelic.agent.android.sessionReplay.compose.ComposePrivacyUtils
+import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants
+import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails
+import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData

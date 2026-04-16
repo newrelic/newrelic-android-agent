@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay.compose
+package com.newrelic.agent.android.sessionReplay.viewMapper
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -14,10 +14,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.core.graphics.createBitmap
 import com.newrelic.agent.android.AgentConfiguration
-import com.newrelic.agent.android.sessionReplay.internal.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
-import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface
+import com.newrelic.agent.android.sessionReplay.compose.ComposePrivacyUtils
+import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants
+import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails
 import com.newrelic.agent.android.sessionReplay.internal.ComposePainterReflectionUtils
+import com.newrelic.agent.android.sessionReplay.internal.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
