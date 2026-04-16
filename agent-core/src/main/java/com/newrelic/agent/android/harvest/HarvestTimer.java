@@ -176,6 +176,32 @@ public class HarvestTimer implements Runnable {
         }
     }
 
+    /**
+     * Schedule an immediate harvest tick with a callback that runs after the tick completes,
+     * on the harvester thread. Does not block the calling thread.
+     *
+     * @param onComplete Runnable to execute after the tick completes, or null
+     */
+    public void tickNow(Runnable onComplete) {
+        try {
+            final HarvestTimer timer = this;
+            scheduler.schedule(() -> {
+                timer.tick();
+                if (onComplete != null) {
+                    try {
+                        onComplete.run();
+                    } catch (Exception e) {
+                        log.error("Exception in tickNow onComplete callback: " + e.getMessage());
+                        AgentHealth.noticeException(e);
+                    }
+                }
+            }, 0, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            log.error("Exception in tickNow: " + e.getMessage());
+            AgentHealth.noticeException(e);
+        }
+    }
+
     public boolean isRunning() {
         return tickFuture != null;
     }
@@ -215,6 +241,10 @@ public class HarvestTimer implements Runnable {
 
     public void setSessionStartTimeMs(long sessionStartTimeMs) {
         this.sessionStartTimeMs = sessionStartTimeMs;
+    }
+
+    public void setTimeSinceStart(long startTimeMs) {
+        this.startTimeMs = startTimeMs;
     }
 
     protected void cancelPendingTasks() {

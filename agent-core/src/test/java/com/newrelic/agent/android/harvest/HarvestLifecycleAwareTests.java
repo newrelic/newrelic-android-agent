@@ -48,6 +48,30 @@ public class HarvestLifecycleAwareTests {
         Assert.assertFalse(listener.isStarted());
     }
 
+    @Test
+    public void testOnSessionRestartedCallbackFires() {
+        SessionRestartAdapter listener = new SessionRestartAdapter();
+
+        Harvest.addHarvestListener(listener);
+        Assert.assertFalse(listener.isSessionRestarted());
+
+        Harvest.notifySessionRestarted();
+        Assert.assertTrue(listener.isSessionRestarted());
+    }
+
+    private class SessionRestartAdapter extends HarvestAdapter {
+        boolean sessionRestarted;
+
+        @Override
+        public void onSessionRestarted() {
+            sessionRestarted = true;
+        }
+
+        boolean isSessionRestarted() {
+            return sessionRestarted;
+        }
+    }
+
     private class TestHarvestAdapter extends HarvestAdapter {
         boolean started;
 

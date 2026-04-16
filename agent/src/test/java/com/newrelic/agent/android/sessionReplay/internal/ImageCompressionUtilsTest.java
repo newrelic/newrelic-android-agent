@@ -3,12 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.internal;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Build;
 import android.util.Base64;
+
+import com.newrelic.agent.android.sessionReplay.internal.ImageCompressionUtils;
 
 import org.junit.Assert;
 import org.junit.Test;

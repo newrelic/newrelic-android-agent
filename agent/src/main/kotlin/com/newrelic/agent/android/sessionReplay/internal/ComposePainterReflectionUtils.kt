@@ -2,7 +2,7 @@ package com.newrelic.agent.android.sessionReplay.internal
 
 import android.graphics.Bitmap
 import android.os.Build
-import android.util.Log
+import com.newrelic.agent.android.logging.AgentLogManager
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.vector.VectorPainter
  * Used to extract bitmap data from various Compose Painter types
  */
 object ComposePainterReflectionUtils {
-    private const val LOG_TAG = "ComposePainterReflectionUtils"
+    private val log = AgentLogManager.getAgentLog()
 
     /**
      * Extracts a Painter from a Compose Image modifier using reflection
@@ -67,7 +67,7 @@ object ComposePainterReflectionUtils {
             }
 
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting painter using reflection", e)
+            log.error("Error extracting painter using reflection", e)
         }
 
         return null
@@ -87,7 +87,7 @@ object ComposePainterReflectionUtils {
 
             return imageBitmap?.asAndroidBitmap()
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting bitmap from BitmapPainter", e)
+            log.error("Error extracting bitmap from BitmapPainter", e)
             return null
         }
     }
@@ -108,7 +108,7 @@ object ComposePainterReflectionUtils {
             val vector = vectorField.get(vectorPainter)
 
             if (vector == null) {
-                Log.w(LOG_TAG, "Vector field is null in VectorPainter")
+                log.warn("Vector field is null in VectorPainter")
                 return null
             }
 
@@ -118,7 +118,7 @@ object ComposePainterReflectionUtils {
             val drawScope = drawScopeField.get(vector)
 
             if (drawScope == null) {
-                Log.w(LOG_TAG, "cacheDrawScope field is null in vector")
+                log.warn("cacheDrawScope field is null in vector")
                 return null
             }
 
@@ -128,7 +128,7 @@ object ComposePainterReflectionUtils {
             val cachedImage = cachedImageField.get(drawScope)
 
             if (cachedImage == null) {
-                Log.w(LOG_TAG, "mCachedImage field is null in cacheDrawScope")
+                log.warn("mCachedImage field is null in cacheDrawScope")
                 return null
             }
 
@@ -138,19 +138,19 @@ object ComposePainterReflectionUtils {
             val bitmap = bitmapField.get(cachedImage)
 
             if (bitmap is Bitmap) {
-                Log.d(LOG_TAG, "Successfully extracted cached bitmap from VectorPainter")
+                log.debug("Successfully extracted cached bitmap from VectorPainter")
                 return bitmap
             } else if (bitmap is ImageBitmap) {
-                Log.d(LOG_TAG, "Successfully extracted cached ImageBitmap from VectorPainter")
+                log.debug("Successfully extracted cached ImageBitmap from VectorPainter")
                 return bitmap.asAndroidBitmap()
             }
 
         } catch (e: NoSuchFieldException) {
-            Log.w(LOG_TAG, "Field not found in VectorPainter structure: ${e.message}")
+            log.warn("Field not found in VectorPainter structure: ${e.message}")
         } catch (e: IllegalAccessException) {
-            Log.w(LOG_TAG, "Cannot access field in VectorPainter structure: ${e.message}")
+            log.warn("Cannot access field in VectorPainter structure: ${e.message}")
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting cached bitmap from VectorPainter", e)
+            log.error("Error extracting cached bitmap from VectorPainter", e)
         }
 
         return null
@@ -204,7 +204,7 @@ object ComposePainterReflectionUtils {
             val mutableState = delegateField.get(asyncImagePainter)
 
             if (mutableState == null) {
-                Log.w(LOG_TAG, "painter\$delegate field is null in AsyncImagePainter")
+                log.warn("painter\$delegate field is null in AsyncImagePainter")
                 return null
             }
 
@@ -213,7 +213,7 @@ object ComposePainterReflectionUtils {
             val innerPainter = getValueMethod.invoke(mutableState)
 
             if (innerPainter == null) {
-                Log.w(LOG_TAG, "Inner painter is null in AsyncImagePainter (image may still be loading)")
+                log.warn("Inner painter is null in AsyncImagePainter (image may still be loading)")
                 return null
             }
 
@@ -230,7 +230,7 @@ object ComposePainterReflectionUtils {
                     imageField.isAccessible = true
                     val image = imageField.get(innerPainter)
                     if (image is ImageBitmap) {
-                        Log.d(LOG_TAG, "Successfully extracted ImageBitmap from AsyncImagePainter inner painter")
+                        log.debug("Successfully extracted ImageBitmap from AsyncImagePainter inner painter")
                         return image.asAndroidBitmap()
                     }
                 } catch (e: NoSuchFieldException) {
@@ -242,16 +242,16 @@ object ComposePainterReflectionUtils {
                 if (wrappedBitmap != null) return wrappedBitmap
             }
 
-            Log.w(LOG_TAG, "Inner painter type not supported: ${innerPainter.javaClass.name}")
+            log.warn("Inner painter type not supported: ${innerPainter.javaClass.name}")
 
         } catch (e: NoSuchFieldException) {
-            Log.w(LOG_TAG, "Field not found in AsyncImagePainter path: ${e.message}")
+            log.warn("Field not found in AsyncImagePainter path: ${e.message}")
         } catch (e: NoSuchMethodException) {
-            Log.w(LOG_TAG, "Method not found in AsyncImagePainter path: ${e.message}")
+            log.warn("Method not found in AsyncImagePainter path: ${e.message}")
         } catch (e: IllegalAccessException) {
-            Log.w(LOG_TAG, "Cannot access field in AsyncImagePainter path: ${e.message}")
+            log.warn("Cannot access field in AsyncImagePainter path: ${e.message}")
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting bitmap from AsyncImagePainter path", e)
+            log.error("Error extracting bitmap from AsyncImagePainter path", e)
         }
 
         return null
@@ -275,7 +275,7 @@ object ComposePainterReflectionUtils {
                 }
             }
         } catch (e: Exception) {
-            Log.w(LOG_TAG, "Error extracting bitmap from wrapped painter: ${e.message}")
+            log.warn("Error extracting bitmap from wrapped painter: ${e.message}")
         }
         return null
     }
@@ -306,7 +306,7 @@ object ComposePainterReflectionUtils {
                 }
             }
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error getting delegate painter from AsyncImagePainter", e)
+            log.error("Error getting delegate painter from AsyncImagePainter", e)
         }
         return null
     }

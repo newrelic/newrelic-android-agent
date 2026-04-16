@@ -3,7 +3,8 @@ package com.newrelic.agent.android.sessionReplay.capture;
 import android.content.Context;
 import android.graphics.Point;
 import android.os.Build;
-import android.util.Log;
+import com.newrelic.agent.android.logging.AgentLog;
+import com.newrelic.agent.android.logging.AgentLogManager;
 import android.view.Display;
 import android.view.View;
 import android.view.ViewTreeObserver;
@@ -18,7 +19,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-public class ViewDrawInterceptor  {
+public class ViewDrawInterceptor {
+    private static final AgentLog log = AgentLogManager.getAgentLog();
     private final Map<View, ViewTreeObserver.OnDrawListener> decorViewListeners =
             Collections.synchronizedMap(new WeakHashMap<>());
     SessionReplayCapture capture;
@@ -48,34 +50,34 @@ public class ViewDrawInterceptor  {
             // Create NEW unique listener for THIS view
             ViewTreeObserver.OnDrawListener listener = () -> {
                 long currentTime = System.currentTimeMillis();
-                Log.d("ViewDrawInterceptor", "onDraw() called" + " at " + currentTime + " lastCaptureTime: " + lastCaptureTime + " interval: " + CAPTURE_INTERVAL);
+                log.debug("onDraw() called" + " at " + currentTime + " lastCaptureTime: " + lastCaptureTime + " interval: " + CAPTURE_INTERVAL);
 
                 captureDebouncer.debounce(() -> {
                     // Use debouncer to limit capture frequency
                     lastCaptureTime = currentTime;
-                    Log.d("ViewDrawInterceptor", "Capturing frame");
+                    log.debug("Capturing frame");
 
                     // Safely get context - the view may have been detached by the time this runs
                     if (decorViews == null || decorViews.length == 0) {
-                        Log.w("ViewDrawInterceptor", "decorViews is null or empty, skipping frame capture");
+                        log.warn("decorViews is null or empty, skipping frame capture");
                         return;
                     }
 
                     View firstView = decorViews[0];
                     if (firstView == null) {
-                        Log.w("ViewDrawInterceptor", "First decor view is null, skipping frame capture");
+                        log.warn("First decor view is null, skipping frame capture");
                         return;
                     }
 
                     Context viewContext = firstView.getContext();
                     if (viewContext == null) {
-                        Log.w("ViewDrawInterceptor", "View context is null (view may be detached), skipping frame capture");
+                        log.warn("View context is null (view may be detached), skipping frame capture");
                         return;
                     }
 
                     Context context = viewContext.getApplicationContext();
                     if (context == null) {
-                        Log.w("ViewDrawInterceptor", "Application context is null, skipping frame capture");
+                        log.warn("Application context is null, skipping frame capture");
                         return;
                     }
 
@@ -118,7 +120,7 @@ public class ViewDrawInterceptor  {
 
                     // Calculate frame creation time
                     long frameCreationTime = System.currentTimeMillis() - frameCreationStart;
-                    Log.d("ViewDrawInterceptor", "Frame creation took: " + frameCreationTime + "ms");
+                    log.debug("Frame creation took: " + frameCreationTime + "ms");
                     // Create a SessionReplayFrame, then add it to a thing to wait for processing
                     ViewDrawInterceptor.this.listener.onFrameTaken(frame);
                 });
@@ -130,7 +132,7 @@ public class ViewDrawInterceptor  {
                     viewTreeObserver.addOnDrawListener(listener);
                     decorViewListeners.put(decorView, listener);
                 } catch (IllegalStateException e) {
-                    Log.e("ViewDrawInterceptor", "Unable to add onDrawListener!");
+                    log.error("Unable to add onDrawListener!");
                 }
             }
         }
@@ -160,7 +162,7 @@ public class ViewDrawInterceptor  {
             try {
                 view.getViewTreeObserver().removeOnDrawListener(listener);
             } catch(IllegalStateException e) {
-                Log.e("ViewDrawInterceptor", "Unable to remove onDrawListener!");
+                log.error("Unable to remove onDrawListener!");
             }
         }
     }
