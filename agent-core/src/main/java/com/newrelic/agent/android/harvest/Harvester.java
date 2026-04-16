@@ -782,6 +782,18 @@ public class Harvester implements HarvestConfigurable {
         }
     }
 
+    void fireOnSessionRestarted() {
+        // Notify all listeners that a new session has started (e.g., setUserId or 4-hour timeout).
+        try {
+            for (HarvestLifecycleAware harvestAware : getHarvestListeners()) {
+                harvestAware.onSessionRestarted();
+            }
+        } catch (Exception e) {
+            log.error("Error in fireOnSessionRestarted", e);
+            AgentHealth.noticeException(e);
+        }
+    }
+
     public void checkOfflineAndPersist() {
         try {
             if (!FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
@@ -835,6 +847,7 @@ public class Harvester implements HarvestConfigurable {
                     Harvest instance = Harvest.getInstance();
                     if (instance != null) {
                         instance.startSession();
+                        Harvest.notifySessionRestarted();
                     }
                 });// call non-blocking harvest
 

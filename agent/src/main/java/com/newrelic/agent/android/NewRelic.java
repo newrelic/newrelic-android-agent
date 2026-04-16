@@ -879,9 +879,6 @@ public final class NewRelic {
 
         if (userIdAttr != null) {
             if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
-                // Stop session replay before starting new session
-                pauseReplay();
-
                 // Finalize and harvest with the OLD session ID, then update to new session
                 // in the post-harvest callback to avoid the race where onHarvest() reads
                 // the new session ID before the old session's data is sent.
@@ -895,6 +892,7 @@ public final class NewRelic {
                     if (userId != null && !userId.isEmpty()) {
                         controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
                     }
+                    Harvest.notifySessionRestarted();
                 });
             }
         }

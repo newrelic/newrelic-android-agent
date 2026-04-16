@@ -5,7 +5,6 @@ import static com.newrelic.agent.android.util.Constants.SessionReplay.LAST_TIMES
 
 import android.app.Application;
 import android.os.Handler;
-import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -108,17 +107,17 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      */
     public static void initialize(Application application, Handler uiThreadHandler, AgentConfiguration agentConfiguration, SessionReplayMode mode) {
         if (application == null) {
-            Log.e("SessionReplay", "Cannot initialize with null application");
+            log.error("Cannot initialize with null application");
             return;
         }
 
         if (uiThreadHandler == null) {
-            Log.e("SessionReplay", "Cannot initialize with null UI thread handler");
+            log.error("Cannot initialize with null UI thread handler");
             return;
         }
 
         if (mode == null) {
-            Log.e("SessionReplay", "Cannot initialize with null mode");
+            log.error("Cannot initialize with null mode");
             return;
         }
 
@@ -182,7 +181,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         JsonArray jsonArray = SessionReplayFileManager.readEventsAsJsonArray();
 
         if (jsonArray.isEmpty()) {
-            Log.d("SessionReplay", "No events found in file to process.");
+            log.debug("No events found in file to process.");
             return;
         }
 
@@ -280,7 +279,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INIT);
         startRecording(mode);
         isFirstChunk = true;
-        Log.d("SessionReplay", "Session replay initialized successfully with mode: " + mode);
+        log.debug("Session replay initialized successfully with mode: " + mode);
     }
 
     /**
@@ -303,7 +302,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
             // Check if decorViews is not empty before accessing
             if (decorViews.length == 0) {
-                Log.w("SessionReplay", "No root views available, skipping initial recording setup");
+                log.warn("No root views available, skipping initial recording setup");
                 return;
             }
 

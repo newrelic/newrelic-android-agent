@@ -1155,4 +1155,22 @@ public class AndroidAgentImpl implements
     public void onHarvestConfigurationChanged() {
         agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
     }
+
+    @Override
+    public void onSessionRestarted() {
+        // Shut down previous session's reporters before re-evaluating sampling
+        SessionReplay.deInitialize();
+
+        if (LogReporting.isRemoteLoggingEnabled()) {
+            LogReporting.shutdown();
+        }
+
+        // Clear sampling override from previous session so it can be re-evaluated
+        agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
+
+        // Re-evaluate sampling decisions for Session Replay and Log Reporting
+        if (savedContext != null) {
+            initializeFeaturesWithCoordination(savedContext, agentConfiguration);
+        }
+    }
 }
