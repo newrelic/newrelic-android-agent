@@ -2,7 +2,6 @@ package com.newrelic.agent.android.webView;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
-import android.util.Log;
 import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -10,17 +9,20 @@ import android.widget.AdapterView;
 import android.widget.CompoundButton;
 import android.widget.RadioGroup;
 
+import com.newrelic.agent.android.logging.AgentLog;
+import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 
 public class WebViewInstrumentationCallbacks {
+    private static final AgentLog log = AgentLogManager.getAgentLog();
 
 
     public static void ButtonClicked(View view) {
         try {
             // Do something
             String viewName = view.getResources().getResourceName(view.getId());
-            Log.d("ViewCapture ButtonClicked", viewName);
+            log.debug("ViewCapture ButtonClicked: " + viewName);
         } catch (Exception e) {
             // Do something
         }
@@ -31,7 +33,7 @@ public class WebViewInstrumentationCallbacks {
         try {
             // Do something
             String viewName = view.getResources().getResourceName(view.getId());
-            Log.d("ViewCapture ButtonLongClicked", viewName);
+            log.debug("ViewCapture ButtonLongClicked: " + viewName);
         } catch (Exception e) {
             // Do something
         }
@@ -41,7 +43,7 @@ public class WebViewInstrumentationCallbacks {
         try {
             // Do something
             String viewName = view.getResources().getResourceName(view.getId());
-            Log.d("ViewCapture ListItemClicked",  viewName);
+            log.debug("ViewCapture ListItemClicked: " + viewName);
         } catch (Exception e) {
             // Do something
         }
@@ -55,10 +57,10 @@ public class WebViewInstrumentationCallbacks {
             if(dialog instanceof AlertDialog) {
                 AlertDialog alertDialog = (AlertDialog) dialog;
                 String dialogTitle = alertDialog.getButton(which).getText().toString();
-                Log.d("ViewCapture", "Dialog Button Clicked: " + dialogTitle);
+                log.debug("ViewCapture: Dialog Button Clicked: " + dialogTitle);
             }
 
-            Log.d("ViewCapture",  "Dialog Button Clicked");
+            log.debug("ViewCapture: Dialog Button Clicked");
         } catch (Exception e) {
             // Do something
         }
@@ -68,7 +70,7 @@ public class WebViewInstrumentationCallbacks {
     public static void OnCheckedChange(CompoundButton buttonView, boolean isChecked) {
         try {
             // Do something
-            Log.d("ViewCapture", buttonView.getText().toString() + "Checked: " + isChecked);
+            log.debug("ViewCapture: " + buttonView.getText().toString() + " Checked: " + isChecked);
         } catch (Exception e) {
             // Do something
         }
@@ -83,7 +85,7 @@ public class WebViewInstrumentationCallbacks {
                 if (view instanceof CompoundButton) {
                     CompoundButton compoundButton = (CompoundButton) view;
                     if (compoundButton.getId() == checkedId) {
-                        Log.d("ViewCapture", compoundButton.getText().toString() + "Checked: " + checkedId);
+                        log.debug("ViewCapture: " + compoundButton.getText().toString() + " Checked: " + checkedId);
                     }
                 }
             }

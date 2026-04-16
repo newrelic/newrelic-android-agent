@@ -133,7 +133,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                     }
                 }
                 if (currentTouchTracker == null && containingTouchViewId != -1) {
-                    log.debug("Adding Start Event");
+                    log.audit("Adding Start Event");
                     currentTouchId = containingTouchViewId;
                     moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                     currentTouchTracker = new TouchTracker(moveTouch);
@@ -142,15 +142,14 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                 }
             } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
                 if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
-                    log.debug("Adding Move Event");
                     moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
                     SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
                 }
             } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
-                log.debug("Adding End Event");
+                log.audit("Adding End Event");
                 moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                 currentTouchTracker.addEndTouch(moveTouch);
-                log.debug("Calling onTouchRecorded for touch tracker: " + System.identityHashCode(currentTouchTracker));
+                log.audit("Calling onTouchRecorded for touch tracker: " + System.identityHashCode(currentTouchTracker));
                 if(modeManager.getCurrentMode() != SessionReplayMode.OFF) {
                     SessionReplayActivityLifecycleCallbacks.this.onTouchRecordedListener.onTouchRecorded(currentTouchTracker);
                 }

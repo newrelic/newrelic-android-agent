@@ -83,7 +83,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      */
     public static void setTakeFullSnapshot(boolean shouldTakeFullSnapshot) {
         takeFullSnapshot.set(shouldTakeFullSnapshot);
-        log.debug("SessionReplay: takeFullSnapshot set to " + shouldTakeFullSnapshot);
+        log.audit("SessionReplay: takeFullSnapshot set to " + shouldTakeFullSnapshot);
     }
 
     /**
@@ -222,6 +222,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         attributes.put(LAST_TIMESTAMP, lastTimestamp);
         attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
 
+        log.info("SessionReplay harvest: " + jsonArray.size() + " events, timestamps [" + firstTimestamp + " - " + lastTimestamp + "], isFirstChunk=" + isFirstChunk);
+
         // Convert JsonArray to JSON string and report
         String jsonArrayString = new Gson().toJson(jsonArray);
         SessionReplayReporter.reportSessionReplayData(jsonArrayString.getBytes(), attributes);
@@ -329,7 +331,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         // If harvest is in progress, buffer frames for later writing
         if (isHarvesting.get()) {
-            log.debug("Frame received during harvest, buffering for later write");
+            log.audit("Frame received during harvest, buffering for later write");
             frameBufferDuringHarvest.add(events);
         } else {
             // Otherwise, write to file immediately
@@ -344,7 +346,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     public void onTouchRecorded(TouchTracker touchTracker) {
         // If harvest is in progress, buffer touch data for later writing
         if (isHarvesting.get()) {
-            log.debug("Touch data received during harvest, buffering for later write");
+            log.audit("Touch data received during harvest, buffering for later write");
             touchBufferDuringHarvest.add(touchTracker);
         } else {
             // Otherwise, write to file immediately
@@ -531,7 +533,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * If session replay is in ERROR mode, switches to FULL mode.
      */
     public static void onError() {
-        log.debug("SessionReplay: Error detected, checking if mode switch needed");
+        if (modeManager != null) {
+            log.info("SessionReplay: Error detected, current mode: " + modeManager.getCurrentMode());
+        } else {
+            log.debug("SessionReplay: Error detected but session replay not initialized");
+        }
         switchModeOnError();
     }
 
