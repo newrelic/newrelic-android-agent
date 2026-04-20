@@ -885,9 +885,11 @@ public final class NewRelic {
                 Harvest.harvestNow(true, () -> {
                     HarvestTimer harvestTimer = Harvest.getInstance().getHarvestTimer();
                     harvestTimer.setTimeSinceStart(System.currentTimeMillis());
-                    controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
-                            .setStringValue(agentConfiguration.provideSessionId())
-                            .setPersistent(false);
+                    AnalyticsAttribute sessionAttr = controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE);
+                    if (sessionAttr != null) {
+                        sessionAttr.setStringValue(agentConfiguration.provideSessionId())
+                                .setPersistent(false);
+                    }
                     controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
                     if (userId != null && !userId.isEmpty()) {
                         controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
