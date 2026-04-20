@@ -382,6 +382,9 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
         } catch (IOException e) {
             error(e);
             throw e;
+        } catch (RuntimeException e) {
+            error(e);
+            throw e;
         }
         in.addStreamCompleteListener(new StreamCompleteListener() {
             @Override
@@ -428,6 +431,9 @@ public class HttpsURLConnectionExtension extends HttpsURLConnection {
         try {
             out = new CountingOutputStream(impl.getOutputStream());
         } catch (IOException e) {
+            error(e);
+            throw e;
+        } catch (RuntimeException e) {
             error(e);
             throw e;
         }
