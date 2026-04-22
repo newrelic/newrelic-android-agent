@@ -159,7 +159,7 @@ def toFatJarTask(def variant) {
         }
         archiveClassifier = "u"
         include("**/GsonInstrumentation*")
-        from variant.getJavaCompileProvider().get().destinationDir
+        from variant.getJavaCompileProvider().get().destinationDirectory
         // Include Kotlin compiled classes
         if (project.hasProperty('kotlin')) {
             from "$buildDir/tmp/kotlin-classes/${variant.name}"
@@ -177,7 +177,7 @@ def toFatJarTask(def variant) {
             dependsOn "compile${variant.name.capitalize()}Kotlin"
         }
         archiveClassifier = "s"
-        from variant.getJavaCompileProvider().get().destinationDir
+        from variant.getJavaCompileProvider().get().destinationDirectory
         // Include Kotlin compiled classes
         if (project.hasProperty('kotlin')) {
             from "$buildDir/tmp/kotlin-classes/${variant.name}"
