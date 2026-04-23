@@ -30,4 +30,6 @@ public interface HarvestLifecycleAware {
     default void onHarvestDisabled() {}
 
     default void onHarvestConfigurationChanged() {}
+
+    default void onSessionRestarted() {}
 }

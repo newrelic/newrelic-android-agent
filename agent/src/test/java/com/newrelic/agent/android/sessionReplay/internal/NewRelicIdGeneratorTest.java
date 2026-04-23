@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.internal;
+
+import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator;
 
 import org.junit.Assert;
 import org.junit.Test;

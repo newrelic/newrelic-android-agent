@@ -1,6 +1,6 @@
 package com.newrelic.agent.android.sessionReplay.internal
 
-import android.util.Log
+import com.newrelic.agent.android.logging.AgentLogManager
 import java.lang.reflect.Field
 
 /**
@@ -25,7 +25,7 @@ open class ReflectionBaseGetter(
     private val targetClassName: String
 ) {
     companion object {
-        private const val LOG_TAG = "ReflectionBaseGetter"
+        private val log = AgentLogManager.getAgentLog()
     }
 
     /**
@@ -43,10 +43,10 @@ open class ReflectionBaseGetter(
         return try {
             Class.forName(className)
         } catch (e: ClassNotFoundException) {
-            Log.d(LOG_TAG, "Class not found: $className (may not be available in this Compose version)")
+            log.debug("Class not found: $className (may not be available in this Compose version)")
             null
         } catch (e: Exception) {
-            Log.w(LOG_TAG, "Error loading class: $className", e)
+            log.warn("Error loading class: $className: ${e.message}")
             null
         }
     }
@@ -66,13 +66,13 @@ open class ReflectionBaseGetter(
             field.isAccessible = true
             field
         } catch (e: NoSuchFieldException) {
-            Log.d(LOG_TAG, "Field '$fieldName' not found in ${clazz.simpleName} (may have been renamed/removed)")
+            log.debug("Field '$fieldName' not found in ${clazz.simpleName} (may have been renamed/removed)")
             null
         } catch (e: SecurityException) {
-            Log.w(LOG_TAG, "Security exception accessing field '$fieldName' in ${clazz.simpleName}", e)
+            log.warn("Security exception accessing field '$fieldName' in ${clazz.simpleName}: ${e.message}")
             null
         } catch (e: Exception) {
-            Log.w(LOG_TAG, "Error getting field '$fieldName' from ${clazz.simpleName}", e)
+            log.warn("Error getting field '$fieldName' from ${clazz.simpleName}: ${e.message}")
             null
         }
     }
@@ -111,13 +111,13 @@ open class ReflectionBaseGetter(
         return try {
             this.get(instance)
         } catch (e: IllegalAccessException) {
-            Log.w(LOG_TAG, "Cannot access field '${this.name}'", e)
+            log.warn("Cannot access field '${this.name}': ${e.message}")
             null
         } catch (e: IllegalArgumentException) {
-            Log.w(LOG_TAG, "Invalid argument for field '${this.name}'", e)
+            log.warn("Invalid argument for field '${this.name}': ${e.message}")
             null
         } catch (e: Exception) {
-            Log.w(LOG_TAG, "Error getting field value '${this.name}'", e)
+            log.warn("Error getting field value '${this.name}': ${e.message}")
             null
         }
     }

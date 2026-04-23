@@ -15,13 +15,13 @@ import androidx.compose.ui.semantics.SemanticsProperties;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeBlockedViewThingy;
-import com.newrelic.agent.android.sessionReplay.compose.ComposeEditTextThingy;
-import com.newrelic.agent.android.sessionReplay.compose.ComposeImageThingy;
-import com.newrelic.agent.android.sessionReplay.compose.ComposeRadioButtonThingy;
-import com.newrelic.agent.android.sessionReplay.compose.ComposeSliderThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeEditTextThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeImageThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeRadioButtonThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeSliderThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails;
 import com.newrelic.agent.android.sessionReplay.compose.SessionReplayComposeViewThingy;
-import com.newrelic.agent.android.sessionReplay.compose.ComposeTextViewThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeTextViewThingy;
 import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayBlockedViewThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayCompoundButtonThingy;

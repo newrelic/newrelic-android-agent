@@ -1,6 +1,7 @@
 package com.newrelic.agent.android.sessionReplay.touch;
 
-import android.util.Log;
+import com.newrelic.agent.android.logging.AgentLog;
+import com.newrelic.agent.android.logging.AgentLogManager;
 import android.view.View;
 
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
@@ -13,7 +14,7 @@ import androidx.compose.ui.semantics.SemanticsOwner;
  * Handler for touch events on Compose Semantics Nodes with privacy support
  */
 public class SemanticsNodeTouchHandler {
-    private static final String TAG = "SemanticsNodeTouchHandler";
+    private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final int MASKED_TOUCH_ID = -1;
 
     private final SessionReplayConfiguration sessionReplayConfiguration;
@@ -44,7 +45,7 @@ public class SemanticsNodeTouchHandler {
             return null;
             // handle other view types here, such as RecyclerView or List Viewreturn null;
         }} catch (Exception e) {
-            Log.w(TAG, "Failed to access Compose SemanticsNode", e);
+            log.warn("Failed to access Compose SemanticsNode: " + e.getMessage());
             return null;
         }
     }
@@ -90,7 +91,7 @@ public class SemanticsNodeTouchHandler {
         // Check if touches should be masked based on privacy settings
         if (shouldMaskTouch(semanticsNode)) {
             // Return a generic masked ID instead of the actual node ID
-            Log.d(TAG, "Touch masked for node: " + semanticsNode.getId());
+            log.debug("Touch masked for node: " + semanticsNode.getId());
             return MASKED_TOUCH_ID;
         }
 

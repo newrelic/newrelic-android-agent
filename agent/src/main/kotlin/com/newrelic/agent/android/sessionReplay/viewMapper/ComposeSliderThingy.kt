@@ -1,10 +1,11 @@
-package com.newrelic.agent.android.sessionReplay.compose
+package com.newrelic.agent.android.sessionReplay.viewMapper
 
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import com.newrelic.agent.android.AgentConfiguration
-import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface
+import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails
+import com.newrelic.agent.android.sessionReplay.compose.SessionReplayComposeViewThingy
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.InputCapable
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord

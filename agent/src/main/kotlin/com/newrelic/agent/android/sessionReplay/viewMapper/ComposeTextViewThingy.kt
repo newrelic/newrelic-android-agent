@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.sessionReplay.compose
+package com.newrelic.agent.android.sessionReplay.viewMapper
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -15,9 +15,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnitType
 import com.newrelic.agent.android.AgentConfiguration
-import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
-import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface
+import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration
+import com.newrelic.agent.android.sessionReplay.compose.ComposePrivacyUtils
+import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants
+import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails
+import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
@@ -65,6 +68,8 @@ open class ComposeTextViewThingy(
     private val isSingleLine: Boolean
 
     protected val sessionReplayConfiguration: SessionReplayConfiguration = agentConfiguration.sessionReplayConfiguration
+    protected val sessionReplayLocalConfiguration: SessionReplayLocalConfiguration = agentConfiguration.sessionReplayLocalConfiguration
+
 
     init {
         val textLayoutResults = mutableListOf<TextLayoutResult>()
@@ -99,7 +104,7 @@ open class ComposeTextViewThingy(
         }
 
         val isInput = node.config.contains(SemanticsProperties.EditableText)
-        return if (isInput) sessionReplayConfiguration.isMaskUserInputText else sessionReplayConfiguration.isMaskApplicationText
+        return if (isInput) (sessionReplayConfiguration.isMaskUserInputText || sessionReplayLocalConfiguration.isMaskUserInputText)  else (sessionReplayConfiguration.isMaskApplicationText || sessionReplayLocalConfiguration.isMaskApplicationText)
     }
 
 
@@ -107,8 +112,8 @@ open class ComposeTextViewThingy(
     private fun extractTextStyling(textStyle: TextStyle?): TextStyling {
         val fontSize = textStyle?.fontSize?.let { fontSizeUnit ->
             when (fontSizeUnit.type) {
-                TextUnitType.Companion.Sp -> fontSizeUnit.value
-                TextUnitType.Companion.Em -> fontSizeUnit.value * ComposeSessionReplayConstants.Defaults.EM_TO_PX_MULTIPLIER
+                TextUnitType.Sp -> fontSizeUnit.value
+                TextUnitType.Em -> fontSizeUnit.value * ComposeSessionReplayConstants.Defaults.EM_TO_PX_MULTIPLIER
                 else -> ComposeSessionReplayConstants.Defaults.DEFAULT_FONT_SIZE
             }
         } ?: ComposeSessionReplayConstants.Defaults.DEFAULT_FONT_SIZE
@@ -116,9 +121,9 @@ open class ComposeTextViewThingy(
         // Better: Inline in extractTextStyling
         val textAlign = textStyle?.textAlign?.let { align ->
             when (align) {
-                TextAlign.Companion.Center -> "center"
-                TextAlign.Companion.End, TextAlign.Companion.Right -> "right"
-                TextAlign.Companion.Start, TextAlign.Companion.Left -> "left"
+                TextAlign.Center -> "center"
+                TextAlign.End, TextAlign.Right -> "right"
+                TextAlign.Start, TextAlign.Left -> "left"
                 else -> "left"
             }
         } ?: "left"
@@ -138,23 +143,23 @@ open class ComposeTextViewThingy(
         // Build CSS directly instead of string manipulation
 
         val family = when (textStyle?.fontFamily) {
-            FontFamily.Companion.Serif -> "serif"
-            FontFamily.Companion.Monospace -> "monospace"
-            FontFamily.Companion.Cursive -> "cursive"
+            FontFamily.Serif -> "serif"
+            FontFamily.Monospace -> "monospace"
+            FontFamily.Cursive -> "cursive"
             else -> "sans-serif"
         }
 
         val weight = when (textStyle?.fontWeight) {
-            FontWeight.Companion.Bold -> "bold"
-            FontWeight.Companion.Light -> "300"
-            FontWeight.Companion.Medium -> "500"
-            FontWeight.Companion.SemiBold -> "600"
-            FontWeight.Companion.ExtraBold -> "800"
-            FontWeight.Companion.Black -> "900"
+            FontWeight.Bold -> "bold"
+            FontWeight.Light -> "300"
+            FontWeight.Medium -> "500"
+            FontWeight.SemiBold -> "600"
+            FontWeight.ExtraBold -> "800"
+            FontWeight.Black -> "900"
             else -> "normal"
         }
 
-        val style = if (textStyle?.fontStyle == FontStyle.Companion.Italic) "italic" else "normal"
+        val style = if (textStyle?.fontStyle == FontStyle.Italic) "italic" else "normal"
 
         return TextStyling(fontSize, family, txtColor, textAlign,style,weight)
     }
@@ -280,10 +285,7 @@ open class ComposeTextViewThingy(
         }
 
         if (viewDetails.isHidden() != other.viewDetails.isHidden()) {
-            styleDifferences.put(
-                "visibility",
-                if (other.viewDetails.isHidden()) "hidden" else "visible"
-            )
+            styleDifferences["visibility"] = if (other.viewDetails.isHidden()) "hidden" else "visible"
         }
 
         val mutations = ArrayList<MutationRecord>(2)
@@ -343,7 +345,7 @@ open class ComposeTextViewThingy(
 
         // Check current node and all parent nodes for privacy tags
         val privacyTag = ComposePrivacyUtils.getEffectivePrivacyTag(node)
-        val isCustomMode = sessionReplayConfiguration.getMode().equals(ComposeSessionReplayConstants.Modes.CUSTOM)
+        val isCustomMode = sessionReplayConfiguration.mode.equals(ComposeSessionReplayConstants.Modes.CUSTOM)
         val hasUnmaskTag = isCustomMode && privacyTag.equals(ComposeSessionReplayConstants.PrivacyTags.UNMASK)
         val hasMaskTag = privacyTag.equals(ComposeSessionReplayConstants.PrivacyTags.MASK)
 

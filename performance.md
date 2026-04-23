@@ -26,7 +26,7 @@ This report summarizes the performance overhead of the New Relic Android Agent (
 
 ## APK Size Impact
 
-Measured using the New Relic Android Agent v7.7.3 on the Now in Android (NiA) app.
+Measured using the New Relic Android Agent v7.7.2 on the Now in Android (NiA) app.
 
 | Build Type | With New Relic | Without New Relic | Difference | % Increase |
 | :--- | :--- | :--- | :--- | :--- |
