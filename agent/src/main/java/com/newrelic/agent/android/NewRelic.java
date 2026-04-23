@@ -20,6 +20,7 @@ import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
 import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.harvest.HarvestTimer;
 import com.newrelic.agent.android.hybrid.StackTrace;
 import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -873,33 +874,30 @@ public final class NewRelic {
     public static boolean setUserId(String userId) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setUserId"));
-        Runnable harvest = () -> {
-            final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
-            final AnalyticsAttribute userIdAttr = controller.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+        final AnalyticsAttribute userIdAttr = controller.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
 
-            if (userIdAttr != null) {
-                if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
-                    // Stop session replay before starting new session
-                    pauseReplay();
-
-                    Harvest.harvestNow(true, false);// call non-blocking harvest
-                    controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
-                            .setStringValue(agentConfiguration.provideSessionId())  // start a new session
-                            .setPersistent(false);
-                    // remove session duration and user id attributes
-                    controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
-                    if (userId == null || userId.isEmpty()) {
-                        controller.removeAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        if (userIdAttr != null) {
+            if (!Objects.equals(userIdAttr.getStringValue(), userId)) {
+                // Finalize and harvest with the OLD session ID, then update to new session
+                // in the post-harvest callback to avoid the race where onHarvest() reads
+                // the new session ID before the old session's data is sent.
+                Harvest.harvestNow(true, () -> {
+                    HarvestTimer harvestTimer = Harvest.getInstance().getHarvestTimer();
+                    harvestTimer.setTimeSinceStart(System.currentTimeMillis());
+                    AnalyticsAttribute sessionAttr = controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE);
+                    if (sessionAttr != null) {
+                        sessionAttr.setStringValue(agentConfiguration.provideSessionId())
+                                .setPersistent(false);
                     }
-
-                }
+                    controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
+                    if (userId != null && !userId.isEmpty()) {
+                        controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
+                    }
+                    Harvest.notifySessionRestarted();
+                });
             }
-
-            if (userId != null && !userId.isEmpty()) {
-                controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
-            }
-        };
-        harvest.run();
+        }
         return true;
     }
 
@@ -1049,6 +1047,7 @@ public final class NewRelic {
 
         // Notify SessionReplay about the error for mode switching (if enabled)
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
             SessionReplay.onError();
         }
 
@@ -1180,6 +1179,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, LogLevel.ERROR.name()));
 
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
             SessionReplay.onError();
         }
         LogReporting.getLogger().log(LogLevel.ERROR, message);
@@ -1197,6 +1197,7 @@ public final class NewRelic {
                 .replace(MetricNames.TAG_STATE, logLevel.name()));
 
         if (logLevel.equals(LogLevel.ERROR) && agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
             SessionReplay.onError();
         }
         if (LogReporting.isLevelEnabled(logLevel)) {

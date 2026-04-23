@@ -26,7 +26,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -381,6 +380,9 @@ public class Harvester implements HarvestConfigurable {
                     fireOnHarvest();
                     fireOnHarvestFinalize();
                     connected();
+
+                    //check 4-hour session time
+                    checkAndResetSessionIfExpired();
                     break;
                 case DISABLED:
                     disabled();
@@ -780,6 +782,18 @@ public class Harvester implements HarvestConfigurable {
         }
     }
 
+    void fireOnSessionRestarted() {
+        // Notify all listeners that a new session has started (e.g., setUserId or 4-hour timeout).
+        try {
+            for (HarvestLifecycleAware harvestAware : getHarvestListeners()) {
+                harvestAware.onSessionRestarted();
+            }
+        } catch (Exception e) {
+            log.error("Error in fireOnSessionRestarted", e);
+            AgentHealth.noticeException(e);
+        }
+    }
+
     public void checkOfflineAndPersist() {
         try {
             if (!FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
@@ -818,6 +832,29 @@ public class Harvester implements HarvestConfigurable {
 
     Collection<HarvestLifecycleAware> getHarvestListeners() {
         return new ArrayList<>(harvestListeners);
+    }
+
+    /**
+     * Automatic session termination for the New Relic agent after 4 hours of continuous session time.
+     */
+    public void checkAndResetSessionIfExpired() {
+        try {
+            HarvestTimer harvestTimer = Harvest.getInstance().getHarvestTimer();
+            if (harvestTimer.sessionTimeSinceStart() >= HarvestTimer.DEFAULT_SESSION_DURATION_PERIOD) {
+                harvestTimer.setSessionStartTimeMs(System.currentTimeMillis());
+                Harvest.harvestNow(true, ()->{
+                    harvestTimer.setTimeSinceStart(System.currentTimeMillis());
+                    Harvest instance = Harvest.getInstance();
+                    if (instance != null) {
+                        instance.startSession();
+                        Harvest.notifySessionRestarted();
+                    }
+                });// call non-blocking harvest
+
+            }
+        } catch (Exception e) {
+            log.error("Harvester: Session limit reached (4 hours). Resetting session failed with exception: " + e.getMessage());
+        }
     }
 
 }

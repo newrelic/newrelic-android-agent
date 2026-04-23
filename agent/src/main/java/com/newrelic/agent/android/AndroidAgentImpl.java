@@ -110,6 +110,9 @@ public class AndroidAgentImpl implements
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
+    // Stored for use by static API methods (recordReplay → log activation)
+    private static Context savedContext;
+
     private final Context context;
     private SavedState savedState;
 
@@ -179,7 +182,7 @@ public class AndroidAgentImpl implements
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
             LogReportingConfiguration logReportingConfiguration = agentConfiguration.getLogReportingConfiguration();
             LogReportingConfiguration.reseed();
-             if (logReportingConfiguration.getLoggingEnabled() ) {
+             if (logReportingConfiguration.isSampled()) {
                 try {
                     /*
                        LogReports are stored in the apps cache directory, rather than the persistent files directory. The o/s _may_
@@ -215,8 +218,8 @@ public class AndroidAgentImpl implements
         Harvest.setHarvestConnectInformation(savedState.getConnectInformation());
         Harvest.addHarvestListener(this);
 
-        startLogReporter(context, agentConfiguration);
-        startSessionReplayRecorder(context, agentConfiguration);
+        savedContext = context.getApplicationContext();
+        initializeFeaturesWithCoordination(context, agentConfiguration);
         Measurements.initialize();
         log.info(MessageFormat.format("New Relic Agent v{0}", Agent.getVersion()));
         log.verbose(MessageFormat.format("Application token: {0}", agentConfiguration.getApplicationToken()));
@@ -252,6 +255,8 @@ public class AndroidAgentImpl implements
         //Don't preserve the previous session state!
         TraceMachine.clearActivityHistory();
         agentConfiguration.provideSessionId();
+        // Clear sampling override from previous session; will be re-evaluated during feature init
+        agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
     }
 
     protected void finalizeSession() {
@@ -728,6 +733,7 @@ public class AndroidAgentImpl implements
                 SessionReplayModeManager.getInstance().transitionTo(SessionReplayMode.FULL, "APIRecordReplay");
                 SessionReplay.initSessionReplay(SessionReplayMode.FULL);
                 AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
+                activateLoggingForSessionReplay();
                 log.info("recordReplay: SessionReplay initialized in FULL mode");
                 return true;
             } catch (Exception e) {
@@ -741,6 +747,7 @@ public class AndroidAgentImpl implements
             case FULL:
                 // Already in FULL mode, idempotent success
                 log.debug("recordReplay: Already recording in FULL mode");
+                activateLoggingForSessionReplay();
                 return true;
 
             case ERROR:
@@ -748,6 +755,7 @@ public class AndroidAgentImpl implements
                 boolean modeChanged = SessionReplay.switchModeOnError();
                 if (modeChanged) {
                     AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
+                    activateLoggingForSessionReplay();
                     log.info("recordReplay: Transitioned from ERROR to FULL mode");
                     return true;
                 } else {
@@ -770,26 +778,98 @@ public class AndroidAgentImpl implements
     }
 
 
-    private static void startSessionReplayRecorder(Context context, AgentConfiguration agentConfiguration) {
+    /**
+     * Coordinates initialization of Session Replay and Remote Logging.
+     * SR sampling is evaluated first; if SR is active and logging is globally enabled,
+     * the logging sampling override is set so logs are captured even if not independently sampled.
+     */
+    private static void initializeFeaturesWithCoordination(Context context, AgentConfiguration agentConfiguration) {
+        // 1. Determine SR sampling first
+        SessionReplayConfiguration srConfig = agentConfiguration.getSessionReplayConfiguration();
+        SessionReplayConfiguration.reseed();
+        SessionReplayMode srMode = srConfig.isEnabled() ? determineRecordingMode(srConfig) : SessionReplayMode.OFF;
 
+        // 2. Apply SR-to-Log override if SR is active and logging is globally enabled
+        if (agentConfiguration.getLogReportingConfiguration().getLoggingEnabled()) {
+            applyLoggingOverrideIfNeeded(srMode, agentConfiguration);
+            // 3. Start logging (respects override via isSampled())
+            startLogReporter(context, agentConfiguration);
+        }
+
+        // 4. Start SR with pre-computed mode (skip reseed)
+        startSessionReplayRecorderWithMode(context, agentConfiguration, srConfig, srMode);
+    }
+
+    /**
+     * Sets the logging sampling override when SR is active and logging is globally enabled.
+     */
+    private static void applyLoggingOverrideIfNeeded(SessionReplayMode srMode, AgentConfiguration agentConfiguration) {
+        if (srMode == SessionReplayMode.FULL) {
+            LogReportingConfiguration logConfig = agentConfiguration.getLogReportingConfiguration();
+            if (logConfig.getLogLevel() != LogLevel.NONE) {
+                logConfig.setSamplingOverride(true);
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_SAMPLING_OVERRIDE);
+                log.debug("Sampling coordination: SR FULL mode active, overriding log sampling");
+            }
+        }
+    }
+
+    /**
+     * Re-evaluates the logging sampling override after SR has been reseeded (e.g., on harvest connect).
+     * Sets override if SR is now FULL; clears it if SR is no longer FULL.
+     */
+    private static void reconcileLoggingOverride(SessionReplayMode srMode, AgentConfiguration agentConfiguration) {
+        LogReportingConfiguration logConfig = agentConfiguration.getLogReportingConfiguration();
+        if (srMode == SessionReplayMode.FULL) {
+            applyLoggingOverrideIfNeeded(srMode, agentConfiguration);
+        } else if (logConfig.isSamplingOverridden()) {
+            logConfig.setSamplingOverride(false);
+            log.debug("Sampling coordination: SR no longer FULL after reseed, clearing log sampling override");
+        }
+    }
+
+    /**
+     * Activates logging when SR transitions to FULL mode (via API or error detection).
+     * Called from recordReplay() and SessionReplay.onError() (ERROR→FULL transition).
+     */
+    public static void activateLoggingForSessionReplay() {
+        LogReportingConfiguration logConfig = AgentConfiguration.getInstance().getLogReportingConfiguration();
+        if (logConfig.getLoggingEnabled()
+                && logConfig.getLogLevel() != LogLevel.NONE) {
+            if (!logConfig.isSamplingOverridden()) {
+                logConfig.setSamplingOverride(true);
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_LOG_SAMPLING_OVERRIDE);
+                log.debug("Sampling coordination: SR API activated, overriding log sampling");
+            }
+            if (!LogReporting.isInitialized() && savedContext != null) {
+                startLogReporter(savedContext, AgentConfiguration.getInstance());
+            }
+        }
+    }
+
+    private static void startSessionReplayRecorder(Context context, AgentConfiguration agentConfiguration) {
         SessionReplayConfiguration.reseed();
         SessionReplayConfiguration sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
+        SessionReplayMode mode = sessionReplayConfiguration.isEnabled()
+                ? determineRecordingMode(sessionReplayConfiguration) : SessionReplayMode.OFF;
+        startSessionReplayRecorderWithMode(context, agentConfiguration, sessionReplayConfiguration, mode);
+    }
+
+    private static void startSessionReplayRecorderWithMode(Context context, AgentConfiguration agentConfiguration,
+                                                           SessionReplayConfiguration sessionReplayConfiguration,
+                                                           SessionReplayMode mode) {
         if(sessionReplayConfiguration.isEnabled()) {
-            // only process masking rules if session replay is enabled
             sessionReplayConfiguration.processCustomMaskingRules();
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
             Handler uiHandler = new Handler(Looper.getMainLooper());
-            SessionReplayMode mode = determineRecordingMode(sessionReplayConfiguration);
             SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler, agentConfiguration, mode);
-            // Determine the recording mode based on sampling configuration
 
             if(mode != SessionReplayMode.OFF) {
                 SessionReplay.initSessionReplay(mode);
             }
-        } else
-            // if the session replay is not enabled, remove the attribute from the previous session
+        } else {
             AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED);
-
+        }
     }
 
     /**
@@ -859,7 +939,9 @@ public class AndroidAgentImpl implements
         // BackgroundReporting
         if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
             start();
-            startLogReporter(context, agentConfiguration);
+            if (agentConfiguration.getLogReportingConfiguration().getLoggingEnabled()) {
+                startLogReporter(context, agentConfiguration);
+            }
             AnalyticsControllerImpl.getInstance().addAttributeUnchecked(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME,true), false);
         }
     }
@@ -1051,8 +1133,12 @@ public class AndroidAgentImpl implements
             }
         }
 
-        if(agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
             startSessionReplayRecorder(context, agentConfiguration);
+
+            // Re-coordinate logging override after SR reseed — mode may have changed
+            SessionReplayMode currentSrMode = SessionReplay.getCurrentMode();
+            reconcileLoggingOverride(currentSrMode, agentConfiguration);
         }
 
         if (FeatureFlag.featureEnabled(FeatureFlag.LogReporting)) {
@@ -1068,5 +1154,23 @@ public class AndroidAgentImpl implements
     @Override
     public void onHarvestConfigurationChanged() {
         agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
+    }
+
+    @Override
+    public void onSessionRestarted() {
+        // Shut down previous session's reporters before re-evaluating sampling
+        SessionReplay.deInitialize();
+
+        if (LogReporting.isRemoteLoggingEnabled()) {
+            LogReporting.shutdown();
+        }
+
+        // Clear sampling override from previous session so it can be re-evaluated
+        agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
+
+        // Re-evaluate sampling decisions for Session Replay and Log Reporting
+        if (savedContext != null) {
+            initializeFeaturesWithCoordination(savedContext, agentConfiguration);
+        }
     }
 }

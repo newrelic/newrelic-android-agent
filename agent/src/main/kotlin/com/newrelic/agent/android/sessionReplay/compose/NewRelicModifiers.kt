@@ -61,6 +61,25 @@ object NewRelicModifiers {
     }
 
     /**
+     * Modifier that marks a Compose element to be blocked in session replay.
+     * Blocked elements are replaced with a black rectangle, and all children
+     * are completely hidden from the replay recording.
+     *
+     * When applied to a container (Column, Row, Box), the entire subtree is
+     * replaced with a single black rectangle — no child content is captured.
+     *
+     * Effects:
+     * - Element renders as a solid black rectangle in replay
+     * - All child elements are excluded from the replay tree
+     * - Touch events inside the blocked area are suppressed
+     *
+     * @return Modified Modifier with blocking semantics
+     */
+    fun Modifier.newRelicBlock(): Modifier = this.semantics {
+        newRelicPrivacy = ComposeSessionReplayConstants.PrivacyTags.BLOCK
+    }
+
+    /**
      * Modifier that applies custom NewRelic privacy behavior.
      *
      * @param privacyValue Custom privacy value ("nr-mask", "nr-unmask", or custom tag)

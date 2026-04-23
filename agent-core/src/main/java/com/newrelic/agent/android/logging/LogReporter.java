@@ -17,6 +17,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
+import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.ApplicationFramework;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
@@ -138,7 +139,7 @@ public class LogReporter extends PayloadReporter {
 
     public LogReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
-        setEnabled((agentConfiguration.getLogReportingConfiguration().getLoggingEnabled()));
+        setEnabled((agentConfiguration.getLogReportingConfiguration().getLoggingEnabledAndSessionSampled()));
         try {
             resetWorkingLogfile();
         } catch (IOException e) {
@@ -231,7 +232,7 @@ public class LogReporter extends PayloadReporter {
     @Override
     public void onHarvestConfigurationChanged() {
         //  Some aspect of logging configuration has changed. Update model...
-        setEnabled(agentConfiguration.getLogReportingConfiguration().getLoggingEnabled());
+        setEnabled(agentConfiguration.getLogReportingConfiguration().getLoggingEnabledAndSessionSampled());
 
         if (agentConfiguration.getLogReportingConfiguration().getExpirationPeriod() != reportTTL) {
             reportTTL = Math.max(agentConfiguration.getLogReportingConfiguration().getExpirationPeriod(),
@@ -388,34 +389,36 @@ public class LogReporter extends PayloadReporter {
                 }
 
                 if (logDataFile.exists() && isLogfileTypeOf(logDataFile, LogReportState.ROLLUP)) {
-                    LogForwarder logForwarder = new LogForwarder(logDataFile, agentConfiguration);
+                    if (Agent.hasReachableNetworkConnection(null)) {
+                        LogForwarder logForwarder = new LogForwarder(logDataFile, agentConfiguration);
 
-                    switch (logForwarder.call().getResponseCode()) {
-                        // Upload timed-out
-                        case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
-                            break;
+                        switch (logForwarder.call().getResponseCode()) {
+                            // Upload timed-out
+                            case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
+                                break;
 
-                        // Payload too large:
-                        case HttpURLConnection.HTTP_ENTITY_TOO_LARGE:
-                            // TODO The payload was too large, despite filtering prior to upload
-                            // Only solution in this case is to compress the file and retry, or
-                            // decompose and redistribute the payload,
-                            // logDataFile = compress(logDataFile, false);
-                            break;
+                            // Payload too large:
+                            case HttpURLConnection.HTTP_ENTITY_TOO_LARGE:
+                                // TODO The payload was too large, despite filtering prior to upload
+                                // Only solution in this case is to compress the file and retry, or
+                                // decompose and redistribute the payload,
+                                // logDataFile = compress(logDataFile, false);
+                                break;
 
-                        // Upload was throttled
-                        case 429:
-                            break;
+                            // Upload was throttled
+                            case 429:
+                                break;
 
-                        // Payload was rejected
-                        case HttpsURLConnection.HTTP_INTERNAL_ERROR:
-                            break;
+                            // Payload was rejected
+                            case HttpsURLConnection.HTTP_INTERNAL_ERROR:
+                                break;
 
-                        default:
-                            break;
+                            default:
+                                break;
+                        }
+
+                        return logForwarder.isSuccessfulResponse();
                     }
-
-                    return logForwarder.isSuccessfulResponse();
                 }
 
             } else {
