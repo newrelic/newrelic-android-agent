@@ -89,48 +89,19 @@ class AGP4Adapter extends VariantAdapter {
 
     @Override
     TaskProvider getConfigProvider(String variantName, Action action = null) {
-        def variant = withVariant(variantName)
         def configTaskProvider = registerOrNamed("${NewRelicConfigTask.NAME}${variantName.capitalize()}", NewRelicConfigTask.class, action)
 
         try {
-            def buildConfigProvider = variant.getGenerateBuildConfigProvider()
-            if (buildConfigProvider?.isPresent()) {
-                def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.name}")
-
-                try {
-                    variant.registerJavaGeneratingTask(configTaskProvider, genSrcFolder.get().asFile)
-                } catch (Exception e) {
-                    logger.error("getConfigProvider: $e")
-                }
-
-                try {
-                    variant.addJavaSourceFoldersToModel(genSrcFolder.get().asFile)
-                } catch (Exception e) {
-                    logger.warn("getConfigProvider: $e")
-                }
-
-                // must manually update the Kotlin compile tasks source sets (per variant)
-                try {
-                    buildHelper.project.tasks.named("compile${variantName.capitalize()}Kotlin") { kotlinCompileTask ->
-                        kotlinCompileTask.dependsOn(configTaskProvider)
-                        kotlinCompileTask.source(objectFactory.sourceDirectorySet(configTaskProvider.name, configTaskProvider.name)
-                                .srcDir(genSrcFolder))
-                    }
-                } catch (Exception ignored) {
-                    // Kotlin source not present or task has started
-                }
-
-                return configTaskProvider
-
-            } else {
-                logger.error("getConfigProvider: buildConfig NOT finalized: buildConfig task was not found")
+            // Wire the generated assets directory into the variant's merge assets task
+            def mergeAssetsTaskName = "merge${variantName.capitalize()}Assets"
+            buildHelper.project.tasks.named(mergeAssetsTaskName) { mergeTask ->
+                mergeTask.dependsOn(configTaskProvider)
             }
-
         } catch (Exception e) {
-            logger.error("getConfigProvider: $e")
+            logger.warn("getConfigProvider: Could not wire to mergeAssets task: $e")
         }
 
-        return null
+        return configTaskProvider
     }
 
     @Override
@@ -185,16 +156,26 @@ class AGP4Adapter extends VariantAdapter {
     def wiredWithConfigProvider(String variantName) {
         def configProvider = super.wiredWithConfigProvider(variantName)
 
-        withVariant(variantName).with { variant ->
+        // Wire generated assets into the merge assets source set
+        try {
+            def genAssetsFolder = configProvider.flatMap { it.assetsOutputDir }
+            android.sourceSets.getByName(variantName) { sourceSet ->
+                sourceSet.assets.srcDir(genAssetsFolder)
+            }
+        } catch (Exception ignored) {
+            // Fall back to main source set if variant-specific one doesn't exist
             try {
-                variant.getGenerateBuildConfigProvider().configure {
-                    it.finalizedBy(configProvider)
+                def buildType = withBuildType(variantName)
+                def genAssetsFolder = configProvider.flatMap { it.assetsOutputDir }
+                android.sourceSets.getByName(buildType.buildType) { sourceSet ->
+                    sourceSet.assets.srcDir(genAssetsFolder)
                 }
-            } catch (Exception ignored) {
-                ignored
+            } catch (Exception alsoIgnored) {
+                logger.warn("Could not wire generated assets for variant ${variantName}")
             }
         }
 
+        return configProvider
     }
 
     @Override

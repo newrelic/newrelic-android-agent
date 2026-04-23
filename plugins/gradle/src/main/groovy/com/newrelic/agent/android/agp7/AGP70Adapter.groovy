@@ -152,23 +152,9 @@ class AGP70Adapter extends VariantAdapter {
 
         withVariant(variantName).with { variant ->
             try {
-                variant.sources.java.addGeneratedSourceDirectory(configProvider, { it.getSourceOutputDir() })
+                variant.sources.assets.addGeneratedSourceDirectory(configProvider, { it.getAssetsOutputDir() })
             } catch (Exception ignored) {
-                //  FIXME
-                logger.debug("${GradleVersion.current()} does not provide addGeneratedSourceDirectory() on the Java sources instance.")
-            }
-        }
-
-        buildHelper.project.afterEvaluate {
-            def wiredTaskNames = Set.of(
-                    "generate${variantName.capitalize()}BuildConfig",
-                    "javaPreCompile${variantName.capitalize()}",
-            )
-
-            buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { taskProvider ->
-                taskProvider.configure { dependencyTask ->
-                    dependencyTask.finalizedBy(configProvider)
-                }
+                logger.debug("${GradleVersion.current()} does not provide addGeneratedSourceDirectory() on the assets sources instance.")
             }
         }
 

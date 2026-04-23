@@ -46,9 +46,9 @@ class NewRelicConfigTaskTest extends PluginTest {
     }
 
     @Test
-    void getSourceOutputDir() {
-        def f = provider.getSourceOutputDir().file(provider.CONFIG_CLASS).get().asFile
-        Assert.assertTrue(f.absolutePath.endsWith(NewRelicConfigTask.CONFIG_CLASS))
+    void getAssetsOutputDir() {
+        def f = provider.getAssetsOutputDir().file(provider.CONFIG_FILE).get().asFile
+        Assert.assertTrue(f.absolutePath.endsWith(NewRelicConfigTask.CONFIG_FILE))
 
         provider.newRelicConfigTask()
         Assert.assertTrue(f.exists())
@@ -67,7 +67,7 @@ class NewRelicConfigTaskTest extends PluginTest {
 
     @Test
     void verifyMetadata() {
-        def f = provider.getSourceOutputDir().file(provider.METADATA).get().asFile
+        def f = provider.getAssetsOutputDir().file(provider.METADATA).get().asFile
         Assert.assertTrue(f.absolutePath.endsWith(NewRelicConfigTask.METADATA))
 
         provider.newRelicConfigTask()
