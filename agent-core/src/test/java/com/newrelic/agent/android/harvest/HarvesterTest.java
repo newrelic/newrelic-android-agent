@@ -542,6 +542,54 @@ public class HarvesterTest {
                             harvester.getHarvestData().getDataToken());
     }
 
+    @Test
+    public void testFireOnSessionRestarted_NotifiesListeners() {
+        Assert.assertFalse(testAdapter.didSessionRestart());
+
+        harvester.fireOnSessionRestarted();
+
+        Assert.assertTrue("Listener should receive onSessionRestarted callback",
+                testAdapter.didSessionRestart());
+    }
+
+    @Test
+    public void testNotifySessionRestarted_DelegatesToHarvester() {
+        Assert.assertFalse(testAdapter.didSessionRestart());
+
+        Harvest.notifySessionRestarted();
+
+        Assert.assertTrue("Harvest.notifySessionRestarted should fire onSessionRestarted on listeners",
+                testAdapter.didSessionRestart());
+    }
+
+    @Test
+    public void testCheckAndResetSessionIfExpired_FiresOnSessionRestarted() throws Exception {
+        setupMockHarvestWithSessionTime(FIVE_HOURS_MS);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        harvester.addHarvestListener(new HarvestAdapter() {
+            @Override
+            public void onSessionRestarted() {
+                latch.countDown();
+            }
+        });
+
+        harvester.checkAndResetSessionIfExpired();
+
+        Assert.assertTrue("onSessionRestarted should fire when session expires",
+                latch.await(CONCURRENT_TEST_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testCheckAndResetSessionIfExpired_DoesNotFireWhenUnderLimit() {
+        setupMockHarvestWithSessionTime(TWO_HOURS_MS);
+
+        harvester.checkAndResetSessionIfExpired();
+
+        Assert.assertFalse("onSessionRestarted should NOT fire when session is under the limit",
+                testAdapter.didSessionRestart());
+    }
+
     private Harvest setupMockHarvestWithSessionTime(long sessionTimeMs) {
         HarvestTimer mockHarvestTimer = Mockito.spy(new HarvestTimer(harvester));
         Mockito.doReturn(sessionTimeMs).when(mockHarvestTimer).sessionTimeSinceStart();

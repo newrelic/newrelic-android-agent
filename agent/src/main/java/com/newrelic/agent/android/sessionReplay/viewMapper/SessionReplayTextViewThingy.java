@@ -80,8 +80,8 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
             // Use instanceof EditText to determine if it's user input vs static text
             boolean isEditableInput = view instanceof android.widget.EditText;
             shouldMaskText = isEditableInput
-                ? sessionReplayConfiguration.isMaskUserInputText()
-                : sessionReplayConfiguration.isMaskApplicationText();
+                ? (sessionReplayConfiguration.isMaskUserInputText() || sessionReplayLocalConfiguration.isMaskUserInputText())
+                : (sessionReplayConfiguration.isMaskApplicationText() || sessionReplayLocalConfiguration.isMaskApplicationText());
         }
 
         // Apply masking if needed

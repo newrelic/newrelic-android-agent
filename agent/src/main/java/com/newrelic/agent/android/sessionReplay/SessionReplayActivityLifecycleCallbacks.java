@@ -3,7 +3,8 @@ package com.newrelic.agent.android.sessionReplay;
 import android.app.Activity;
 import android.app.Application;
 import android.os.Bundle;
-import android.util.Log;
+import com.newrelic.agent.android.logging.AgentLog;
+import com.newrelic.agent.android.logging.AgentLogManager;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewParent;
@@ -30,7 +31,7 @@ import kotlin.jvm.functions.Function1;
 import com.newrelic.agent.android.util.ComposeChecker;
 
 public class SessionReplayActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
-    private static final String TAG = "SessionReplayActivityLifecycleCallbacks";
+    private static final AgentLog log = AgentLogManager.getAgentLog();
     private final float density;
     private int currentTouchId = -1;
     private TouchTracker currentTouchTracker = null;
@@ -68,31 +69,31 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
-        Log.d(TAG, "onActivityResumed: " + activity.getClass().getSimpleName());
+        log.debug("onActivityResumed: " + activity.getClass().getSimpleName());
 
         Curtains.getOnRootViewsChangedListeners().add((view, added) -> setupTouchInterceptorForWindow(view));
     }
 
     public void setupTouchInterceptorForWindow(View view) {
         boolean shouldMaskTouches = sessionReplayConfiguration.isMaskAllUserTouches();
-        Log.d(TAG, "setupTouchInterceptorForWindow called");
+        log.debug("setupTouchInterceptorForWindow called");
         Windows.WindowType windowType = Windows.getWindowType(view);
         if (windowType == Windows.WindowType.POPUP_WINDOW) {
             return;
         }
         Window window = Windows.getPhoneWindowForView(view);
         if (window == null) {
-            Log.d(TAG, "Window is null for view: " + view.getClass().getSimpleName());
+            log.debug("Window is null for view: " + view.getClass().getSimpleName());
             return;
         }
 
         // Check if this window already has interceptors registered - if yes, skip to prevent duplicates
         if (!WindowCallbackWrapper.Companion.getListeners(window).getTouchEventInterceptors().isEmpty()) {
-            Log.d(TAG, "Touch interceptor already exists for this window, skipping setup");
+            log.debug("Touch interceptor already exists for this window, skipping setup");
             return;
         }
 
-        Log.d(TAG, "Adding new touch interceptor for window");
+        log.debug("Adding new touch interceptor for window");
 
         OnTouchEventListener touchEventInterceptor = new OnTouchEventListener() {
 
@@ -132,24 +133,23 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
                     }
                 }
                 if (currentTouchTracker == null && containingTouchViewId != -1) {
-                    Log.d(TAG, "Adding Start Event");
+                    log.audit("Adding Start Event");
                     currentTouchId = containingTouchViewId;
                     moveTouch = new RecordedTouchData(0, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                     currentTouchTracker = new TouchTracker(moveTouch);
                 } else if (containingTouchViewId == -1) {
-                    Log.d(TAG, "TOUCH LOST: Unable to find originating View.");
+                    log.debug("TOUCH LOST: Unable to find originating View.");
                 }
             } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_MOVE) {
                 if (SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker != null) {
-                    Log.d(TAG, "Adding Move Event");
                     moveTouch = new RecordedTouchData(2, currentTouchId, getPixel(pointerCoords.x), SessionReplayActivityLifecycleCallbacks.this.getPixel(pointerCoords.y), timestamp);
                     SessionReplayActivityLifecycleCallbacks.this.currentTouchTracker.addMoveTouch(moveTouch);
                 }
             } else if (motionEvent.getActionMasked() == MotionEvent.ACTION_UP && currentTouchTracker != null) {
-                Log.d(TAG, "Adding End Event");
+                log.audit("Adding End Event");
                 moveTouch = new RecordedTouchData(1, currentTouchId, getPixel(pointerCoords.x), getPixel(pointerCoords.y), timestamp);
                 currentTouchTracker.addEndTouch(moveTouch);
-                Log.d(TAG, "Calling onTouchRecorded for touch tracker: " + System.identityHashCode(currentTouchTracker));
+                log.audit("Calling onTouchRecorded for touch tracker: " + System.identityHashCode(currentTouchTracker));
                 if(modeManager.getCurrentMode() != SessionReplayMode.OFF) {
                     SessionReplayActivityLifecycleCallbacks.this.onTouchRecordedListener.onTouchRecorded(currentTouchTracker);
                 }
@@ -161,7 +161,7 @@ public class SessionReplayActivityLifecycleCallbacks implements Application.Acti
 
         // Add interceptor to window
         WindowCallbackWrapper.Companion.getListeners(window).getTouchEventInterceptors().add(touchEventInterceptor);
-        Log.d(TAG, "Touch interceptor successfully added");
+        log.debug("Touch interceptor successfully added");
     }
 
 

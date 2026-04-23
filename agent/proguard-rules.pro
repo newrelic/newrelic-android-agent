@@ -33,4 +33,23 @@
 -keep interface com.google.gson.** { *; }
 
 
+# Add any project specific keep options here:
+# CSSBackgroundDrawable (React Native 0.74+)
+-keep class com.facebook.react.uimanager.drawable.CSSBackgroundDrawable {
+    int mColor;
+}
 
+# ReactViewBackgroundDrawable (React Native older versions)
+-keep class com.facebook.react.views.view.ReactViewBackgroundDrawable {
+    int mColor;
+}
+
+# BackgroundDrawable (React Native middle versions)
+-keep class com.facebook.react.uimanager.drawable.BackgroundDrawable {
+    int backgroundColor;
+}
+
+# CompositeBackgroundDrawable (React Native various versions)
+-keep class com.facebook.react.uimanager.drawable.CompositeBackgroundDrawable {
+    android.graphics.drawable.Drawable background;
+}

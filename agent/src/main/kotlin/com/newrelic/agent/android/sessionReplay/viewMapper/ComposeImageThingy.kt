@@ -1,10 +1,10 @@
-package com.newrelic.agent.android.sessionReplay.compose
+package com.newrelic.agent.android.sessionReplay.viewMapper
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.PorterDuff
-import android.util.Log
+import com.newrelic.agent.android.logging.AgentLogManager
 import android.util.LruCache
 import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -14,10 +14,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.core.graphics.createBitmap
 import com.newrelic.agent.android.AgentConfiguration
-import com.newrelic.agent.android.sessionReplay.internal.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
-import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface
+import com.newrelic.agent.android.sessionReplay.compose.ComposePrivacyUtils
+import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants
+import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails
 import com.newrelic.agent.android.sessionReplay.internal.ComposePainterReflectionUtils
+import com.newrelic.agent.android.sessionReplay.internal.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
@@ -47,7 +49,7 @@ open class ComposeImageThingy(
 ) : SessionReplayViewThingyInterface {
 
     companion object {
-        private const val LOG_TAG = ComposeSessionReplayConstants.LogTags.COMPOSE_IMAGE
+        private val log = AgentLogManager.getAgentLog()
 
         // Static cache shared across all instances
         private const val MAX_CACHE_SIZE_BYTES = 50 * 1024 * 1024 // 50MB
@@ -66,7 +68,7 @@ open class ComposeImageThingy(
          */
         fun clearImageCache() {
             imageCache.evictAll()
-            Log.d(LOG_TAG, "Image cache cleared")
+            log.debug("Image cache cleared")
         }
 
         /**
@@ -100,7 +102,7 @@ open class ComposeImageThingy(
                 try {
                     imageData = extractImageFromModifierInfo()
                 } catch (e: Exception) {
-                    Log.e(LOG_TAG, "Error extracting image", e)
+                    log.error("Error extracting image", e)
                 }
         }
     }
@@ -132,7 +134,7 @@ open class ComposeImageThingy(
                 }
             }
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting image from modifier info", e)
+            log.error("Error extracting image from modifier info", e)
         }
 
         return null
@@ -149,7 +151,7 @@ open class ComposeImageThingy(
 
             val cachedData = imageCache.get(cacheKey)
             if (cachedData != null) {
-                Log.d(LOG_TAG, "Cache hit for image: $cacheKey")
+                log.debug("Cache hit for image: $cacheKey")
                 return cachedData
             }
 
@@ -179,12 +181,12 @@ open class ComposeImageThingy(
                 val base64Data = bitmapToBase64(bitmap)
                 if (base64Data != null) {
                     imageCache.put(cacheKey, base64Data)
-                    Log.d(LOG_TAG, "Cached image data for key: $cacheKey")
+                    log.debug("Cached image data for key: $cacheKey")
                 }
                 return base64Data
             }
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error converting painter to Base64", e)
+            log.error("Error converting painter to Base64", e)
         }
 
         return null
@@ -210,7 +212,7 @@ open class ComposeImageThingy(
             }
 
             if (width <= 0 || height <= 0) {
-                Log.w(LOG_TAG, "Invalid dimensions for VectorPainter: ${width}x${height}")
+                log.warn("Invalid dimensions for VectorPainter: ${width}x${height}")
                 return null
             }
 
@@ -218,27 +220,27 @@ open class ComposeImageThingy(
             val cachedBitmap =
                 ComposePainterReflectionUtils.extractCachedBitmapFromVectorPainter(vectorPainter)
             if (cachedBitmap != null) {
-                Log.d(LOG_TAG, "Successfully extracted cached bitmap from VectorPainter")
+                log.debug("Successfully extracted cached bitmap from VectorPainter")
                 return cachedBitmap
             }
-            Log.w(LOG_TAG, "Could not extract vector data from VectorPainter using reflection")
+            log.warn("Could not extract vector data from VectorPainter using reflection")
             return null
 
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error creating bitmap from VectorPainter", e)
+            log.error("Error creating bitmap from VectorPainter", e)
             return null
         }
     }
 
     private fun extractBitmapFromAsyncImagePainter(asyncImagePainter: Painter): Bitmap? {
         try {
-            Log.d(LOG_TAG, "Attempting to extract bitmap from AsyncImagePainter")
+            log.debug("Attempting to extract bitmap from AsyncImagePainter")
 
             // Direct path: asyncImagePainter.painter._painter.image.bitmap
             val bitmap =
                 ComposePainterReflectionUtils.extractBitmapFromAsyncImagePath(asyncImagePainter)
             if (bitmap != null) {
-                Log.d(LOG_TAG, "Successfully extracted bitmap from AsyncImagePainter path")
+                log.debug("Successfully extracted bitmap from AsyncImagePainter path")
                 return bitmap
             }
 
@@ -246,7 +248,7 @@ open class ComposeImageThingy(
             val delegatePainter =
                 ComposePainterReflectionUtils.getDelegatePainter(asyncImagePainter)
             if (delegatePainter != null) {
-                Log.d(LOG_TAG, "Found delegate painter: ${delegatePainter.javaClass.simpleName}")
+                log.debug("Found delegate painter: ${delegatePainter.javaClass.simpleName}")
                 return when (delegatePainter) {
                     is BitmapPainter -> extractBitmapFromBitmapPainter(
                         delegatePainter
@@ -261,11 +263,11 @@ open class ComposeImageThingy(
             }
 
             // Final fallback: Create a loading placeholder for AsyncImage
-            Log.w(LOG_TAG, "Could not extract bitmap from AsyncImagePainter, creating placeholder")
+            log.warn("Could not extract bitmap from AsyncImagePainter, creating placeholder")
             return null
 
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error extracting bitmap from AsyncImagePainter", e)
+            log.error("Error extracting bitmap from AsyncImagePainter", e)
             return null
         }
     }
@@ -295,11 +297,11 @@ open class ComposeImageThingy(
             // This is a simplified approach - in practice, drawing a Compose Painter
             // to an Android Canvas would require more complex integration
             // For now, we'll return null to indicate we couldn't convert this painter type
-            Log.d(LOG_TAG, "Cannot directly draw Compose Painter to Android Canvas")
+            log.debug("Cannot directly draw Compose Painter to Android Canvas")
             return bitmap
 
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error creating bitmap from painter", e)
+            log.error("Error creating bitmap from painter", e)
             return null
         }
     }

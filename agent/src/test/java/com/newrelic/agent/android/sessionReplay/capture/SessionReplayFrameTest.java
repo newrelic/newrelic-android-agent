@@ -3,13 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.capture;
 
 import android.content.Context;
 import android.view.View;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFrame;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ViewDetails;
 
 import org.junit.Assert;
