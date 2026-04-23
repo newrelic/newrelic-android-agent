@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.newrelic.agent.android.sessionReplay;
+package com.newrelic.agent.android.sessionReplay.touch;
 
 import android.content.Context;
 import android.view.View;
@@ -15,6 +15,7 @@ import android.widget.TextView;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.sessionReplay.touch.ViewTouchHandler;
 
 import org.junit.Assert;
 import org.junit.Before;

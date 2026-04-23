@@ -1,6 +1,6 @@
 package com.newrelic.agent.android.sessionReplay.compose
 
-import android.util.Log
+import com.newrelic.agent.android.logging.AgentLogManager
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -65,7 +65,7 @@ import java.lang.reflect.Field
 class BackgroundNodeGetter : ReflectionBaseGetter(TARGET_CLASS_NAME) {
 
     companion object {
-        private const val LOG_TAG = "BackgroundNodeGetter"
+        private val log = AgentLogManager.getAgentLog()
         private const val TARGET_CLASS_NAME = "androidx.compose.foundation.BackgroundNode"
 
         // Field names in BackgroundNode
@@ -135,12 +135,12 @@ class BackgroundNodeGetter : ReflectionBaseGetter(TARGET_CLASS_NAME) {
                     Color(colorValue)
                 }
                 else -> {
-                    Log.d(LOG_TAG, "Color field value is not Long/ULong: ${colorValue?.javaClass?.simpleName}")
+                    log.debug("Color field value is not Long/ULong: ${colorValue?.javaClass?.simpleName}")
                     Color.Unspecified
                 }
             }
         } catch (e: Exception) {
-            Log.w(LOG_TAG, "Error getting color from BackgroundNode", e)
+            log.warn("Error getting color from BackgroundNode: ${e.message}")
             Color.Unspecified
         }
     }
@@ -177,12 +177,12 @@ class BackgroundNodeGetter : ReflectionBaseGetter(TARGET_CLASS_NAME) {
                 brushValue
             } else {
                 if (brushValue != null) {
-                    Log.d(LOG_TAG, "Brush field value is not Brush: ${brushValue.javaClass.simpleName}")
+                    log.debug("Brush field value is not Brush: ${brushValue.javaClass.simpleName}")
                 }
                 null
             }
         } catch (e: Exception) {
-            Log.w(LOG_TAG, "Error getting brush from BackgroundNode", e)
+            log.warn("Error getting brush from BackgroundNode: ${e.message}")
             null
         }
     }
@@ -220,13 +220,13 @@ class BackgroundNodeGetter : ReflectionBaseGetter(TARGET_CLASS_NAME) {
                 is Number -> alphaValue.toFloat()
                 else -> {
                     if (alphaValue != null) {
-                        Log.d(LOG_TAG, "Alpha field value is not Float: ${alphaValue.javaClass.simpleName}")
+                        log.debug("Alpha field value is not Float: ${alphaValue.javaClass.simpleName}")
                     }
                     1.0f // Default: fully opaque
                 }
             }
         } catch (e: Exception) {
-            Log.w(LOG_TAG, "Error getting alpha from BackgroundNode", e)
+            log.warn("Error getting alpha from BackgroundNode: ${e.message}")
             1.0f // Default: fully opaque
         }
     }
@@ -268,12 +268,12 @@ class BackgroundNodeGetter : ReflectionBaseGetter(TARGET_CLASS_NAME) {
                 shapeValue
             } else {
                 if (shapeValue != null) {
-                    Log.d(LOG_TAG, "Shape field value is not Shape: ${shapeValue.javaClass.simpleName}")
+                    log.debug("Shape field value is not Shape: ${shapeValue.javaClass.simpleName}")
                 }
                 null
             }
         } catch (e: Exception) {
-            Log.w(LOG_TAG, "Error getting shape from BackgroundNode", e)
+            log.warn("Error getting shape from BackgroundNode: ${e.message}")
             null
         }
     }

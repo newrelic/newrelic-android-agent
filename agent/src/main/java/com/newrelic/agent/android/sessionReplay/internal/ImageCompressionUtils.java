@@ -4,7 +4,8 @@ import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.util.Base64;
-import android.util.Log;
+import com.newrelic.agent.android.logging.AgentLog;
+import com.newrelic.agent.android.logging.AgentLogManager;
 
 import androidx.annotation.WorkerThread;
 
@@ -15,7 +16,7 @@ import java.io.ByteArrayOutputStream;
  * Used by both SessionReplayImageViewThingy and ComposeImageThingy
  */
 public class ImageCompressionUtils {
-    private static final String LOG_TAG = "ImageCompressionUtils";
+    private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final int DEFAULT_WEBP_QUALITY = 10;
 
     /**
@@ -57,7 +58,7 @@ public class ImageCompressionUtils {
                 byte[] byteArray = byteArrayOutputStream.toByteArray();
                 return Base64.encodeToString(byteArray, Base64.NO_WRAP);
             } catch (Exception e) {
-                Log.e(LOG_TAG, "Error converting bitmap to Base64", e);
+                log.error("Error converting bitmap to Base64: " + e.getMessage());
                 return null;
             }
         } catch (Exception ignored) {

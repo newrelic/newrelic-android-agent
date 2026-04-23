@@ -136,7 +136,7 @@ public class SessionReplayFileManager {
                             currentWriter.flush();
                         }
                     } catch (IOException e) {
-                        log.error("Error writing frame to file", e);
+                        log.error("Error writing " + rrWebEvents.size() + " frame event(s) to file: " + e.getMessage(), e);
                     }
                 }
                 return null;
@@ -174,7 +174,7 @@ public class SessionReplayFileManager {
                             currentWriter.flush();
                         }
                     } catch (IOException e) {
-                        log.error("Error writing touch data to file", e);
+                        log.error("Error writing touch data to file: " + e.getMessage(), e);
                     }
                 }
                 return null;

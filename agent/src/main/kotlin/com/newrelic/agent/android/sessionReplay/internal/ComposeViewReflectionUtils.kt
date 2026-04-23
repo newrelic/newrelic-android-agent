@@ -1,6 +1,6 @@
 package com.newrelic.agent.android.sessionReplay.internal
 
-import android.util.Log
+import com.newrelic.agent.android.logging.AgentLogManager
 import android.view.View
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsOwner
@@ -10,7 +10,7 @@ import androidx.compose.ui.semantics.SemanticsOwner
  * Used to access internal Compose classes like AndroidComposeView
  */
 object ComposeViewReflectionUtils {
-    private const val LOG_TAG = "ComposeViewReflectionUtils"
+    private val log = AgentLogManager.getAgentLog()
 
     /**
      * Gets the SemanticsOwner from an AndroidComposeView using reflection
@@ -34,11 +34,11 @@ object ComposeViewReflectionUtils {
                 }
             }
         } catch (e: ClassNotFoundException) {
-            Log.w(LOG_TAG, "AndroidComposeView class not found. Compose may not be available.", e)
+            log.warn("AndroidComposeView class not found. Compose may not be available: ${e.message}")
         } catch (e: NoSuchMethodException) {
-            Log.w(LOG_TAG, "getSemanticsOwner method not found on AndroidComposeView", e)
+            log.warn("getSemanticsOwner method not found on AndroidComposeView: ${e.message}")
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error getting SemanticsOwner from AndroidComposeView", e)
+            log.error("Error getting SemanticsOwner from AndroidComposeView", e)
         }
         return null
     }
@@ -59,9 +59,9 @@ object ComposeViewReflectionUtils {
                 return semanticsNode
             }
         } catch (e: NoSuchMethodException) {
-            Log.w(LOG_TAG, "getUnmergedRootSemanticsNode method not found on SemanticsOwner", e)
+            log.warn("getUnmergedRootSemanticsNode method not found on SemanticsOwner: ${e.message}")
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error getting unmerged root SemanticsNode", e)
+            log.error("Error getting unmerged root SemanticsNode", e)
         }
         return null
     }
@@ -79,7 +79,7 @@ object ComposeViewReflectionUtils {
         } catch (e: ClassNotFoundException) {
             false
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Error checking if view is AndroidComposeView", e)
+            log.error("Error checking if view is AndroidComposeView", e)
             false
         }
     }
