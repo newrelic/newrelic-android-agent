@@ -45,6 +45,8 @@ public class ErrorTests {
     public static void setUpClass() {
        TestStubAgentImpl.install();
 
+        NewRelicConfig.installTestConfig();
+
         AgentConfiguration agentConfiguration = new AgentConfiguration();
         agentConfiguration.setApplicationToken(CrashTests.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);

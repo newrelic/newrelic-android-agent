@@ -64,8 +64,8 @@ class PluginRegressionSpec extends PluginSpec {
                         task(":feature:${ClassTransformWrapperTask.NAME}${var.capitalize()}")?.outcome == SUCCESS)
                 [NewRelicConfigTask.NAME].each { task ->
                     buildResult.task(":${task}${var.capitalize()}").outcome == SUCCESS
-                    def configClass = new File(buildDir, "/intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
-                    configClass.exists() && configClass.canRead()
+                    def configFile = new File(buildDir, "/generated/assets/newrelicConfig${var.capitalize()}/${NewRelicConfigTask.CONFIG_FILE}")
+                    configFile.exists() && configFile.canRead()
                 }
             }
             mapUploadVariants.each { var ->

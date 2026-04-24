@@ -18,5 +18,12 @@ public final class NewRelicConfig {
     public static String getBuildId() {
         return BUILD_ID;
     }
+
+    /**
+     * Install test config values into Agent. Call from test @BeforeClass methods.
+     */
+    public static void installTestConfig() {
+        Agent.setNewRelicConfig(BUILD_ID, OBFUSCATED);
+    }
 }
 
