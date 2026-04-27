@@ -35,21 +35,23 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
         this.viewDetails = viewDetails;
         this.isChecked = view.isChecked();
         this.isRadioButton = view instanceof RadioButton;
-        this.isToggle = view instanceof Switch || view instanceof ToggleButton;
+        this.isToggle = view instanceof Switch || view instanceof ToggleButton || view.getClass().getName().contains("Switch");
     }
 
     @Override
     public RRWebElementNode generateRRWebNode() {
         // Create the <input type="checkbox|radio"> element
-        String inputType = isRadioButton ? "radio" : "checkbox";
+
         Attributes inputAttrs = new Attributes("");
-        inputAttrs.type = inputType;
-        inputAttrs.inputType = inputType;
         if (isChecked) {
             inputAttrs.checked = true;
         }
         if (isToggle) {
             inputAttrs.dataNrType = "toggle";
+        } else {
+            String inputType = isRadioButton ? "radio" : "checkbox";
+            inputAttrs.type = inputType;
+            inputAttrs.inputType = inputType;
         }
         RRWebElementNode inputNode = new RRWebElementNode(
                 inputAttrs,
@@ -95,14 +97,15 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
 
         if (hasCheckedChange) {
             Attributes attributes = new Attributes("");
-            String inputType = isRadioButton ? "radio" : "checkbox";
-            attributes.type = inputType;
-            attributes.inputType = inputType;
             if (otherButton.isChecked) {
                 attributes.checked = true;
             }
             if (isToggle) {
                 attributes.dataNrType = "toggle";
+            } else {
+                String inputType = isRadioButton ? "radio" : "checkbox";
+                attributes.type = inputType;
+                attributes.inputType = inputType;
             }
             mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
         }
@@ -115,13 +118,14 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
         // Create the <input> element
         String inputType = isRadioButton ? "radio" : "checkbox";
         Attributes inputAttrs = new Attributes("");
-        inputAttrs.type = inputType;
-        inputAttrs.inputType = inputType;
         if (isChecked) {
             inputAttrs.checked = true;
         }
         if (isToggle) {
             inputAttrs.dataNrType = "toggle";
+        } else {
+            inputAttrs.type = inputType;
+            inputAttrs.inputType = inputType;
         }
         RRWebElementNode inputNode = new RRWebElementNode(
                 inputAttrs,
