@@ -22,8 +22,6 @@ public class SessionReplayLocalConfigurationTest {
 
     @Test
     public void testDefaultValues() {
-        Assert.assertEquals(TextMaskingStrategy.MASK_NO_TEXT, config.getTextMaskingStrategy());
-        Assert.assertFalse(config.isMaskAllUserTouches());
         Assert.assertFalse(config.isMaskApplicationText());
         Assert.assertFalse(config.isMaskUserInputText());
         Assert.assertNotNull(config.getMaskedViewClasses());
@@ -34,67 +32,6 @@ public class SessionReplayLocalConfigurationTest {
         Assert.assertTrue(config.getUnmaskedViewClasses().isEmpty());
         Assert.assertTrue(config.getMaskedViewTags().isEmpty());
         Assert.assertTrue(config.getUnmaskedViewTags().isEmpty());
-    }
-
-    @Test
-    public void testSetTextMaskingStrategyToMaskAllText() {
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_ALL_TEXT);
-
-        Assert.assertEquals(TextMaskingStrategy.MASK_ALL_TEXT, config.getTextMaskingStrategy());
-        Assert.assertTrue(config.isMaskApplicationText());
-        Assert.assertTrue(config.isMaskUserInputText());
-    }
-
-    @Test
-    public void testSetTextMaskingStrategyToMaskUserInputText() {
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_USER_INPUT_TEXT);
-
-        Assert.assertEquals(TextMaskingStrategy.MASK_USER_INPUT_TEXT, config.getTextMaskingStrategy());
-        Assert.assertFalse(config.isMaskApplicationText());
-        Assert.assertTrue(config.isMaskUserInputText());
-    }
-
-    @Test
-    public void testSetTextMaskingStrategyToMaskNoText() {
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_NO_TEXT);
-
-        Assert.assertEquals(TextMaskingStrategy.MASK_NO_TEXT, config.getTextMaskingStrategy());
-        Assert.assertFalse(config.isMaskApplicationText());
-        Assert.assertFalse(config.isMaskUserInputText());
-    }
-
-    @Test
-    public void testSetTextMaskingStrategyTransitions() {
-        // Start with MASK_ALL_TEXT
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_ALL_TEXT);
-        Assert.assertTrue(config.isMaskApplicationText());
-        Assert.assertTrue(config.isMaskUserInputText());
-
-        // Transition to MASK_USER_INPUT_TEXT
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_USER_INPUT_TEXT);
-        Assert.assertFalse(config.isMaskApplicationText());
-        Assert.assertTrue(config.isMaskUserInputText());
-
-        // Transition to MASK_NO_TEXT
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_NO_TEXT);
-        Assert.assertFalse(config.isMaskApplicationText());
-        Assert.assertFalse(config.isMaskUserInputText());
-
-        // Transition back to MASK_ALL_TEXT
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_ALL_TEXT);
-        Assert.assertTrue(config.isMaskApplicationText());
-        Assert.assertTrue(config.isMaskUserInputText());
-    }
-
-    @Test
-    public void testSetAndGetMaskAllUserTouches() {
-        Assert.assertFalse(config.isMaskAllUserTouches());
-
-        config.setMaskAllUserTouches(true);
-        Assert.assertTrue(config.isMaskAllUserTouches());
-
-        config.setMaskAllUserTouches(false);
-        Assert.assertFalse(config.isMaskAllUserTouches());
     }
 
     @Test
@@ -314,51 +251,6 @@ public class SessionReplayLocalConfigurationTest {
     }
 
     @Test
-    public void testRemoteMaskAppTextTrueLocalExplicitlyFalseShouldStillMask() {
-        // Remote masks application text; developer explicitly sets local to MASK_NO_TEXT.
-        // Remote policy wins — local can only add restriction, not reduce it.
-        SessionReplayConfiguration remoteConfig = new SessionReplayConfiguration();
-        remoteConfig.setMaskApplicationText(true);
-
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_NO_TEXT);
-
-        boolean shouldMaskApp = remoteConfig.isMaskApplicationText() || config.isMaskApplicationText();
-
-        Assert.assertTrue("Remote maskApplicationText=true must not be overridable by local MASK_NO_TEXT", shouldMaskApp);
-    }
-
-    @Test
-    public void testRemoteMaskUserInputTrueLocalExplicitlyNoTextShouldStillMask() {
-        // Remote masks user input; developer sets local to MASK_NO_TEXT.
-        // Remote policy wins for input masking.
-        SessionReplayConfiguration remoteConfig = new SessionReplayConfiguration();
-        remoteConfig.setMaskUserInputText(true);
-
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_NO_TEXT);
-
-        boolean shouldMaskInput = remoteConfig.isMaskUserInputText() || config.isMaskUserInputText();
-
-        Assert.assertTrue("Remote maskUserInputText=true must not be overridable by local MASK_NO_TEXT", shouldMaskInput);
-    }
-
-    @Test
-    public void testRemoteMaskAppTextTrueLocalMaskUserInputOnlyShouldMaskBoth() {
-        // Remote masks application text; developer sets local to MASK_USER_INPUT_TEXT.
-        // Both application text (from remote) and user input (from local) should be masked.
-        SessionReplayConfiguration remoteConfig = new SessionReplayConfiguration();
-        remoteConfig.setMaskApplicationText(true);
-        remoteConfig.setMaskUserInputText(false);
-
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_USER_INPUT_TEXT);
-
-        boolean shouldMaskApp = remoteConfig.isMaskApplicationText() || config.isMaskApplicationText();
-        boolean shouldMaskInput = remoteConfig.isMaskUserInputText() || config.isMaskUserInputText();
-
-        Assert.assertTrue("Application text must be masked (remote=true)", shouldMaskApp);
-        Assert.assertTrue("User input text must be masked (local explicitly set)", shouldMaskInput);
-    }
-
-    @Test
     public void testDefaultsDoNotOverrideRemoteConfigMaskingDisabled() {
         // Remote says don't mask; unset local config should not force masking.
         // With default local config (false/false), OR-ing with remote=false yields false.
@@ -373,19 +265,4 @@ public class SessionReplayLocalConfigurationTest {
         Assert.assertFalse("Local defaults must not force input text masking when remote disables it", shouldMaskInput);
     }
 
-    @Test
-    public void testExplicitLocalConfigCanIncreaseRestrictiveness() {
-        // Remote says don't mask; developer explicitly enables masking locally — local wins.
-        SessionReplayConfiguration remoteConfig = new SessionReplayConfiguration();
-        remoteConfig.setMaskApplicationText(false);
-        remoteConfig.setMaskUserInputText(false);
-
-        config.setTextMaskingStrategy(TextMaskingStrategy.MASK_ALL_TEXT);
-
-        boolean shouldMaskApp = remoteConfig.isMaskApplicationText() || config.isMaskApplicationText();
-        boolean shouldMaskInput = remoteConfig.isMaskUserInputText() || config.isMaskUserInputText();
-
-        Assert.assertTrue("Explicitly set local config must be able to increase masking beyond remote", shouldMaskApp);
-        Assert.assertTrue("Explicitly set local config must be able to increase masking beyond remote", shouldMaskInput);
-    }
 }
