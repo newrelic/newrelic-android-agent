@@ -20,9 +20,8 @@ import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
 import com.newrelic.agent.android.harvest.Harvest;
+import com.newrelic.agent.android.hybrid.JSErrorDataController;
 import com.newrelic.agent.android.harvest.HarvestTimer;
-import com.newrelic.agent.android.hybrid.StackTrace;
-import com.newrelic.agent.android.hybrid.data.DataController;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.AndroidAgentLog;
@@ -1123,8 +1122,8 @@ public final class NewRelic {
      *
      * @param stackTrace Stack trace of the exception
      */
-    public static boolean recordJSErrorException(StackTrace stackTrace) {
-        return DataController.sendAgentData(stackTrace);
+    public static boolean recordJavaScriptError(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
+        return JSErrorDataController.getInstance().sendJSErrorData(name, message, stackTrace, isFatal, additionalAttributes);
     }
 
     /**

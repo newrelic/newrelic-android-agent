@@ -1,4 +1,4 @@
-package com.newrelic.agent.android.aei;
+package com.newrelic.agent.android.error;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -10,6 +10,7 @@ import com.google.gson.JsonPrimitive;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentImpl;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.aei.AEISessionMapper;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.crash.CrashReporter;
@@ -24,16 +25,17 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.SafeJsonPrimitive;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 
 public class Error extends HarvestableObject {
     public static final int PROTOCOL_VERSION = 1;
+    public static final String ANALYTICS_EVENTS_KEY = "analyticsEvents";
+    public static final String DATA_TOKEN_KEY = "dataToken";
+    public static final String SESSION_ATTRIBUTES_KEY = "sessionAttributes";
 
     final private String agentName;
     final private String agentVersion;
@@ -168,7 +170,7 @@ public class Error extends HarvestableObject {
         //add AccountId as Session Attribute for Debug Purpose
         attrs.add(new AnalyticsAttribute(AnalyticsAttribute.HARVEST_ACCOUNT_ID_ATTRIBUTE, Harvest.getHarvestConfiguration().getAccount_id()));
 
-        return Collections.unmodifiableSet(attrs);
+        return attrs;
     }
 
     @Override
@@ -191,20 +193,20 @@ public class Error extends HarvestableObject {
                 attributeObject.add(attribute.getName(), attribute.asJsonElement());
             }
         }
-        data.add("sessionAttributes", attributeObject);
+        data.add(SESSION_ATTRIBUTES_KEY, attributeObject);
 
         // Always send session events
         JsonArray eventArray = new JsonArray();
         if (event != null) {
             eventArray.add(gson.toJsonTree(event));
         }
-        data.add("analyticsEvents", eventArray);
+        data.add(ANALYTICS_EVENTS_KEY, eventArray);
         data.add("dataToken", dataToken.asJsonArray());
 
         return data;
     }
 
-    public static Error ErrorFromJsonString(String json) {
+    public static Error errorFromJsonString(String json) {
         final JsonObject errorObject = JsonParser.parseString(json).getAsJsonObject();
 
         final String buildIdentifier = errorObject.get("buildId").getAsString();
@@ -215,14 +217,14 @@ public class Error extends HarvestableObject {
         error.deviceInfo = DeviceInfo.newFromJson(errorObject.get("deviceInfo").getAsJsonObject());
         error.applicationInfo = ApplicationInfo.newFromJson(errorObject.get("appInfo").getAsJsonObject());
 
-        if (errorObject.has("sessionAttributes")) {
-            final Set<AnalyticsAttribute> sessionAttributes = AnalyticsAttribute.newFromJson(errorObject.get("sessionAttributes").getAsJsonObject());
+        if (errorObject.has(SESSION_ATTRIBUTES_KEY)) {
+            final Set<AnalyticsAttribute> sessionAttributes = AnalyticsAttribute.newFromJson(errorObject.get(SESSION_ATTRIBUTES_KEY).getAsJsonObject());
             error.setSessionAttributes(sessionAttributes);
         }
 
-        if (errorObject.has("analyticsEvents")) {
+        if (errorObject.has(ANALYTICS_EVENTS_KEY)) {
             List<HashMap<String, Object>> events = new ArrayList<>();
-            for (JsonElement e : errorObject.get("analyticsEvents").getAsJsonArray()) {
+            for (JsonElement e : errorObject.get(ANALYTICS_EVENTS_KEY).getAsJsonArray()) {
                 events.add(gson.fromJson(e, new com.google.gson.reflect.TypeToken<HashMap<String, Object>>() {
                 }.getType()));
             }

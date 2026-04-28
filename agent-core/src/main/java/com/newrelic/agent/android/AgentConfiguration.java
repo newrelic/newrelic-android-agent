@@ -11,6 +11,7 @@ import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;
 import com.newrelic.agent.android.harvest.HarvestConfigurable;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
+import com.newrelic.agent.android.hybrid.JSErrorStore;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.LogLevel;
@@ -45,6 +46,9 @@ public class AgentConfiguration implements HarvestConfigurable {
     private static final String HEX_COLLECTOR_PATH = "/mobile/f";
     private static final int HEX_COLLECTOR_TIMEOUT = 5000; // 5 seconds
 
+    private static final String ERROR_COLLECTOR_PATH = "/mobile/errors";
+    private static final int ERROR_COLLECTOR_TIMEOUT = 5000;
+
     private static final int NUM_IO_THREADS = 3;    // Harvest + Crash + Flatbuffer
     private static final int PAYLOAD_TTL = 2 * 24 * 60 * 60 * 1000;    // 2 days in ms
 
@@ -70,6 +74,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
     private AnalyticsEventStore eventStore;
     private SessionReplayStore sessionReplayStore;
+    private JSErrorStore jsErrorStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
@@ -161,6 +166,14 @@ public class AgentConfiguration implements HarvestConfigurable {
         this.sessionReplayStore = sessionReplayStore;
     }
 
+    public JSErrorStore getJsErrorStore() {
+        return jsErrorStore;
+    }
+
+    public void setJsErrorStore(JSErrorStore jsErrorStore) {
+        this.jsErrorStore = jsErrorStore;
+    }
+
     public boolean getReportHandledExceptions() {
         return reportHandledExceptions;
     }
@@ -237,12 +250,24 @@ public class AgentConfiguration implements HarvestConfigurable {
         return HEX_COLLECTOR_PATH;
     }
 
+    public String getErrorCollectorPath() {
+        return ERROR_COLLECTOR_PATH;
+    }
+
     public String getHexCollectorHost() {
         return getCollectorHost();
     }
 
     public int getHexCollectorTimeout() {
         return HEX_COLLECTOR_TIMEOUT;
+    }
+
+    public String getErrorCollectorHost() {
+        return getCollectorHost();
+    }
+
+    public int getErrorCollectorTimeout() {
+        return ERROR_COLLECTOR_TIMEOUT;
     }
 
     public String getAppTokenHeader() {

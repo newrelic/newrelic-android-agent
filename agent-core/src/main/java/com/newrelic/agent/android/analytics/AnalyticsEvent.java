@@ -38,6 +38,7 @@ public class AnalyticsEvent extends HarvestableObject {
     public static final String EVENT_TYPE_MOBILE_CRASH = "MobileCrash";
     public static final String EVENT_TYPE_MOBILE_USER_ACTION = "MobileUserAction";
     public static final String EVENT_TYPE_MOBILE_APPLICATION_EXIT = "MobileApplicationExit";
+    public static final String EVENT_TYPE_MOBILE_JSERROR = "MobileJSError";
 
     // Same as AnalyticsAttribute.ATTRIBUTE_NAME_MAX_LENGTH
     public static final int EVENT_NAME_MAX_LENGTH = 255;

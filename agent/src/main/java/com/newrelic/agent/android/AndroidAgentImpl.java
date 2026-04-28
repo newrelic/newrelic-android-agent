@@ -70,6 +70,7 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsEventStore;
+import com.newrelic.agent.android.stores.SharedPrefsJSErrorStore;
 import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
 import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 import com.newrelic.agent.android.tracing.Sample;
@@ -153,6 +154,7 @@ public class AndroidAgentImpl implements
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
         agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
+        agentConfiguration.setJsErrorStore(new SharedPrefsJSErrorStore(context));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         // used to determine when app backgrounds
