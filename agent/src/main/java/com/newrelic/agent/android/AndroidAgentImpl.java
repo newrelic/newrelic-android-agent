@@ -71,6 +71,8 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsEventStore;
+import com.newrelic.agent.android.stores.SharedPrefsJSErrorStore;
+import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
 import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -154,6 +156,7 @@ public class AndroidAgentImpl implements
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
         agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
+        agentConfiguration.setJsErrorStore(new SharedPrefsJSErrorStore(context));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         // used to determine when app backgrounds
@@ -234,9 +237,6 @@ public class AndroidAgentImpl implements
 
         // Set up the sampler
         Sampler.init(context);
-
-        // Register a default-network callback so reachability checks avoid per-call Binder IPC.
-        Reachability.init(context);
 
         if (isInstantApp()) {
             log.info("This appears to be an Instant App");
