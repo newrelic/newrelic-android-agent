@@ -132,6 +132,7 @@ public class PayloadController implements HarvestLifecycleAware {
                         AgentDataReporter.shutdown();
                         CrashReporter.shutdown();
                         SessionReplayReporter.shutdown();
+                        JSErrorDataReporter.shutdown();
 
                     } catch (InterruptedException e) {
                         log.error("PayloadController.shutdown(): " + e);
