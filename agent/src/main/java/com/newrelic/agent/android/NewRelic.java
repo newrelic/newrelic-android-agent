@@ -1287,60 +1287,6 @@ public final class NewRelic {
         OfflineStorage.setMaxOfflineStorageSize(maxSize);
     }
 
-    /**
-     * Sets the text masking strategy for session replay.
-     * <p>
-     * This controls how text is masked in captured screens:
-     * <ul>
-     *   <li>MASK_ALL_TEXT: Masks all text in the application, regardless of source or context</li>
-     *   <li>MASK_USER_INPUT_TEXT: Only masks text that was input by the user (e.g., text fields, search bars)</li>
-     *   <li>MASK_NO_TEXT: No masking is applied, all text is captured as-is</li>
-     * </ul>
-     *
-     * @param strategy The text masking strategy to apply
-     * @return true if the strategy was successfully set
-     */
-    public static boolean setSessionReplayTextMaskingStrategy(TextMaskingStrategy strategy) {
-        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
-                .replace(MetricNames.TAG_NAME, "setSessionReplayTextMaskingStrategy"));
-
-        if (strategy == null) {
-            log.error("setSessionReplayTextMaskingStrategy: strategy must not be null");
-            return false;
-        }
-
-        if (agentConfiguration != null) {
-            agentConfiguration.getSessionReplayLocalConfiguration().setTextMaskingStrategy(strategy);
-            return true;
-        }
-
-        return false;
-    }
-
-
-    /**
-     * Sets whether user touches should be masked during session replay.
-     * <p>
-     * When enabled, touch locations will be obscured in the session replay to protect
-     * user privacy, especially when interacting with sensitive UI elements.
-     * <p>
-     * Example: setSessionReplayMaskUserTouches(true)
-     *
-     * @param maskTouches true to mask user touches, false to show them
-     * @return true if the setting was successfully applied
-     */
-    public static boolean setSessionReplayMaskUserTouches(boolean maskTouches) {
-        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
-                .replace(MetricNames.TAG_NAME, "setSessionReplayMaskUserTouches"));
-
-        if (agentConfiguration != null) {
-            agentConfiguration.getSessionReplayLocalConfiguration().setMaskAllUserTouches(maskTouches);
-            return true;
-        }
-
-        return false;
-    }
-
 
     /**
      * Adds a view class to be masked during session replay.

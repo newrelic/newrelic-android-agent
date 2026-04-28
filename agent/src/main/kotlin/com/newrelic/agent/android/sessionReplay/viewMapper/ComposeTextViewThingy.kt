@@ -104,7 +104,7 @@ open class ComposeTextViewThingy(
         }
 
         val isInput = node.config.contains(SemanticsProperties.EditableText)
-        return if (isInput) (sessionReplayConfiguration.isMaskUserInputText || sessionReplayLocalConfiguration.isMaskUserInputText)  else (sessionReplayConfiguration.isMaskApplicationText || sessionReplayLocalConfiguration.isMaskApplicationText)
+        return if (isInput) (sessionReplayConfiguration.isMaskUserInputText )  else (sessionReplayConfiguration.isMaskApplicationText )
     }
 
 
