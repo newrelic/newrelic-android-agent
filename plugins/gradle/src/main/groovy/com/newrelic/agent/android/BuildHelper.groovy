@@ -317,6 +317,45 @@ class BuildHelper {
         return project.plugins.hasPlugin("com.android.library")
     }
 
+    /**
+     * Detect if this is a React Native project.
+     * Checks for the presence of react.gradle in node_modules or React Native bundle tasks.
+     * @return true if React Native is detected
+     */
+    boolean checkReactNative() {
+        // Method 1: Check for react.gradle file in node_modules
+        // React Native projects typically have node_modules at the project root level (../../ from android/app)
+        def reactGradlePaths = [
+                project.file("../../node_modules/react-native/react.gradle"),
+                project.file("../node_modules/react-native/react.gradle"),
+                project.file("node_modules/react-native/react.gradle"),
+                project.rootProject.file("node_modules/react-native/react.gradle"),
+        ]
+
+        for (def reactGradle : reactGradlePaths) {
+            if (reactGradle.exists()) {
+                logger.debug("React Native detected via react.gradle at: ${reactGradle.absolutePath}")
+                return true
+            }
+        }
+
+        // Method 2: Check for React Native bundle tasks (created by react.gradle)
+        // These tasks are created when react.gradle is applied
+        try {
+            def bundleTaskNames = ["bundleReleaseJsAndAssets", "createBundleReleaseJsAndAssets"]
+            for (def taskName : bundleTaskNames) {
+                if (project.tasks.findByName(taskName) != null) {
+                    logger.debug("React Native detected via task: ${taskName}")
+                    return true
+                }
+            }
+        } catch (Exception ignored) {
+            // Task lookup may fail during configuration phase
+        }
+
+        return false
+    }
+
 
     /**
      * Returns literal name of obfuscation compiler

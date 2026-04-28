@@ -296,6 +296,12 @@ class BuildHelperTest extends PluginTest {
     }
 
     @Test
+    void checkReactNative() {
+        // Default should be false (no React Native in test project)
+        Assert.assertFalse(buildHelper.checkReactNative())
+    }
+
+    @Test
     void getMapCompilerName() {
         Assert.assertEquals(buildHelper.getMapCompilerName(), Proguard.Provider.DEFAULT)
 
