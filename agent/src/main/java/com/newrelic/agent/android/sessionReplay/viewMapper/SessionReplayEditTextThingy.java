@@ -30,7 +30,7 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
 
         // Get the raw text from the TextView
         String rawText = view.getHint() != null ? view.getHint().toString() : "";
-        boolean shouldMaskText =  view.getInputType() != 0 ? (sessionReplayConfiguration.isMaskUserInputText() || sessionReplayLocalConfiguration.isMaskUserInputText()): (sessionReplayConfiguration.isMaskApplicationText() || sessionReplayLocalConfiguration.isMaskApplicationText()) ;
+        boolean shouldMaskText =  view.getInputType() != 0 ? (sessionReplayConfiguration.isMaskUserInputText() ): (sessionReplayConfiguration.isMaskApplicationText()) ;
 
 
         // Apply masking if needed
