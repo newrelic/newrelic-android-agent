@@ -33,6 +33,7 @@ public class Harvest implements HarvestConfigurable {
     private HarvestTimer harvestTimer;
     protected HarvestData harvestData;
     private HarvestDataValidator harvestDataValidator;
+    private AgentConfiguration agentConfig;
 
     // A list of entities that want to listen to lifecycle events. Used for pre-initialization.
     private static final Collection<HarvestLifecycleAware> unregisteredLifecycleListeners = new ArrayList<HarvestLifecycleAware>();
@@ -54,6 +55,7 @@ public class Harvest implements HarvestConfigurable {
         harvester.setAgentConfiguration(agentConfiguration);
         harvester.setHarvestConfiguration(instance.getConfiguration());
         flushHarvestableCaches();
+        agentConfig = agentConfiguration;
     }
 
     public static void start() {
@@ -85,6 +87,28 @@ public class Harvest implements HarvestConfigurable {
             final HarvestTimer harvestTimer = instance.getHarvestTimer();
             if (harvestTimer != null) {
                 harvestTimer.tickNow(bWait);
+            }
+        }
+    }
+
+    /**
+     * Trigger an immediate harvest with an optional session finalization,
+     * then run the onComplete callback after the harvest tick finishes.
+     * Does not block the calling thread.
+     *
+     * @param finalizeSession If true, finalize the current session before harvesting
+     * @param onComplete      Runnable to execute after the harvest completes, or null
+     */
+    public static void harvestNow(boolean finalizeSession, Runnable onComplete) {
+        if (isInitialized()) {
+            if (finalizeSession) {
+                instance.finalizeSession();
+                AnalyticsControllerImpl.getInstance().getEventManager().setTransmitRequired();
+            }
+
+            final HarvestTimer harvestTimer = instance.getHarvestTimer();
+            if (harvestTimer != null) {
+                harvestTimer.tickNow(onComplete);
             }
         }
     }
@@ -408,24 +432,54 @@ public class Harvest implements HarvestConfigurable {
         return harvestConfiguration.getAt_capture();
     }
 
-    void finalizeSession() {
-        long sessionDuration = Harvest.getMillisSinceStart();
-
-        if (sessionDuration == Harvest.INVALID_SESSION_DURATION) {
-            log.error("Session duration is invalid!");
-            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_INVALID_DURATION);
+    public static void notifySessionRestarted() {
+        if (isInitialized() && instance.getHarvester() != null) {
+            instance.getHarvester().fireOnSessionRestarted();
         }
+    }
 
-        float sessionDurationAsSeconds = (float) sessionDuration / 1000.0f;
+    public void startSession() {
+        try {
+            // start a new session
+            harvestTimer.setSessionStartTimeMs(System.currentTimeMillis());
+            log.debug("Harvest: Session limit reached (4 hours). Resetting session start time.");
 
-        StatsEngine.get().sample(MetricNames.SESSION_DURATION, sessionDurationAsSeconds);
+            log.debug("Harvest: Session limit reached (4 hours). Creating new session.");
+            final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+            if (controller != null && agentConfig != null) {
+                controller.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE)
+                        .setStringValue(agentConfig.provideSessionId())
+                        .setPersistent(false);
+                // remove session duration attribute
+                controller.removeAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE);
+            }
+        } catch (Exception e) {
+            log.debug("Harvest: Session limit reached (4 hours). Creating new session failed with exception: " + e.getMessage());
+        }
+    }
 
-        log.debug("Harvest: Generating sessionDuration attribute with value " + sessionDurationAsSeconds);
-        AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-        analyticsController.setAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE, sessionDurationAsSeconds, false);
+    protected void finalizeSession() {
+        try {
+            long sessionDuration = Harvest.getMillisSinceStart();
 
-        log.debug("Harvest: Generating session event.");
-        SessionEvent sessionEvent = new SessionEvent();
-        analyticsController.addEvent(sessionEvent);
+            if (sessionDuration == Harvest.INVALID_SESSION_DURATION) {
+                log.error("Session duration is invalid!");
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_INVALID_DURATION);
+            }
+
+            float sessionDurationAsSeconds = (float) sessionDuration / 1000.0f;
+
+            StatsEngine.get().sample(MetricNames.SESSION_DURATION, sessionDurationAsSeconds);
+
+            log.debug("Harvest: Generating sessionDuration attribute with value " + sessionDurationAsSeconds);
+            AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+            analyticsController.setAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE, sessionDurationAsSeconds, false);
+
+            log.debug("Harvest: Generating session event.");
+            SessionEvent sessionEvent = new SessionEvent();
+            analyticsController.addEvent(sessionEvent);
+        } catch (Exception e) {
+            log.debug("Harvest: Finalize session failed with exception: " + e.getMessage());
+        }
     }
 }
