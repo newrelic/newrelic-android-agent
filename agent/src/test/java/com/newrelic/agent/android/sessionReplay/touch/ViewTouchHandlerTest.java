@@ -15,6 +15,7 @@ import android.widget.TextView;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.touch.ViewTouchHandler;
 
 import org.junit.Assert;
