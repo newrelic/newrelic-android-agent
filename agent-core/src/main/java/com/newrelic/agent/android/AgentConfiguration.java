@@ -47,6 +47,7 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     private static final int NUM_IO_THREADS = 3;    // Harvest + Crash + Flatbuffer
     private static final int PAYLOAD_TTL = 2 * 24 * 60 * 60 * 1000;    // 2 days in ms
+    public static final int DEFAULT_MAX_CACHED_PAYLOAD_COUNT = 500;
 
     static final String DEFAULT_DEVICE_UUID = "0";
     static final int DEVICE_UUID_MAX_LEN = 40;
@@ -68,6 +69,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private CrashStore crashStore;
     private AnalyticsAttributeStore analyticsAttributeStore;
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
+    private int maxCachedPayloadCount = DEFAULT_MAX_CACHED_PAYLOAD_COUNT;
     private AnalyticsEventStore eventStore;
     private SessionReplayStore sessionReplayStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
@@ -271,6 +273,14 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public int getPayloadTTL() {
         return PAYLOAD_TTL;
+    }
+
+    public int getMaxCachedPayloadCount() {
+        return maxCachedPayloadCount;
+    }
+
+    public void setMaxCachedPayloadCount(int n) {
+        this.maxCachedPayloadCount = n > 0 ? n : DEFAULT_MAX_CACHED_PAYLOAD_COUNT;
     }
 
     String getDefaultCollectorHost() {

@@ -59,6 +59,7 @@ import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
+import com.newrelic.agent.android.payload.FilePayloadStore;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.sample.MachineMeasurementConsumer;
 import com.newrelic.agent.android.sample.Sampler;
@@ -70,7 +71,6 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsEventStore;
-import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
 import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -149,7 +149,8 @@ public class AndroidAgentImpl implements
         TraceMachine.setTraceMachineInterface(this);
 
         agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
-        agentConfiguration.setPayloadStore(new SharedPrefsPayloadStore(context));
+        agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
+        context.deleteSharedPreferences("NRPayloadStore");
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
         agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
