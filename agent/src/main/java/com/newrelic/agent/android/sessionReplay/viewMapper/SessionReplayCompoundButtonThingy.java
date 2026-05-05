@@ -29,6 +29,8 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
     private final boolean isRadioButton;
     private final boolean isToggle;
     private final ViewDetails viewDetails;
+    private final int inputNodeId;
+    private final int textNodeId;
 
     public SessionReplayCompoundButtonThingy(ViewDetails viewDetails, CompoundButton view, AgentConfiguration agentConfiguration) {
         super(viewDetails, view, agentConfiguration);
@@ -36,6 +38,18 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
         this.isChecked = view.isChecked();
         this.isRadioButton = view instanceof RadioButton;
         this.isToggle = view instanceof Switch || view instanceof ToggleButton || view.getClass().getName().contains("Switch");
+        this.inputNodeId = getStableNodeId(view, "NewRelicSessionReplayInputNodeId");
+        this.textNodeId = getStableNodeId(view, "NewRelicSessionReplayTextNodeId");
+    }
+
+    private static int getStableNodeId(CompoundButton view, String tagName) {
+        int keyCode = tagName.hashCode();
+        Integer idValue = (Integer) view.getTag(keyCode);
+        if (idValue == null) {
+            idValue = NewRelicIdGenerator.generateId();
+            view.setTag(keyCode, idValue);
+        }
+        return idValue;
     }
 
     @Override
@@ -56,12 +70,12 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
         RRWebElementNode inputNode = new RRWebElementNode(
                 inputAttrs,
                 RRWebElementNode.TAG_TYPE_INPUT,
-                viewDetails.viewId,
+                inputNodeId,
                 new ArrayList<>()
         );
 
         // Create the text node for the label
-        RRWebTextNode textNode = new RRWebTextNode(getLabelText(), false, NewRelicIdGenerator.generateId());
+        RRWebTextNode textNode = new RRWebTextNode(getLabelText(), false, textNodeId);
 
         // Wrap in a <label> so both the input indicator and text are visible
         Attributes labelAttrs = new Attributes(viewDetails.getCssSelector());
@@ -107,7 +121,7 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
                 attributes.type = inputType;
                 attributes.inputType = inputType;
             }
-            mutations.add(new RRWebMutationData.AttributeRecord(viewDetails.viewId, attributes));
+            mutations.add(new RRWebMutationData.AttributeRecord(inputNodeId, attributes));
         }
 
         return mutations;
@@ -130,12 +144,12 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
         RRWebElementNode inputNode = new RRWebElementNode(
                 inputAttrs,
                 RRWebElementNode.TAG_TYPE_INPUT,
-                viewDetails.viewId,
+                inputNodeId,
                 new ArrayList<>()
         );
 
         // Create the text node
-        RRWebTextNode textNode = new RRWebTextNode(getLabelText(), false, NewRelicIdGenerator.generateId());
+        RRWebTextNode textNode = new RRWebTextNode(getLabelText(), false, textNodeId);
 
         // Create the <label> wrapper
         Attributes labelAttrs = new Attributes(viewDetails.getCssSelector());
@@ -162,7 +176,7 @@ public class SessionReplayCompoundButtonThingy extends SessionReplayTextViewThin
         if (!(other instanceof SessionReplayCompoundButtonThingy)) return null;
         SessionReplayCompoundButtonThingy otherButton = (SessionReplayCompoundButtonThingy) other;
         if (isChecked == otherButton.isChecked) return null;
-        return new RRWebInputData(viewDetails.viewId, "", otherButton.isChecked);
+        return new RRWebInputData(inputNodeId, "", otherButton.isChecked);
     }
 
     @Override
