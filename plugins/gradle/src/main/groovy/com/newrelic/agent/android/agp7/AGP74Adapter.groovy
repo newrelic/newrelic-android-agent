@@ -66,11 +66,4 @@ class AGP74Adapter extends AGP70Adapter {
         return transformProvider
     }
 
-    @Override
-    def wiredWithConfigProvider(String variantName) {
-        def configProvider = super.wiredWithConfigProvider(variantName)
-        withVariant(variantName).sources.java.addGeneratedSourceDirectory(configProvider, { it.getSourceOutputDir() })
-
-        return configProvider
-    }
 }

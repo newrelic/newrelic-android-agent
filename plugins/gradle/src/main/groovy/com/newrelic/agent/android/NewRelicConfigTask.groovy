@@ -6,6 +6,7 @@
 package com.newrelic.agent.android
 
 import com.newrelic.agent.InstrumentationAgent
+import groovy.json.JsonOutput
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
@@ -16,7 +17,7 @@ import org.gradle.api.tasks.*
 @CacheableTask
 abstract class NewRelicConfigTask extends DefaultTask {
     final static String NAME = "newrelicConfig"
-    final static String CONFIG_CLASS = "com/newrelic/agent/android/NewRelicConfig.java"
+    final static String CONFIG_FILE = "newrelic_config.json"
     final static String METADATA = ".metadata"
 
     @Input
@@ -33,7 +34,7 @@ abstract class NewRelicConfigTask extends DefaultTask {
     abstract Property<String> getBuildMetrics()
 
     @OutputDirectory
-    abstract DirectoryProperty getSourceOutputDir()
+    abstract DirectoryProperty getAssetsOutputDir()
 
     @OutputFile
     @Optional
@@ -42,27 +43,24 @@ abstract class NewRelicConfigTask extends DefaultTask {
     @TaskAction
     def newRelicConfigTask() {
         try {
-            def f = sourceOutputDir.file(CONFIG_CLASS).get().asFile
+            def f = assetsOutputDir.file(CONFIG_FILE).get().asFile
+
+            def config = [
+                    version    : InstrumentationAgent.getVersion(),
+                    buildId    : buildId.get(),
+                    obfuscated : minifyEnabled.getOrElse(false),
+                    mapProvider: mapProvider.get(),
+                    metrics    : buildMetrics.getOrElse("")
+            ]
 
             f.with {
                 parentFile.mkdirs()
-                text = """
-                        package com.newrelic.agent.android;
-    
-                        final class NewRelicConfig {
-                            static final String VERSION = "${InstrumentationAgent.getVersion()}";
-                            static final String BUILD_ID = "${buildId.get()}";
-                            static final Boolean OBFUSCATED = ${minifyEnabled.getOrElse(false)};
-                            static final String MAP_PROVIDER = "${mapProvider.get()}";
-                            static final String METRICS = "${buildMetrics.getOrElse("")}";
-                            public static String getBuildId() {
-                                return BUILD_ID;
-                            }
-                        }
-                        """.stripIndent()
+                text = JsonOutput.prettyPrint(JsonOutput.toJson(config))
             }
 
-            configMetadata.get().asFile.text = buildId.get()
+            def metaFile = configMetadata.get().asFile
+            metaFile.parentFile.mkdirs()
+            metaFile.text = buildId.get()
 
         } catch (Exception e) {
             logger.error("Error encountered while configuring the New Relic plugin: ", e)

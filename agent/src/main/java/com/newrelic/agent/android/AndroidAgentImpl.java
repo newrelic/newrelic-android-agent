@@ -84,7 +84,12 @@ import com.newrelic.agent.android.util.PersistentUUID;
 import com.newrelic.agent.android.util.Reachability;
 import com.newrelic.agent.android.util.UiBackgroundListener;
 
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.Comparator;
@@ -133,6 +138,9 @@ public class AndroidAgentImpl implements
         // We want an Application context, not an Activity context.
         this.context = appContext(context);
         this.agentConfiguration = agentConfiguration;
+
+        loadNewRelicConfig(this.context);
+
         this.savedState = new SavedState(this.context);
         this.offlineStorageInstance = new OfflineStorage(context);
 
@@ -177,6 +185,27 @@ public class AndroidAgentImpl implements
         context.registerComponentCallbacks(backgroundListener);
 
         setupSession();
+    }
+
+    private static void loadNewRelicConfig(Context context) {
+        try (InputStream is = context.getAssets().open("newrelic_config.json")) {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = is.read(buffer)) != -1) {
+                baos.write(buffer, 0, len);
+            }
+            JSONObject json = new JSONObject(baos.toString(StandardCharsets.UTF_8.name()));
+            Agent.setNewRelicConfig(
+                    json.optString("buildId", ""),
+                    json.optBoolean("obfuscated", false)
+            );
+        } catch (java.io.FileNotFoundException e) {
+            log.warn("newrelic_config.json not found in assets. " +
+                    "Was the New Relic Gradle plugin applied to this project?");
+        } catch (Exception e) {
+            log.error("Failed to parse newrelic_config.json: " + e);
+        }
     }
 
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {

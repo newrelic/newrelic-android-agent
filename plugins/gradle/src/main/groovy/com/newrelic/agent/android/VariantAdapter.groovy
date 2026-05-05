@@ -166,13 +166,14 @@ abstract class VariantAdapter {
     def wiredWithConfigProvider(String variantName) {
         def configProvider = getConfigProvider(variantName) { configTask ->
             def buildType = withBuildType(variantName)
-            def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/java/newrelicConfig${buildType.name.capitalize()}")
+            def genAssetsFolder = buildHelper.project.layout.buildDirectory.dir("generated/assets/newrelicConfig${buildType.name.capitalize()}")
+            def metadataDir = buildHelper.project.layout.buildDirectory.dir("intermediates/newrelicConfig${buildType.name.capitalize()}")
 
-            configTask.sourceOutputDir.set(objectFactory.directoryProperty().value(genSrcFolder))
+            configTask.assetsOutputDir.set(objectFactory.directoryProperty().value(genAssetsFolder))
             configTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
             configTask.minifyEnabled.set(objectFactory.property(Boolean).value(buildType.minified))
             configTask.buildMetrics.set(objectFactory.property(String).value(buildHelper.getBuildMetrics().toString()))
-            configTask.configMetadata.set(configTask.sourceOutputDir.file(NewRelicConfigTask.METADATA))
+            configTask.configMetadata.set(metadataDir.map { it.file(NewRelicConfigTask.METADATA) })
 
             def uuid = objectFactory.property(String).convention(BuildId.getBuildId(variantName))
             def buildIdProvider = buildHelper.project.providers.fileContents(configTask.configMetadata).asText.orElse(uuid)
@@ -180,15 +181,14 @@ abstract class VariantAdapter {
             configTask.buildId.set(buildIdProvider)
 
             configTask.onlyIf {
-                def configClass = configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile
-                !configClass.exists() || !configClass.text.contains(configTask.buildId.get())
+                def configFile = configTask.assetsOutputDir.file(NewRelicConfigTask.CONFIG_FILE).get().asFile
+                !configFile.exists() || !configFile.text.contains(configTask.buildId.get())
             }
 
             configTask.outputs.upToDateWhen {
-                def meta = configTask.configMetadata.get().asFile
-                def configClass = configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile
-                configClass.exists() &&
-                        configClass.text.contains(configTask.buildId.get())
+                def configFile = configTask.assetsOutputDir.file(NewRelicConfigTask.CONFIG_FILE).get().asFile
+                configFile.exists() &&
+                        configFile.text.contains(configTask.buildId.get())
             }
         }
 

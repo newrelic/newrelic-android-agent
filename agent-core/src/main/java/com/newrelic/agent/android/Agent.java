@@ -11,7 +11,6 @@ import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.util.Encoder;
 
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 
@@ -26,6 +25,7 @@ public class Agent {
     private static Object implLock = new Object();
     private static AgentImpl impl = NULL_AGENT_IMPL;
     private static String buildId = null;
+    private static boolean obfuscated = false;
 
     public static void setImpl(final AgentImpl impl) {
         synchronized (implLock) {
@@ -51,28 +51,29 @@ public class Agent {
         return MONO_INSTRUMENTATION_FLAG;
     }
 
+    /**
+     * Set the build configuration values read from the newrelic_config.json asset.
+     * Must be called before getBuildId() or getIsObfuscated() are used.
+     */
+    static void setNewRelicConfig(String configBuildId, boolean configObfuscated) {
+        buildId = configBuildId;
+        obfuscated = configObfuscated;
+    }
+
     public static String getBuildId() {
+        if (buildId != null) {
+            return buildId;
+        }
 
         synchronized (implLock) {
             if (buildId == null) {
-                String build_id = "";
-
                 if (getMonoInstrumentationFlag().equals("YES")) {
-                    build_id = DEFAULT_BUILD_ID;
+                    buildId = DEFAULT_BUILD_ID;
                 } else {
-                    try {
-                        // Since we're not in Android land, we cant't check
-                        // the SDK build level before making the call
-                        ClassLoader classLoader = Agent.class.getClassLoader();
-                        Class newRelicConfigClass = classLoader.loadClass("com.newrelic.agent.android.NewRelicConfig");
-                        build_id = newRelicConfigClass.getDeclaredField("BUILD_ID").get(null).toString();
-                    } catch (Exception e) {
-                        AgentLogManager.getAgentLog().error("Agent.getBuildId() was unable to find a valid build Id. " +
-                                "Crashes and handled exceptions will not be accepted.");
-                    }
+                    AgentLogManager.getAgentLog().error("Agent.getBuildId() was unable to find a valid build ID. " +
+                            "Crashes and handled exceptions will not be accepted.");
+                    buildId = "";
                 }
-
-                buildId = build_id;
             }
         }
 
@@ -80,19 +81,7 @@ public class Agent {
     }
 
     public static boolean getIsObfuscated() {
-
-        boolean isObfuscated = false;
-        try {
-            ClassLoader classLoader = Agent.class.getClassLoader();
-            Class newRelicConfigClass = classLoader.loadClass("com.newrelic.agent.android.NewRelicConfig");
-            Field field = newRelicConfigClass.getDeclaredField("OBFUSCATED");
-            field.setAccessible(true);
-            isObfuscated = (Boolean) field.get(null);
-            field.setAccessible(false);
-        } catch (Exception e) {
-            AgentLogManager.getAgentLog().error("Unable to get obfuscated flag in crash");
-        }
-        return isObfuscated;
+        return obfuscated;
     }
 
     public static String getCrossProcessId() {
