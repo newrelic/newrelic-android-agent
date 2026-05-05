@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public class AnalyticsValidator {
     private static final AgentLog log = AgentLogManager.getAgentLog();
@@ -193,7 +194,7 @@ public class AnalyticsValidator {
     //
     // Event validations
     //
-    private static final String ALLOWABLE_EVENT_TYPE_CHARS = "^[\\p{L}\\p{Nd} _:.]+$";
+    private static final Pattern ALLOWABLE_EVENT_TYPE_CHARS = Pattern.compile("^[\\p{L}\\p{Nd} _:.]+$");
 
     static final Set<String> reservedEventTypes = new HashSet<String>() {{
         add(AnalyticsEvent.EVENT_TYPE_MOBILE);
@@ -226,7 +227,7 @@ public class AnalyticsValidator {
         boolean valid = (eventType != null);
 
         if (valid) {
-            valid = eventType.matches(ALLOWABLE_EVENT_TYPE_CHARS);
+            valid = ALLOWABLE_EVENT_TYPE_CHARS.matcher(eventType).matches();
         }
 
         if (!valid) {

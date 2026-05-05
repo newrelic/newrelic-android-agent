@@ -236,6 +236,9 @@ public class AndroidAgentImpl implements
         // Set up the sampler
         Sampler.init(context);
 
+        // Register a default-network callback so reachability checks avoid per-call Binder IPC.
+        Reachability.init(context);
+
         if (isInstantApp()) {
             log.info("This appears to be an Instant App");
             final AnalyticsAttribute attribute = new AnalyticsAttribute(AnalyticsAttribute.INSTANT_APP_ATTRIBUTE, true);

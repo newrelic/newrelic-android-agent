@@ -19,6 +19,13 @@ public class UiBackgroundListener implements ComponentCallbacks2 {
 
     protected final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("UiBackgroundListener"));
 
+    public UiBackgroundListener() {
+        // Force the worker thread to start now, at agent init, instead of on the first
+        // onTrimMemory call — that fires under memory pressure, where addWorker() on the
+        // main thread has caused ANRs.
+        executor.submit(() -> { });
+    }
+
     @Override
     public void onConfigurationChanged(final Configuration newConfig) {
     }
