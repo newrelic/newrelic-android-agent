@@ -114,6 +114,13 @@ android {
         variant.packageLibraryProvider.configure {
             dependsOn(copyFatJarToAarLibs)
         }
+
+        // AGP 8.x adds bundle<Variant>LocalLintAar, which also reads from
+        // aar_main_jar/ but isn't wired through packageLibraryProvider. Gradle
+        // 8's strict validator rejects this implicit dependency, so declare it.
+        tasks.matching { it.name == "bundle${variant.name.capitalize()}LocalLintAar" }.configureEach {
+            dependsOn(copyFatJarToAarLibs)
+        }
     }
 }
 
