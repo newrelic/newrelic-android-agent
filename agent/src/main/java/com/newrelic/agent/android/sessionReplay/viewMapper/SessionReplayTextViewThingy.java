@@ -37,11 +37,13 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     private String textAlign;
     protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
     protected SessionReplayConfiguration sessionReplayConfiguration;
+    protected final int textNodeId;
 
     public SessionReplayTextViewThingy(ViewDetails viewDetails, TextView view, AgentConfiguration agentConfiguration) {
         this.sessionReplayLocalConfiguration = agentConfiguration.getSessionReplayLocalConfiguration();
         this.sessionReplayConfiguration = agentConfiguration.getSessionReplayConfiguration();
         this.viewDetails = viewDetails;
+        this.textNodeId = getStableNodeId(view, "NewRelicSessionReplayTextNodeId");
 
         // Get the raw text from the TextView
         String rawText = view.getText() != null ? view.getText().toString() : "";
@@ -211,7 +213,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
     @Override
     public RRWebElementNode generateRRWebNode() {
-        RRWebTextNode textNode = new RRWebTextNode(this.labelText, false, NewRelicIdGenerator.generateId());
+        RRWebTextNode textNode = new RRWebTextNode(this.labelText, false, textNodeId);
 
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
 
@@ -289,7 +291,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         // Check if label text has changed
         if (this.labelText != null && !this.labelText.equals(((SessionReplayTextViewThingy) other).getLabelText())) {
-            mutations.add(new RRWebMutationData.TextRecord(viewDetails.viewId, ((SessionReplayTextViewThingy) other).getLabelText()));
+            mutations.add(new RRWebMutationData.TextRecord(textNodeId, ((SessionReplayTextViewThingy) other).getLabelText()));
         }
 
         return mutations;
@@ -311,7 +313,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         viewNode.attributes.metadata.put("style", generateInlineCss());
 
-        RRWebTextNode textNode = new RRWebTextNode(this.labelText != null ? this.labelText : "", false, NewRelicIdGenerator.generateId());
+        RRWebTextNode textNode = new RRWebTextNode(this.labelText != null ? this.labelText : "", false, textNodeId);
 
         RRWebMutationData.AddRecord viewAddRecord = new RRWebMutationData.AddRecord(
                 parentId,
@@ -457,6 +459,16 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
 
         // Compare using hashCode (which should reflect the content)
         return this.hashCode() != other.hashCode();
+    }
+
+    private static int getStableNodeId(android.view.View view, String tagName) {
+        int keyCode = tagName.hashCode();
+        Integer idValue = (Integer) view.getTag(keyCode);
+        if (idValue == null) {
+            idValue = NewRelicIdGenerator.generateId();
+            view.setTag(keyCode, idValue);
+        }
+        return idValue;
     }
 
 }
