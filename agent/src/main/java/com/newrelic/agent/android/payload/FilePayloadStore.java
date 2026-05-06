@@ -230,4 +230,9 @@ public class FilePayloadStore implements PayloadStore<Payload> {
     private static byte[] decodeStringToBytes(String encoded) {
         return Base64.decode(encoded, Base64.DEFAULT);
     }
+
+    public String getRootPath(){
+        return dir.getAbsolutePath();
+    }
+
 }

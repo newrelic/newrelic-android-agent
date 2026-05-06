@@ -1123,8 +1123,15 @@ public final class NewRelic {
 
     /**
      * Records a JSError exception.
+     * <p>
+     * Gated by {@link FeatureFlag#JSError} (enabled by default). Call
+     * {@link NewRelic#disableFeature(FeatureFlag)} with {@link FeatureFlag#JSError}
+     * before {@link NewRelic#start(Context)} to opt out — when disabled this is a
+     * no-op and no MobileJSError data is stored, harvested, or sent.
      *
      * @param stackTrace Stack trace of the exception
+     * @return {@code true} if the error was queued for delivery; {@code false} if
+     * the JSError feature is disabled or the input is invalid.
      */
     public static boolean recordJavaScriptError(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
         return JSErrorDataController.getInstance().sendJSErrorData(name, message, stackTrace, isFatal, additionalAttributes);
