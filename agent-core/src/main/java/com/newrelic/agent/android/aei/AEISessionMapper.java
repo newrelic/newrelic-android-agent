@@ -132,7 +132,7 @@ public class AEISessionMapper {
 
     public static class AEISessionMeta {
         final String sessionId;
-        final int realAgentId;
+        public final int realAgentId;
 
         public AEISessionMeta(String sessionId, int realAgentId) {
             this.sessionId = sessionId == null ? "" : sessionId;

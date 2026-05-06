@@ -43,6 +43,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_HARVEST_ON_MAIN_THREAD = SUPPORTABILITY_AGENT + "HarvestOnMainThread";
     public static final String SUPPORTABILITY_CONFIGURATION_CHANGED = SUPPORTABILITY_AGENT + "Configuration/Updated";
     public static final String SUPPORTABILITY_PAYLOAD_REMOVED_STALE = SUPPORTABILITY_AGENT + "Payload/Removed/Stale";
+    public static final String SUPPORTABILITY_PAYLOAD_EVICTED = SUPPORTABILITY_AGENT + "Payload/Removed/Evicted";
+    public static final String SUPPORTABILITY_PAYLOAD_CORRUPTED = SUPPORTABILITY_AGENT + "Payload/Corrupted";
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
 
@@ -169,6 +171,13 @@ public class MetricNames {
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET_FAILED_CONNECTION = SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET + "FailedConnection";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET_CLOSING = SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET + "Closing";
 
+    //JSError
+    public static final String SUPPORTABILITY_JSERROR = SUPPORTABILITY_AGENT + "JSError/";
+    public static final String SUPPORTABILITY_JSERROR_UPLOAD_TIME = SUPPORTABILITY_JSERROR + "UploadTime";
+    public static final String SUPPORTABILITY_JSERROR_UPLOAD_TIMEOUT = SUPPORTABILITY_JSERROR + "UploadTimeOut";
+    public static final String SUPPORTABILITY_JSERROR_UPLOAD_THROTTLED = SUPPORTABILITY_JSERROR + "UploadThrottled";
+    public static final String SUPPORTABILITY_JSERROR_FAILED_UPLOAD = SUPPORTABILITY_JSERROR + "FailedUpload";
+  
     //Session Replay
     public static final String SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY = SUPPORTABILITY_MOBILE_ANDROID + "/Config/SessionReplay";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ENABLED = SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY + "/Enabled";

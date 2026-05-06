@@ -10,3 +10,4 @@ local.properties
 .java-version
 *.class
 Test Harness
+infer-out
