@@ -114,6 +114,13 @@ android {
         variant.packageLibraryProvider.configure {
             dependsOn(copyFatJarToAarLibs)
         }
+
+        // AGP 8.x adds bundle<Variant>LocalLintAar, which also reads from
+        // aar_main_jar/ but isn't wired through packageLibraryProvider. Gradle
+        // 8's strict validator rejects this implicit dependency, so declare it.
+        tasks.matching { it.name == "bundle${variant.name.capitalize()}LocalLintAar" }.configureEach {
+            dependsOn(copyFatJarToAarLibs)
+        }
     }
 }
 
@@ -159,7 +166,7 @@ def toFatJarTask(def variant) {
         }
         archiveClassifier = "u"
         include("**/GsonInstrumentation*")
-        from variant.getJavaCompileProvider().get().destinationDir
+        from variant.getJavaCompileProvider().get().destinationDirectory
         // Include Kotlin compiled classes
         if (project.hasProperty('kotlin')) {
             from "$buildDir/tmp/kotlin-classes/${variant.name}"
@@ -177,7 +184,7 @@ def toFatJarTask(def variant) {
             dependsOn "compile${variant.name.capitalize()}Kotlin"
         }
         archiveClassifier = "s"
-        from variant.getJavaCompileProvider().get().destinationDir
+        from variant.getJavaCompileProvider().get().destinationDirectory
         // Include Kotlin compiled classes
         if (project.hasProperty('kotlin')) {
             from "$buildDir/tmp/kotlin-classes/${variant.name}"
