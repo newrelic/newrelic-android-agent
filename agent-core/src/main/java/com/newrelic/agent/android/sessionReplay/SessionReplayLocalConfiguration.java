@@ -55,14 +55,14 @@ public class SessionReplayLocalConfiguration {
      * Default constructor with default values
      */
     public SessionReplayLocalConfiguration() {
-        this.textMaskingStrategy = TextMaskingStrategy.MASK_ALL_TEXT;
+        this.textMaskingStrategy = TextMaskingStrategy.MASK_NO_TEXT;
         this.maskAllUserTouches = false;
         this.maskedViewClasses = new HashSet<>();
         this.unmaskedViewClasses = new HashSet<>();
         this.maskedViewTags = new HashSet<>();
         this.unmaskedViewTags = new HashSet<>();
-        this.maskApplicationText = true; // Default to masking application text
-        this.maskUserInputText = true; // Default to masking user input text
+        this.maskApplicationText = false;
+        this.maskUserInputText = false;
     }
 
 
