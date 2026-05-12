@@ -324,18 +324,18 @@ public class FileJSErrorStoreTest {
     @Test
     public void safeFilenameFor_passesThroughUuidsAndHashesOthers() {
         String uuid = UUID.randomUUID().toString();
-        Assert.assertEquals(uuid, FileJSErrorStore.safeFilenameFor(uuid));
+        Assert.assertEquals(uuid, com.newrelic.agent.android.payload.AbstractFileStore.safeFilename(uuid));
 
         String unsafe = "path/with/slash";
-        String safe = FileJSErrorStore.safeFilenameFor(unsafe);
+        String safe = com.newrelic.agent.android.payload.AbstractFileStore.safeFilename(unsafe);
         Assert.assertNotEquals(unsafe, safe);
         Assert.assertTrue(safe.startsWith("h_"));
         // deterministic: same input → same output
-        Assert.assertEquals(safe, FileJSErrorStore.safeFilenameFor(unsafe));
+        Assert.assertEquals(safe, com.newrelic.agent.android.payload.AbstractFileStore.safeFilename(unsafe));
     }
 
     private void setFileMtime(String id, long mtime) {
-        File f = new File(cacheDir, FileJSErrorStore.safeFilenameFor(id) + FileJSErrorStore.FILE_SUFFIX);
+        File f = new File(cacheDir, com.newrelic.agent.android.payload.AbstractFileStore.safeFilename(id) + FileJSErrorStore.FILE_SUFFIX);
         Assert.assertTrue("Expected file to exist for " + id, f.exists());
         Assert.assertTrue("Setting mtime should succeed", f.setLastModified(mtime));
     }
