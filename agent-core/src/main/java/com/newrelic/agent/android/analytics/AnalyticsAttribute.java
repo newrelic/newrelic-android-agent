@@ -119,8 +119,8 @@ public class AnalyticsAttribute {
     public static final String JSERROR_ERRORID = "errorId";
     public static final String JSERROR_THREADS = "threads";
     public static final String JSERROR_ISFATAL = "isFatalError";
-    public static final String JSERROR_ERRORTYPE = "errorType";
-    public static final String JSERROR_DESCRIPTION = "description";
+    public static final String JSERROR_ERRORNAME = "errorName";
+    public static final String JSERROR_ERRORMESSAGE = "errorMessage";
     public static final String JSERROR_CAUSE = "cause";
     public static final String JSERROR_TIMESTAMP = "timestamp";
 

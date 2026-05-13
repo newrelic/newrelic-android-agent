@@ -30,6 +30,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class JSErrorDataController {
+
+
     private final AgentConfiguration agentConfiguration;
     private final JSErrorStore jsErrorStore;
     private final ReentrantReadWriteLock lock;
@@ -88,9 +90,8 @@ public class JSErrorDataController {
             eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORID, errorId);
             eventAttributes.put(AnalyticsAttribute.JSERROR_THREADS, stackTrace);
             eventAttributes.put(AnalyticsAttribute.JSERROR_ISFATAL, isFatal);
-            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORTYPE, name);
-            eventAttributes.put(AnalyticsAttribute.JSERROR_DESCRIPTION, message);
-            eventAttributes.put(AnalyticsAttribute.JSERROR_CAUSE, message);
+            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORNAME, name);
+            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORMESSAGE, message);
             eventAttributes.put(AnalyticsAttribute.JSERROR_TIMESTAMP, System.currentTimeMillis());
             eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_JSERROR);
 
