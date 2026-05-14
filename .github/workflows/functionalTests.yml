@@ -7,6 +7,9 @@ on:
     branches: [ "develop", "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   functional-plugin-jdk17:
     if: ${{ false }}  # disable for until tests are resolved
