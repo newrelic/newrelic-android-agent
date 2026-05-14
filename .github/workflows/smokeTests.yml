@@ -7,6 +7,9 @@ on:
     branches: [ "develop", "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   smoke-test-jdk11:
     runs-on: ubuntu-latest
