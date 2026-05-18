@@ -14,6 +14,9 @@ on:
     #    default: ${{ env.GITHUB_REF_NAME }}
     #   type: string
 
+permissions:
+  contents: read
+
 jobs:
   codecov_report:
     runs-on: ubuntu-latest
