@@ -10,8 +10,11 @@ import com.google.gson.JsonParser;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.payload.PayloadController;
+import com.newrelic.agent.android.test.stub.StubAgentImpl;
+import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -44,7 +47,9 @@ public class JSErrorDataControllerAttributesTest {
         store = new LatchingJSErrorStore();
         AgentConfiguration config = AgentConfiguration.getInstance();
         config.setJsErrorStore(store);
+        config.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
         PayloadController.initialize(config);
+        AnalyticsControllerImpl.initialize(config, new StubAgentImpl());
         JSErrorDataController.reset();
     }
 
@@ -52,6 +57,7 @@ public class JSErrorDataControllerAttributesTest {
     public void tearDown() {
         FeatureFlag.resetFeatures();
         JSErrorDataController.reset();
+        AnalyticsControllerImpl.shutdown();
         PayloadController.shutdown();
         AgentConfiguration.getInstance().setJsErrorStore(null);
     }
@@ -164,6 +170,90 @@ public class JSErrorDataControllerAttributesTest {
         JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
         Assert.assertEquals("",
                 event.get(AnalyticsAttribute.JSERROR_ERRORMESSAGE).getAsString());
+    }
+
+    @Test
+    public void sessionAttributes_areEmbeddedInPersistedEvent() throws Exception {
+        AnalyticsControllerImpl.getInstance().setAttribute("customKey", "customValue", false);
+
+        JSErrorDataController.getInstance().sendJSErrorData(
+                "TypeError", "boom", "stack", false, null);
+        Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
+
+        JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
+        Assert.assertEquals("user attribute must be embedded as a flat event-level field",
+                "customValue", event.get("customKey").getAsString());
+        Assert.assertTrue("system attribute (osName) from the snapshot must be present",
+                event.has(AnalyticsAttribute.OS_NAME_ATTRIBUTE));
+        Assert.assertTrue("system attribute (sessionId) from the snapshot must be present",
+                event.has(AnalyticsAttribute.SESSION_ID_ATTRIBUTE));
+    }
+
+    @Test
+    public void reservedJSErrorKeys_winOverSessionAttributesOnCollision() throws Exception {
+        // 'errorName' is not on the AnalyticsValidator reserved list, so a user
+        // attribute can be set under that name — but the JSError reserved key
+        // must still win when persisted.
+        AnalyticsControllerImpl.getInstance().setAttribute(
+                AnalyticsAttribute.JSERROR_ERRORNAME, "session-bogus", false);
+
+        JSErrorDataController.getInstance().sendJSErrorData(
+                "RealErrorName", "boom", "stack", false, null);
+        Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
+
+        JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
+        Assert.assertEquals("RealErrorName",
+                event.get(AnalyticsAttribute.JSERROR_ERRORNAME).getAsString());
+    }
+
+    @Test
+    public void additionalAttributes_winOverSessionAttributesOnCollision() throws Exception {
+        AnalyticsControllerImpl.getInstance().setAttribute("conflictKey", "from-session", false);
+
+        Map<String, Object> extras = new HashMap<>();
+        extras.put("conflictKey", "from-additional");
+
+        JSErrorDataController.getInstance().sendJSErrorData(
+                "TypeError", "boom", "stack", false, extras);
+        Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
+
+        JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
+        Assert.assertEquals("from-additional", event.get("conflictKey").getAsString());
+    }
+
+    @Test
+    public void snapshot_reflectsRecordTimeNotSendTime() throws Exception {
+        AnalyticsControllerImpl ctrl = AnalyticsControllerImpl.getInstance();
+        ctrl.setAttribute("snapshotKey", "OLD", false);
+
+        JSErrorDataController.getInstance().sendJSErrorData(
+                "TypeError", "boom", "stack", false, null);
+        Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
+
+        JsonObject persistedAtRecordTime = JsonParser.parseString(store.lastValue).getAsJsonObject();
+        Assert.assertEquals("OLD", persistedAtRecordTime.get("snapshotKey").getAsString());
+
+        // Mutating the controller after recording must not change the persisted bytes.
+        ctrl.setAttribute("snapshotKey", "NEW", false);
+        JsonObject persistedStillFrozen = JsonParser.parseString(store.lastValue).getAsJsonObject();
+        Assert.assertEquals("OLD", persistedStillFrozen.get("snapshotKey").getAsString());
+    }
+
+    @Test
+    public void snapshot_includesBothSystemAndUserSessionAttributes() throws Exception {
+        AnalyticsControllerImpl.getInstance().setAttribute("userTag", "user-value", false);
+
+        JSErrorDataController.getInstance().sendJSErrorData(
+                "TypeError", "boom", "stack", false, null);
+        Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
+
+        JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
+        // User attribute
+        Assert.assertEquals("user-value", event.get("userTag").getAsString());
+        // System attributes populated from the StubAgentImpl during controller init
+        Assert.assertEquals("Android", event.get(AnalyticsAttribute.OS_NAME_ATTRIBUTE).getAsString());
+        Assert.assertEquals("StubAgent", event.get(AnalyticsAttribute.DEVICE_MODEL_ATTRIBUTE).getAsString());
+        Assert.assertEquals("Fake", event.get(AnalyticsAttribute.DEVICE_MANUFACTURER_ATTRIBUTE).getAsString());
     }
 
     private static final class LatchingJSErrorStore implements JSErrorStore {
