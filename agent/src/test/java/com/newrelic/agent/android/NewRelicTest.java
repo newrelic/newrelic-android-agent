@@ -762,6 +762,68 @@ public class NewRelicTest {
     }
 
     @Test
+    public void testSetUserIdSetsAttributeWhenNoPriorUserId() {
+        // Regression: setUserId was a no-op on a fresh launch when the previous
+        // session never set USER_ID_ATTRIBUTE. The attribute must be created
+        // on the first call.
+        Assert.assertNull("Precondition: no prior userId attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+
+        Assert.assertTrue("Should set valid user ID on fresh launch",
+                NewRelic.setUserId("firstLaunchUser"));
+
+        AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        Assert.assertNotNull("USER_ID_ATTRIBUTE should be created on first set", attr);
+        Assert.assertEquals(AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+        Assert.assertEquals("firstLaunchUser", attr.getStringValue());
+    }
+
+    @Test
+    public void testSetUserIdNullIsNoOpWhenNoPriorUserId() {
+        Assert.assertNull("Precondition: no prior userId attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+
+        Assert.assertTrue(NewRelic.setUserId(null));
+
+        Assert.assertNull("Null userId must not create an attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+    }
+
+    @Test
+    public void testSetUserIdEmptyIsNoOpWhenNoPriorUserId() {
+        Assert.assertNull("Precondition: no prior userId attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+
+        Assert.assertTrue(NewRelic.setUserId(""));
+
+        Assert.assertNull("Empty userId must not create an attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+    }
+
+    @Test
+    public void testSetUserIdDoesNotRestartSessionWhenNoPriorUserId() {
+        // First-time set should create the attribute WITHOUT rotating the session
+        // or queuing a session-restart event. Session rotation is reserved for
+        // changing an existing userId (covered by testSetUserIdWithSessionRestart).
+        Harvest.start();
+        try {
+            String preSessionId = NewRelic.currentSessionId();
+            Assert.assertNull(analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+            eventManager.empty();
+
+            Assert.assertTrue(NewRelic.setUserId("firstLaunchUser"));
+
+            Assert.assertEquals("Session ID must not rotate on first userId set",
+                    preSessionId, NewRelic.currentSessionId());
+            boolean hasSessionEvent = eventManager.getQueuedEvents().stream()
+                    .anyMatch(e -> e.getCategory().equals(AnalyticsEventCategory.Session));
+            Assert.assertFalse("First userId set must not queue a session event", hasSessionEvent);
+        } finally {
+            Harvest.stop();
+        }
+    }
+
+    @Test
     public void testSetUserIdWithSessionRestart() {
         String preSessionId = NewRelic.currentSessionId();
 

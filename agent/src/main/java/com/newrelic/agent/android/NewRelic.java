@@ -897,6 +897,10 @@ public final class NewRelic {
                     Harvest.notifySessionRestarted();
                 });
             }
+        } else {
+            if (userId != null && !userId.isEmpty()) {
+                controller.setAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE, userId);
+            }
         }
         return true;
     }

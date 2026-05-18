@@ -1,5 +1,8 @@
 name: Compatibility Matrix Test
 
+permissions:
+  contents: read
+
 on:
   # Run every morning at 9 AM UTC on the main branch
   schedule:
