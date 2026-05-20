@@ -104,28 +104,22 @@ if [ -n "$REQUESTED_GRADLE_JAVA_HOME" ] ; then
     fi
 
     if [ -z "$REQUESTED_GRADLE_JAVA_MAJOR" ] || [ "$REQUESTED_GRADLE_JAVA_MAJOR" -lt 17 ] ; then
-    CURRENT_JAVA_CMD=$(resolve_java_cmd)
-    if [ -n "$CURRENT_JAVA_CMD" ] ; then
-        CURRENT_JAVA_MAJOR=$(java_major "$CURRENT_JAVA_CMD")
-        if [ -n "$CURRENT_JAVA_MAJOR" ] && [ "$CURRENT_JAVA_MAJOR" -lt 17 ] ; then
-            for CANDIDATE_JAVA_HOME in \
-                /usr/lib/jvm/temurin-17-jdk-amd64 \
-                /usr/lib/jvm/java-17-openjdk-amd64 \
-                /usr/lib/jvm/java-17-openjdk ; do
-                if [ -x "$CANDIDATE_JAVA_HOME/bin/java" ] ; then
-                    JAVA_HOME="$CANDIDATE_JAVA_HOME"
-                    break
-                fi
-            done
+        for CANDIDATE_JAVA_HOME in \
+            /usr/lib/jvm/temurin-17-jdk-amd64 \
+            /usr/lib/jvm/java-17-openjdk-amd64 \
+            /usr/lib/jvm/java-17-openjdk ; do
+            if [ -x "$CANDIDATE_JAVA_HOME/bin/java" ] ; then
+                JAVA_HOME="$CANDIDATE_JAVA_HOME"
+                break
+            fi
+        done
 
-            if [ ! -x "${JAVA_HOME:-}/bin/java" ] ; then
-                TOOLCACHE_JAVA_HOME=$(find /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk -maxdepth 2 -mindepth 2 -type d -name x64 -path "*/17.*/x64" 2>/dev/null | head -n 1)
-                if [ -x "$TOOLCACHE_JAVA_HOME/bin/java" ] ; then
-                    JAVA_HOME="$TOOLCACHE_JAVA_HOME"
-                fi
+        if [ ! -x "${JAVA_HOME:-}/bin/java" ] ; then
+            TOOLCACHE_JAVA_HOME=$(find /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk -maxdepth 2 -mindepth 2 -type d -name x64 -path "*/17.*/x64" 2>/dev/null | head -n 1)
+            if [ -x "$TOOLCACHE_JAVA_HOME/bin/java" ] ; then
+                JAVA_HOME="$TOOLCACHE_JAVA_HOME"
             fi
         fi
-    fi
     fi
 fi
 
