@@ -67,27 +67,27 @@ cd "$SAVED" >&-
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
+resolve_java_cmd() {
+    if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ] ; then
+        echo "$JAVA_HOME/bin/java"
+    else
+        command -v java 2>/dev/null || true
+    fi
+}
+
+java_major() {
+    local version_string major
+    version_string=$("$1" -version 2>&1 | awk -F '"' '/version/ {print $2; exit}')
+    major=$(echo "$version_string" | awk -F '[._]' '{print $1}')
+    if [ "$major" = "1" ] ; then
+        major=$(echo "$version_string" | awk -F '[._]' '{print $2}')
+    fi
+    echo "$major"
+}
+
 # CodeQL's Java/Kotlin autobuild can default to Java 11 on hosted runners.
 # This project requires Java 17+, so upgrade JAVA_HOME when possible.
 if [ "${GITHUB_ACTIONS:-}" = "true" ] ; then
-    resolve_java_cmd() {
-        if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ] ; then
-            echo "$JAVA_HOME/bin/java"
-        else
-            command -v java 2>/dev/null || true
-        fi
-    }
-
-    java_major() {
-        local version_string major
-        version_string=$("$1" -version 2>&1 | awk -F '"' '/version/ {print $2; exit}')
-        major=$(echo "$version_string" | awk -F '[._]' '{print $1}')
-        if [ "$major" = "1" ] ; then
-            major=$(echo "$version_string" | awk -F '[._]' '{print $2}')
-        fi
-        echo "$major"
-    }
-
     CURRENT_JAVA_CMD=$(resolve_java_cmd)
     if [ -n "$CURRENT_JAVA_CMD" ] ; then
         CURRENT_JAVA_MAJOR=$(java_major "$CURRENT_JAVA_CMD")
@@ -202,24 +202,36 @@ fi
 # CodeQL autobuild can inject -Dorg.gradle.java.home pointing at Java 11.
 # Rewrite to Java 17+ on GitHub Actions when needed.
 if [ "${GITHUB_ACTIONS:-}" = "true" ] && [ -x "${JAVA_HOME:-}/bin/java" ] ; then
-    NEW_ARGS=()
+    REWRITE_GRADLE_JAVA_HOME=false
     for arg in "$@" ; do
         case "$arg" in
             -Dorg.gradle.java.home=*)
-                ARG_JAVA_HOME="${arg#-Dorg.gradle.java.home=}"
-                ARG_JAVA_MAJOR=""
-                if [ -x "$ARG_JAVA_HOME/bin/java" ] ; then
-                    ARG_JAVA_MAJOR=$(java_major "$ARG_JAVA_HOME/bin/java")
-                fi
-
-                if [ -z "$ARG_JAVA_MAJOR" ] || [ "$ARG_JAVA_MAJOR" -lt 17 ] ; then
-                    arg="-Dorg.gradle.java.home=$JAVA_HOME"
-                fi
+                REWRITE_GRADLE_JAVA_HOME=true
+                break
                 ;;
         esac
-        NEW_ARGS+=("$arg")
     done
-    set -- "${NEW_ARGS[@]}"
+
+    if [ "$REWRITE_GRADLE_JAVA_HOME" = "true" ] ; then
+        NEW_ARGS=()
+        for arg in "$@" ; do
+            case "$arg" in
+                -Dorg.gradle.java.home=*)
+                    ARG_JAVA_HOME="${arg#-Dorg.gradle.java.home=}"
+                    ARG_JAVA_MAJOR=""
+                    if [ -x "$ARG_JAVA_HOME/bin/java" ] ; then
+                        ARG_JAVA_MAJOR=$(java_major "$ARG_JAVA_HOME/bin/java")
+                    fi
+
+                    if [ -z "$ARG_JAVA_MAJOR" ] || [ "$ARG_JAVA_MAJOR" -lt 17 ] ; then
+                        arg="-Dorg.gradle.java.home=$JAVA_HOME"
+                    fi
+                    ;;
+            esac
+            NEW_ARGS+=("$arg")
+        done
+        set -- "${NEW_ARGS[@]}"
+    fi
 fi
 
 # Split up the JVM_OPTS And GRADLE_OPTS values into an array, following the shell quoting and substitution rules
