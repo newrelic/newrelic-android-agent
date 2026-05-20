@@ -22,6 +22,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -222,7 +223,7 @@ public class ProguardTest {
             props.store(fos, "");
         }
 
-        HttpURLConnection connection = Mockito.spy(proguard.getHttpURLConnection());
+        HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
         Mockito.doReturn(HttpURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         Mockito.doNothing().when(connection).connect();
         Mockito.doNothing().when(connection).disconnect();
@@ -235,8 +236,7 @@ public class ProguardTest {
             proguard.fetchConfiguration();
             proguard.sendMapping(mappingTxt);
 
-            Assert.assertTrue(connection.getRequestProperties().containsKey(Proguard.Network.ContentType.HEADER));
-            Assert.assertEquals(Proguard.Network.ContentType.URL_ENCODED, connection.getRequestProperties().get(Proguard.Network.ContentType.HEADER).get(0));
+            Mockito.verify(connection).setRequestProperty(Proguard.Network.ContentType.HEADER, Proguard.Network.ContentType.URL_ENCODED);
             fos.close();
 
             String outBytes;
@@ -260,7 +260,7 @@ public class ProguardTest {
             props.store(fos, "");
         }
 
-        HttpURLConnection connection = Mockito.spy(proguard.getHttpURLConnection());
+        HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
         Mockito.doReturn(HttpURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         Mockito.doNothing().when(connection).connect();
         Mockito.doNothing().when(connection).disconnect();
@@ -273,8 +273,9 @@ public class ProguardTest {
             proguard.fetchConfiguration();
             proguard.sendMapping(mappingTxt);
 
-            Assert.assertTrue(connection.getRequestProperties().containsKey(Proguard.Network.ContentType.HEADER));
-            Assert.assertTrue(connection.getRequestProperties().get(Proguard.Network.ContentType.HEADER).get(0).startsWith(Proguard.Network.ContentType.MULTIPART_FORM_DATA));
+            ArgumentCaptor<String> contentType = ArgumentCaptor.forClass(String.class);
+            Mockito.verify(connection).setRequestProperty(Mockito.eq(Proguard.Network.ContentType.HEADER), contentType.capture());
+            Assert.assertTrue(contentType.getValue().startsWith(Proguard.Network.ContentType.MULTIPART_FORM_DATA));
             Assert.assertTrue(new File(mappingTxt.getAbsolutePath() + ".zip").exists());
             fos.close();
 
@@ -296,7 +297,7 @@ public class ProguardTest {
             props.store(fos, "");
         }
 
-        HttpURLConnection connection = Mockito.spy(proguard.getHttpURLConnection());
+        HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
         Mockito.doReturn(HttpURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         Mockito.doNothing().when(connection).connect();
         Mockito.doNothing().when(connection).disconnect();
