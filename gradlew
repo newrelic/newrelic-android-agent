@@ -199,6 +199,29 @@ if $cygwin ; then
     esac
 fi
 
+# CodeQL autobuild can inject -Dorg.gradle.java.home pointing at Java 11.
+# Rewrite to Java 17+ on GitHub Actions when needed.
+if [ "${GITHUB_ACTIONS:-}" = "true" ] && [ -x "${JAVA_HOME:-}/bin/java" ] ; then
+    NEW_ARGS=()
+    for arg in "$@" ; do
+        case "$arg" in
+            -Dorg.gradle.java.home=*)
+                ARG_JAVA_HOME="${arg#-Dorg.gradle.java.home=}"
+                ARG_JAVA_MAJOR=""
+                if [ -x "$ARG_JAVA_HOME/bin/java" ] ; then
+                    ARG_JAVA_MAJOR=$(java_major "$ARG_JAVA_HOME/bin/java")
+                fi
+
+                if [ -z "$ARG_JAVA_MAJOR" ] || [ "$ARG_JAVA_MAJOR" -lt 17 ] ; then
+                    arg="-Dorg.gradle.java.home=$JAVA_HOME"
+                fi
+                ;;
+        esac
+        NEW_ARGS+=("$arg")
+    done
+    set -- "${NEW_ARGS[@]}"
+fi
+
 # Split up the JVM_OPTS And GRADLE_OPTS values into an array, following the shell quoting and substitution rules
 function splitJvmOpts() {
     JVM_OPTS=("$@")
