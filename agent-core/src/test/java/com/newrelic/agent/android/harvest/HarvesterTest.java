@@ -591,12 +591,16 @@ public class HarvesterTest {
 
     @Test
     public void testCheckAndResetSessionIfExpired_DoesNotFireWhenUnderLimit() {
-        setupMockHarvestWithSessionTime(TWO_HOURS_MS);
+        HarvestTimer mockHarvestTimer = Mockito.spy(new HarvestTimer(harvester));
+        Mockito.doReturn(TWO_HOURS_MS).when(mockHarvestTimer).sessionTimeSinceStart();
+
+        Harvest mockHarvest = Mockito.spy(Harvest.getInstance());
+        Mockito.doReturn(mockHarvestTimer).when(mockHarvest).getHarvestTimer();
+        Harvest.setInstance(mockHarvest);
 
         harvester.checkAndResetSessionIfExpired();
 
-        Assert.assertFalse("onSessionRestarted should NOT fire when session is under the limit",
-                testAdapter.didSessionRestart());
+        Mockito.verify(mockHarvestTimer, Mockito.never()).tickNow(Mockito.any(Runnable.class));
     }
 
     private Harvest setupMockHarvestWithSessionTime(long sessionTimeMs) {
