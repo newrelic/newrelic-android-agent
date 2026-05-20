@@ -85,9 +85,25 @@ java_major() {
     echo "$major"
 }
 
-# CodeQL's Java/Kotlin autobuild can default to Java 11 on hosted runners.
-# This project requires Java 17+, so upgrade JAVA_HOME when possible.
-if [ "${GITHUB_ACTIONS:-}" = "true" ] ; then
+# Detect explicit Gradle Java home requests injected by CI tooling (for example CodeQL autobuild).
+REQUESTED_GRADLE_JAVA_HOME=""
+for arg in "$@" ; do
+    case "$arg" in
+        -Dorg.gradle.java.home=*)
+            REQUESTED_GRADLE_JAVA_HOME="${arg#-Dorg.gradle.java.home=}"
+            break
+            ;;
+    esac
+done
+
+# If a Java home below 17 is requested via -Dorg.gradle.java.home, try to switch to Java 17+.
+if [ -n "$REQUESTED_GRADLE_JAVA_HOME" ] ; then
+    REQUESTED_GRADLE_JAVA_MAJOR=""
+    if [ -x "$REQUESTED_GRADLE_JAVA_HOME/bin/java" ] ; then
+        REQUESTED_GRADLE_JAVA_MAJOR=$(java_major "$REQUESTED_GRADLE_JAVA_HOME/bin/java")
+    fi
+
+    if [ -z "$REQUESTED_GRADLE_JAVA_MAJOR" ] || [ "$REQUESTED_GRADLE_JAVA_MAJOR" -lt 17 ] ; then
     CURRENT_JAVA_CMD=$(resolve_java_cmd)
     if [ -n "$CURRENT_JAVA_CMD" ] ; then
         CURRENT_JAVA_MAJOR=$(java_major "$CURRENT_JAVA_CMD")
@@ -109,6 +125,7 @@ if [ "${GITHUB_ACTIONS:-}" = "true" ] ; then
                 fi
             fi
         fi
+    fi
     fi
 fi
 
@@ -199,20 +216,10 @@ if $cygwin ; then
     esac
 fi
 
-# CodeQL autobuild can inject -Dorg.gradle.java.home pointing at Java 11.
-# Rewrite to Java 17+ on GitHub Actions when needed.
-if [ "${GITHUB_ACTIONS:-}" = "true" ] && [ -x "${JAVA_HOME:-}/bin/java" ] ; then
-    REWRITE_GRADLE_JAVA_HOME=false
-    for arg in "$@" ; do
-        case "$arg" in
-            -Dorg.gradle.java.home=*)
-                REWRITE_GRADLE_JAVA_HOME=true
-                break
-                ;;
-        esac
-    done
-
-    if [ "$REWRITE_GRADLE_JAVA_HOME" = "true" ] ; then
+# Rewrite -Dorg.gradle.java.home to Java 17+ when the requested value is <17.
+if [ -n "$REQUESTED_GRADLE_JAVA_HOME" ] && [ -x "${JAVA_HOME:-}/bin/java" ] ; then
+    JAVA_HOME_MAJOR=$(java_major "$JAVA_HOME/bin/java")
+    if [ -n "$JAVA_HOME_MAJOR" ] && [ "$JAVA_HOME_MAJOR" -ge 17 ] ; then
         NEW_ARGS=()
         for arg in "$@" ; do
             case "$arg" in
