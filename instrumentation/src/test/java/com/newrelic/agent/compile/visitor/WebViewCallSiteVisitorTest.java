@@ -30,7 +30,7 @@ public class WebViewCallSiteVisitorTest {
 
     @Test
     public void testWebViewInstrumentation() throws IOException {
-        byte[] classBytes = testContext.classBytesFromResource("/WebviewTest.class");
+        byte[] classBytes = testContext.classBytesFromResource("/WebViewTest.class");
         ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         ClassVisitor visitor = new WebViewCallSiteVisitor(classWriter, instrumentationContext, InstrumentationAgent.LOGGER);
         ClassReader classReader = new ClassReader(classBytes);

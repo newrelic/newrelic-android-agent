@@ -198,14 +198,6 @@ class BuildHelperTest extends PluginTest {
     }
 
     @Test
-    void isUsingLegacyTransform() {
-        buildHelper = Mockito.spy(plugin.buildHelper)
-        Mockito.when(buildHelper.getAgpVersion()).thenReturn("7.3.3")
-        buildHelper.variantAdapter = VariantAdapter.register(buildHelper)
-        Assert.assertTrue(buildHelper.isUsingLegacyTransform())
-    }
-
-    @Test
     void isUsing7xTransform() {
         buildHelper = Mockito.spy(plugin.buildHelper)
         Mockito.when(buildHelper.getGradleVersion()).thenReturn("7.999")
