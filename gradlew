@@ -115,9 +115,11 @@ if [ -n "$REQUESTED_GRADLE_JAVA_HOME" ] ; then
         done
 
         if [ ! -x "${JAVA_HOME:-}/bin/java" ] ; then
-            TOOLCACHE_JAVA_HOME=$(find /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk -maxdepth 2 -mindepth 2 -type d -name x64 -path "*/17.*/x64" 2>/dev/null | head -n 1)
-            if [ -x "$TOOLCACHE_JAVA_HOME/bin/java" ] ; then
-                JAVA_HOME="$TOOLCACHE_JAVA_HOME"
+            if [ -d "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk" ] ; then
+                TOOLCACHE_JAVA_HOME=$(find /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk -maxdepth 2 -mindepth 2 -type d -name x64 -path "*/17.*/x64" 2>/dev/null | head -n 1)
+                if [ -x "$TOOLCACHE_JAVA_HOME/bin/java" ] ; then
+                    JAVA_HOME="$TOOLCACHE_JAVA_HOME"
+                fi
             fi
         fi
     fi
