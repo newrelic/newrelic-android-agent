@@ -67,6 +67,45 @@ cd "$SAVED" >&-
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
+# CodeQL's Java/Kotlin autobuild can default to Java 11 on hosted runners.
+# This project requires Java 17+, so upgrade JAVA_HOME when possible.
+if [ "${GITHUB_ACTIONS:-}" = "true" ] ; then
+    resolve_java_cmd() {
+        if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ] ; then
+            echo "$JAVA_HOME/bin/java"
+        else
+            command -v java 2>/dev/null || true
+        fi
+    }
+
+    java_major() {
+        "$1" -version 2>&1 | awk -F '"' '/version/ {print $2}' | awk -F '[._]' '{print $1}'
+    }
+
+    CURRENT_JAVA_CMD=`resolve_java_cmd`
+    if [ -n "$CURRENT_JAVA_CMD" ] ; then
+        CURRENT_JAVA_MAJOR=`java_major "$CURRENT_JAVA_CMD"`
+        if [ -n "$CURRENT_JAVA_MAJOR" ] && [ "$CURRENT_JAVA_MAJOR" -lt 17 ] ; then
+            for CANDIDATE_JAVA_HOME in \
+                /usr/lib/jvm/temurin-17-jdk-amd64 \
+                /usr/lib/jvm/java-17-openjdk-amd64 \
+                /usr/lib/jvm/java-17-openjdk ; do
+                if [ -x "$CANDIDATE_JAVA_HOME/bin/java" ] ; then
+                    JAVA_HOME="$CANDIDATE_JAVA_HOME"
+                    break
+                fi
+            done
+
+            if [ ! -x "${JAVA_HOME:-}/bin/java" ] ; then
+                TOOLCACHE_JAVA_HOME=`ls -d /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17*/x64 2>/dev/null | head -n 1`
+                if [ -x "$TOOLCACHE_JAVA_HOME/bin/java" ] ; then
+                    JAVA_HOME="$TOOLCACHE_JAVA_HOME"
+                fi
+            fi
+        fi
+    fi
+fi
+
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
