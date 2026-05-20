@@ -60,7 +60,7 @@ buildscript {
                         minSdk       : 24,      // Android 7
                         compileSdk   : 34,      // Android 14
                         targetSdk    : 34,      // Android 14
-                        buildTools   : '28.0.2',
+                        buildTools   : '34.0.0',
                         gradleApi    : '8.1.4',
                         gradleTestKit: '8.1.4'
                 ],

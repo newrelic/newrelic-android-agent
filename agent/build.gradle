@@ -37,6 +37,7 @@ sourceSets {
 android {
     namespace "com.newrelic.agent.android"
     compileSdkVersion project.versions.agp.compileSdk
+    buildToolsVersion project.versions.agp.buildTools
 
     defaultConfig {
         minSdkVersion project.versions.agp.minSdk
