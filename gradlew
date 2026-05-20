@@ -79,12 +79,18 @@ if [ "${GITHUB_ACTIONS:-}" = "true" ] ; then
     }
 
     java_major() {
-        "$1" -version 2>&1 | awk -F '"' '/version/ {print $2}' | awk -F '[._]' '{print $1}'
+        local version_string major
+        version_string=$("$1" -version 2>&1 | awk -F '"' '/version/ {print $2; exit}')
+        major=$(echo "$version_string" | awk -F '[._]' '{print $1}')
+        if [ "$major" = "1" ] ; then
+            major=$(echo "$version_string" | awk -F '[._]' '{print $2}')
+        fi
+        echo "$major"
     }
 
-    CURRENT_JAVA_CMD=`resolve_java_cmd`
+    CURRENT_JAVA_CMD=$(resolve_java_cmd)
     if [ -n "$CURRENT_JAVA_CMD" ] ; then
-        CURRENT_JAVA_MAJOR=`java_major "$CURRENT_JAVA_CMD"`
+        CURRENT_JAVA_MAJOR=$(java_major "$CURRENT_JAVA_CMD")
         if [ -n "$CURRENT_JAVA_MAJOR" ] && [ "$CURRENT_JAVA_MAJOR" -lt 17 ] ; then
             for CANDIDATE_JAVA_HOME in \
                 /usr/lib/jvm/temurin-17-jdk-amd64 \
@@ -97,7 +103,7 @@ if [ "${GITHUB_ACTIONS:-}" = "true" ] ; then
             done
 
             if [ ! -x "${JAVA_HOME:-}/bin/java" ] ; then
-                TOOLCACHE_JAVA_HOME=`ls -d /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17*/x64 2>/dev/null | head -n 1`
+                TOOLCACHE_JAVA_HOME=$(find /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk -maxdepth 2 -mindepth 2 -type d -name x64 -path "*/17*" 2>/dev/null | head -n 1)
                 if [ -x "$TOOLCACHE_JAVA_HOME/bin/java" ] ; then
                     JAVA_HOME="$TOOLCACHE_JAVA_HOME"
                 fi
