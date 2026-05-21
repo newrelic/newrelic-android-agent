@@ -15,7 +15,9 @@
 #   --help                  Show this help message
 #
 
-set -e
+# NOTE: do not enable `set -e`. This is a matrix runner — individual combination
+# build failures must be reported and counted, not abort the whole run. Errors in
+# the prereqs path are handled with explicit `exit 1`.
 
 # Colors for output
 RED='\033[0;31m'
@@ -32,6 +34,15 @@ TEST_APP_DIR="$PROJECT_ROOT/samples/agent-test-app"
 SPECIFIC_COMBINATION=""
 CLEAN_BUILD=false
 VERBOSE=false
+
+# Resolve the agent version that the workflow just published. The repo root's
+# gradle.properties defines newrelic.agent.version (e.g. 7.7.5); the test app
+# pins a stale value, so we have to overwrite it per-run.
+AGENT_VERSION=$(grep '^newrelic.agent.version' "$PROJECT_ROOT/gradle.properties" 2>/dev/null \
+    | head -n 1 | sed -E 's/^newrelic\.agent\.version[[:space:]]*=[[:space:]]*//')
+
+# mavenLocal for both the script-published and CI-uploaded artifacts.
+MAVEN_LOCAL="${HOME}/.m2/repository/com/newrelic/agent/android"
 
 # Results tracking
 TOTAL_TESTS=0
@@ -119,18 +130,26 @@ check_prerequisites() {
     fi
     log_success "Test app directory found: $TEST_APP_DIR"
 
-    # Check if agent artifacts are published locally
-    if [[ ! -d "$PROJECT_ROOT/build/.m2/repository/com/newrelic/agent/android" ]]; then
-        log_warning "Agent artifacts not found in local Maven repo"
-        log_info "Publishing agent to local Maven repository..."
-        cd "$PROJECT_ROOT"
-        ./gradlew publish -x test -x functionalTests -x integrationTests > /dev/null 2>&1 || {
-            log_error "Failed to publish agent artifacts"
-            exit 1
-        }
-        log_success "Agent artifacts published"
+    if [[ -z "$AGENT_VERSION" ]]; then
+        log_error "Could not resolve newrelic.agent.version from $PROJECT_ROOT/gradle.properties"
+        exit 1
+    fi
+    log_success "Agent version: $AGENT_VERSION"
+
+    # Agent artifacts must be in the user's local Maven repo. CI's build-agent job
+    # publishes via publishToMavenLocal and uploads ~/.m2/.../com/newrelic/agent/android
+    # as an artifact; locally we publish on demand if missing.
+    if [[ -d "$MAVEN_LOCAL/android-agent/$AGENT_VERSION" ]]; then
+        log_success "Agent artifacts found in $MAVEN_LOCAL"
     else
-        log_success "Agent artifacts found in local Maven repository"
+        log_warning "Agent $AGENT_VERSION not found in $MAVEN_LOCAL"
+        log_info "Publishing agent to mavenLocal..."
+        cd "$PROJECT_ROOT"
+        if ! ./gradlew publishToMavenLocal -x test -x functionalTests -x integrationTests; then
+            log_error "Failed to publish agent artifacts via publishToMavenLocal"
+            exit 1
+        fi
+        log_success "Agent artifacts published to mavenLocal"
     fi
 }
 
@@ -206,13 +225,19 @@ test_combination() {
     fi
 
     # Update Gradle wrapper to required version
-    cd "$TEST_APP_DIR"
+    cd "$TEST_APP_DIR" || return 1
     log_info "Updating Gradle wrapper to $gradle..."
 
     local wrapper_props="$TEST_APP_DIR/gradle/wrapper/gradle-wrapper.properties"
+    local wrapper_backup
+    wrapper_backup=$(mktemp -t gradle-wrapper.properties.XXXXXX) || return 1
 
     # Update the wrapper properties file directly
     if [[ -f "$wrapper_props" ]]; then
+        # Snapshot original so we can restore it after the build (so the working
+        # tree doesn't drift to whatever Gradle the last combination used).
+        cp "$wrapper_props" "$wrapper_backup"
+
         # Update the distribution URL
         sed -i.bak "s|gradle-[0-9.]*-bin.zip|gradle-$gradle-bin.zip|g" "$wrapper_props"
 
@@ -233,12 +258,21 @@ test_combination() {
     fi
 
     # Backup and update gradle.properties with version parameters
-    # This is needed because settings.gradle can't access -P command-line properties
+    # This is needed because settings.gradle can't access -P command-line properties.
+    # Use a per-run tempfile + EXIT trap so an interrupted run can't leak a stale
+    # backup that overwrites the next run's restore.
     local props_file="$TEST_APP_DIR/gradle.properties"
-    local backup_file="$TEST_APP_DIR/gradle.properties.backup"
+    local backup_file
+    backup_file=$(mktemp -t gradle.properties.XXXXXX) || {
+        log_error "Could not create tempfile for gradle.properties backup"
+        return 1
+    }
     cp "$props_file" "$backup_file"
+    trap 'mv -f "$backup_file" "$props_file" 2>/dev/null || true; mv -f "$wrapper_backup" "$wrapper_props" 2>/dev/null || true' EXIT
 
-    # Update versions in gradle.properties
+    # Update versions in gradle.properties — agent version too, since
+    # the test app pins a stale value that won't resolve from mavenLocal.
+    sed -i.tmp "s/^newrelic.agent.version=.*/newrelic.agent.version=$AGENT_VERSION/" "$props_file"
     sed -i.tmp "s/^newrelic.agp.version=.*/newrelic.agp.version=$agp/" "$props_file"
     sed -i.tmp "s/^newrelic.kotlin.version=.*/newrelic.kotlin.version=$kotlin/" "$props_file"
     sed -i.tmp "s/^newrelic.gradle.version=.*/newrelic.gradle.version=$gradle/" "$props_file"
@@ -267,8 +301,11 @@ test_combination() {
         local build_result=$?
     fi
 
-    # Restore original gradle.properties
-    mv "$backup_file" "$props_file"
+    # Restore original gradle.properties + gradle-wrapper.properties and clear the
+    # EXIT trap so it doesn't try to restore from now-deleted tempfiles in the next iteration.
+    mv -f "$backup_file" "$props_file"
+    mv -f "$wrapper_backup" "$wrapper_props"
+    trap - EXIT
 
     if [[ $build_result -eq 0 ]]; then
         log_success "Build PASSED: $name"
@@ -331,8 +368,9 @@ main() {
             continue
         fi
 
-        # Check if combination is enabled (default to true if not specified)
-        local enabled=$(jq -r ".combinations[$i].enabled // true" "$MATRIX_JSON")
+        # Check if combination is enabled. We can't use `.enabled // true` here —
+        # jq's // treats false like null, so explicit `enabled: false` would leak through.
+        local enabled=$(jq -r ".combinations[$i].enabled" "$MATRIX_JSON")
         if [[ "$enabled" == "false" ]]; then
             log_info "Skipping disabled combination: $name"
             local note=$(jq -r ".combinations[$i].note // \"Future version\"" "$MATRIX_JSON")

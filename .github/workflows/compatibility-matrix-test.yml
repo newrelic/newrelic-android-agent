@@ -35,8 +35,10 @@ jobs:
       - name: Set up matrix from JSON
         id: set-matrix
         run: |
-          # Read the compatibility matrix JSON and filter out disabled combinations
-          MATRIX=$(cat .github/workflows/compatibility-matrix.json | jq -c '[.combinations[] | select(.enabled // true == true)]')
+          # Read the compatibility matrix JSON and filter out disabled combinations.
+          # NOTE: do NOT use `.enabled // true` — jq's `//` treats `false` like null and
+          # would let explicitly disabled entries through. `.enabled != false` is correct.
+          MATRIX=$(cat .github/workflows/compatibility-matrix.json | jq -c '[.combinations[] | select(.enabled != false)]')
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
           # Print the matrix for debugging
@@ -63,7 +65,7 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version: 11
           distribution: 'temurin'
 
       - name: Setup Gradle
