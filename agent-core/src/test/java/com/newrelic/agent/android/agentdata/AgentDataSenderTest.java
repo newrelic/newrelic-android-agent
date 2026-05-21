@@ -149,7 +149,7 @@ public class AgentDataSenderTest {
     }
 
     private HttpURLConnection getMockedConnection(AgentDataSender agentDataSender) throws IOException {
-        HttpURLConnection connection = Mockito.spy(agentDataSender.getConnection());
+        HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
 
         Mockito.doNothing().when(connection).connect();
         Mockito.doReturn(false).when(connection).getDoOutput();
@@ -170,7 +170,7 @@ public class AgentDataSenderTest {
     @Test
     public void testTimedoutUpload() throws Exception {
         AgentDataSender agentDataSender = spy(new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration));
-        HttpURLConnection connection = spy(agentDataSender.getConnection());
+        HttpURLConnection connection = getMockedConnection(agentDataSender);
 
         Mockito.doReturn(HttpsURLConnection.HTTP_CLIENT_TIMEOUT).when(connection).getResponseCode();
         agentDataSender.onRequestResponse(connection);
@@ -182,7 +182,7 @@ public class AgentDataSenderTest {
     @Test
     public void testThrottledUpload() throws Exception {
         AgentDataSender agentDataSender = spy(new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration));
-        HttpURLConnection connection = spy(agentDataSender.getConnection());
+        HttpURLConnection connection = getMockedConnection(agentDataSender);
 
         Mockito.doReturn(429).when(connection).getResponseCode();
 

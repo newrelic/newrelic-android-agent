@@ -35,7 +35,7 @@ buildscript {
                         minVersion : JavaVersion.VERSION_17,
                         kotlin     : "1.7.0",
                         gson       : '2.8.9',
-                        guava      : '18.0',
+                        guava      : '32.0.1-jre',
                         commonsIO  : '2.12.0',
                         javassist  : '3.22.0-GA',
                         asm        : '9.7',
