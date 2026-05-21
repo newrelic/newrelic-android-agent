@@ -64,8 +64,7 @@ public class PayloadSenderTest {
     }
 
     private HttpURLConnection getMockedConnection() throws IOException {
-        HttpURLConnection connection = Mockito.spy((HttpURLConnection) new URL("https://www.newrelic.com")
-                .openConnection());
+        HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
 
         Mockito.doReturn(false).when(connection).getDoOutput();
         Mockito.doReturn(false).when(connection).getDoInput();
@@ -97,7 +96,7 @@ public class PayloadSenderTest {
             protected HttpURLConnection getConnection() throws IOException {
                 final String urlString = getProtocol() + agentConfiguration.getHexCollectorHost() + agentConfiguration.getHexCollectorPath();
                 final URL url = new URL(urlString);
-                return (HttpURLConnection) Mockito.spy(url.openConnection());
+                return (HttpURLConnection) url.openConnection();
             }
         });
 

@@ -445,6 +445,7 @@ public class AndroidAgentImplTest {
         Assert.assertTrue(log.getInstance() instanceof ConsoleAgentLog);
 
         Mockito.when(loggingConfig.getLoggingEnabled()).thenReturn(true);
+        Mockito.when(loggingConfig.isSampled()).thenReturn(true);
         agentConfig.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
         agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
         agentImpl.initialize();

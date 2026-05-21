@@ -7,6 +7,9 @@ on:
     branches: [ "develop", "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   functional-plugin-jdk17:
     if: ${{ false }}  # disable for until tests are resolved
@@ -45,7 +48,7 @@ jobs:
       - name: set up JDK
         uses: actions/setup-java@v3
         with:
-          java-version: '11'
+          java-version: '17'
           distribution: 'temurin'
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2.4.2
@@ -75,7 +78,7 @@ jobs:
       - name: set up JDK
         uses: actions/setup-java@v3
         with:
-          java-version: '11'
+          java-version: '17'
           distribution: 'temurin'
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2.4.2

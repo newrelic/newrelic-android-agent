@@ -147,7 +147,7 @@ tasks.withType(Copy).all {
 }
 
 tasks.jar.configure {
-    classifier = 'default'
+    archiveClassifier = 'default'
 }
 
 test {
@@ -181,7 +181,7 @@ tasks.named('check') {
 }
 
 shadowJar {
-    classifier = null
+    archiveClassifier = null
 }
 
 artifacts {
