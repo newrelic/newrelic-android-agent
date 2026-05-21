@@ -9,7 +9,14 @@ import org.gradle.util.GradleVersion
 import org.slf4j.LoggerFactory
 
 pluginManagement {
-    def hasOptional = { key, defaultValue -> settings.hasProperty(key) ? settings[key] : defaultValue }
+    // Use providers.gradleProperty(...) — dotted property names like "newrelic.agp.version"
+    // are NOT reliably resolved through `settings.hasProperty()` / `settings[key]` because
+    // Groovy interprets the dots as nested property navigation. The provider API reads
+    // gradle.properties values directly by literal key and works on every Gradle version.
+    def hasOptional = { key, defaultValue ->
+        def v = settings.providers.gradleProperty(key).getOrNull()
+        return (v != null && v != '') ? v : defaultValue
+    }
     def logger = LoggerFactory.getLogger("newrelic")
 
     ext {

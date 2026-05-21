@@ -109,6 +109,19 @@ tasks.named("compileKotlin").configure {
 
 tasks.withType(JavaCompile).configureEach {
     dependsOn(":instrumentation:jar")
+    // Class file 55 so the published plugin loads under JDK 11 (AGP 7.x users).
+    options.release.set(11)
+}
+
+tasks.withType(GroovyCompile).configureEach {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        jvmTarget = "11"
+    }
 }
 
 tasks.withType(Test).configureEach {
