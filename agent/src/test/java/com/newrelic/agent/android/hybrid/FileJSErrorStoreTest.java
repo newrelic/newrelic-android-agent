@@ -193,6 +193,70 @@ public class FileJSErrorStoreTest {
     }
 
     @Test
+    public void store_overwrite_leavesNoBackupFile() {
+        // Successful overwrite path must leave only the .json target — no .bak
+        // sidecar and no .tmp leftover.
+        String id = UUID.randomUUID().toString();
+        Assert.assertTrue(store.store(id, SAMPLE_JSON_A));
+        Assert.assertTrue(store.store(id, SAMPLE_JSON_B));
+
+        File[] baks = cacheDir.listFiles((d, n) -> n.endsWith(FileJSErrorStore.BAK_SUFFIX));
+        File[] tmps = cacheDir.listFiles((d, n) -> n.endsWith(FileJSErrorStore.TMP_SUFFIX));
+        Assert.assertNotNull(baks);
+        Assert.assertEquals("overwrite must leave no .bak sidecar", 0, baks.length);
+        Assert.assertNotNull(tmps);
+        Assert.assertEquals("overwrite must leave no .tmp leftover", 0, tmps.length);
+        Assert.assertEquals(SAMPLE_JSON_B, store.fetchAllEntries().get(id));
+    }
+
+    @Test
+    public void init_recoversBakWhenJsonMissing() throws IOException {
+        // Simulate a crash mid-overwrite: only the .bak survived. The init
+        // sweep must rename the .bak back to .json so the previous entry is
+        // not lost.
+        store.clear();
+        String id = UUID.randomUUID().toString();
+        File bak = new File(cacheDir, id + FileJSErrorStore.BAK_SUFFIX);
+        String onDisk = "{\"id\":\"" + id + "\",\"data\":\"" + SAMPLE_JSON_A.replace("\"", "\\\"") + "\"}";
+        try (OutputStream os = new FileOutputStream(bak)) {
+            os.write(onDisk.getBytes(StandardCharsets.UTF_8));
+        }
+        Assert.assertTrue(bak.exists());
+
+        FileJSErrorStore recovered = new FileJSErrorStore(context, config);
+
+        Assert.assertFalse(".bak must be consumed by sweep", bak.exists());
+        File restored = new File(cacheDir, id + FileJSErrorStore.FILE_SUFFIX);
+        Assert.assertTrue(".bak must be renamed to .json on recovery", restored.exists());
+        Assert.assertEquals(SAMPLE_JSON_A, recovered.fetchAllEntries().get(id));
+    }
+
+    @Test
+    public void init_dropsStaleBakWhenJsonExists() throws IOException {
+        // Simulate a crash AFTER the second rename succeeded but BEFORE the
+        // .bak was cleaned up: both .bak and .json are on disk. The .json is
+        // the new authoritative value; the .bak must be discarded without
+        // touching the .json.
+        store.clear();
+        String id = UUID.randomUUID().toString();
+        Assert.assertTrue(store.store(id, SAMPLE_JSON_B));
+        File target = new File(cacheDir, id + FileJSErrorStore.FILE_SUFFIX);
+        File staleBak = new File(cacheDir, id + FileJSErrorStore.BAK_SUFFIX);
+        try (OutputStream os = new FileOutputStream(staleBak)) {
+            os.write("stale-old-value".getBytes(StandardCharsets.UTF_8));
+        }
+        Assert.assertTrue(staleBak.exists());
+        Assert.assertTrue(target.exists());
+
+        FileJSErrorStore reopened = new FileJSErrorStore(context, config);
+
+        Assert.assertFalse("stale .bak must be deleted by sweep", staleBak.exists());
+        Assert.assertTrue(".json sibling must be untouched", target.exists());
+        Assert.assertEquals("authoritative .json value must be preserved",
+                SAMPLE_JSON_B, reopened.fetchAllEntries().get(id));
+    }
+
+    @Test
     public void fetchAll_skipsCorruptedFiles() throws IOException {
         String id = UUID.randomUUID().toString();
         Assert.assertTrue(store.store(id, SAMPLE_JSON_A));
@@ -236,6 +300,10 @@ public class FileJSErrorStoreTest {
         File strayTmp = new File(cacheDir, "stray" + FileJSErrorStore.TMP_SUFFIX);
         try (OutputStream os = new FileOutputStream(strayTmp)) {
             os.write("tmp".getBytes(StandardCharsets.UTF_8));
+        }
+        File strayBak = new File(cacheDir, "stray" + FileJSErrorStore.BAK_SUFFIX);
+        try (OutputStream os = new FileOutputStream(strayBak)) {
+            os.write("bak".getBytes(StandardCharsets.UTF_8));
         }
 
         store.clear();
