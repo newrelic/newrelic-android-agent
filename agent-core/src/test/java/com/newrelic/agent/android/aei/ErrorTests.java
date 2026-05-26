@@ -104,14 +104,14 @@ public class ErrorTests {
     public void testErrorFromJson() throws Exception {
         error = new Error(buildId, timestamp);
 
-        Error errorFromJson = Error.ErrorFromJsonString(error.asJsonObject().toString());
+        Error errorFromJson = Error.errorFromJsonString(error.asJsonObject().toString());
         Assert.assertEquals("Should contain timestamp", timeOfTests, errorFromJson.getTimestamp());
 
 
         final Set<AnalyticsAttribute> sessionAttributes = AnalyticsControllerImpl.getInstance().getSessionAttributes();
         final HashMap<String,Object> event = getApplicationExitInfoEvent();
         error = new Error( sessionAttributes, event);
-        errorFromJson =  Error.ErrorFromJsonString(error.asJsonObject().toString());
+        errorFromJson =  Error.errorFromJsonString(error.asJsonObject().toString());
 
         JsonObject json = errorFromJson.asJsonObject();
         Assert.assertTrue("Should contain analytics structs", json.has("sessionAttributes") && json.has("analyticsEvents"));
