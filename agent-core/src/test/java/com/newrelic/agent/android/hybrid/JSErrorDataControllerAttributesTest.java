@@ -280,7 +280,12 @@ public class JSErrorDataControllerAttributesTest {
     }
 
     @Test
-    public void appVersionAtRecord_additionalAttributesWinOnCollision() throws Exception {
+    public void appVersionAtRecord_agentSnapshotAlwaysWinsOverCallerOverride() throws Exception {
+        // appVersionAtRecord is the internal grouping/header key — the agent owns it.
+        // A caller passing it (intentionally or by accident) must NOT be able to
+        // misroute symbolication to the wrong ProGuard mapping. AnalyticsValidator
+        // marks the key as reserved, and sendJSErrorData drops reserved keys from
+        // additionalAttributes before merging, so the agent's snapshot always wins.
         mutableAgent.setAppVersion("1.2.3");
 
         Map<String, Object> extras = new HashMap<>();
@@ -291,8 +296,33 @@ public class JSErrorDataControllerAttributesTest {
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
         JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
-        Assert.assertEquals("user-supplied additionalAttributes must win over the snapshot",
-                "user-override", event.get(AnalyticsAttribute.APP_VERSION_AT_RECORD_ATTRIBUTE).getAsString());
+        Assert.assertEquals("agent snapshot must win — caller cannot override the internal grouping key",
+                "1.2.3", event.get(AnalyticsAttribute.APP_VERSION_AT_RECORD_ATTRIBUTE).getAsString());
+    }
+
+    @Test
+    public void additionalAttributes_reservedPrefixedKeysAreDropped() throws Exception {
+        // AnalyticsValidator rejects names beginning with newRelic / nr. / Public_
+        // (in addition to the explicit reserved set). sendJSErrorData must drop
+        // these from additionalAttributes so caller input cannot inject anything
+        // shaped like an agent-internal field.
+        Map<String, Object> extras = new HashMap<>();
+        extras.put("newRelicSomething", "should-drop");
+        extras.put("nr.foo", "should-drop");
+        extras.put("Public_bar", "should-drop");
+        extras.put("safeKey", "should-keep");
+
+        JSErrorDataController.getInstance().sendJSErrorData(
+                "TypeError", "boom", "stack", false, extras);
+        Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
+
+        JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
+        Assert.assertFalse("newRelic-prefixed keys must be dropped",
+                event.has("newRelicSomething"));
+        Assert.assertFalse("nr.-prefixed keys must be dropped", event.has("nr.foo"));
+        Assert.assertFalse("Public_-prefixed keys must be dropped", event.has("Public_bar"));
+        Assert.assertEquals("non-reserved keys must be preserved",
+                "should-keep", event.get("safeKey").getAsString());
     }
 
     @Test
