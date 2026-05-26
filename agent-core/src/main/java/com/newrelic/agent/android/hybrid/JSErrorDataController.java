@@ -100,6 +100,19 @@ public class JSErrorDataController {
                 eventObject.add(entry.getKey(), gson.toJsonTree(entry.getValue()));
             }
 
+            // Snapshot session attributes synchronously on the calling thread so the event
+            // freezes the session active at recordJavaScriptError time, not whichever session
+            // is active when the cache is later flushed (which may be a different session
+            // entirely after a crash, ANR, or force-stop).
+            AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+            if (analyticsController != null) {
+                for (AnalyticsAttribute attr : analyticsController.getSessionAttributes()) {
+                    if (!eventObject.has(attr.getName())) {
+                        eventObject.add(attr.getName(), attr.asJsonElement());
+                    }
+                }
+            }
+
             PayloadController.submitCallable(new Callable<Boolean>() {
                 @Override
                 public Boolean call() throws Exception {
@@ -138,7 +151,7 @@ public class JSErrorDataController {
             return null;
         }
 
-        Error jsError = new Error(analyticsController.getSessionAttributes(), new HashMap<>());
+        Error jsError = new Error(null, new HashMap<>());
         JsonArray eventsArray = new JsonArray();
 
         for (String eventJson : eventJsonList) {

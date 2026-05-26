@@ -40,8 +40,6 @@ public abstract class AbstractFileStore<T> {
 
     public static final String TMP_SUFFIX = ".tmp";
     public static final String FILE_SUFFIX = ".json";
-    /** Sidecar holding the previous entry while {@link #writeAtomic} is mid-overwrite on non-POSIX rename paths. */
-    public static final String BAK_SUFFIX = ".bak";
 
     private static final int MAX_SAFE_ID_LENGTH = 128;
     private static final Pattern SAFE_ID = Pattern.compile("[A-Za-z0-9._-]+");
@@ -60,7 +58,7 @@ public abstract class AbstractFileStore<T> {
         this.corruptMetric = corruptMetric;
         this.tag = tag;
         ensureDir();
-        sweepTransientFiles();
+        sweepTempFiles();
     }
 
     /** Derive a per-entry key. The returned value is sanitized via {@link #safeFilename(String)} before use. */
@@ -167,43 +165,14 @@ public abstract class AbstractFileStore<T> {
         }
     }
 
-    /**
-     * Drop half-written temp files and recover any in-flight overwrite backups
-     * left over from a crash mid-{@link #writeAtomic}.
-     *
-     * <ul>
-     *   <li>{@code .tmp}: half-written body — always discard.</li>
-     *   <li>{@code .bak} with a {@code .json} sibling: overwrite succeeded but
-     *       cleanup was interrupted — discard the backup.</li>
-     *   <li>{@code .bak} without a {@code .json} sibling: overwrite was
-     *       interrupted before the new value landed — rename the backup back
-     *       into place so the previous entry is preserved.</li>
-     * </ul>
-     */
-    private void sweepTransientFiles() {
-        final File[] all = dir.listFiles();
-        if (all == null) {
+    private void sweepTempFiles() {
+        final File[] tmps = dir.listFiles((d, name) -> name.endsWith(TMP_SUFFIX));
+        if (tmps == null) {
             return;
         }
-        for (File f : all) {
-            final String name = f.getName();
-            if (name.endsWith(TMP_SUFFIX)) {
-                if (!f.delete()) {
-                    log.debug(tag + ".sweepTransientFiles: failed to delete tmp [" + name + "]");
-                }
-            } else if (name.endsWith(BAK_SUFFIX)) {
-                final String prefix = name.substring(0, name.length() - BAK_SUFFIX.length());
-                final File target = new File(dir, prefix + FILE_SUFFIX);
-                if (target.exists()) {
-                    if (!f.delete()) {
-                        log.debug(tag + ".sweepTransientFiles: failed to delete stale bak [" + name + "]");
-                    }
-                } else if (!f.renameTo(target)) {
-                    log.error(tag + ".sweepTransientFiles: failed to restore bak [" + name + "]");
-                    if (!f.delete()) {
-                        log.debug(tag + ".sweepTransientFiles: failed to delete unrecoverable bak [" + name + "]");
-                    }
-                }
+        for (File f : tmps) {
+            if (!f.delete()) {
+                log.debug(tag + ".sweepTempFiles: failed to delete [" + f.getName() + "]");
             }
         }
     }
@@ -243,52 +212,32 @@ public abstract class AbstractFileStore<T> {
             os.flush();
         } catch (IOException e) {
             log.error(tag + ".writeAtomic: failed writing tmp for [" + safeName + "]: " + e);
-            cleanupTmp(tmp, safeName);
+            if (tmp.exists() && !tmp.delete()) {
+                log.debug(tag + ".writeAtomic: failed to cleanup tmp for [" + safeName + "]");
+            }
             return false;
         }
         // POSIX rename is atomic and replaces an existing target on Android ext4.
-        // Try the single-step rename first so we never disturb the old entry unless we
+        // Try the single-step rename first so we never delete the old entry unless we
         // know the platform won't overwrite.
         if (tmp.renameTo(target)) {
             return true;
         }
-        // Non-POSIX fallback. Move the existing target aside as a backup, then attempt
-        // the rename. If anything goes wrong we restore the backup so the overwrite path
-        // can never lose the old value, even on partial failure.
-        File backup = null;
-        if (target.exists()) {
-            backup = new File(dir, safeName + BAK_SUFFIX);
-            if (backup.exists() && !backup.delete()) {
-                log.error(tag + ".writeAtomic: stale backup blocks overwrite for [" + safeName + "]");
-                cleanupTmp(tmp, safeName);
-                return false;
+        if (target.exists() && !target.delete()) {
+            log.error(tag + ".writeAtomic: cannot replace existing target [" + safeName + "]");
+            if (tmp.exists() && !tmp.delete()) {
+                log.debug(tag + ".writeAtomic: failed to cleanup tmp for [" + safeName + "]");
             }
-            if (!target.renameTo(backup)) {
-                log.error(tag + ".writeAtomic: cannot move existing target aside for [" + safeName + "]");
-                cleanupTmp(tmp, safeName);
-                return false;
+            return false;
+        }
+        if (!tmp.renameTo(target)) {
+            log.error(tag + ".writeAtomic: rename failed for [" + safeName + "]");
+            if (tmp.exists() && !tmp.delete()) {
+                log.debug(tag + ".writeAtomic: failed to cleanup tmp for [" + safeName + "]");
             }
+            return false;
         }
-        if (tmp.renameTo(target)) {
-            if (backup != null && !backup.delete()) {
-                log.debug(tag + ".writeAtomic: failed to cleanup backup for [" + safeName + "]");
-            }
-            return true;
-        }
-        log.error(tag + ".writeAtomic: rename failed for [" + safeName + "]");
-        if (backup != null && !backup.renameTo(target)) {
-            // In-process restoration failed. The .bak remains on disk so the next
-            // sweepTransientFiles() pass at init can still recover the previous entry.
-            log.error(tag + ".writeAtomic: failed to restore backup for [" + safeName + "]");
-        }
-        cleanupTmp(tmp, safeName);
-        return false;
-    }
-
-    private void cleanupTmp(File tmp, String safeName) {
-        if (tmp.exists() && !tmp.delete()) {
-            log.debug(tag + ".writeAtomic: failed to cleanup tmp for [" + safeName + "]");
-        }
+        return true;
     }
 
     private T parseFile(File f) throws Exception {
