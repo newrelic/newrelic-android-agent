@@ -17,6 +17,7 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
+import com.newrelic.agent.android.analytics.AnalyticsValidator;
 import com.newrelic.agent.android.error.Error;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -40,6 +41,7 @@ public class JSErrorDataController {
     private final AgentConfiguration agentConfiguration;
     private final JSErrorStore jsErrorStore;
     private final ReentrantReadWriteLock lock;
+    private final AnalyticsValidator validator;
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final Gson gson = new GsonBuilder().create();
@@ -49,6 +51,7 @@ public class JSErrorDataController {
         this.agentConfiguration = AgentConfiguration.getInstance();
         this.jsErrorStore = agentConfiguration.getJsErrorStore();
         this.lock = new ReentrantReadWriteLock();
+        this.validator = new AnalyticsValidator();
     }
 
     public static JSErrorDataController getInstance() {
@@ -100,9 +103,18 @@ public class JSErrorDataController {
             }
 
             // additionalAttributes are merged first so that reserved keys below always win.
+            // Reserved attribute names (incl. APP_VERSION_AT_RECORD_ATTRIBUTE, the internal
+            // grouping/header key) are dropped here so caller input cannot misroute
+            // symbolication by overriding the agent's app-version snapshot.
             final HashMap<String, Object> eventAttributes = new HashMap<>();
             if (additionalAttributes != null) {
-                eventAttributes.putAll(additionalAttributes);
+                for (Map.Entry<String, Object> entry : additionalAttributes.entrySet()) {
+                    String key = entry.getKey();
+                    if (key == null || validator.isReservedAttributeName(key)) {
+                        continue;
+                    }
+                    eventAttributes.put(key, entry.getValue());
+                }
             }
             final String errorId = UUID.randomUUID().toString();
             eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORID, errorId);
@@ -120,11 +132,11 @@ public class JSErrorDataController {
 
             // Snapshot the current app version so the upload header can be set correctly
             // on flush even if the app has been upgraded since this error was recorded.
-            // !has() preserves precedence: reserved JSERROR_* keys and user-supplied
-            // additionalAttributes already in eventObject win on collision.
+            // The agent owns this internal grouping/header key — the caller-supplied
+            // value (if any) was already filtered out above, so we always write the
+            // agent's snapshot here.
             final String currentAppVersion = currentAppVersion();
-            if (currentAppVersion != null && !currentAppVersion.isEmpty()
-                    && !eventObject.has(AnalyticsAttribute.APP_VERSION_AT_RECORD_ATTRIBUTE)) {
+            if (currentAppVersion != null && !currentAppVersion.isEmpty()) {
                 eventObject.addProperty(AnalyticsAttribute.APP_VERSION_AT_RECORD_ATTRIBUTE, currentAppVersion);
             }
 
