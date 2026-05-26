@@ -51,6 +51,7 @@ import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
+import com.newrelic.agent.android.sessionReplay.CompositeEventListener;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.spy.AgentDataReporterSpy;
@@ -839,6 +840,7 @@ public class NewRelicTest {
         Assert.assertNotEquals("Should contain updated 'userId' value", "validUserId", attr.getStringValue());
 
         Assert.assertTrue(analyticsController.getEventManager().isTransmitRequired());
+        Harvest.harvestNow(true, true);
         Assert.assertNotEquals("Should generate a new session", preSessionId, NewRelic.currentSessionId());
         Assert.assertEquals("Should match system attribute", analyticsController.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE).getStringValue(),
                 NewRelic.currentSessionId());
@@ -1075,23 +1077,23 @@ public class NewRelicTest {
 
         NewRelic.setEventListener(listener);
         Assert.assertEquals(managerStarted.get(), 0);
-        Assert.assertEquals(listener, ((EventManagerImpl) eventManager).getListener());
+        Assert.assertEquals(listener, ((CompositeEventListener)((EventManagerImpl) eventManager).getListener()).getUserListener());
 
         // b/g
         eventManager.shutdown();
         Assert.assertEquals(0, managerStarted.get());
         Assert.assertEquals(1, managerStopped.get());
-        Assert.assertEquals(listener, ((EventManagerImpl) eventManager).getListener());
+        Assert.assertEquals(listener, ((CompositeEventListener)((EventManagerImpl) eventManager).getListener()).getUserListener());
 
         // f/g
         eventManager.initialize(agentConfiguration);
         Assert.assertEquals(1, managerStarted.get());
-        Assert.assertEquals(listener, ((EventManagerImpl) eventManager).getListener());
+        Assert.assertEquals(listener, ((CompositeEventListener)((EventManagerImpl) eventManager).getListener()).getUserListener());
 
         // b/g
         eventManager.shutdown();
         Assert.assertEquals(2, managerStopped.get());
-        Assert.assertEquals(listener, ((EventManagerImpl) eventManager).getListener());
+        Assert.assertEquals(listener, ((CompositeEventListener)((EventManagerImpl) eventManager).getListener()).getUserListener());
     }
 
     @Test
