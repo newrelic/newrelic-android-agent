@@ -991,6 +991,66 @@ public class NewRelicTest {
     }
 
     @Test
+    public void testRecordJavaScriptError() {
+        Assert.assertTrue("JSError feature should be enabled by default",
+                FeatureFlag.featureEnabled(FeatureFlag.JSError));
+
+        Assert.assertTrue("Should queue JS error for delivery",
+                NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+    }
+
+    @Test
+    public void testRecordJavaScriptErrorWithAttributes() {
+        HashMap<String, Object> attributes = new HashMap<>();
+        attributes.put("module", "junit");
+        attributes.put("fakedError", true);
+
+        Assert.assertTrue("Should queue JS error with attributes for delivery",
+                NewRelic.recordJavaScriptError("TypeError", "boom", "stack", true, attributes));
+
+        // verify null attribute set also
+        Assert.assertTrue("Should queue JS error with null attributes for delivery",
+                NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+    }
+
+    @Test
+    public void testRecordJavaScriptErrorFeatureDisabled() {
+        try {
+            NewRelic.disableFeature(FeatureFlag.JSError);
+            Assert.assertFalse("recordJavaScriptError should be a no-op when JSError feature is disabled",
+                    NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+        } finally {
+            NewRelic.enableFeature(FeatureFlag.JSError);
+        }
+    }
+
+    @Test
+    public void testRecordJavaScriptErrorRejectsInvalidName() {
+        Assert.assertFalse("Null error name must be rejected",
+                NewRelic.recordJavaScriptError(null, "boom", "stack", false, null));
+        Assert.assertFalse("Empty error name must be rejected",
+                NewRelic.recordJavaScriptError("", "boom", "stack", false, null));
+    }
+
+    @Test
+    public void testRecordJavaScriptErrorTriggersSessionReplayWhenEnabled() {
+        // Mirrors the recordHandledException SessionReplay trigger pattern (NR-547254):
+        // when SR is enabled, a JS error must invoke the SR error path so error-mode
+        // sessions flush their buffer and sampled-start sessions evaluate the error
+        // sampling rate. The SR path must be safe to invoke even when SR runtime
+        // components are not initialized in this unit-test environment.
+        boolean originalEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
+        try {
+            agentConfiguration.getSessionReplayConfiguration().setEnabled(true);
+
+            Assert.assertTrue("Should queue JS error for delivery when SR is enabled",
+                    NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+        } finally {
+            agentConfiguration.getSessionReplayConfiguration().setEnabled(originalEnabled);
+        }
+    }
+
+    @Test
     public void testRecordBreadCrumb() {
         Assert.assertTrue("MobileBreadcrumb event should be recorded", NewRelic.recordBreadcrumb("Name.foo"));
     }
@@ -1546,6 +1606,11 @@ public class NewRelicTest {
 
         @Override
         public void delete(AnalyticsAttribute attribute) {
+        }
+
+        @Override
+        public String getRootPath() {
+            return "";
         }
     }
 

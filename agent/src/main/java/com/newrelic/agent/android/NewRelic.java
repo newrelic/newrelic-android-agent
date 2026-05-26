@@ -1134,6 +1134,12 @@ public final class NewRelic {
      * the JSError feature is disabled or the input is invalid.
      */
     public static boolean recordJavaScriptError(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
+        // Notify SessionReplay about the JS error for mode switching (if enabled)
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            AndroidAgentImpl.activateLoggingForSessionReplay();
+            SessionReplay.onError();
+        }
+
         return JSErrorDataController.getInstance().sendJSErrorData(name, message, stackTrace, isFatal, additionalAttributes);
     }
 
