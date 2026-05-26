@@ -45,6 +45,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_PAYLOAD_REMOVED_STALE = SUPPORTABILITY_AGENT + "Payload/Removed/Stale";
     public static final String SUPPORTABILITY_PAYLOAD_EVICTED = SUPPORTABILITY_AGENT + "Payload/Removed/Evicted";
     public static final String SUPPORTABILITY_PAYLOAD_CORRUPTED = SUPPORTABILITY_AGENT + "Payload/Corrupted";
+    public static final String SUPPORTABILITY_JS_ERROR_EVICTED = SUPPORTABILITY_AGENT + "JSError/Removed/Evicted";
+    public static final String SUPPORTABILITY_JS_ERROR_CORRUPTED = SUPPORTABILITY_AGENT + "JSError/Corrupted";
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
 

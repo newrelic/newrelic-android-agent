@@ -59,6 +59,7 @@ import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
+import com.newrelic.agent.android.hybrid.FileJSErrorStore;
 import com.newrelic.agent.android.payload.FilePayloadStore;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.sample.MachineMeasurementConsumer;
@@ -71,7 +72,6 @@ import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
 import com.newrelic.agent.android.stores.SharedPrefsEventStore;
-import com.newrelic.agent.android.stores.SharedPrefsJSErrorStore;
 import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -155,7 +155,8 @@ public class AndroidAgentImpl implements
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
         agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
         agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
-        agentConfiguration.setJsErrorStore(new SharedPrefsJSErrorStore(context));
+        agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
+        context.deleteSharedPreferences("NRJSErrorStore");
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         // used to determine when app backgrounds
