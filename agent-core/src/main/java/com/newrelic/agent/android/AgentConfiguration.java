@@ -11,6 +11,7 @@ import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;
 import com.newrelic.agent.android.harvest.HarvestConfigurable;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
+import com.newrelic.agent.android.hybrid.JSErrorStore;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.LogLevel;
@@ -75,6 +76,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private int maxCachedPayloadCount = DEFAULT_MAX_CACHED_PAYLOAD_COUNT;
     private AnalyticsEventStore eventStore;
     private SessionReplayStore sessionReplayStore;
+    private JSErrorStore jsErrorStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
@@ -164,6 +166,14 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setSessionReplayStore(SessionReplayStore sessionReplayStore) {
         this.sessionReplayStore = sessionReplayStore;
+    }
+
+    public JSErrorStore getJsErrorStore() {
+        return jsErrorStore;
+    }
+
+    public void setJsErrorStore(JSErrorStore jsErrorStore) {
+        this.jsErrorStore = jsErrorStore;
     }
 
     public boolean getReportHandledExceptions() {

@@ -15,20 +15,25 @@ import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.payload.PayloadReporter;
 import com.newrelic.agent.android.payload.PayloadSender;
-import com.newrelic.agent.android.payload.PayloadStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static com.newrelic.agent.android.hybrid.JSErrorDataController.HarvestSnapshot;
 
 public class JSErrorDataReporter extends PayloadReporter {
     protected static final AtomicReference<JSErrorDataReporter> instance = new AtomicReference<>(null);
-    private static boolean reportExceptions = false;
+    private static final AtomicBoolean reportExceptions = new AtomicBoolean(false);
 
-    protected final PayloadStore<Payload> payloadStore;
+    protected final JSErrorStore jsErrorStore;
+
+    private final AtomicBoolean startupSendInProgress = new AtomicBoolean(false);
 
     protected final Callable reportCachedJSErrorDataCallable = new Callable() {
         @Override
@@ -39,12 +44,16 @@ public class JSErrorDataReporter extends PayloadReporter {
     };
 
     public static JSErrorDataReporter getInstance() {
-        return instance.get();
+        JSErrorDataReporter reporter = instance.get();
+        if (reporter == null) {
+            log.warn("JSErrorDataReporter.getInstance(): Reporter not initialized");
+        }
+        return reporter;
     }
 
     public static JSErrorDataReporter initialize(AgentConfiguration agentConfiguration) {
         instance.compareAndSet(null, new JSErrorDataReporter(agentConfiguration));
-        reportExceptions = agentConfiguration.getReportHandledExceptions();
+        reportExceptions.set(agentConfiguration.getReportHandledExceptions());
 
         return instance.get();
     }
@@ -55,24 +64,9 @@ public class JSErrorDataReporter extends PayloadReporter {
                 instance.get().stop();
             } finally {
                 instance.set(null);
+                JSErrorDataController.reset();
             }
         }
-    }
-
-    public static boolean reportJSErrorData(byte[] bytes) {
-        boolean reported = false;
-
-        if (isInitialized()) {
-            if (reportExceptions) {
-                Payload payload = new Payload(bytes);
-                instance.get().storeAndReportJSErrorData(payload);
-                reported = true;
-            }
-        } else {
-            log.error("JSErrorDataReporter not initialized");
-        }
-
-        return reported;
     }
 
     protected static boolean isInitialized() {
@@ -81,7 +75,7 @@ public class JSErrorDataReporter extends PayloadReporter {
 
     protected JSErrorDataReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
-        this.payloadStore = agentConfiguration.getPayloadStore();
+        this.jsErrorStore = agentConfiguration.getJsErrorStore();
         this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.HandledExceptions));
     }
 
@@ -102,27 +96,43 @@ public class JSErrorDataReporter extends PayloadReporter {
     @Override
     public void stop() {
         Harvest.removeHarvestListener(this);
-
     }
 
-    // upload any cached agent data posts
     protected void reportCachedJSErrorData() {
-        if(Agent.hasReachableNetworkConnection(null)) {
-            if (isInitialized()) {
-                if (payloadStore != null) {
-                    for (Payload payload : payloadStore.fetchAll()) {
-                        if (!isPayloadStale(payload)) {
-                            reportJSErrorData(payload);
+        if (Agent.hasReachableNetworkConnection(null)) {
+            if (jsErrorStore != null) {
+                startupSendInProgress.set(true);
+                try {
+                    HarvestSnapshot snapshot = JSErrorDataController.getInstance().getStoredJSErrorData();
+                    if (snapshot != null) {
+                        Payload payload = new Payload(snapshot.payloadJson.getBytes(StandardCharsets.UTF_8));
+                        Future future = reportJSErrorData(payload, snapshot.snapshotIds, true);
+                        if (future == null) {
+                            startupSendInProgress.set(false);
                         }
+                    } else {
+                        startupSendInProgress.set(false);
                     }
+                } catch (Exception e) {
+                    startupSendInProgress.set(false);
+                    log.error("JSErrorDataReporter: Failed to report cached JS errors: " + e.getMessage());
                 }
             } else {
-                log.error("JSErrorDataReporter not initialized");
+                log.warn("JSErrorStore is not initialized");
             }
         }
     }
 
-    public Future reportJSErrorData(Payload payload) {
+    /**
+     * @param payload      the payload to send
+     * @param sentIds      IDs to delete from the store on HTTP 200/202
+     * @param isStartupSend {@code true} only when called from the startup cache-replay path;
+     *                     causes the completion handler to clear {@link #startupSendInProgress}
+     *                     so that {@link #onHarvest} is unblocked once this POST finishes.
+     *                     Must be {@code false} for all harvest-cycle sends to avoid
+     *                     prematurely clearing the flag while a startup send is still in-flight.
+     */
+    public Future reportJSErrorData(Payload payload, List<String> sentIds, boolean isStartupSend) {
         PayloadSender payloadSender = new JSErrorDataSender(payload, getAgentConfiguration());
 
         if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
@@ -132,18 +142,24 @@ public class JSErrorDataReporter extends PayloadReporter {
                     .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
                     .replace(MetricNames.TAG_SUBDESTINATION, "f");
             StatsEngine.notice().inc(name);
-            payloadStore.delete(payload);
             log.error("Unable to upload handled exceptions because payload is larger than 1 MB, handled exceptions are discarded.");
+            if (isStartupSend) {
+                startupSendInProgress.set(false);
+            }
             return null;
         }
 
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {
+                if (isStartupSend) {
+                    startupSendInProgress.set(false);
+                }
+
                 if (payloadSender.isSuccessfulResponse()) {
-                    if (payloadStore != null) {
-                        payloadStore.delete(payloadSender.getPayload());
-                    }
+                    // HTTP 200/202/500: collector confirmed receipt (or permanently rejected).
+                    // Delete the snapshotted IDs so they are not re-sent.
+                    JSErrorDataController.getInstance().deleteErrors(sentIds);
 
                     //add supportability metrics
                     DeviceInformation deviceInformation = Agent.getDeviceInformation();
@@ -152,17 +168,22 @@ public class JSErrorDataReporter extends PayloadReporter {
                             .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
                             .replace(MetricNames.TAG_SUBDESTINATION, "f");
                     StatsEngine.get().sampleMetricDataUsage(name, payloadSender.getPayload().getBytes().length, 0);
+                } else if (payloadSender.getResponseCode() == java.net.HttpURLConnection.HTTP_FORBIDDEN) {
+                    // HTTP 403: permanent auth/token rejection — collector will never accept
+                    // this payload regardless of retries. Delete to prevent infinite retry.
+                    JSErrorDataController.getInstance().deleteErrors(sentIds);
+                    log.error("JSErrorDataReporter: payload permanently rejected (403), errors discarded.");
                 } else {
-                    // sender will remain in store and retry every harvest cycle
-                    //Offline storage: No network at all, don't send back data
-                    if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
-                        log.warn("JSErrorDataReporter didn't send due to lack of network connection");
-                    }
+                    // Transient failure (408, 429, network error, etc.) — retain for retry.
+                    log.warn("JSErrorDataReporter: payload send failed, errors retained for retry");
                 }
             }
 
             @Override
             public void onException(PayloadSender payloadSender, Exception e) {
+                if (isStartupSend) {
+                    startupSendInProgress.set(false);
+                }
                 log.error("JSErrorDataReporter.reportJSErrorData(Payload): " + e);
             }
         });
@@ -170,57 +191,36 @@ public class JSErrorDataReporter extends PayloadReporter {
         return future;
     }
 
-    public Future storeAndReportJSErrorData(Payload payload) {
-        // Store the payload bytes right away. Will be deleted later once sent or expired
-        if (payloadStore != null && payload.isPersisted()) {
-            if (payloadStore.store(payload)) {
-                payload.setPersisted(false);    // don't save it more than needed
-            }
-        }
-
-        return reportJSErrorData(payload);
-    }
-
-    protected boolean isPayloadStale(Payload payload) {
-        if (payload.isStale(agentConfiguration.getPayloadTTL())) {
-            payloadStore.delete(payload);
-            log.info("Payload [" + payload.getUuid() + "] has become stale, and has been removed");
-            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_PAYLOAD_REMOVED_STALE);
-            return true;
-        }
-
-        return false;
-    }
-
-    @Override
-    public void onHarvestConnected() {
-        try {
-            String cachedJSErrorData = JSErrorDataController.getStoredJSErrorData();
-            JSErrorDataController.jsErrorPayloadString = cachedJSErrorData;
-        } catch (Exception ex) {
-            log.error("JSErrorDataReporter: Retrieve cached JSError: " + ex.getMessage());
-        }
+    public Future storeAndReportJSErrorData(Payload payload, List<String> sentIds) {
+        return reportJSErrorData(payload, sentIds, false);
     }
 
     @Override
     public void onHarvest() {
-        if (JSErrorDataController.jsErrorPayloadString != null && !JSErrorDataController.jsErrorPayloadString.isEmpty()) {
-            byte[] cachedData = JSErrorDataController.jsErrorPayloadString.getBytes(StandardCharsets.UTF_8);
+        if (startupSendInProgress.get()) {
+            log.debug("JSErrorDataReporter: Skipping harvest — startup send in progress");
+            super.onHarvest();
+            return;
+        }
 
-            if (cachedData != null) {
-                Payload payload = new Payload(cachedData);
-                storeAndReportJSErrorData(payload);
-                log.info("JSErrorDataReporter: Cached JS errors added to harvest.");
+        try {
+            HarvestSnapshot snapshot = JSErrorDataController.getInstance().getStoredJSErrorData();
+
+            if (snapshot != null) {
+                try {
+                    Payload payload = new Payload(snapshot.payloadJson.getBytes(StandardCharsets.UTF_8));
+                    storeAndReportJSErrorData(payload, snapshot.snapshotIds);
+                    log.info("JSErrorDataReporter: JS errors added to harvest");
+                } catch (Exception payloadException) {
+                    log.error("JSErrorDataReporter: Failed to create payload - " + payloadException.getMessage());
+                }
+            } else {
+                log.debug("JSErrorDataReporter: No JS errors to harvest");
             }
+        } catch (Exception e) {
+            log.error("JSErrorDataReporter: Failed to harvest JS errors - " + e.getMessage());
         }
 
         super.onHarvest();
-    }
-
-    @Override
-    public void onHarvestComplete() {
-        JSErrorDataController.deleteCacheFile();
-        JSErrorDataController.jsErrorPayloadString = "";
-        super.onHarvestComplete();
     }
 }

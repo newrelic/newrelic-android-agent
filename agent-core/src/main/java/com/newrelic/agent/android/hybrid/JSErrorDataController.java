@@ -19,30 +19,68 @@ import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.payload.PayloadController;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class JSErrorDataController {
-    protected static final AgentConfiguration agentConfiguration = new AgentConfiguration();
+    private final AgentConfiguration agentConfiguration;
+    private final JSErrorStore jsErrorStore;
+    private final ReentrantReadWriteLock lock;
+
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final Gson gson = new GsonBuilder().create();
-    private static final String JSERROR_FILE_PATH = "js-errors-cache.json";
-    public static volatile String jsErrorPayloadString = "";
+    private static volatile JSErrorDataController instance;
 
-    public static boolean sendJSErrorData(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
-        final HashMap<String, Object> eventAttributes = new HashMap<>();
+    private JSErrorDataController() {
+        this.agentConfiguration = AgentConfiguration.getInstance();
+        this.jsErrorStore = agentConfiguration.getJsErrorStore();
+        this.lock = new ReentrantReadWriteLock();
+    }
+
+    public static JSErrorDataController getInstance() {
+        if (instance == null) {
+            synchronized (JSErrorDataController.class) {
+                if (instance == null) {
+                    instance = new JSErrorDataController();
+                }
+            }
+        }
+        return instance;
+    }
+
+    /** Resets the singleton — call from {@link JSErrorDataReporter#shutdown()} only. */
+    static void reset() {
+        synchronized (JSErrorDataController.class) {
+            instance = null;
+        }
+    }
+
+    public boolean sendJSErrorData(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
         try {
-            //map attributes first, then all internal attributes will overwrite if any duplicate
+            if (name == null || name.trim().isEmpty()) {
+                log.warn("JSError: error name cannot be null or empty");
+                return false;
+            }
+            if (message == null) {
+                message = "";
+            }
+            if (stackTrace == null) {
+                stackTrace = "";
+            }
+
+            // additionalAttributes are merged first so that reserved keys below always win.
+            final HashMap<String, Object> eventAttributes = new HashMap<>();
             if (additionalAttributes != null) {
                 eventAttributes.putAll(additionalAttributes);
             }
-            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORID, UUID.randomUUID().toString());
+            final String errorId = UUID.randomUUID().toString();
+            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORID, errorId);
             eventAttributes.put(AnalyticsAttribute.JSERROR_THREADS, stackTrace);
             eventAttributes.put(AnalyticsAttribute.JSERROR_ISFATAL, isFatal);
             eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORTYPE, name);
@@ -51,100 +89,180 @@ public class JSErrorDataController {
             eventAttributes.put(AnalyticsAttribute.JSERROR_TIMESTAMP, System.currentTimeMillis());
             eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_JSERROR);
 
-            JSErrorDataReporter jsErrorReporter = JSErrorDataReporter.getInstance();
-            final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-
-            if (jsErrorReporter.payloadStore != null) {
-                String rootPath = jsErrorReporter.payloadStore.getRootPath();
-                File file = new File(rootPath, JSERROR_FILE_PATH);
-                String currentErrorJson = "{}";
-
-                JsonObject rootContainer = new JsonObject();
-                JsonArray events = new JsonArray();
-                if (file.exists() && file.length() > 0) {
-                    try (FileInputStream fis = new FileInputStream(file);
-                         InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8)) {
-
-                        rootContainer = JsonParser.parseReader(isr).getAsJsonObject();
-                        if (rootContainer.has(Error.ANALYTICS_EVENTS_KEY)) {
-                            events = rootContainer.getAsJsonArray(Error.ANALYTICS_EVENTS_KEY);
-                        } else {
-                            events = new JsonArray();
-                        }
-                        events.add(gson.toJsonTree(eventAttributes));
-
-                        rootContainer.add(Error.ANALYTICS_EVENTS_KEY, events);
-                        currentErrorJson = rootContainer.toString();
-                    } catch (Exception e) {
-                        currentErrorJson = "{}";
-                        log.warn("JSErrorDataController: Failed to read existing cache, resetting: " + e.getMessage());
-                    }
-                } else {
-                    Error jsError = new Error(analyticsController.getSessionAttributes(), eventAttributes);
-                    currentErrorJson = jsError.asJsonObject().toString();
-                }
-                jsErrorPayloadString = currentErrorJson;
-                saveJsonToDisk(rootPath, currentErrorJson);
+            final JsonObject eventObject = new JsonObject();
+            for (Map.Entry<String, Object> entry : eventAttributes.entrySet()) {
+                eventObject.add(entry.getKey(), gson.toJsonTree(entry.getValue()));
             }
+
+            PayloadController.submitCallable(new Callable<Boolean>() {
+                @Override
+                public Boolean call() throws Exception {
+                    if (jsErrorStore == null) {
+                        log.error("JSErrorStore is not initialized");
+                        return false;
+                    }
+
+                    lock.writeLock().lock();
+                    try {
+                        boolean stored = jsErrorStore.store(errorId, eventObject.toString());
+                        if (stored) {
+                            log.debug("JSError stored successfully with ID: " + errorId);
+                            return true;
+                        } else {
+                            log.error("Failed to store JSError with ID: " + errorId);
+                            return false;
+                        }
+                    } finally {
+                        lock.writeLock().unlock();
+                    }
+                }
+            });
 
             return true;
         } catch (Exception ex) {
-            log.error("HandledJSError: exception " + ex.getClass().getName() + " failed to send data.");
+            log.error("JSError: Failed to send error data - " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+            return false;
         }
-
-        return false;
     }
 
-    private static void saveJsonToDisk(final String rootPath, final String rootJsonContent) {
-        if (rootPath != null) {
-            PayloadController.submitCallable(() -> {
+    String buildErrorEnvelope(List<String> eventJsonList) {
+        AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+        if (analyticsController == null) {
+            log.error("JSError: AnalyticsController is not initialized");
+            return null;
+        }
+
+        Error jsError = new Error(analyticsController.getSessionAttributes(), new HashMap<>());
+        JsonArray eventsArray = new JsonArray();
+
+        for (String eventJson : eventJsonList) {
+            if (eventJson != null && !eventJson.trim().isEmpty()) {
                 try {
-                    File file = new File(rootPath, JSERROR_FILE_PATH);
-                    try (FileOutputStream fos = new FileOutputStream(file)) {
-                        fos.write(rootJsonContent.getBytes(StandardCharsets.UTF_8));
-                    }
-                    log.info("JSErrorDataController: Updated local JSON cache at " + file.getAbsolutePath());
+                    eventsArray.add(JsonParser.parseString(eventJson));
                 } catch (Exception e) {
-                    log.error("JSErrorDataController: Failed to save local JSON: " + e.getMessage());
+                    log.warn("JSError: Failed to parse stored event JSON: " + e.getMessage());
                 }
+            }
+        }
+
+        JsonObject rootObject = jsError.asJsonObject();
+        JsonArray existingEvents = rootObject.getAsJsonArray(Error.ANALYTICS_EVENTS_KEY);
+
+        if (existingEvents != null) {
+            existingEvents.addAll(eventsArray);
+        } else {
+            rootObject.add(Error.ANALYTICS_EVENTS_KEY, eventsArray);
+        }
+
+        return rootObject.toString();
+    }
+
+    /**
+     * Snapshot of a single harvest batch: the JSON payload to send and the exact
+     * store IDs included in it. Pass {@link #deleteErrors(List)} the
+     * {@code snapshotIds} after a confirmed successful upload so that only the sent
+     * errors are removed — errors that arrived after the snapshot are preserved.
+     */
+    public static final class HarvestSnapshot {
+        public final String payloadJson;
+        public final List<String> snapshotIds;
+
+        HarvestSnapshot(String payloadJson, List<String> snapshotIds) {
+            this.payloadJson = payloadJson;
+            this.snapshotIds = Collections.unmodifiableList(snapshotIds);
+        }
+    }
+
+    /**
+     * Returns a {@link HarvestSnapshot} of all currently stored errors, or {@code null}
+     * if there are none. Uses a single atomic store read to ensure the payload values
+     * and their IDs are always consistent with each other.
+     */
+    public HarvestSnapshot getStoredJSErrorData() {
+        if (jsErrorStore == null) {
+            log.warn("JSErrorStore is not initialized");
+            return null;
+        }
+
+        List<String> values;
+        List<String> snapshotIds;
+        lock.readLock().lock();
+        try {
+            Map<String, String> entries = jsErrorStore.fetchAllEntries();
+            if (entries == null || entries.isEmpty()) {
+                log.debug("No JS errors found in store");
                 return null;
-            });
+            }
+
+            values = new ArrayList<>(entries.values());
+            snapshotIds = new ArrayList<>(entries.keySet());
+        } catch (Exception e) {
+            log.error("Failed to retrieve stored JS error data: " + e.getMessage());
+            return null;
+        } finally {
+            lock.readLock().unlock();
         }
+
+        String payloadJson = buildErrorEnvelope(values);
+        if (payloadJson == null) {
+            return null;
+        }
+
+        return new HarvestSnapshot(payloadJson, snapshotIds);
     }
 
-    public static String getStoredJSErrorData() {
-        JSErrorDataReporter jsErrorReporter = JSErrorDataReporter.getInstance();
-        if (jsErrorReporter.payloadStore != null) {
-            String rootPath = jsErrorReporter.payloadStore.getRootPath();
-            File file = new File(rootPath, JSERROR_FILE_PATH);
-
-            if (file.exists() && file.length() > 0) {
-                try (FileInputStream fis = new FileInputStream(file);
-                     InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8)) {
-
-                    JsonObject rootContainer = JsonParser.parseReader(isr).getAsJsonObject();
-                    return rootContainer.toString();
-
+    /**
+     * Deletes only the errors identified by {@code ids}. Call this with
+     * {@link HarvestSnapshot#snapshotIds} after a confirmed HTTP 200/202 so that
+     * errors arriving after the snapshot are preserved for the next harvest cycle.
+     */
+    public void deleteErrors(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        lock.writeLock().lock();
+        try {
+            if (jsErrorStore == null) {
+                log.warn("JSErrorStore is not initialized");
+                return;
+            }
+            for (String id : ids) {
+                try {
+                    jsErrorStore.delete(id);
                 } catch (Exception e) {
-                    log.error("JSErrorDataController: Failed to read cached JS errors: " + e.getMessage());
+                    log.warn("JSError: Failed to delete error ID " + id + ": " + e.getMessage());
                 }
             }
+            log.info("JSError: Deleted " + ids.size() + " sent errors");
+        } catch (Exception e) {
+            log.error("Failed to delete sent JS errors: " + e.getMessage());
+        } finally {
+            lock.writeLock().unlock();
         }
-        return null;
     }
 
-    public static void deleteCacheFile() {
-        JSErrorDataReporter jsErrorReporter = JSErrorDataReporter.getInstance();
-        if (jsErrorReporter.payloadStore != null) {
-            String rootPath = jsErrorReporter.payloadStore.getRootPath();
-            File file = new File(rootPath, JSERROR_FILE_PATH);
-            if (file.exists()) {
-                if (file.delete()) {
-                    log.info("JSErrorDataController: Local JSON cache deleted successfully.");
-                } else {
-                    log.warn("JSErrorDataController: Failed to delete local JSON cache.");
-                }
+    /** Clears all stored errors — used on agent shutdown or full reset only. */
+    public void clearStoredErrors() {
+        lock.writeLock().lock();
+        try {
+            if (jsErrorStore == null) {
+                log.warn("JSErrorStore is not initialized");
+                return;
             }
+            jsErrorStore.clear();
+            log.info("JSError: Cleared all stored errors");
+        } catch (Exception e) {
+            log.error("Failed to clear stored JS errors: " + e.getMessage());
+        } finally {
+            lock.writeLock().unlock();
         }
+    }
+
+    /** Returns the number of errors currently in the store. */
+    public int getStoredErrorCount() {
+        if (jsErrorStore == null) {
+            return 0;
+        }
+        return jsErrorStore.count();
     }
 }
