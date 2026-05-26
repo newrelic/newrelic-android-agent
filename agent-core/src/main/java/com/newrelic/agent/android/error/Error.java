@@ -197,7 +197,7 @@ public class Error extends HarvestableObject {
 
         // Always send session events
         JsonArray eventArray = new JsonArray();
-        if (event != null) {
+        if (event != null && !event.isEmpty()) {
             eventArray.add(gson.toJsonTree(event));
         }
         data.add(ANALYTICS_EVENTS_KEY, eventArray);
