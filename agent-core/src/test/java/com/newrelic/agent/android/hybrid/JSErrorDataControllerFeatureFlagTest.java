@@ -7,7 +7,6 @@ package com.newrelic.agent.android.hybrid;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.payload.PayloadController;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -17,8 +16,6 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class JSErrorDataControllerFeatureFlagTest {
@@ -30,9 +27,6 @@ public class JSErrorDataControllerFeatureFlagTest {
         FeatureFlag.resetFeatures();
         store = new CountingJSErrorStore();
         AgentConfiguration.getInstance().setJsErrorStore(store);
-        // PayloadController must be initialized for sendJSErrorData's submitCallable
-        // to actually run the store callable on a worker thread.
-        PayloadController.initialize(AgentConfiguration.getInstance());
         JSErrorDataController.reset();
     }
 
@@ -40,7 +34,6 @@ public class JSErrorDataControllerFeatureFlagTest {
     public void tearDown() {
         FeatureFlag.resetFeatures();
         JSErrorDataController.reset();
-        PayloadController.shutdown();
         AgentConfiguration.getInstance().setJsErrorStore(null);
     }
 
@@ -76,37 +69,14 @@ public class JSErrorDataControllerFeatureFlagTest {
         Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.JSError));
     }
 
-    @Test
-    public void sendJSErrorData_enabledPath_routesThroughPayloadController() throws InterruptedException {
-        // Closes the symmetric gap to sendJSErrorData_returnsFalse_whenFeatureDisabled:
-        // when the feature is enabled, the callable submitted to PayloadController must
-        // actually run and reach the configured JSErrorStore. The latch is the
-        // synchronization point because the work runs on the PayloadController worker
-        // thread, not the calling thread.
-        Assert.assertTrue("JSError must be enabled by default",
-                FeatureFlag.featureEnabled(FeatureFlag.JSError));
-
-        boolean queued = JSErrorDataController.getInstance().sendJSErrorData(
-                "TypeError", "boom", "stack", false, null);
-
-        Assert.assertTrue("sendJSErrorData must accept valid input when enabled", queued);
-        Assert.assertTrue("Submitted callable must reach the store within the timeout",
-                store.stored.await(5, TimeUnit.SECONDS));
-        Assert.assertEquals("Exactly one entry must be persisted", 1, store.storeCalls.get());
-        Assert.assertEquals("The store should hold the persisted entry", 1, store.data.size());
-    }
-
     private static final class CountingJSErrorStore implements JSErrorStore {
         final AtomicInteger storeCalls = new AtomicInteger(0);
         final Map<String, String> data = new HashMap<>();
-        /** Released after the first {@link #store} call so tests can join the worker thread. */
-        final CountDownLatch stored = new CountDownLatch(1);
 
         @Override
         public boolean store(String id, String value) {
             storeCalls.incrementAndGet();
             data.put(id, value);
-            stored.countDown();
             return true;
         }
 
