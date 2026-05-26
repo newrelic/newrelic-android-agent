@@ -68,4 +68,9 @@ public class SharedPrefsSessionReplayStore extends SharedPrefsStore implements S
         }
         return sessionReplayData;
     }
+
+    @Override
+    public String getRootPath() {
+        return context.getCacheDir().getAbsolutePath();
+    }
 }
