@@ -26,12 +26,31 @@ import javax.net.ssl.HttpsURLConnection;
 public class JSErrorDataSender extends PayloadSender {
     static final String JSERROR_COLLECTOR_PATH = "/mobile/errors?protocol_version=1&platform=";
 
+    /**
+     * App version override used for the {@code X-NewRelic-App-Version} header.
+     * When non-null and non-empty, takes precedence over the current runtime
+     * {@code Agent.getApplicationInformation().getAppVersion()}. Used to send
+     * cached errors recorded under an older app version with the matching
+     * upload header so the backend picks the right ProGuard mapping.
+     */
+    private final String appVersionOverride;
+
     public JSErrorDataSender(byte[] bytes, AgentConfiguration agentConfiguration) {
+        this(bytes, agentConfiguration, null);
+    }
+
+    public JSErrorDataSender(byte[] bytes, AgentConfiguration agentConfiguration, String appVersionOverride) {
         super(bytes, agentConfiguration);
+        this.appVersionOverride = appVersionOverride;
     }
 
     public JSErrorDataSender(Payload payload, AgentConfiguration agentConfiguration) {
+        this(payload, agentConfiguration, null);
+    }
+
+    public JSErrorDataSender(Payload payload, AgentConfiguration agentConfiguration, String appVersionOverride) {
         super(payload, agentConfiguration);
+        this.appVersionOverride = appVersionOverride;
     }
 
     @Override
@@ -53,7 +72,10 @@ public class JSErrorDataSender extends PayloadSender {
         connection.setRequestProperty(Constants.Network.TRUSTED_ACCOUNT_ID_HEADER, harvestConfiguration.getTrusted_account_key());
         connection.setRequestProperty(Constants.Network.ENTITY_GUID_HEADER, harvestConfiguration.getEntity_guid());
         connection.setRequestProperty(Constants.Network.DEVICE_OS_NAME_HEADER, Agent.getDeviceInformation().getOsName());
-        connection.setRequestProperty(Constants.Network.APP_VERSION_HEADER, Agent.getApplicationInformation().getAppVersion());
+        final String appVersionHeader = (appVersionOverride != null && !appVersionOverride.isEmpty())
+                ? appVersionOverride
+                : Agent.getApplicationInformation().getAppVersion();
+        connection.setRequestProperty(Constants.Network.APP_VERSION_HEADER, appVersionHeader);
 
         // apply the headers passed in harvest configuration (X-NewRelic-Session, X-NewRelic-AgentConfiguration)
         Map<String, String> requestHeaders = Harvest.getHarvestConfiguration().getRequest_headers_map();
@@ -109,6 +131,12 @@ public class JSErrorDataSender extends PayloadSender {
 
     @Override
     protected boolean shouldUploadOpportunistically() {
-        return PayloadController.shouldUploadOpportunistically();
+        // Send JS errors immediately when there's network. Falling back to
+        // PayloadController.shouldUploadOpportunistically() (which checks the
+        // global opportunisticUploads flag, hardcoded to false) would queue the
+        // reaper on payloadReaperQueue and delay the actual POST until the
+        // next harvest tick fires PayloadController.dequeueRunnable. Matches
+        // CrashSender and AEITraceSender semantics.
+        return Agent.hasReachableNetworkConnection(null);
     }
 }

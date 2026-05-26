@@ -123,6 +123,7 @@ public class AnalyticsAttribute {
     public static final String JSERROR_ERRORMESSAGE = "errorMessage";
     public static final String JSERROR_CAUSE = "cause";
     public static final String JSERROR_TIMESTAMP = "timestamp";
+    public static final String APP_VERSION_AT_RECORD_ATTRIBUTE = "appVersionAtRecord";
 
     public static final int ATTRIBUTE_NAME_MAX_LENGTH = 255;
 
