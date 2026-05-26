@@ -59,6 +59,7 @@ import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
+import com.newrelic.agent.android.hybrid.FileJSErrorStore;
 import com.newrelic.agent.android.payload.FilePayloadStore;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.sample.MachineMeasurementConsumer;
@@ -68,12 +69,10 @@ import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayMode;
 import com.newrelic.agent.android.sessionReplay.SessionReplayModeManager;
 import com.newrelic.agent.android.stats.StatsEngine;
+import com.newrelic.agent.android.stores.FileCrashStore;
+import com.newrelic.agent.android.stores.FileEventStore;
+import com.newrelic.agent.android.stores.FileSessionReplayStore;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
-import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
-import com.newrelic.agent.android.stores.SharedPrefsEventStore;
-import com.newrelic.agent.android.stores.SharedPrefsJSErrorStore;
-import com.newrelic.agent.android.stores.SharedPrefsPayloadStore;
-import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
@@ -150,13 +149,24 @@ public class AndroidAgentImpl implements
         // Register ourselves with the TraceMachine
         TraceMachine.setTraceMachineInterface(this);
 
-        agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
+        FileCrashStore crashStore = new FileCrashStore(context, agentConfiguration);
+        crashStore.migrateFromSharedPrefs(context, FileCrashStore.LEGACY_PREFS_NAME);
+        context.deleteSharedPreferences(FileCrashStore.LEGACY_PREFS_NAME);
+        agentConfiguration.setCrashStore(crashStore);
+
         agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
         context.deleteSharedPreferences("NRPayloadStore");
+
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
-        agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
-        agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
-        agentConfiguration.setJsErrorStore(new SharedPrefsJSErrorStore(context));
+
+        agentConfiguration.setEventStore(new FileEventStore(context, agentConfiguration));
+        context.deleteSharedPreferences("NREventStore");
+
+        agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
+        context.deleteSharedPreferences("NRSessionReplayStore");
+
+        agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
+        context.deleteSharedPreferences("NRJSErrorStore");
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         // used to determine when app backgrounds
@@ -237,6 +247,9 @@ public class AndroidAgentImpl implements
 
         // Set up the sampler
         Sampler.init(context);
+
+        // Register a default-network callback so reachability checks avoid per-call Binder IPC.
+        Reachability.init(context);
 
         if (isInstantApp()) {
             log.info("This appears to be an Instant App");
