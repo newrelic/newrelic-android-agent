@@ -92,7 +92,6 @@ public class JSErrorDataReporter extends PayloadReporter {
         if (PayloadController.isInitialized()) {
             if (isEnabled()) {
                 if (isStarted.compareAndSet(false, true)) {
-                    PayloadController.submitCallable(reportCachedJSErrorDataCallable);
                     Harvest.addHarvestListener(this);
                 }
             }
@@ -225,32 +224,6 @@ public class JSErrorDataReporter extends PayloadReporter {
 
     @Override
     public void onHarvest() {
-        if (startupSendInProgress.get()) {
-            log.debug("JSErrorDataReporter: Skipping harvest — startup send in progress");
-            super.onHarvest();
-            return;
-        }
-
-        try {
-            List<HarvestSnapshot> snapshots = JSErrorDataController.getInstance().getStoredJSErrorData();
-
-            if (snapshots != null && !snapshots.isEmpty()) {
-                for (HarvestSnapshot snapshot : snapshots) {
-                    try {
-                        Payload payload = new Payload(snapshot.payloadJson.getBytes(StandardCharsets.UTF_8));
-                        storeAndReportJSErrorData(payload, snapshot.snapshotIds, snapshot.appVersion);
-                    } catch (Exception payloadException) {
-                        log.error("JSErrorDataReporter: Failed to create payload - " + payloadException.getMessage());
-                    }
-                }
-                log.info("JSErrorDataReporter: JS errors added to harvest");
-            } else {
-                log.debug("JSErrorDataReporter: No JS errors to harvest");
-            }
-        } catch (Exception e) {
-            log.error("JSErrorDataReporter: Failed to harvest JS errors - " + e.getMessage());
-        }
-
-        super.onHarvest();
+        PayloadController.submitCallable(reportCachedJSErrorDataCallable);
     }
 }

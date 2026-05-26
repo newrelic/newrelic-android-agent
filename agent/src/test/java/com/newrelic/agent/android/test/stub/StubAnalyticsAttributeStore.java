@@ -35,5 +35,10 @@ public class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {
     @Override
     public void delete(AnalyticsAttribute attribute) {
     }
+
+    @Override
+    public String getRootPath() {
+        return "";
+    }
 }
 

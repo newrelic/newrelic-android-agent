@@ -131,6 +131,12 @@ public class JSErrorDataSender extends PayloadSender {
 
     @Override
     protected boolean shouldUploadOpportunistically() {
-        return PayloadController.shouldUploadOpportunistically();
+        // Send JS errors immediately when there's network. Falling back to
+        // PayloadController.shouldUploadOpportunistically() (which checks the
+        // global opportunisticUploads flag, hardcoded to false) would queue the
+        // reaper on payloadReaperQueue and delay the actual POST until the
+        // next harvest tick fires PayloadController.dequeueRunnable. Matches
+        // CrashSender and AEITraceSender semantics.
+        return Agent.hasReachableNetworkConnection(null);
     }
 }
