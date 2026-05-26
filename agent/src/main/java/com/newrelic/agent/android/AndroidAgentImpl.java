@@ -69,10 +69,10 @@ import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayMode;
 import com.newrelic.agent.android.sessionReplay.SessionReplayModeManager;
 import com.newrelic.agent.android.stats.StatsEngine;
+import com.newrelic.agent.android.stores.FileCrashStore;
+import com.newrelic.agent.android.stores.FileEventStore;
+import com.newrelic.agent.android.stores.FileSessionReplayStore;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
-import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
-import com.newrelic.agent.android.stores.SharedPrefsEventStore;
-import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
@@ -149,12 +149,22 @@ public class AndroidAgentImpl implements
         // Register ourselves with the TraceMachine
         TraceMachine.setTraceMachineInterface(this);
 
-        agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
+        FileCrashStore crashStore = new FileCrashStore(context, agentConfiguration);
+        crashStore.migrateFromSharedPrefs(context, FileCrashStore.LEGACY_PREFS_NAME);
+        context.deleteSharedPreferences(FileCrashStore.LEGACY_PREFS_NAME);
+        agentConfiguration.setCrashStore(crashStore);
+
         agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
         context.deleteSharedPreferences("NRPayloadStore");
+
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
-        agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
-        agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
+
+        agentConfiguration.setEventStore(new FileEventStore(context, agentConfiguration));
+        context.deleteSharedPreferences("NREventStore");
+
+        agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
+        context.deleteSharedPreferences("NRSessionReplayStore");
+
         agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
         context.deleteSharedPreferences("NRJSErrorStore");
 
