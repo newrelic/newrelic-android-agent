@@ -76,7 +76,7 @@ public class JSErrorDataReporter extends PayloadReporter {
     protected JSErrorDataReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
         this.jsErrorStore = agentConfiguration.getJsErrorStore();
-        this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.HandledExceptions));
+        this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.JSError));
     }
 
     @Override

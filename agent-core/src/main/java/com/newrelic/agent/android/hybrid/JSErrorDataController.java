@@ -11,6 +11,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
@@ -63,6 +64,10 @@ public class JSErrorDataController {
 
     public boolean sendJSErrorData(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
         try {
+            if (!FeatureFlag.featureEnabled(FeatureFlag.JSError)) {
+                log.debug("JSError: feature disabled, dropping error");
+                return false;
+            }
             if (name == null || name.trim().isEmpty()) {
                 log.warn("JSError: error name cannot be null or empty");
                 return false;
