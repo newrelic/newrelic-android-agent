@@ -120,7 +120,7 @@ public class CrashSenderTest {
     }
 
     private HttpURLConnection getMockedConnection(CrashSender crashSender) throws IOException {
-        HttpURLConnection connection = Mockito.spy(crashSender.getConnection());
+        HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
 
         Mockito.doReturn(false).when(connection).getDoOutput();
         Mockito.doReturn(false).when(connection).getDoInput();

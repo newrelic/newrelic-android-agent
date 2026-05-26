@@ -3,6 +3,8 @@ package com.newrelic.agent.android.sessionReplay.compose;
 
 import static com.newrelic.agent.android.sessionReplay.compose.NewRelicSemanticsPropertiesKt.NewRelicPrivacyKey;
 
+import androidx.annotation.OptIn;
+import androidx.compose.ui.InternalComposeUiApi;
 import androidx.compose.ui.node.LayoutNode;
 import androidx.compose.ui.platform.AndroidComposeView;
 import androidx.compose.ui.semantics.SemanticsConfiguration;
@@ -33,6 +35,7 @@ public class ComposeTreeCapture {
      * @param view The AndroidComposeView to capture
      * @return The captured view hierarchy, or null if capture fails
      */
+    @OptIn(markerClass = InternalComposeUiApi.class)
     public SessionReplayViewThingyInterface captureComposeView(AndroidComposeView view) {
 
         if (view == null) {
@@ -106,6 +109,7 @@ public class ComposeTreeCapture {
      * @param parentHasUnmask If true, parent has UNMASK tag (will propagate unless overridden)
      * @return Captured node with children, or null if node should be skipped
      */
+    @OptIn(markerClass = InternalComposeUiApi.class)
     private SessionReplayViewThingyInterface captureChildren(SemanticsNode node, float density, boolean parentHasMask, boolean parentHasUnmask) {
 
         ArrayList<SessionReplayViewThingyInterface> childThingies = new ArrayList<>();
@@ -174,6 +178,7 @@ public class ComposeTreeCapture {
      * @param node The node to check
      * @return true if the node should be recorded, false otherwise
      */
+    @OptIn(markerClass = InternalComposeUiApi.class)
     private boolean shouldRecordView(SemanticsNode node) {
         if (node == null) {
             return false;

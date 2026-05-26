@@ -31,6 +31,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.mockito.AdditionalAnswers;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
@@ -42,6 +43,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -95,9 +97,12 @@ public class PayloadControllerTest {
 
         payloadController = Mockito.spy(PayloadController.initialize(agentConfiguration));
 
-        PayloadController.queueExecutor = Mockito.spy(PayloadController.queueExecutor);
-        PayloadController.payloadReaperQueue = Mockito.spy(PayloadController.payloadReaperQueue);
-        PayloadController.payloadReaperRetryQueue = Mockito.spy(PayloadController.payloadReaperRetryQueue);
+        PayloadController.queueExecutor = Mockito.mock(PayloadController.ThrottledScheduledThreadPoolExecutor.class,
+                AdditionalAnswers.delegatesTo(PayloadController.queueExecutor));
+        PayloadController.payloadReaperQueue = Mockito.mock(ConcurrentLinkedQueue.class,
+                AdditionalAnswers.delegatesTo(PayloadController.payloadReaperQueue));
+        PayloadController.payloadReaperRetryQueue = Mockito.mock(ConcurrentLinkedQueue.class,
+                AdditionalAnswers.delegatesTo(PayloadController.payloadReaperRetryQueue));
 
         Mockito.doReturn(opportunisticUploads).when(payloadController).uploadOpportunistically();
         Mockito.doReturn(new TestFuture()).when(PayloadController.queueExecutor).submit(ArgumentMatchers.any(PayloadReaper.class));
@@ -407,7 +412,7 @@ public class PayloadControllerTest {
         return new PayloadSender(payload, agentConfiguration) {
             @Override
             protected HttpURLConnection getConnection() throws IOException {
-                HttpURLConnection connection = Mockito.spy((HttpURLConnection) new URL("http://www.newrelic.com").openConnection());
+                HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
                 Mockito.doReturn(false).when(connection).getDoOutput();
                 Mockito.doReturn(false).when(connection).getDoInput();
                 Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();

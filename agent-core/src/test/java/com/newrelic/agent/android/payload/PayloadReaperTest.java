@@ -37,7 +37,7 @@ public class PayloadReaperTest {
         agentConfiguration.setReportHandledExceptions(true);
         agentConfiguration.setUseSsl(true);
 
-        connection = Mockito.spy((HttpURLConnection) new URL("http://www.newrelic.com").openConnection());
+        connection = Mockito.mock(HttpURLConnection.class);
         Mockito.doReturn(false).when(connection).getDoOutput();
         Mockito.doReturn(false).when(connection).getDoInput();
         Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();

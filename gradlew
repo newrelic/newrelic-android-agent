@@ -67,6 +67,64 @@ cd "$SAVED" >&-
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
+resolve_java_cmd() {
+    if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ] ; then
+        echo "$JAVA_HOME/bin/java"
+    else
+        command -v java 2>/dev/null || true
+    fi
+}
+
+java_major() {
+    local version_string major
+    version_string=$("$1" -version 2>&1 | awk -F '"' '/version/ {print $2; exit}')
+    major=$(echo "$version_string" | awk -F '[._]' '{print $1}')
+    if [ "$major" = "1" ] ; then
+        major=$(echo "$version_string" | awk -F '[._]' '{print $2}')
+    fi
+    echo "$major"
+}
+
+# Detect explicit Gradle Java home requests injected by CI tooling (for example CodeQL autobuild).
+REQUESTED_GRADLE_JAVA_HOME=""
+for arg in "$@" ; do
+    case "$arg" in
+        -Dorg.gradle.java.home=*)
+            REQUESTED_GRADLE_JAVA_HOME="${arg#-Dorg.gradle.java.home=}"
+            break
+            ;;
+    esac
+done
+
+# If a Java home below 17 is requested via -Dorg.gradle.java.home, try to switch to Java 17+.
+if [ -n "$REQUESTED_GRADLE_JAVA_HOME" ] ; then
+    REQUESTED_GRADLE_JAVA_MAJOR=""
+    if [ -x "$REQUESTED_GRADLE_JAVA_HOME/bin/java" ] ; then
+        REQUESTED_GRADLE_JAVA_MAJOR=$(java_major "$REQUESTED_GRADLE_JAVA_HOME/bin/java")
+    fi
+
+    if [ -z "$REQUESTED_GRADLE_JAVA_MAJOR" ] || [ "$REQUESTED_GRADLE_JAVA_MAJOR" -lt 17 ] ; then
+        for CANDIDATE_JAVA_HOME in \
+            /usr/lib/jvm/temurin-17-jdk-amd64 \
+            /usr/lib/jvm/java-17-openjdk-amd64 \
+            /usr/lib/jvm/java-17-openjdk ; do
+            if [ -x "$CANDIDATE_JAVA_HOME/bin/java" ] ; then
+                JAVA_HOME="$CANDIDATE_JAVA_HOME"
+                break
+            fi
+        done
+
+        if [ ! -x "${JAVA_HOME:-}/bin/java" ] ; then
+            if [ -d "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk" ] ; then
+                TOOLCACHE_JAVA_HOME=$(find /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk -maxdepth 2 -mindepth 2 -type d -name x64 -path "*/17.*/x64" 2>/dev/null | head -n 1)
+                if [ -x "$TOOLCACHE_JAVA_HOME/bin/java" ] ; then
+                    JAVA_HOME="$TOOLCACHE_JAVA_HOME"
+                fi
+            fi
+        fi
+    fi
+fi
+
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
@@ -152,6 +210,31 @@ if $cygwin ; then
         (8) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" ;;
         (9) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" "$args8" ;;
     esac
+fi
+
+# Rewrite -Dorg.gradle.java.home to Java 17+ when the requested value is <17.
+if [ -n "$REQUESTED_GRADLE_JAVA_HOME" ] && [ -x "${JAVA_HOME:-}/bin/java" ] ; then
+    JAVA_HOME_MAJOR=$(java_major "$JAVA_HOME/bin/java")
+    if [ -n "$JAVA_HOME_MAJOR" ] && [ "$JAVA_HOME_MAJOR" -ge 17 ] ; then
+        NEW_ARGS=()
+        for arg in "$@" ; do
+            case "$arg" in
+                -Dorg.gradle.java.home=*)
+                    ARG_JAVA_HOME="${arg#-Dorg.gradle.java.home=}"
+                    ARG_JAVA_MAJOR=""
+                    if [ -x "$ARG_JAVA_HOME/bin/java" ] ; then
+                        ARG_JAVA_MAJOR=$(java_major "$ARG_JAVA_HOME/bin/java")
+                    fi
+
+                    if [ -z "$ARG_JAVA_MAJOR" ] || [ "$ARG_JAVA_MAJOR" -lt 17 ] ; then
+                        arg="-Dorg.gradle.java.home=$JAVA_HOME"
+                    fi
+                    ;;
+            esac
+            NEW_ARGS+=("$arg")
+        done
+        set -- "${NEW_ARGS[@]}"
+    fi
 fi
 
 # Split up the JVM_OPTS And GRADLE_OPTS values into an array, following the shell quoting and substitution rules

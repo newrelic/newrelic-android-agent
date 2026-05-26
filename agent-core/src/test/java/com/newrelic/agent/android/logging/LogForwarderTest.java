@@ -203,7 +203,7 @@ public class LogForwarderTest extends LoggingTests {
 
 
     private HttpURLConnection getMockedConnection(LogForwarder logForwarder) throws IOException {
-        HttpURLConnection connection = Mockito.spy(logForwarder.getConnection());
+        HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
 
         Mockito.doReturn(false).when(connection).getDoOutput();
         Mockito.doReturn(false).when(connection).getDoInput();
