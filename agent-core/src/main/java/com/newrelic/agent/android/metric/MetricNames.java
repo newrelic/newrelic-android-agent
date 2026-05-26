@@ -45,6 +45,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_PAYLOAD_REMOVED_STALE = SUPPORTABILITY_AGENT + "Payload/Removed/Stale";
     public static final String SUPPORTABILITY_PAYLOAD_EVICTED = SUPPORTABILITY_AGENT + "Payload/Removed/Evicted";
     public static final String SUPPORTABILITY_PAYLOAD_CORRUPTED = SUPPORTABILITY_AGENT + "Payload/Corrupted";
+    public static final String SUPPORTABILITY_JS_ERROR_EVICTED = SUPPORTABILITY_AGENT + "JSError/Removed/Evicted";
+    public static final String SUPPORTABILITY_JS_ERROR_CORRUPTED = SUPPORTABILITY_AGENT + "JSError/Corrupted";
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
 
@@ -57,8 +59,13 @@ public class MetricNames {
     public static final String SUPPORTABILITY_CRASH_FAILED_UPLOAD = SUPPORTABILITY_CRASH + "FailedUpload";
     public static final String SUPPORTABILITY_CRASH_REMOVED_STALE = SUPPORTABILITY_CRASH + "Removed/Stale";
     public static final String SUPPORTABILITY_CRASH_REMOVED_REJECTED = SUPPORTABILITY_CRASH + "Removed/Rejected";
+    public static final String SUPPORTABILITY_CRASH_REMOVED_EVICTED = SUPPORTABILITY_CRASH + "Removed/Evicted";
+    public static final String SUPPORTABILITY_CRASH_CORRUPTED = SUPPORTABILITY_CRASH + "Corrupted";
     public static final String SUPPORTABILITY_CRASH_SIZE_UNCOMPRESSED = SUPPORTABILITY_CRASH + "Size/Uncompressed";
     public static final String SUPPORTABILITY_CRASH_INVALID_BUILDID = SUPPORTABILITY_CRASH + "InvalidBuildId";
+
+    public static final String SUPPORTABILITY_EVENT_STORE_EVICTED = SUPPORTABILITY_EVENTS + "Store/Removed/Evicted";
+    public static final String SUPPORTABILITY_EVENT_STORE_CORRUPTED = SUPPORTABILITY_EVENTS + "Store/Corrupted";
 
     public static final String SUPPORTABILITY_HEX = SUPPORTABILITY_AGENT + "HEx/";
     public static final String SUPPORTABILITY_HEX_UPLOAD_TIME = SUPPORTABILITY_HEX + "UploadTime";

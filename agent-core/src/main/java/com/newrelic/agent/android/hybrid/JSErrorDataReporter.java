@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.newrelic.agent.android.hybrid.JSErrorDataController.HarvestSnapshot;
@@ -34,6 +35,13 @@ public class JSErrorDataReporter extends PayloadReporter {
     protected final JSErrorStore jsErrorStore;
 
     private final AtomicBoolean startupSendInProgress = new AtomicBoolean(false);
+    /**
+     * Number of in-flight startup-send POSTs from a single fan-out. Used to keep
+     * {@link #startupSendInProgress} {@code true} until every group's response
+     * handler fires. Set on fan-out, decremented in each completion handler;
+     * once it hits zero, {@code startupSendInProgress} is cleared.
+     */
+    private final AtomicInteger inFlightStartupSends = new AtomicInteger(0);
 
     protected final Callable reportCachedJSErrorDataCallable = new Callable() {
         @Override
@@ -76,7 +84,7 @@ public class JSErrorDataReporter extends PayloadReporter {
     protected JSErrorDataReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
         this.jsErrorStore = agentConfiguration.getJsErrorStore();
-        this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.HandledExceptions));
+        this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.JSError));
     }
 
     @Override
@@ -84,7 +92,6 @@ public class JSErrorDataReporter extends PayloadReporter {
         if (PayloadController.isInitialized()) {
             if (isEnabled()) {
                 if (isStarted.compareAndSet(false, true)) {
-                    PayloadController.submitCallable(reportCachedJSErrorDataCallable);
                     Harvest.addHarvestListener(this);
                 }
             }
@@ -103,17 +110,27 @@ public class JSErrorDataReporter extends PayloadReporter {
             if (jsErrorStore != null) {
                 startupSendInProgress.set(true);
                 try {
-                    HarvestSnapshot snapshot = JSErrorDataController.getInstance().getStoredJSErrorData();
-                    if (snapshot != null) {
-                        Payload payload = new Payload(snapshot.payloadJson.getBytes(StandardCharsets.UTF_8));
-                        Future future = reportJSErrorData(payload, snapshot.snapshotIds, true);
-                        if (future == null) {
-                            startupSendInProgress.set(false);
-                        }
-                    } else {
+                    List<HarvestSnapshot> snapshots = JSErrorDataController.getInstance().getStoredJSErrorData();
+                    if (snapshots == null || snapshots.isEmpty()) {
                         startupSendInProgress.set(false);
+                        return;
+                    }
+                    // Pre-arm the in-flight counter for the entire fan-out so the
+                    // first group's completion can't prematurely clear the flag.
+                    inFlightStartupSends.set(snapshots.size());
+                    for (HarvestSnapshot snapshot : snapshots) {
+                        Payload payload = new Payload(snapshot.payloadJson.getBytes(StandardCharsets.UTF_8));
+                        Future future = reportJSErrorData(payload, snapshot.snapshotIds, true, snapshot.appVersion);
+                        if (future == null) {
+                            // submit was rejected (e.g. oversized payload) — that group will
+                            // never complete, so decrement here. Clear the flag if we hit zero.
+                            if (inFlightStartupSends.decrementAndGet() == 0) {
+                                startupSendInProgress.set(false);
+                            }
+                        }
                     }
                 } catch (Exception e) {
+                    inFlightStartupSends.set(0);
                     startupSendInProgress.set(false);
                     log.error("JSErrorDataReporter: Failed to report cached JS errors: " + e.getMessage());
                 }
@@ -127,13 +144,20 @@ public class JSErrorDataReporter extends PayloadReporter {
      * @param payload      the payload to send
      * @param sentIds      IDs to delete from the store on HTTP 200/202
      * @param isStartupSend {@code true} only when called from the startup cache-replay path;
-     *                     causes the completion handler to clear {@link #startupSendInProgress}
-     *                     so that {@link #onHarvest} is unblocked once this POST finishes.
-     *                     Must be {@code false} for all harvest-cycle sends to avoid
-     *                     prematurely clearing the flag while a startup send is still in-flight.
+     *                     causes the completion handler to decrement
+     *                     {@link #inFlightStartupSends} and, on the last completion,
+     *                     clear {@link #startupSendInProgress} so that
+     *                     {@link #onHarvest} is unblocked. Must be {@code false} for
+     *                     all harvest-cycle sends to avoid prematurely clearing the
+     *                     flag while a startup send is still in-flight.
+     * @param appVersionOverride Value for the {@code X-NewRelic-App-Version}
+     *                          upload header. Set to the recorded app version
+     *                          when sending cached errors from a previous build;
+     *                          {@code null}/empty to use the current runtime
+     *                          app version.
      */
-    public Future reportJSErrorData(Payload payload, List<String> sentIds, boolean isStartupSend) {
-        PayloadSender payloadSender = new JSErrorDataSender(payload, getAgentConfiguration());
+    public Future reportJSErrorData(Payload payload, List<String> sentIds, boolean isStartupSend, String appVersionOverride) {
+        PayloadSender payloadSender = new JSErrorDataSender(payload, getAgentConfiguration(), appVersionOverride);
 
         if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
             DeviceInformation deviceInformation = Agent.getDeviceInformation();
@@ -143,9 +167,8 @@ public class JSErrorDataReporter extends PayloadReporter {
                     .replace(MetricNames.TAG_SUBDESTINATION, "f");
             StatsEngine.notice().inc(name);
             log.error("Unable to upload handled exceptions because payload is larger than 1 MB, handled exceptions are discarded.");
-            if (isStartupSend) {
-                startupSendInProgress.set(false);
-            }
+            // Caller (the fan-out loop) decrements inFlightStartupSends when we
+            // return null, so don't decrement here.
             return null;
         }
 
@@ -153,7 +176,9 @@ public class JSErrorDataReporter extends PayloadReporter {
             @Override
             public void onResponse(PayloadSender payloadSender) {
                 if (isStartupSend) {
-                    startupSendInProgress.set(false);
+                    if (inFlightStartupSends.decrementAndGet() <= 0) {
+                        startupSendInProgress.set(false);
+                    }
                 }
 
                 if (payloadSender.isSuccessfulResponse()) {
@@ -182,7 +207,9 @@ public class JSErrorDataReporter extends PayloadReporter {
             @Override
             public void onException(PayloadSender payloadSender, Exception e) {
                 if (isStartupSend) {
-                    startupSendInProgress.set(false);
+                    if (inFlightStartupSends.decrementAndGet() <= 0) {
+                        startupSendInProgress.set(false);
+                    }
                 }
                 log.error("JSErrorDataReporter.reportJSErrorData(Payload): " + e);
             }
@@ -191,36 +218,12 @@ public class JSErrorDataReporter extends PayloadReporter {
         return future;
     }
 
-    public Future storeAndReportJSErrorData(Payload payload, List<String> sentIds) {
-        return reportJSErrorData(payload, sentIds, false);
+    public Future storeAndReportJSErrorData(Payload payload, List<String> sentIds, String appVersionOverride) {
+        return reportJSErrorData(payload, sentIds, false, appVersionOverride);
     }
 
     @Override
     public void onHarvest() {
-        if (startupSendInProgress.get()) {
-            log.debug("JSErrorDataReporter: Skipping harvest — startup send in progress");
-            super.onHarvest();
-            return;
-        }
-
-        try {
-            HarvestSnapshot snapshot = JSErrorDataController.getInstance().getStoredJSErrorData();
-
-            if (snapshot != null) {
-                try {
-                    Payload payload = new Payload(snapshot.payloadJson.getBytes(StandardCharsets.UTF_8));
-                    storeAndReportJSErrorData(payload, snapshot.snapshotIds);
-                    log.info("JSErrorDataReporter: JS errors added to harvest");
-                } catch (Exception payloadException) {
-                    log.error("JSErrorDataReporter: Failed to create payload - " + payloadException.getMessage());
-                }
-            } else {
-                log.debug("JSErrorDataReporter: No JS errors to harvest");
-            }
-        } catch (Exception e) {
-            log.error("JSErrorDataReporter: Failed to harvest JS errors - " + e.getMessage());
-        }
-
-        super.onHarvest();
+        PayloadController.submitCallable(reportCachedJSErrorDataCallable);
     }
 }
