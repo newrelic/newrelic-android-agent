@@ -16,7 +16,7 @@ public class Payload {
     protected String uuid;
     protected long timestamp;           // in millisecs
     protected boolean isPersistable;    // save to store
-    protected ByteBuffer payload;
+    protected transient ByteBuffer payload;
 
     public Payload() {
         this.uuid = UUID.randomUUID().toString();

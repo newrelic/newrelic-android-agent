@@ -2,6 +2,8 @@ package com.newrelic.agent.android.sessionReplay.compose;
 
 import android.graphics.Rect;
 
+import androidx.annotation.OptIn;
+import androidx.compose.ui.InternalComposeUiApi;
 import androidx.compose.ui.layout.Placeable;
 import androidx.compose.ui.node.LayoutNode;
 import androidx.compose.ui.platform.AndroidComposeView;
@@ -33,6 +35,7 @@ public class ComposeViewDetails {
     }
 
 
+    @OptIn(markerClass = InternalComposeUiApi.class)
     public ComposeViewDetails(SemanticsNode semanticsNode, float density) {
         this.semanticsNode = semanticsNode;
         this.density = density;
