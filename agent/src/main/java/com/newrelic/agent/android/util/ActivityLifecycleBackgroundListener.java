@@ -20,40 +20,39 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private AtomicBoolean isInBackground = new AtomicBoolean(false);
+    private final boolean isHybridFramework;
+
+    public ActivityLifecycleBackgroundListener() {
+        this(false);
+    }
+
+    public ActivityLifecycleBackgroundListener(boolean isHybridFramework) {
+        this.isHybridFramework = isHybridFramework;
+    }
 
     @Override
     public void onActivityResumed(Activity activity) {
         log.info("ActivityLifecycleBackgroundListener.onActivityResumed");
-        log.info("ActivityLifecycleBackgroundListener.onActivityResumed isInBackground: " + isInBackground.get());
-
-        if(!isInBackground.get()) {
-            log.info("ActivityLifecycleBackgroundListener.onActivityResumed isInBackground: " + !isInBackground.get());
+        if (isInBackground.getAndSet(false)) {
             Runnable runner = new Runnable() {
                 @Override
                 public void run() {
-                    log.info("ActivityLifecycleBackgroundListener.onActivityResumed - notifying ApplicationStateMonitor");
                     ApplicationStateMonitor.getInstance().activityStarted();
                 }
             };
             executor.submit(runner);
-        } else {
-
-            if (isInBackground.getAndSet(false)) {
-                Runnable runner = new Runnable() {
-                    @Override
-                    public void run() {
-                        log.info("ActivityLifecycleBackgroundListener.onActivityResumed - notifying ApplicationStateMonitor");
-                        ApplicationStateMonitor.getInstance().activityStarted();
-                    }
-                };
-                executor.submit(runner);
-            }
         }
     }
 
     @Override
     public void onTrimMemory(int level) {
         log.info("ActivityLifecycleBackgroundListener.onTrimMemory level: " + level);
+        // NR-262548: MAUI/Xamarin can fire TRIM_MEMORY_UI_HIDDEN while still in
+        // the foreground, which would falsely background the agent and shut down
+        // AnalyticsController. For these hosts, rely on Activity lifecycle only.
+        if (isHybridFramework) {
+            return;
+        }
         if (TRIM_MEMORY_UI_HIDDEN == level)
             isInBackground.set(true);
         super.onTrimMemory(level);
@@ -74,7 +73,6 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
     // Necessary to detect Power button presses
     @Override
     public void onActivityStarted(Activity activity) {
-        log.info("ActivityLifecycleBackgroundListener.onActivityStarted");
         if (isInBackground.compareAndSet(true, false)) {
             Runnable runner = new Runnable() {
                 @Override
