@@ -54,7 +54,7 @@ public class ReactNativeSourceMap {
     static final String PROP_COMPRESSED_UPLOADS = "com.newrelic.compressed_uploads";
 
     static final String DEFAULT_SOURCEMAP_API_HOST = "symbol-ingest-api-service.newrelic.com";
-    static final String DEFAULT_REGION_SOURCEMAP_API_HOST = "symbol-ingest-api.%s.nr-data.net";
+    static final String DEFAULT_REGION_SOURCEMAP_API_HOST = "symbol-ingest-api.%s.newrelic.com";
     static final String DEFAULT_SOURCEMAP_API_PATH = "/v1/react-native/sourcemaps";
 
     static final int USEFUL_BUFFER_SIZE = 0x10000;  // 64k
