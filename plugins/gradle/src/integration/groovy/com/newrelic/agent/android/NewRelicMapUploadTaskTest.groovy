@@ -55,4 +55,38 @@ class NewRelicMapUploadTaskTest extends PluginTest {
     void getLogger() {
         Assert.assertEquals(provider.getLogger(), NewRelicGradlePlugin.LOGGER)
     }
+
+    @Test
+    void getTaggedMappingFile() {
+        def taggedFile = provider.getTaggedMappingFile()
+        def expectedPath = project.layout.buildDirectory.file("outputs/newrelic/release/mapping.txt").get().asFile
+
+        Assert.assertEquals(expectedPath.absolutePath, taggedFile.absolutePath)
+        Assert.assertTrue("Tagged file path should contain variant name",
+                          taggedFile.absolutePath.contains("release"))
+        Assert.assertTrue("Tagged file should be separate from input",
+                          taggedFile != provider.getMappingFile().asFile.get())
+    }
+
+    @Test
+    void getTaggedMappingFileWithCompoundVariantName() {
+        // Test compound variant names (flavor + build type) like "googleQa", "amazonRelease", etc.
+        def compoundProvider = plugin.buildHelper.variantAdapter.registerOrNamed(
+                "testMapUploadGoogleQa", NewRelicMapUploadTask) { task ->
+            task.variantName.set("googleQa")
+            task.buildId.set("test-build-id")
+            task.mapProvider.set("r8")
+            task.projectRoot.set(project.layout.projectDirectory)
+        }.get()
+
+        def taggedFile = compoundProvider.getTaggedMappingFile()
+        def expectedPath = project.layout.buildDirectory.file("outputs/newrelic/googleQa/mapping.txt").get().asFile
+
+        Assert.assertEquals("Compound variant names should work correctly",
+                          expectedPath.absolutePath, taggedFile.absolutePath)
+        Assert.assertTrue("Tagged file path should contain compound variant name",
+                          taggedFile.absolutePath.contains("googleQa"))
+        Assert.assertTrue("Output path should be isolated per variant",
+                          !taggedFile.absolutePath.contains("release"))
+    }
 }
