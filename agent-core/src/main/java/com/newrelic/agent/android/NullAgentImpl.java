@@ -17,6 +17,7 @@ import com.newrelic.agent.android.util.Decoder;
 import com.newrelic.agent.android.util.Encoder;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,12 +106,12 @@ public class NullAgentImpl implements AgentImpl {
     public Encoder getEncoder() {
         return new Encoder() {
             public String encode(byte[] bytes) {
-                return new String(bytes);
+                return bytes == null ? "" : Base64.getEncoder().encodeToString(bytes);
             }
 
             @Override
             public String encodeNoWrap(byte[] bytes) {
-                return encode(bytes);
+                return bytes == null ? "" : Base64.getEncoder().withoutPadding().encodeToString(bytes);
             }
         };
     }
@@ -119,7 +120,7 @@ public class NullAgentImpl implements AgentImpl {
     public Decoder getDecoder() {
         return new Decoder() {
             public byte[] decode(String bytes) {
-                return bytes == null ? new byte[0] : bytes.getBytes();
+                return bytes == null ? new byte[0] : Base64.getDecoder().decode(bytes);
             }
 
             @Override

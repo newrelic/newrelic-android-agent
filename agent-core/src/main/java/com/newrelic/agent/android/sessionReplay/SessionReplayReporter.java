@@ -121,10 +121,10 @@ public class SessionReplayReporter extends PayloadReporter {
     }
 
     /**
-     * Drain the offline cache serially in FIFO order. On the first failure (or stale
-     * payload still failing) we halt so the next harvest cycle can retry — the network
-     * may have come back partway through, but a sender failing again likely indicates
-     * an ongoing problem and continuing would just waste battery.
+     * Drain the offline cache serially in FIFO order. Halt only on a transient failure
+     * so the next harvest cycle can retry. Permanently-rejected payloads (400/403) are
+     * deleted in-place so they don't poison the head of the queue and block newer
+     * cached payloads behind them.
      */
     protected void reportCachedSessionReplayData() {
         if (!FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
@@ -149,39 +149,46 @@ public class SessionReplayReporter extends PayloadReporter {
                 continue;
             }
 
-            boolean sent = sendCachedPayload(cached);
-            if (sent) {
+            PayloadSender sender = sendCachedPayload(cached);
+            if (sender != null && sender.isSuccessfulResponse()) {
                 store.delete(cached);
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_OFFLINE_FLUSHED);
-            } else {
-                // halt-on-failure; retry on next harvest
-                break;
+                continue;
             }
+            if (sender != null && !shouldPersistForRetry(sender.getResponseCode())) {
+                store.delete(cached);
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_OFFLINE_REJECTED);
+                log.warn("SessionReplayReporter: cached payload [" + cached.getUuid()
+                        + "] permanently rejected (response " + sender.getResponseCode() + "), dropped");
+                continue;
+            }
+            // transient failure — halt and retry on next harvest
+            break;
         }
     }
 
-    private boolean sendCachedPayload(OfflineSessionReplayPayload cached) {
+    private PayloadSender sendCachedPayload(OfflineSessionReplayPayload cached) {
         try {
             SessionReplaySender sender = new SessionReplaySender(cached, getAgentConfiguration(),
                     HarvestConfiguration.getDefaultHarvestConfiguration());
             Future future = PayloadController.submitPayload(sender, null);
             if (future == null) {
-                return false;
+                return null;
             }
             Object result = future.get();
             if (result instanceof PayloadSender) {
-                return ((PayloadSender) result).isSuccessfulResponse();
+                return (PayloadSender) result;
             }
-            return false;
+            return null;
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            return false;
+            return null;
         } catch (ExecutionException ee) {
             log.error("SessionReplayReporter.sendCachedPayload: " + ee);
-            return false;
+            return null;
         } catch (Exception e) {
             log.error("SessionReplayReporter.sendCachedPayload: " + e);
-            return false;
+            return null;
         }
     }
 

@@ -7,14 +7,11 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.AgentImpl;
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.harvest.DeviceInformation;
-import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
-import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.Payload;
-import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.util.Constants;
@@ -26,8 +23,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class SessionReplayReporterTest {
@@ -35,6 +35,8 @@ public class SessionReplayReporterTest {
     private AgentConfiguration agentConfiguration;
     private SessionReplayReporter reporter;
     private SessionReplayStore<String> mockStore;
+    private OfflineSessionReplayStore mockOfflineStore;
+    private AgentImpl previousAgentImpl;
 
     @BeforeClass
     public static void beforeClass() {
@@ -47,10 +49,14 @@ public class SessionReplayReporterTest {
         StatsEngine.reset();
         FeatureFlag.enableFeature(FeatureFlag.HandledExceptions);
 
+        previousAgentImpl = Agent.getImpl();
+
         agentConfiguration = Mockito.spy(new AgentConfiguration());
         mockStore = Mockito.mock(SessionReplayStore.class);
+        mockOfflineStore = Mockito.mock(OfflineSessionReplayStore.class);
 
         Mockito.doReturn(mockStore).when(agentConfiguration).getSessionReplayStore();
+        Mockito.doReturn(mockOfflineStore).when(agentConfiguration).getOfflineSessionReplayStore();
 
         SessionReplayReporter.shutdown();
         reporter = SessionReplayReporter.initialize(agentConfiguration);
@@ -59,8 +65,10 @@ public class SessionReplayReporterTest {
     @After
     public void tearDown() throws Exception {
         FeatureFlag.disableFeature(FeatureFlag.HandledExceptions);
+        FeatureFlag.disableFeature(FeatureFlag.OfflineStorage);
         SessionReplayReporter.shutdown();
         StatsEngine.reset();
+        Agent.setImpl(previousAgentImpl);
     }
 
     @Test
@@ -92,15 +100,7 @@ public class SessionReplayReporterTest {
     @Test
     public void testShutdownWhenNotInitialized() {
         SessionReplayReporter.shutdown();
-        // Should not throw exception when not initialized
-        SessionReplayReporter.shutdown();
-        Assert.assertNull(SessionReplayReporter.getInstance());
-    }
-
-    @Test
-    public void testIsInitialized() {
-        Assert.assertNotNull(SessionReplayReporter.getInstance());
-
+        // safe to call again
         SessionReplayReporter.shutdown();
         Assert.assertNull(SessionReplayReporter.getInstance());
     }
@@ -156,124 +156,48 @@ public class SessionReplayReporterTest {
     }
 
     @Test
-    public void testGzipCompress() throws IOException {
+    public void testGzipCompress() throws Exception {
         byte[] uncompressedData = "This is test data that should be compressed".getBytes();
+        Method method = SessionReplayReporter.class.getDeclaredMethod("gzipCompress", byte[].class);
+        method.setAccessible(true);
+        byte[] compressed = (byte[]) method.invoke(null, (Object) uncompressedData);
 
-        // Use reflection to test the private gzipCompress method
-        try {
-            java.lang.reflect.Method method = SessionReplayReporter.class.getDeclaredMethod("gzipCompress", byte[].class);
-            method.setAccessible(true);
-            byte[] compressed = (byte[]) method.invoke(null, uncompressedData);
-
-            Assert.assertNotNull(compressed);
-            // Compressed data should typically be smaller for text data
-            // But may be larger for very small data due to gzip header overhead
-            Assert.assertTrue(compressed.length > 0);
-        } catch (Exception e) {
-            // If reflection fails, skip this test
-            Assert.fail("Failed to test gzipCompress: " + e.getMessage());
-        }
+        Assert.assertNotNull(compressed);
+        Assert.assertTrue(compressed.length > 0);
     }
 
     @Test
-    public void testGzipCompressWithEmptyData() throws IOException {
+    public void testGzipCompressWithEmptyData() throws Exception {
         byte[] emptyData = new byte[0];
+        Method method = SessionReplayReporter.class.getDeclaredMethod("gzipCompress", byte[].class);
+        method.setAccessible(true);
+        byte[] compressed = (byte[]) method.invoke(null, (Object) emptyData);
 
-        try {
-            java.lang.reflect.Method method = SessionReplayReporter.class.getDeclaredMethod("gzipCompress", byte[].class);
-            method.setAccessible(true);
-            byte[] compressed = (byte[]) method.invoke(null, emptyData);
-
-            Assert.assertNotNull(compressed);
-            Assert.assertTrue(compressed.length > 0); // GZIP header is always present
-        } catch (Exception e) {
-            Assert.fail("Failed to test gzipCompress with empty data: " + e.getMessage());
-        }
-    }
-
-    @Test
-    public void testReportSessionReplayDataPayloadExceedsMaxSize() throws IOException {
-        // Create data that will exceed max size when compressed
-        byte[] largeData = new byte[1000000* 2];
-        for (int i = 0; i < largeData.length; i++) {
-            largeData[i] = (byte) (i % 256);
-        }
-
-        Map<String, Object> attributes = new HashMap<>();
-        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, true);
-
-        SessionReplayReporter.reportSessionReplayData(largeData, attributes);
-
-        // Should have recorded supportability metric for exceeded size
-        String metricName = MetricNames.SUPPORTABILITY_MAXPAYLOADSIZELIMIT_ENDPOINT
-                .replace(MetricNames.TAG_FRAMEWORK, Agent.getDeviceInformation().getApplicationFramework().name())
-                .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
-                .replace(MetricNames.TAG_SUBDESTINATION, "SessionReplay");
-
-        // Note: The metric may or may not be present depending on actual compression
-        // This test mainly ensures no exceptions are thrown
-    }
-
-    @Test
-    public void testReportSessionReplayDataSetsCorrectAttributes() throws IOException {
-        byte[] testData = "test data".getBytes();
-        Map<String, Object> attributes = new HashMap<>();
-        attributes.put("firstTimestamp", 1609459200000L);
-        attributes.put("lastTimestamp", 1609459202000L);
-        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, true);
-        attributes.put(Constants.SessionReplay.SESSION_ID, "test-session-123");
-
-        SessionReplayReporter.reportSessionReplayData(testData, attributes);
-
-        // Verify attributes are set (tested indirectly through successful call)
-        Assert.assertTrue(true);
-    }
-
-    @Test
-    public void testStoreAndReportSessionReplayData() {
-        byte[] testData = "test data".getBytes();
-        Payload payload = new Payload(testData);
-        Map<String, Object> attributes = new HashMap<>();
-
-        reporter.storeAndReportSessionReplayData(payload, attributes);
-
-        // Should not throw exception
-        Assert.assertNotNull(reporter);
+        Assert.assertNotNull(compressed);
+        Assert.assertTrue(compressed.length > 0); // GZIP header is always present
     }
 
     @Test
     public void testStoreAndReportSessionReplayDataWithNullPayload() {
         Map<String, Object> attributes = new HashMap<>();
-
         try {
             reporter.storeAndReportSessionReplayData(null, attributes);
             Assert.fail("Should throw exception with null payload");
-        } catch (Exception e) {
+        } catch (Exception expected) {
             // Expected
-            Assert.assertNotNull(e);
         }
     }
 
     @Test
-    public void testOnHarvest() {
-        // Should not throw exception
-        reporter.onHarvest();
-        Assert.assertNotNull(reporter);
-    }
-
-    @Test
     public void testStartWhenPayloadControllerNotInitialized() {
-        // PayloadController may not be initialized in test environment
-        // Start should handle this gracefully
+        // PayloadController may not be initialized in test environment; should no-op safely.
         reporter.start();
-        // Should not throw exception
         Assert.assertNotNull(reporter);
     }
 
     @Test
     public void testStop() {
         reporter.stop();
-        // Should not throw exception
         Assert.assertNotNull(reporter);
     }
 
@@ -281,8 +205,6 @@ public class SessionReplayReporterTest {
     public void testMultipleInitializations() {
         SessionReplayReporter reporter1 = SessionReplayReporter.getInstance();
         SessionReplayReporter reporter2 = SessionReplayReporter.initialize(agentConfiguration);
-
-        // Should return the same instance
         Assert.assertSame(reporter1, reporter2);
     }
 
@@ -290,12 +212,9 @@ public class SessionReplayReporterTest {
     public void testReportSessionReplayDataWithVeryLargeAttributes() {
         byte[] testData = "test data".getBytes();
         Map<String, Object> attributes = new HashMap<>();
-
-        // Add many attributes
         for (int i = 0; i < 100; i++) {
             attributes.put("key" + i, "value" + i);
         }
-
         boolean result = SessionReplayReporter.reportSessionReplayData(testData, attributes);
         Assert.assertTrue(result);
     }
@@ -339,14 +258,206 @@ public class SessionReplayReporterTest {
 
     @Test
     public void testReporterIsEnabledBasedOnFeatureFlag() {
-        // Feature flag is enabled in setUp
+        // HandledExceptions is enabled in setUp.
         Assert.assertTrue(reporter.isEnabled());
 
         FeatureFlag.disableFeature(FeatureFlag.HandledExceptions);
         SessionReplayReporter.shutdown();
-        reporter = SessionReplayReporter.initialize(agentConfiguration);
+        SessionReplayReporter rebuilt = SessionReplayReporter.initialize(agentConfiguration);
+        Assert.assertFalse(rebuilt.isEnabled());
+    }
 
-        // Reporter should still initialize but may not be enabled
-        Assert.assertNotNull(reporter);
+    // ---------------------------------------------------------------------
+    // Offline cache drain — reportCachedSessionReplayData()
+    // ---------------------------------------------------------------------
+
+    @Test
+    public void testReportCachedSessionReplay_noopWhenOfflineFlagDisabled() {
+        FeatureFlag.disableFeature(FeatureFlag.OfflineStorage);
+        Mockito.when(mockOfflineStore.count()).thenReturn(5);
+
+        reporter.reportCachedSessionReplayData();
+
+        // OfflineStorage flag gates the entire drain path.
+        Mockito.verify(mockOfflineStore, Mockito.never()).count();
+        Mockito.verify(mockOfflineStore, Mockito.never()).fetchAll();
+        Mockito.verify(mockOfflineStore, Mockito.never()).delete(Mockito.any());
+    }
+
+    @Test
+    public void testReportCachedSessionReplay_noopWhenOfflineStoreIsNull() {
+        FeatureFlag.enableFeature(FeatureFlag.OfflineStorage);
+        Mockito.doReturn(null).when(agentConfiguration).getOfflineSessionReplayStore();
+
+        // Must not NPE when the offline store is unconfigured.
+        reporter.reportCachedSessionReplayData();
+    }
+
+    @Test
+    public void testReportCachedSessionReplay_noopWhenOfflineStoreEmpty() {
+        FeatureFlag.enableFeature(FeatureFlag.OfflineStorage);
+        Mockito.when(mockOfflineStore.count()).thenReturn(0);
+
+        reporter.reportCachedSessionReplayData();
+
+        Mockito.verify(mockOfflineStore).count();
+        Mockito.verify(mockOfflineStore, Mockito.never()).fetchAll();
+        Mockito.verify(mockOfflineStore, Mockito.never()).delete(Mockito.any());
+    }
+
+    @Test
+    public void testReportCachedSessionReplay_skipsWhenNetworkUnreachable() {
+        FeatureFlag.enableFeature(FeatureFlag.OfflineStorage);
+        Mockito.when(mockOfflineStore.count()).thenReturn(2);
+        Agent.setImpl(new UnreachableNetworkStubAgentImpl());
+
+        reporter.reportCachedSessionReplayData();
+
+        // Network-unreachable check happens after count(); fetchAll/delete must not run.
+        Mockito.verify(mockOfflineStore, Mockito.never()).fetchAll();
+        Mockito.verify(mockOfflineStore, Mockito.never()).delete(Mockito.any());
+    }
+
+    @Test
+    public void testReportCachedSessionReplay_dropsStalePayloads() {
+        FeatureFlag.enableFeature(FeatureFlag.OfflineStorage);
+
+        long now = System.currentTimeMillis();
+        long ttl = agentConfiguration.getPayloadTTL();
+        // capturedAt older than TTL => stale.
+        OfflineSessionReplayPayload stale = new OfflineSessionReplayPayload(
+                "stale-uuid", now - ttl - 60_000L, now - ttl - 60_000L,
+                Collections.<String, String>emptyMap(), new byte[]{1, 2, 3});
+
+        Mockito.when(mockOfflineStore.count()).thenReturn(1);
+        Mockito.when(mockOfflineStore.fetchAll()).thenReturn(Collections.singletonList(stale));
+
+        reporter.reportCachedSessionReplayData();
+
+        Mockito.verify(mockOfflineStore).delete(stale);
+    }
+
+    @Test
+    public void testReportCachedSessionReplay_drainsStaleThenHaltsOnTransient() {
+        // Verifies FIFO behavior: a stale entry at the head is dropped, then the loop
+        // hits a fresh entry. Without an initialized PayloadController, sendCachedPayload
+        // returns null which is treated as a transient failure -> break. Confirms the fresh
+        // entry is NOT deleted (unlike the stale one).
+        FeatureFlag.enableFeature(FeatureFlag.OfflineStorage);
+
+        long now = System.currentTimeMillis();
+        long ttl = agentConfiguration.getPayloadTTL();
+        OfflineSessionReplayPayload stale = new OfflineSessionReplayPayload(
+                "stale", now - ttl - 60_000L, now - ttl - 60_000L,
+                Collections.<String, String>emptyMap(), new byte[]{1});
+        OfflineSessionReplayPayload fresh = new OfflineSessionReplayPayload(
+                "fresh", now, now,
+                Collections.<String, String>emptyMap(), new byte[]{2});
+
+        Mockito.when(mockOfflineStore.count()).thenReturn(2);
+        Mockito.when(mockOfflineStore.fetchAll()).thenReturn(Arrays.asList(stale, fresh));
+
+        reporter.reportCachedSessionReplayData();
+
+        Mockito.verify(mockOfflineStore).delete(stale);
+        Mockito.verify(mockOfflineStore, Mockito.never()).delete(fresh);
+    }
+
+    // ---------------------------------------------------------------------
+    // Proactive offline persist on capture — reportSessionReplayData(Payload, Map)
+    // ---------------------------------------------------------------------
+
+    @Test
+    public void testProactivePersist_whenOfflineFlagEnabledAndNetworkUnreachable() throws Exception {
+        FeatureFlag.enableFeature(FeatureFlag.OfflineStorage);
+        Agent.setImpl(new UnreachableNetworkStubAgentImpl());
+
+        Payload payload = new Payload("test data".getBytes());
+        Map<String, Object> attributes = freshAttributesMap();
+
+        reporter.reportSessionReplayData(payload, attributes);
+
+        Mockito.verify(mockOfflineStore).store(Mockito.any(OfflineSessionReplayPayload.class));
+    }
+
+    @Test
+    public void testNoProactivePersist_whenOfflineFlagDisabled() throws Exception {
+        // Flag disabled => the offline branch is skipped entirely, even if network is down.
+        FeatureFlag.disableFeature(FeatureFlag.OfflineStorage);
+        Agent.setImpl(new UnreachableNetworkStubAgentImpl());
+
+        Payload payload = new Payload("test data".getBytes());
+        Map<String, Object> attributes = freshAttributesMap();
+
+        reporter.reportSessionReplayData(payload, attributes);
+
+        Mockito.verify(mockOfflineStore, Mockito.never()).store(Mockito.any());
+    }
+
+    @Test
+    public void testNoProactivePersist_whenOfflineStoreIsNull() throws Exception {
+        FeatureFlag.enableFeature(FeatureFlag.OfflineStorage);
+        Mockito.doReturn(null).when(agentConfiguration).getOfflineSessionReplayStore();
+        Agent.setImpl(new UnreachableNetworkStubAgentImpl());
+
+        Payload payload = new Payload("test data".getBytes());
+        Map<String, Object> attributes = freshAttributesMap();
+
+        // Must not NPE.
+        reporter.reportSessionReplayData(payload, attributes);
+
+        Mockito.verify(mockOfflineStore, Mockito.never()).store(Mockito.any());
+    }
+
+    // ---------------------------------------------------------------------
+    // shouldPersistForRetry — pure response-code policy
+    // ---------------------------------------------------------------------
+
+    @Test
+    public void testShouldPersistForRetry_responseCodes() throws Exception {
+        // 0 = no roundtrip => persist (network failure)
+        Assert.assertTrue(invokeShouldPersistForRetry(0));
+        // 400, 403 = server reject => drop
+        Assert.assertFalse(invokeShouldPersistForRetry(400));
+        Assert.assertFalse(invokeShouldPersistForRetry(403));
+        // 408, 429, 5xx = transient => persist
+        Assert.assertTrue(invokeShouldPersistForRetry(408));
+        Assert.assertTrue(invokeShouldPersistForRetry(429));
+        Assert.assertTrue(invokeShouldPersistForRetry(500));
+        Assert.assertTrue(invokeShouldPersistForRetry(502));
+        Assert.assertTrue(invokeShouldPersistForRetry(599));
+        // unknown / 2xx / 4xx other => conservative persist
+        Assert.assertTrue(invokeShouldPersistForRetry(200));
+        Assert.assertTrue(invokeShouldPersistForRetry(404));
+    }
+
+    // ---------------------------------------------------------------------
+    // helpers
+    // ---------------------------------------------------------------------
+
+    private static Map<String, Object> freshAttributesMap() {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put(Constants.SessionReplay.SESSION_ID, "test-session-id");
+        attributes.put("firstTimestamp", 1609459200000L);
+        attributes.put("lastTimestamp", 1609459202000L);
+        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, true);
+        return attributes;
+    }
+
+    private static boolean invokeShouldPersistForRetry(int code) throws Exception {
+        Method m = SessionReplayReporter.class.getDeclaredMethod("shouldPersistForRetry", int.class);
+        m.setAccessible(true);
+        return (Boolean) m.invoke(null, code);
+    }
+
+    /**
+     * Stub impl that reports the network as unreachable, regardless of host argument.
+     * StubAgentImpl normally returns true for null hosts, which the caller passes.
+     */
+    private static class UnreachableNetworkStubAgentImpl extends StubAgentImpl {
+        @Override
+        public boolean hasReachableNetworkConnection(String reachableHost) {
+            return false;
+        }
     }
 }
