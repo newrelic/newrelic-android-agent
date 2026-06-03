@@ -71,6 +71,7 @@ import com.newrelic.agent.android.sessionReplay.SessionReplayModeManager;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.stores.FileCrashStore;
 import com.newrelic.agent.android.stores.FileEventStore;
+import com.newrelic.agent.android.stores.FileOfflineSessionReplayStore;
 import com.newrelic.agent.android.stores.FileSessionReplayStore;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.tracing.Sample;
@@ -164,6 +165,8 @@ public class AndroidAgentImpl implements
 
         agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
         context.deleteSharedPreferences("NRSessionReplayStore");
+
+        agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
 
         agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
         context.deleteSharedPreferences("NRJSErrorStore");

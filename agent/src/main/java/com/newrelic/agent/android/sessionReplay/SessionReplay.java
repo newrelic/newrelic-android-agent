@@ -63,6 +63,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private static final AtomicBoolean takeFullSnapshot = new AtomicBoolean(true);
     private static SessionReplayModeManager modeManager;
 
+    // Guards against double-init. initSessionReplay is invoked from both agent boot and
+    // onHarvestConnected; without this flag the second call would recreate the processor,
+    // file manager, and re-register the Harvest listener (causing onHarvest() to fire twice
+    // per cycle). Cleared in deInitialize() so onSessionRestarted can re-init normally.
+    private static final AtomicBoolean isInitialized = new AtomicBoolean(false);
+
     // Buffer for queuing frames and touch data that arrive during harvest
     private static final AtomicBoolean isHarvesting = new AtomicBoolean(false);
     private final List<List<RRWebEvent>> frameBufferDuringHarvest =
@@ -151,11 +157,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Shutdown file manager
         SessionReplayFileManager.shutdown();
 
+        isInitialized.set(false);
         log.debug("Session replay deinitialized");
     }
 
     @Override
-    public void onHarvestStart() {
+    public void onHarvestBefore() {
         // Only prepare for harvest when in FULL mode
         if (modeManager != null && modeManager.getCurrentMode() == SessionReplayMode.FULL) {
             // Mark that harvest is starting - pause frame writes to prevent race condition
@@ -245,6 +252,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     public static void initSessionReplay(SessionReplayMode mode) {
+        if (!isInitialized.compareAndSet(false, true)) {
+            log.debug("Session replay already initialized; skipping duplicate init for mode: " + mode);
+            return;
+        }
         viewDrawInterceptor = new ViewDrawInterceptor(instance,agentConfiguration);
         processor = new SessionReplayProcessor();
         // Initialize file manager
@@ -425,10 +436,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     @Override
-    public void onHarvestComplete() {
-        // Resume frame/touch writes - allow buffered data to be written to file
+    public void onHarvestFinalize() {
+        // Resume frame/touch writes - allow buffered data to be written to file.
+        // Runs after onHarvest() reads the file and before the network upload, so the
+        // lock is released regardless of whether the upload later succeeds or fails.
         isHarvesting.set(false);
-        log.debug("SessionReplay: Harvest completed, resuming frame and touch writes");
+        log.debug("SessionReplay: Harvest finalized, resuming frame and touch writes");
 
         // Flush any frames that were buffered during harvest
         if (!frameBufferDuringHarvest.isEmpty()) {
