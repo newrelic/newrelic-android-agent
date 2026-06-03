@@ -41,7 +41,6 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
 
     /**
      * FIX: Use an @OutputFile to prevent mutating the @InputFile.
-     * This ensures BundleTool can read the original mapping file without ZipExceptions.
      */
     @OutputFile
     File getTaggedMappingFile() {
@@ -81,12 +80,6 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
 
                     taggedFile.parentFile.mkdirs()
 
-                    /**
-                     * ROOT CAUSE FIX:
-                     * Instead of infile.text = ..., we stream to taggedFile.
-                     * This keeps infile read-only for concurrent BundleTool tasks.
-                     * Includes duplicate tag prevention for backwards compatibility.
-                     */
                     taggedFile.withOutputStream { os ->
                         def originalContent = infile.text
                         os.write(originalContent.getBytes("UTF-8"))

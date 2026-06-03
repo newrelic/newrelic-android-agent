@@ -216,7 +216,9 @@ abstract class VariantAdapter {
                 def inputExists = inputFile.exists()
                 def taggedExists = taggedFile.exists()
                 def taggedContainsTag = taggedExists && taggedFile.text.contains(tag)
-                def shouldExecute = inputExists && !taggedContainsTag
+
+                def inputNewer = inputExists && taggedExists && (inputFile.lastModified() > taggedFile.lastModified())
+                def shouldExecute = inputExists && (!taggedContainsTag || inputNewer)
 
                 it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Checking execution conditions for variant [${variantName}]")
                 it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Input mapping file path: ${inputFile.absolutePath}")
@@ -225,6 +227,7 @@ abstract class VariantAdapter {
                 it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Tagged file exists: ${taggedExists}")
                 it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Build ID tag: ${tag}")
                 it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Tagged file contains tag: ${taggedContainsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Input newer than output: ${inputNewer}")
                 it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Should execute: ${shouldExecute}")
 
                 return shouldExecute
@@ -237,7 +240,9 @@ abstract class VariantAdapter {
                 def inputExists = inputFile.exists()
                 def taggedExists = taggedFile.exists()
                 def taggedContainsTag = taggedExists && taggedFile.text.contains(tag)
-                def isUpToDate = inputExists && taggedExists && taggedContainsTag
+
+                def inputNewer = inputExists && taggedExists && (inputFile.lastModified() > taggedFile.lastModified())
+                def isUpToDate = inputExists && taggedExists && taggedContainsTag && !inputNewer
 
                 it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Checking up-to-date status for variant [${variantName}]")
                 it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Input mapping file path: ${inputFile.absolutePath}")
@@ -245,6 +250,7 @@ abstract class VariantAdapter {
                 it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Input file exists: ${inputExists}")
                 it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Tagged file exists: ${taggedExists}")
                 it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Tagged file contains tag: ${taggedContainsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Input newer than output: ${inputNewer}")
                 it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Is up-to-date: ${isUpToDate}")
 
                 return isUpToDate
