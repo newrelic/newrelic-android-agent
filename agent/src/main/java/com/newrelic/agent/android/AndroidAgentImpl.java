@@ -77,9 +77,11 @@ import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
 import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
+import com.newrelic.agent.android.util.AndroidDecoder;
 import com.newrelic.agent.android.util.AndroidEncoder;
 import com.newrelic.agent.android.util.ComposeChecker;
 import com.newrelic.agent.android.util.Connectivity;
+import com.newrelic.agent.android.util.Decoder;
 import com.newrelic.agent.android.util.Encoder;
 import com.newrelic.agent.android.util.OfflineStorage;
 import com.newrelic.agent.android.util.PersistentUUID;
@@ -121,6 +123,7 @@ public class AndroidAgentImpl implements
     private final Lock lock = new ReentrantLock();
 
     private final Encoder encoder = new AndroidEncoder();
+    private final Decoder decoder = new AndroidDecoder();
 
     // Cached application and device information
     DeviceInformation deviceInformation;
@@ -1091,6 +1094,10 @@ public class AndroidAgentImpl implements
 
     public Encoder getEncoder() {
         return encoder;
+    }
+
+    public Decoder getDecoder() {
+        return decoder;
     }
 
     // TraceMachineInterface methods

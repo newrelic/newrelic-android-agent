@@ -6,7 +6,7 @@
 package com.newrelic.agent.android.sessionReplay;
 
 import com.google.gson.JsonObject;
-import com.newrelic.agent.android.util.Base64Utils;
+import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.util.Constants;
 
 import java.util.LinkedHashMap;
@@ -78,8 +78,10 @@ public class OfflineSessionReplayPayload {
             attrs.addProperty(e.getKey(), e.getValue());
         }
         obj.add(Constants.SessionReplay.OFFLINE_KEY_ATTRIBUTES, attrs);
-        obj.addProperty(Constants.SessionReplay.OFFLINE_KEY_BODY,
-                Base64Utils.encodeToString(body));
+
+            obj.addProperty(Constants.SessionReplay.OFFLINE_KEY_BODY,
+                    Agent.getEncoder().encode(body));
+
         return obj;
     }
 
@@ -108,7 +110,8 @@ public class OfflineSessionReplayPayload {
         byte[] body = new byte[0];
         if (obj.has(Constants.SessionReplay.OFFLINE_KEY_BODY)) {
             final String b64 = obj.get(Constants.SessionReplay.OFFLINE_KEY_BODY).getAsString();
-            body = Base64Utils.decode(b64);
+                body = Agent.getDecoder().decode(b64);
+
         }
 
         return new OfflineSessionReplayPayload(uuid, capturedAt, urlTimestamp, attributes, body);

@@ -13,6 +13,7 @@ import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.EnvironmentInformation;
 import com.newrelic.agent.android.stats.TicToc;
+import com.newrelic.agent.android.util.Decoder;
 import com.newrelic.agent.android.util.Encoder;
 
 import java.util.ArrayList;
@@ -110,6 +111,20 @@ public class NullAgentImpl implements AgentImpl {
             @Override
             public String encodeNoWrap(byte[] bytes) {
                 return encode(bytes);
+            }
+        };
+    }
+
+    @Override
+    public Decoder getDecoder() {
+        return new Decoder() {
+            public byte[] decode(String bytes) {
+                return bytes == null ? new byte[0] : bytes.getBytes();
+            }
+
+            @Override
+            public byte[] decodeNoWrap(String bytes) {
+                return decode(bytes);
             }
         };
     }
