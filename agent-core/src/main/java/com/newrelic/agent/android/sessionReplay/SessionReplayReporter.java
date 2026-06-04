@@ -97,7 +97,7 @@ public class SessionReplayReporter extends PayloadReporter {
     protected SessionReplayReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
         this.sessionReplayStore = agentConfiguration.getSessionReplayStore();
-        this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.HandledExceptions));
+        this.isEnabled.set(agentConfiguration.getSessionReplayConfiguration().isEnabled());
     }
 
     @Override

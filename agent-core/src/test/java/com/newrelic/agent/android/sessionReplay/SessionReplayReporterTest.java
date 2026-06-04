@@ -36,6 +36,7 @@ public class SessionReplayReporterTest {
     private SessionReplayReporter reporter;
     private SessionReplayStore<String> mockStore;
     private OfflineSessionReplayStore mockOfflineStore;
+    private SessionReplayConfiguration mockConfig;
     private AgentImpl previousAgentImpl;
 
     @BeforeClass
@@ -47,24 +48,25 @@ public class SessionReplayReporterTest {
     @Before
     public void setUp() throws Exception {
         StatsEngine.reset();
-        FeatureFlag.enableFeature(FeatureFlag.HandledExceptions);
 
         previousAgentImpl = Agent.getImpl();
 
         agentConfiguration = Mockito.spy(new AgentConfiguration());
         mockStore = Mockito.mock(SessionReplayStore.class);
         mockOfflineStore = Mockito.mock(OfflineSessionReplayStore.class);
+        mockConfig = Mockito.mock(SessionReplayConfiguration.class);
 
         Mockito.doReturn(mockStore).when(agentConfiguration).getSessionReplayStore();
         Mockito.doReturn(mockOfflineStore).when(agentConfiguration).getOfflineSessionReplayStore();
+        Mockito.doReturn(mockConfig).when(agentConfiguration).getSessionReplayConfiguration();
 
+        Mockito.doReturn(true).when(mockConfig).isEnabled();
         SessionReplayReporter.shutdown();
         reporter = SessionReplayReporter.initialize(agentConfiguration);
     }
 
     @After
     public void tearDown() throws Exception {
-        FeatureFlag.disableFeature(FeatureFlag.HandledExceptions);
         FeatureFlag.disableFeature(FeatureFlag.OfflineStorage);
         SessionReplayReporter.shutdown();
         StatsEngine.reset();
@@ -258,10 +260,9 @@ public class SessionReplayReporterTest {
 
     @Test
     public void testReporterIsEnabledBasedOnFeatureFlag() {
-        // HandledExceptions is enabled in setUp.
         Assert.assertTrue(reporter.isEnabled());
-
-        FeatureFlag.disableFeature(FeatureFlag.HandledExceptions);
+        Mockito.doReturn(mockConfig).when(agentConfiguration).getSessionReplayConfiguration();
+        Mockito.doReturn(false).when(mockConfig).isEnabled();
         SessionReplayReporter.shutdown();
         SessionReplayReporter rebuilt = SessionReplayReporter.initialize(agentConfiguration);
         Assert.assertFalse(rebuilt.isEnabled());
