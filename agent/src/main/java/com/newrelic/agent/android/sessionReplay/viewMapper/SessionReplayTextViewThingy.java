@@ -6,6 +6,8 @@ import android.widget.TextView;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.R;
+import com.newrelic.agent.android.logging.AgentLog;
+import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator;
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration;
@@ -19,12 +21,14 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
 // Assuming SessionReplayViewThingy is an interface or abstract class in Java
 // and ViewDetails is a separate class in your project.
 public class SessionReplayTextViewThingy implements SessionReplayViewThingyInterface { // Assuming this interface exists
+    private static final AgentLog log = AgentLogManager.getAgentLog();
     private List<? extends SessionReplayViewThingyInterface> subviews = new ArrayList<>();
     private ViewDetails viewDetails;
 
@@ -188,27 +192,29 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     }
 
     private void generateTextCss(StringBuilder cssBuilder) {
-        cssBuilder.append("white-space: pre-wrap;overflow: hidden;text-overflow: ellipsis;");
-        cssBuilder.append("");
-        cssBuilder.append("font-size: ");
-        cssBuilder.append(String.format("%.2f", this.fontSize));
-        cssBuilder.append("px; ");
-
-        // Null-safe append for fontFamily
-        if (this.fontFamily != null) {
-            cssBuilder.append(this.fontFamily);
-            cssBuilder.append("; ");
+        if (cssBuilder == null) {
+            return;
         }
+        try {
+            String fontSizeStr;
+            try {
+                fontSizeStr = String.format(Locale.US, "%.2f", this.fontSize);
+            } catch (Throwable t) {
+                fontSizeStr = "0.00";
+            }
+            String fontFamilyPart = this.fontFamily != null ? this.fontFamily + " " : "";
+            String color = this.textColor != null ? this.textColor : "000000";
+            String alignment = this.textAlign != null ? this.textAlign : "left";
 
-        // Null-safe append for textColor
-        cssBuilder.append("color: #");
-        cssBuilder.append(this.textColor != null ? this.textColor : "000000");
-        cssBuilder.append("; ");
-
-        // Null-safe append for textAlign
-        cssBuilder.append("text-align: ");
-        cssBuilder.append(this.textAlign != null ? this.textAlign : "left");
-        cssBuilder.append("; ");
+            String css = "white-space: pre-wrap;overflow: hidden;text-overflow: ellipsis;"
+                    + "font-size: " + fontSizeStr + "px; "
+                    + fontFamilyPart
+                    + "color: #" + color + "; "
+                    + "text-align: " + alignment + "; ";
+            cssBuilder.append(css);
+        } catch (Throwable t) {
+            log.error("Failed to generate text CSS for session replay", t);
+        }
     }
 
     @Override
@@ -263,7 +269,10 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         if(this.fontFamily!= null) {
             String otherFontFamily = ((SessionReplayTextViewThingy) other).getFontFamily();
             if (otherFontFamily != null && !this.fontFamily.equals(otherFontFamily)) {
-                styleDifferences.put("font-family", otherFontFamily);
+                String otherFontFamilyValue = extractFontFamilyValue(otherFontFamily);
+                if (otherFontFamilyValue != null) {
+                    styleDifferences.put("font-family", otherFontFamilyValue);
+                }
             }
         }
 
@@ -277,7 +286,7 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
         }
 
         if (this.fontSize != ((SessionReplayTextViewThingy) other).getFontSize()) {
-            styleDifferences.put("font-size", String.format("%.2fpx", ((SessionReplayTextViewThingy) other).getFontSize()));
+            styleDifferences.put("font-size", String.format(Locale.US, "%.2fpx", ((SessionReplayTextViewThingy) other).getFontSize()));
         }
 
         List<MutationRecord> mutations = new ArrayList<>();
@@ -339,6 +348,30 @@ public class SessionReplayTextViewThingy implements SessionReplayViewThingyInter
     @Override
     public int getParentViewId() {
         return viewDetails.parentId;
+    }
+
+    /**
+     * Extracts the font-family value (e.g. "monospace") from a CSS fragment of the
+     * shape "font-family: monospace; font-weight: bold;". Returns null when the
+     * fragment carries no font-family declaration. Required because {@link #fontFamily}
+     * stores a multi-property declaration; emitting that as the value of an attribute
+     * mutation produced "font-family: font-family: monospace;;" on the player.
+     */
+    private static String extractFontFamilyValue(String declaration) {
+        if (declaration == null) {
+            return null;
+        }
+        int prefix = declaration.indexOf("font-family:");
+        if (prefix < 0) {
+            return null;
+        }
+        int start = prefix + "font-family:".length();
+        int end = declaration.indexOf(';', start);
+        if (end < 0) {
+            end = declaration.length();
+        }
+        String value = declaration.substring(start, end).trim();
+        return value.isEmpty() ? null : value;
     }
 
     private String getFontFamily(Typeface typeface) {
