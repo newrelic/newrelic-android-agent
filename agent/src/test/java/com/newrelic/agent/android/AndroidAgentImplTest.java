@@ -453,6 +453,31 @@ public class AndroidAgentImplTest {
     }
 
 
+    @Test
+    public void testShutdownHarvestIncludesFullSessionAttributes() throws Exception {
+        agentStart();
+
+        final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+        final int systemAttrCountBeforeShutdown = analyticsController.getSystemAttributes().size();
+        Assert.assertTrue("Agent should have system attributes after start", systemAttrCountBeforeShutdown > 1);
+
+        final int[] systemAttrCountDuringHarvest = {-1};
+        Harvest.addHarvestListener(new HarvestAdapter() {
+            @Override
+            public void onHarvestBefore() {
+                systemAttrCountDuringHarvest[0] = analyticsController.getSystemAttributes().size();
+            }
+        });
+
+        NewRelic.isShutdown = true;
+        agentImpl.stop(true);
+        NewRelic.isShutdown = false;
+
+        Assert.assertTrue(
+                "Shutdown harvest must include full session attributes, not just sessionDuration. Got: " + systemAttrCountDuringHarvest[0],
+                systemAttrCountDuringHarvest[0] > 1);
+    }
+
     private void agentStart() throws InterruptedException {
         Agent.start();
         Thread.sleep(1 * 500);

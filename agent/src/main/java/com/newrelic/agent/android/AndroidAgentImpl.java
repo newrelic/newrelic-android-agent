@@ -1062,10 +1062,10 @@ public class AndroidAgentImpl implements
             //clear activity traces
             TraceMachine.clearActivityHistory();
 
-            //clear analytics
+            //clear pending events only; session attributes must survive for the final shutdown harvest
             AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
             if (analyticsController != null) {
-                analyticsController.clear();
+                analyticsController.getEventManager().empty();
             }
 
             //clear measurementEngine
