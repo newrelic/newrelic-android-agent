@@ -20,6 +20,15 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private AtomicBoolean isInBackground = new AtomicBoolean(false);
+    private final boolean isHybridFramework;
+
+    public ActivityLifecycleBackgroundListener() {
+        this(false);
+    }
+
+    public ActivityLifecycleBackgroundListener(boolean isHybridFramework) {
+        this.isHybridFramework = isHybridFramework;
+    }
 
     @Override
     public void onActivityResumed(Activity activity) {
@@ -38,6 +47,12 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
     @Override
     public void onTrimMemory(int level) {
         log.info("ActivityLifecycleBackgroundListener.onTrimMemory level: " + level);
+        // NR-262548: MAUI/Xamarin can fire TRIM_MEMORY_UI_HIDDEN while still in
+        // the foreground, which would falsely background the agent and shut down
+        // AnalyticsController. For these hosts, rely on Activity lifecycle only.
+        if (isHybridFramework) {
+            return;
+        }
         if (TRIM_MEMORY_UI_HIDDEN == level)
             isInBackground.set(true);
         super.onTrimMemory(level);
