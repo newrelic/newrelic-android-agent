@@ -20,6 +20,7 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadStore;
+import com.newrelic.agent.android.sessionReplay.OfflineSessionReplayStore;
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayStore;
@@ -89,6 +90,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private int maxCachedEventCount = DEFAULT_MAX_CACHED_EVENT_COUNT;
     private AnalyticsEventStore eventStore;
     private SessionReplayStore sessionReplayStore;
+    private OfflineSessionReplayStore offlineSessionReplayStore;
     private JSErrorStore jsErrorStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
@@ -179,6 +181,14 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setSessionReplayStore(SessionReplayStore sessionReplayStore) {
         this.sessionReplayStore = sessionReplayStore;
+    }
+
+    public OfflineSessionReplayStore getOfflineSessionReplayStore() {
+        return offlineSessionReplayStore;
+    }
+
+    public void setOfflineSessionReplayStore(OfflineSessionReplayStore offlineSessionReplayStore) {
+        this.offlineSessionReplayStore = offlineSessionReplayStore;
     }
 
     public JSErrorStore getJsErrorStore() {

@@ -59,6 +59,13 @@ public final class Constants {
         // URL encoding
         public static final String URL_ENCODED_AMPERSAND = "%26";
         public static final String URL_ENCODED_EQUALS = "%3D";
+
+        // Offline persisted payload JSON keys
+        public static final String OFFLINE_KEY_UUID            = "uuid";
+        public static final String OFFLINE_KEY_CAPTURED_AT     = "capturedAt";
+        public static final String OFFLINE_KEY_URL_TIMESTAMP   = "urlTimestamp";
+        public static final String OFFLINE_KEY_ATTRIBUTES      = "attributes";
+        public static final String OFFLINE_KEY_BODY            = "body";
     }
 
     public final class Network {
