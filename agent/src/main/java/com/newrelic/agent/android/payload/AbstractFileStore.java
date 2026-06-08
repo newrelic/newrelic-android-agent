@@ -61,6 +61,7 @@ public abstract class AbstractFileStore<T> {
         this.tag = tag;
         ensureDir();
         sweepTransientFiles();
+        sweepTempFiles();
     }
 
     /** Derive a per-entry key. The returned value is sanitized via {@link #safeFilename(String)} before use. */
@@ -204,6 +205,14 @@ public abstract class AbstractFileStore<T> {
                         log.debug(tag + ".sweepTransientFiles: failed to delete unrecoverable bak [" + name + "]");
                     }
                 }
+    private void sweepTempFiles() {
+        final File[] tmps = dir.listFiles((d, name) -> name.endsWith(TMP_SUFFIX));
+        if (tmps == null) {
+            return;
+        }
+        for (File f : tmps) {
+            if (!f.delete()) {
+                log.debug(tag + ".sweepTempFiles: failed to delete [" + f.getName() + "]");
             }
         }
     }
@@ -248,6 +257,13 @@ public abstract class AbstractFileStore<T> {
         }
         // POSIX rename is atomic and replaces an existing target on Android ext4.
         // Try the single-step rename first so we never disturb the old entry unless we
+            if (tmp.exists() && !tmp.delete()) {
+                log.debug(tag + ".writeAtomic: failed to cleanup tmp for [" + safeName + "]");
+            }
+            return false;
+        }
+        // POSIX rename is atomic and replaces an existing target on Android ext4.
+        // Try the single-step rename first so we never delete the old entry unless we
         // know the platform won't overwrite.
         if (tmp.renameTo(target)) {
             return true;
@@ -289,6 +305,21 @@ public abstract class AbstractFileStore<T> {
         if (tmp.exists() && !tmp.delete()) {
             log.debug(tag + ".writeAtomic: failed to cleanup tmp for [" + safeName + "]");
         }
+        if (target.exists() && !target.delete()) {
+            log.error(tag + ".writeAtomic: cannot replace existing target [" + safeName + "]");
+            if (tmp.exists() && !tmp.delete()) {
+                log.debug(tag + ".writeAtomic: failed to cleanup tmp for [" + safeName + "]");
+            }
+            return false;
+        }
+        if (!tmp.renameTo(target)) {
+            log.error(tag + ".writeAtomic: rename failed for [" + safeName + "]");
+            if (tmp.exists() && !tmp.delete()) {
+                log.debug(tag + ".writeAtomic: failed to cleanup tmp for [" + safeName + "]");
+            }
+            return false;
+        }
+        return true;
     }
 
     private T parseFile(File f) throws Exception {
