@@ -1,0 +1,28 @@
+name: notify-subscribers
+
+on:
+  release:
+    types: ['published']
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    environment: dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Latest Release URL
+        id: get_url
+        run: |
+          URL=$(gh release view --repo ${{github.repository}} --json url --jq '.url')
+          echo "RELEASE_URL=$URL" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Slack Channel
+        id: notify
+        run: |
+           curl -X POST -H 'Content-type: application/json' \
+           --data "{\"text\": \"The Android mobile agent has created a new release candidate ${{ steps.get_url.outputs.RELEASE_URL }}\"}" \
+           'https://hooks.slack.com/services/${{secrets.SLACK_WEBHOOK_TOKEN}}'
