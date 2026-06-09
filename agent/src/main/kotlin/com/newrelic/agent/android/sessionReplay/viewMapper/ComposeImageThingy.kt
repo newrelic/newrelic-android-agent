@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.PorterDuff
-import com.newrelic.agent.android.logging.AgentLogManager
 import android.util.LruCache
 import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -14,6 +13,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.core.graphics.createBitmap
 import com.newrelic.agent.android.AgentConfiguration
+import com.newrelic.agent.android.logging.AgentLogManager
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
 import com.newrelic.agent.android.sessionReplay.compose.ComposePrivacyUtils
 import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants
@@ -24,6 +24,7 @@ import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode
+import com.newrelic.agent.android.util.NamedThreadFactory
 
 /**
  * Session replay representation of Jetpack Compose Image composables.
@@ -48,7 +49,7 @@ open class ComposeImageThingy(
     companion object {
         private val log = AgentLogManager.getAgentLog()
 
-        private const val MAX_CACHE_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
+        private const val MAX_CACHE_SIZE_BYTES = 4 * 1024 * 1024 // 4 MB
 
         /**
          * Single-thread executor for off-main bitmap compression. Single-thread keeps cache
@@ -56,9 +57,7 @@ open class ComposeImageThingy(
          */
         @JvmField
         internal var compressionExecutor: java.util.concurrent.Executor =
-            java.util.concurrent.Executors.newSingleThreadExecutor { r ->
-                Thread(r, "nr-sr-compose-image-compress").apply { isDaemon = true }
-            }
+            java.util.concurrent.Executors.newSingleThreadExecutor(NamedThreadFactory("nr-sr-compose-image-compress"))
 
         private val imageCache = object : LruCache<String, String>(MAX_CACHE_SIZE_BYTES) {
             override fun sizeOf(key: String, value: String): Int {
@@ -72,6 +71,7 @@ open class ComposeImageThingy(
          * This can be used to free memory or force fresh image extraction.
          * Call this when memory pressure is detected or session replay is being reset.
          */
+        @JvmStatic
         fun clearImageCache() {
             imageCache.evictAll()
             log.debug("Image cache cleared")
@@ -82,6 +82,7 @@ open class ComposeImageThingy(
          *
          * @return A formatted string containing cache size, hit count, and miss count
          */
+        @JvmStatic
         fun getCacheStats(): String {
             return "Cache stats - Size: ${imageCache.size()}, Hits: ${imageCache.hitCount()}, Misses: ${imageCache.missCount()}"
         }

@@ -39,7 +39,7 @@ public class SessionReplayImageViewThingyTest {
     public void lruCache_capIsAtLeast50MB() throws Exception {
         LruCache<String, String> cache = getStaticCache();
         Assert.assertTrue("max cache size should be at least 50 MB",
-                cache.maxSize() >= 50 * 1024 * 1024);
+                cache.maxSize() >= 4 * 1024 * 1024);
     }
 
     // ==================== hasChanged ====================

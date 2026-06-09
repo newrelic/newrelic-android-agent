@@ -29,6 +29,7 @@ import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
+import com.newrelic.agent.android.util.NamedThreadFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,10 +45,10 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     private static final AgentLog log = AgentLogManager.getAgentLog();
     
     // Static cache shared across all instances.
-    // Sized in bytes (Java chars are 2 bytes), capped at 50 MB so a screen full of
+    // Sized in bytes (Java chars are 2 bytes), capped at 4 MB so a screen full of
     // small icons cannot bypass eviction the way the previous "value.length() / 1024"
     // floor allowed (small strings sized to 0 KB and never evicted by size).
-    private static final int MAX_CACHE_SIZE_BYTES = 50 * 1024 * 1024;
+    private static final int MAX_CACHE_SIZE_BYTES = 4 * 1024 * 1024;
     private static final LruCache<String, String> imageCache = new LruCache<String, String>(MAX_CACHE_SIZE_BYTES) {
         @Override
         protected int sizeOf(String key, String value) {
@@ -60,11 +61,7 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
      * writes ordered and avoids races between concurrent fills on the same key.
      * Package-private and non-final so tests can substitute a deterministic executor.
      */
-    static volatile Executor compressionExecutor = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "nr-sr-image-compress");
-        t.setDaemon(true);
-        return t;
-    });
+    static volatile Executor compressionExecutor = Executors.newSingleThreadExecutor(new NamedThreadFactory("nr-sr-image-compress"));
 
     private List<? extends SessionReplayViewThingyInterface> subviews = new ArrayList<>();
     private final ViewDetails viewDetails;
