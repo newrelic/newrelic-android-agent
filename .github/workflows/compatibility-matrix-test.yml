@@ -21,9 +21,6 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: read
-
 jobs:
   # Read the compatibility matrix and set up the test matrix
   setup:
