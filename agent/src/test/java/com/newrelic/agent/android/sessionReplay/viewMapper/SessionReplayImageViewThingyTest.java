@@ -168,4 +168,122 @@ public class SessionReplayImageViewThingyTest {
         m.setAccessible(true);
         return (String) m.invoke(thingy, d, iv);
     }
+
+    // ==================== Async dispatch ====================
+
+    /**
+     * Test executor that records submissions instead of running them, so tests can
+     * inspect the constructor's behavior at the moment compression is dispatched.
+     */
+    private static final class RecordingExecutor implements java.util.concurrent.Executor {
+        final java.util.Queue<Runnable> queue = new java.util.LinkedList<>();
+        @Override public void execute(Runnable command) { queue.add(command); }
+        void runAll() {
+            while (!queue.isEmpty()) queue.poll().run();
+        }
+        int size() { return queue.size(); }
+    }
+
+    private RecordingExecutor recordingExecutor;
+    private java.util.concurrent.Executor originalExecutor;
+
+    private void installRecordingExecutor() throws Exception {
+        recordingExecutor = new RecordingExecutor();
+        Field f = SessionReplayImageViewThingy.class.getDeclaredField("compressionExecutor");
+        f.setAccessible(true);
+        originalExecutor = (java.util.concurrent.Executor) f.get(null);
+        f.set(null, recordingExecutor);
+    }
+
+    private void restoreExecutor() throws Exception {
+        if (originalExecutor != null) {
+            Field f = SessionReplayImageViewThingy.class.getDeclaredField("compressionExecutor");
+            f.setAccessible(true);
+            f.set(null, originalExecutor);
+        }
+    }
+
+    @Test
+    public void cacheMiss_dispatchesAsyncAndImageDataNull() throws Exception {
+        installRecordingExecutor();
+        try {
+            android.content.Context ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext();
+            android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(8, 8, android.graphics.Bitmap.Config.ARGB_8888);
+            bm.eraseColor(android.graphics.Color.GREEN);
+            android.graphics.drawable.BitmapDrawable d = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bm);
+
+            android.widget.ImageView iv = new android.widget.ImageView(ctx);
+            iv.layout(0, 0, 8, 8);
+            iv.setImageDrawable(d);
+
+            com.newrelic.agent.android.AgentConfiguration cfg = new com.newrelic.agent.android.AgentConfiguration();
+            cfg.getSessionReplayConfiguration().setMaskAllImages(false);
+            SessionReplayImageViewThingy thingy = new SessionReplayImageViewThingy(new ViewDetails(iv), iv, cfg);
+
+            Assert.assertNull("imageData must be null immediately on cache miss", thingy.getImageData());
+            Assert.assertEquals("one compression task must be queued on cache miss",
+                    1, recordingExecutor.size());
+
+            recordingExecutor.runAll();
+            Assert.assertNotNull("imageData must be populated after worker runs",
+                    thingy.getImageData());
+        } finally {
+            restoreExecutor();
+        }
+    }
+
+    @Test
+    public void cacheHit_resolvesSynchronouslyAndDoesNotDispatch() throws Exception {
+        installRecordingExecutor();
+        try {
+            android.content.Context ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext();
+            android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(8, 8, android.graphics.Bitmap.Config.ARGB_8888);
+            bm.eraseColor(android.graphics.Color.GREEN);
+            android.graphics.drawable.BitmapDrawable d = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bm);
+
+            android.widget.ImageView iv = new android.widget.ImageView(ctx);
+            iv.layout(0, 0, 8, 8);
+            iv.setImageDrawable(d);
+
+            com.newrelic.agent.android.AgentConfiguration cfg = new com.newrelic.agent.android.AgentConfiguration();
+            cfg.getSessionReplayConfiguration().setMaskAllImages(false);
+            // First construction populates the cache.
+            new SessionReplayImageViewThingy(new ViewDetails(iv), iv, cfg);
+            recordingExecutor.runAll();
+            recordingExecutor.queue.clear();
+
+            // Second construction with the same drawable should hit the cache.
+            SessionReplayImageViewThingy hit = new SessionReplayImageViewThingy(new ViewDetails(iv), iv, cfg);
+            Assert.assertNotNull("imageData must be populated synchronously on cache hit",
+                    hit.getImageData());
+            Assert.assertEquals("no compression task must be queued on cache hit",
+                    0, recordingExecutor.size());
+        } finally {
+            restoreExecutor();
+        }
+    }
+
+    @Test
+    public void maskedImage_neitherDispatchesNorPopulatesImageData() throws Exception {
+        installRecordingExecutor();
+        try {
+            android.content.Context ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext();
+            android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(8, 8, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.drawable.BitmapDrawable d = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bm);
+
+            android.widget.ImageView iv = new android.widget.ImageView(ctx);
+            iv.layout(0, 0, 8, 8);
+            iv.setImageDrawable(d);
+
+            com.newrelic.agent.android.AgentConfiguration cfg = new com.newrelic.agent.android.AgentConfiguration();
+            cfg.getSessionReplayConfiguration().setMaskAllImages(true);
+
+            SessionReplayImageViewThingy thingy = new SessionReplayImageViewThingy(new ViewDetails(iv), iv, cfg);
+            Assert.assertNull("masked image must not have imageData", thingy.getImageData());
+            Assert.assertEquals("masked image must not dispatch compression",
+                    0, recordingExecutor.size());
+        } finally {
+            restoreExecutor();
+        }
+    }
 }

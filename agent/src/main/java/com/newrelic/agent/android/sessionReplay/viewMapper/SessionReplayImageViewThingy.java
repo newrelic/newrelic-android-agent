@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 public class SessionReplayImageViewThingy implements SessionReplayViewThingyInterface {
     private static final AgentLog log = AgentLogManager.getAgentLog();
@@ -52,14 +54,25 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             return value.length() * 2;
         }
     };
-    
+
+    /**
+     * Single-thread executor for off-main bitmap compression. Single-thread keeps cache
+     * writes ordered and avoids races between concurrent fills on the same key.
+     * Package-private and non-final so tests can substitute a deterministic executor.
+     */
+    static volatile Executor compressionExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "nr-sr-image-compress");
+        t.setDaemon(true);
+        return t;
+    });
+
     private List<? extends SessionReplayViewThingyInterface> subviews = new ArrayList<>();
     private final ViewDetails viewDetails;
 
     public boolean shouldRecordSubviews = false;
     private final ImageView.ScaleType scaleType;
     private final String backgroundColor;
-    private String imageData; // Base64 encoded image data
+    private volatile String imageData; // Base64 encoded image data — written off-main
     private final boolean isMasked;
     protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
     protected SessionReplayConfiguration sessionReplayConfiguration;
@@ -77,11 +90,12 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     }
 
     /**
-     * Extracts the image from an ImageView and converts it to a Base64 encoded string
-     * @param imageView The ImageView to extract the image from
-     * @return Base64 encoded image data or null if no image is available
+     * Synchronously checks the LRU cache. On hit, returns the cached Base64. On miss,
+     * snapshots the bitmap reference and dispatches compression to a worker thread,
+     * which populates the cache and back-fills this instance's imageData when done.
+     * Returns null on miss so the caller renders a placeholder for this frame; the
+     * next captured frame will resolve from cache.
      */
-    @WorkerThread
     private String getImageFromImageView(ImageView imageView) {
         try {
             Drawable drawable = imageView.getDrawable();
@@ -89,29 +103,34 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
                 return null;
             }
 
-            String cacheKey = generateCacheKey(drawable, imageView);
-            
+            final String cacheKey = generateCacheKey(drawable, imageView);
+
             String cachedData = imageCache.get(cacheKey);
             if (cachedData != null) {
                 log.debug("Cache hit for image: " + cacheKey);
                 return cachedData;
             }
 
-            Bitmap bitmap = drawableToBitmap(drawable, imageView);
-
-            if (bitmap != null && !bitmap.isRecycled()) {
-                String base64Data = bitmapToBase64(bitmap);
-                if (base64Data != null) {
-                    imageCache.put(cacheKey, base64Data);
-                    log.debug("Cached image data for key: " + cacheKey);
-                }
-                return base64Data;
+            final Bitmap bitmap = drawableToBitmap(drawable, imageView);
+            if (bitmap == null || bitmap.isRecycled()) {
+                return null;
             }
+
+            compressionExecutor.execute(() -> {
+                try {
+                    String b64 = bitmapToBase64(bitmap);
+                    if (b64 != null) {
+                        imageCache.put(cacheKey, b64);
+                        SessionReplayImageViewThingy.this.imageData = b64;
+                        log.debug("Cached image data for key: " + cacheKey);
+                    }
+                } catch (Exception e) {
+                    log.error("Async image compression failed", e);
+                }
+            });
         } catch (Exception e) {
             log.error("Error processing image", e);
-            return null;
         }
-        
         return null;
     }
 
