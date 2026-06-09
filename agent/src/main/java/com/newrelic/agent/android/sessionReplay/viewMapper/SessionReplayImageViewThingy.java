@@ -41,13 +41,15 @@ import java.util.Set;
 public class SessionReplayImageViewThingy implements SessionReplayViewThingyInterface {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     
-    // Static cache shared across all instances
-    // Increased cache size to 1MB for better performance
-    private static final LruCache<String, String> imageCache = new LruCache<String, String>(1024) {
+    // Static cache shared across all instances.
+    // Sized in bytes (Java chars are 2 bytes), capped at 50 MB so a screen full of
+    // small icons cannot bypass eviction the way the previous "value.length() / 1024"
+    // floor allowed (small strings sized to 0 KB and never evicted by size).
+    private static final int MAX_CACHE_SIZE_BYTES = 50 * 1024 * 1024;
+    private static final LruCache<String, String> imageCache = new LruCache<String, String>(MAX_CACHE_SIZE_BYTES) {
         @Override
         protected int sizeOf(String key, String value) {
-            // Return the size in KB (approximate)
-            return value.length() / 1024;
+            return value.length() * 2;
         }
     };
     
