@@ -111,12 +111,17 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         filteredOutput.contains("Maps will be tagged and uploaded for variants [")
         mapUploadVariants.each { var ->
             buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
-            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+            // Check the tagged output file instead of original mapping file
+            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
+            }
+            // Check that original mapping file detection still works
+            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+                exists()
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") ||
-                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
+                filteredOutput.contains("Tagging map [") && filteredOutput.contains("] with buildID [") ||
+                        filteredOutput.contains("Map already tagged, skipping duplicate tag for [")
             }
         }
     }
@@ -191,11 +196,13 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         }
         mapUploadVariants.each { var ->
             buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            // Bundle mapping should not be tagged (only APK mapping is tagged)
             with(new File(buildDir, "outputs/dexguard/mapping/bundle/release/mapping.txt")) {
                 exists()
                 !text.contains(Proguard.NR_MAP_PREFIX)
             }
-            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+            // Check tagged output file for APK variant
+            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
             }

@@ -82,12 +82,17 @@ class PluginDexGuardRegressionSpec extends PluginSpec {
         mapUploadVariants.each { var ->
             buildResult.task(":newrelicMapUpload${var.capitalize()}")?.outcome == SUCCESS ||
                     buildResult.task(":newrelicMapUploadDexguard${var.capitalize()}")?.outcome == SUCCESS
-            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+            // Check the tagged output file instead of original mapping file
+            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
+            }
+            // Check that original mapping file detection still works
+            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+                exists()
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") ||
-                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
+                filteredOutput.contains("Tagging map [") && filteredOutput.contains("] with buildID [") ||
+                        filteredOutput.contains("Map already tagged, skipping duplicate tag for [")
             }
         }
 

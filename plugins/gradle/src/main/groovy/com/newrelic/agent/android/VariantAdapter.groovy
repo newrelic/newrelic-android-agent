@@ -211,32 +211,46 @@ abstract class VariantAdapter {
                 // Execute the task only if the given spec is satisfied. The spec will
                 // be evaluated at task execution time, not during configuration.
                 def tag = "${Proguard.NR_MAP_PREFIX}${mapUploadTask.buildId.get()}"
-                def mf = it.mappingFile.asFile.get()
-                def exists = mf.exists()
-                def containsTag = exists && mf.text.contains(tag)
-                def shouldExecute = exists && !containsTag
+                def inputFile = it.mappingFile.asFile.get()
+                def taggedFile = it.getTaggedMappingFile()
+                def inputExists = inputFile.exists()
+                def taggedExists = taggedFile.exists()
+                def taggedContainsTag = taggedExists && taggedFile.text.contains(tag)
+
+                def inputNewer = inputExists && taggedExists && (inputFile.lastModified() > taggedFile.lastModified())
+                def shouldExecute = inputExists && (!taggedContainsTag || inputNewer)
 
                 it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Checking execution conditions for variant [${variantName}]")
-                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file path: ${mf.absolutePath}")
-                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file exists: ${exists}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Input mapping file path: ${inputFile.absolutePath}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Tagged output file path: ${taggedFile.absolutePath}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Input file exists: ${inputExists}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Tagged file exists: ${taggedExists}")
                 it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Build ID tag: ${tag}")
-                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Mapping file contains tag: ${containsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Tagged file contains tag: ${taggedContainsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Input newer than output: ${inputNewer}")
                 it.logger.lifecycle("NewRelicMapUploadTask.onlyIf: Should execute: ${shouldExecute}")
 
                 return shouldExecute
             }
 
             mapUploadTask.outputs.upToDateWhen {
-                def mf = it.mappingFile.asFile.get()
+                def inputFile = it.mappingFile.asFile.get()
+                def taggedFile = it.getTaggedMappingFile()
                 def tag = "${Proguard.NR_MAP_PREFIX}${mapUploadTask.buildId.get()}"
-                def exists = mf.exists()
-                def containsTag = exists && mf.text.contains(tag)
-                def isUpToDate = exists && containsTag
+                def inputExists = inputFile.exists()
+                def taggedExists = taggedFile.exists()
+                def taggedContainsTag = taggedExists && taggedFile.text.contains(tag)
+
+                def inputNewer = inputExists && taggedExists && (inputFile.lastModified() > taggedFile.lastModified())
+                def isUpToDate = inputExists && taggedExists && taggedContainsTag && !inputNewer
 
                 it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Checking up-to-date status for variant [${variantName}]")
-                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Mapping file path: ${mf.absolutePath}")
-                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Mapping file exists: ${exists}")
-                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Contains tag: ${containsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Input mapping file path: ${inputFile.absolutePath}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Tagged output file path: ${taggedFile.absolutePath}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Input file exists: ${inputExists}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Tagged file exists: ${taggedExists}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Tagged file contains tag: ${taggedContainsTag}")
+                it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Input newer than output: ${inputNewer}")
                 it.logger.lifecycle("NewRelicMapUploadTask.upToDateWhen: Is up-to-date: ${isUpToDate}")
 
                 return isUpToDate
