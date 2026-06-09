@@ -24,9 +24,6 @@ import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 /**
  * Session replay representation of Jetpack Compose Image composables.
@@ -51,9 +48,18 @@ open class ComposeImageThingy(
     companion object {
         private val log = AgentLogManager.getAgentLog()
 
-        // Static cache shared across all instances
-        private const val MAX_CACHE_SIZE_BYTES = 50 * 1024 * 1024 // 50MB
-        private val imageExtractionExecutor = Executors.newCachedThreadPool()
+        private const val MAX_CACHE_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
+
+        /**
+         * Single-thread executor for off-main bitmap compression. Single-thread keeps cache
+         * writes ordered and avoids races between concurrent fills on the same key.
+         */
+        @JvmField
+        internal var compressionExecutor: java.util.concurrent.Executor =
+            java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+                Thread(r, "nr-sr-compose-image-compress").apply { isDaemon = true }
+            }
+
         private val imageCache = object : LruCache<String, String>(MAX_CACHE_SIZE_BYTES) {
             override fun sizeOf(key: String, value: String): Int {
                 return value.length * 2
@@ -99,11 +105,11 @@ open class ComposeImageThingy(
 
         isMasked = !shouldUnMaskImage(semanticsNode)
         if (!isMasked) {
-                try {
-                    imageData = extractImageFromModifierInfo()
-                } catch (e: Exception) {
-                    log.error("Error extracting image", e)
-                }
+            try {
+                dispatchImageExtraction()
+            } catch (e: Exception) {
+                log.error("Error scheduling image extraction", e)
+            }
         }
     }
 
@@ -112,84 +118,61 @@ open class ComposeImageThingy(
         return ContentScale.Fit
     }
 
-
-    private fun extractImageFromModifierInfo(): String? {
-        try {
-            val modifierInfoList = semanticsNode.layoutInfo.getModifierInfo()
-
-            for (modifierInfo in modifierInfoList) {
-                val modifier = modifierInfo.modifier
-                val modifierClassName = modifier.javaClass.simpleName
-
-                // Check if this is a painter modifier (Image composable uses PainterModifier)
-                if (modifierClassName.contains("Painter") ||
-                    modifier.javaClass.name.contains("foundation.Image") ||
-                    modifier.javaClass.name.contains("PainterModifier")
-                ) {
-
-                    val painter = extractPainterFromModifier(modifier)
-                    if (painter != null) {
-                        return convertPainterToBase64(painter)
+    /**
+     * Performs the synchronous cache lookup on the calling thread. On a cache hit,
+     * imageData is set immediately. On a miss, painter extraction (which still touches
+     * the Compose tree and must stay on the original thread) runs synchronously, but
+     * the bitmap-to-Base64 compression is dispatched to compressionExecutor.
+     */
+    private fun dispatchImageExtraction() {
+        val modifierInfoList = semanticsNode.layoutInfo.getModifierInfo()
+        for (modifierInfo in modifierInfoList) {
+            val modifier = modifierInfo.modifier
+            val modifierClassName = modifier.javaClass.simpleName
+            if (modifierClassName.contains("Painter") ||
+                modifier.javaClass.name.contains("foundation.Image") ||
+                modifier.javaClass.name.contains("PainterModifier")
+            ) {
+                val painter = extractPainterFromModifier(modifier) ?: continue
+                val cacheKey = generateCacheKey(painter)
+                val cached = imageCache.get(cacheKey)
+                if (cached != null) {
+                    log.debug("Cache hit for image: $cacheKey")
+                    imageData = cached
+                    return
+                }
+                val bitmap = extractBitmapForPainter(painter) ?: continue
+                compressionExecutor.execute {
+                    try {
+                        val b64 = bitmapToBase64(bitmap)
+                        if (b64 != null) {
+                            imageCache.put(cacheKey, b64)
+                            imageData = b64
+                            log.debug("Cached image data for key: $cacheKey")
+                        }
+                    } catch (e: Exception) {
+                        log.error("Async Compose image compression failed", e)
                     }
                 }
+                return
             }
-        } catch (e: Exception) {
-            log.error("Error extracting image from modifier info", e)
         }
-
-        return null
     }
 
+    /**
+     * Resolves a Bitmap for the painter on the calling thread (BitmapPainter,
+     * VectorPainter, AsyncImagePainter, or other). Bitmap is then handed to the
+     * worker for compression.
+     */
+    private fun extractBitmapForPainter(painter: Painter): Bitmap? = when {
+        painter is BitmapPainter -> extractBitmapFromBitmapPainter(painter)
+        painter is VectorPainter -> createBitmapFromVectorPainter(painter)
+        painter.javaClass.simpleName.contains("AsyncImagePainter") -> extractBitmapFromAsyncImagePainter(painter)
+        else -> createBitmapFromPainter(painter)
+    }
 
     private fun extractPainterFromModifier(modifier: Any): Painter? {
         return ComposePainterReflectionUtils.extractPainterFromModifier(modifier)
-    }
-
-    private fun convertPainterToBase64(painter: Painter): String? {
-        try {
-            val cacheKey = generateCacheKey(painter)
-
-            val cachedData = imageCache.get(cacheKey)
-            if (cachedData != null) {
-                log.debug("Cache hit for image: $cacheKey")
-                return cachedData
-            }
-
-            val bitmap = when {
-                painter is BitmapPainter -> {
-                    // Extract bitmap directly from BitmapPainter
-                    extractBitmapFromBitmapPainter(painter)
-                }
-
-                painter is VectorPainter -> {
-                    // Create bitmap from VectorPainter
-                    createBitmapFromVectorPainter(painter)
-                }
-
-                painter.javaClass.simpleName.contains("AsyncImagePainter") -> {
-                    // Handle Coil's AsyncImagePainter
-                    extractBitmapFromAsyncImagePainter(painter)
-                }
-
-                else -> {
-                    // For other painter types, try to draw them to a bitmap
-                    createBitmapFromPainter(painter)
-                }
-            }
-
-            if (bitmap != null && !bitmap.isRecycled) {
-                val base64Data = bitmapToBase64(bitmap)
-                if (base64Data != null) {
-                    imageCache.put(cacheKey, base64Data)
-                    log.debug("Cached image data for key: $cacheKey")
-                }
-                return base64Data
-            }
-        } catch (e: Exception) {
-            log.error("Error converting painter to Base64", e)
-        }
-
-        return null
     }
 
     private fun extractBitmapFromBitmapPainter(bitmapPainter: BitmapPainter): Bitmap? {
@@ -332,9 +315,8 @@ open class ComposeImageThingy(
     private fun bitmapToBase64(bitmap: Bitmap): String? {
         return ImageCompressionUtils.bitmapToBase64(bitmap)
     }
-    private val imageDataUrl: String? by lazy {
-        imageData?.let { ImageCompressionUtils.toImageDataUrl(it) }
-    }
+    private val imageDataUrl: String?
+        get() = imageData?.let { ImageCompressionUtils.toImageDataUrl(it) }
 
 
     /**
