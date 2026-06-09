@@ -160,25 +160,39 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     }
 
     /**
-     * Generates a cache key based on drawable properties
+     * Generates a cache key derived from stable identity. Uses Drawable.getConstantState()
+     * (shared across drawable instances loaded from the same resource) and, when the drawable
+     * is a BitmapDrawable, the Bitmap.getGenerationId() so re-decoded or mutated bitmaps
+     * receive a fresh key. Falls back to identityHashCode when ConstantState is null
+     * (rare — programmatically constructed drawables).
      */
     private String generateCacheKey(Drawable drawable, ImageView imageView) {
         StringBuilder keyBuilder = new StringBuilder();
-        
-        keyBuilder.append(drawable.getClass().getSimpleName());
-        keyBuilder.append("_");
-        keyBuilder.append(drawable.hashCode());
-        
+        keyBuilder.append(drawable.getClass().getSimpleName()).append('_');
+
+        Drawable.ConstantState cs = drawable.getConstantState();
+        if (cs != null) {
+            keyBuilder.append("cs").append(System.identityHashCode(cs));
+        } else {
+            keyBuilder.append("d").append(System.identityHashCode(drawable));
+        }
+
+        if (drawable instanceof BitmapDrawable) {
+            Bitmap bm = ((BitmapDrawable) drawable).getBitmap();
+            if (bm != null && !bm.isRecycled()) {
+                keyBuilder.append("_g").append(bm.getGenerationId());
+            }
+        }
+
         int width = drawable.getIntrinsicWidth();
         int height = drawable.getIntrinsicHeight();
         if (width <= 0 || height <= 0) {
             width = imageView.getWidth();
             height = imageView.getHeight();
         }
-        keyBuilder.append("_").append(width).append("x").append(height);
-        
-        keyBuilder.append("_").append(scaleType.name());
-        
+        keyBuilder.append('_').append(width).append('x').append(height);
+        keyBuilder.append('_').append(scaleType.name());
+
         return keyBuilder.toString();
     }
 

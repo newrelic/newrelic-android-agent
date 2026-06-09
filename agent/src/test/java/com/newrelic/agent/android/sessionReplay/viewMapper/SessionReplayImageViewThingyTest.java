@@ -99,4 +99,73 @@ public class SessionReplayImageViewThingyTest {
         f.setAccessible(true);
         return (LruCache<String, String>) f.get(null);
     }
+
+    // ==================== Cache key ====================
+
+    @Test
+    public void cacheKey_sameDrawableInstance_equal() throws Exception {
+        android.content.Context ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext();
+        android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(10, 10, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.drawable.BitmapDrawable d = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bm);
+
+        android.widget.ImageView iv1 = new android.widget.ImageView(ctx);
+        iv1.layout(0, 0, 10, 10);
+        iv1.setImageDrawable(d);
+        android.widget.ImageView iv2 = new android.widget.ImageView(ctx);
+        iv2.layout(0, 0, 10, 10);
+        iv2.setImageDrawable(d);
+
+        Assert.assertEquals("same drawable instance must yield the same cache key",
+                invokeGenerateCacheKey(iv1, d), invokeGenerateCacheKey(iv2, d));
+    }
+
+    @Test
+    public void cacheKey_sharedConstantState_equal() throws Exception {
+        // Two BitmapDrawable instances backed by the same ConstantState (e.g. obtained via
+        // ConstantState.newDrawable()) describe the same image. The old key used
+        // drawable.hashCode() — identity — so it would falsely treat them as different
+        // images. The new key uses ConstantState identity, so they collapse to the same
+        // cache entry as intended.
+        android.content.Context ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext();
+        android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(10, 10, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.drawable.BitmapDrawable d1 = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bm);
+        android.graphics.drawable.Drawable.ConstantState cs = d1.getConstantState();
+        org.junit.Assume.assumeNotNull(cs);
+        android.graphics.drawable.Drawable d2 = cs.newDrawable();
+
+        android.widget.ImageView iv = new android.widget.ImageView(ctx);
+        iv.layout(0, 0, 10, 10);
+        iv.setImageDrawable(d1);
+
+        Assert.assertEquals("two drawables sharing a ConstantState must yield the same cache key",
+                invokeGenerateCacheKey(iv, d1), invokeGenerateCacheKey(iv, d2));
+    }
+
+    @Test
+    public void cacheKey_includesGenerationIdForBitmapDrawable() throws Exception {
+        // The production key incorporates Bitmap.getGenerationId() for BitmapDrawable.
+        // Robolectric's ShadowBitmap always returns 0, so we cannot exercise key change
+        // on mutation here, but we can verify the generationId component is present in
+        // the key — without this, mutated bitmaps would never invalidate on real Android.
+        android.content.Context ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext();
+        android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(10, 10, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.drawable.BitmapDrawable d = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bm);
+
+        android.widget.ImageView iv = new android.widget.ImageView(ctx);
+        iv.layout(0, 0, 10, 10);
+        iv.setImageDrawable(d);
+
+        String key = invokeGenerateCacheKey(iv, d);
+        Assert.assertTrue("BitmapDrawable cache key must include a _g<generationId> component but was: " + key,
+                key.matches(".*_g\\d+_.*"));
+    }
+
+    private String invokeGenerateCacheKey(android.widget.ImageView iv, android.graphics.drawable.Drawable d) throws Exception {
+        com.newrelic.agent.android.AgentConfiguration cfg = new com.newrelic.agent.android.AgentConfiguration();
+        SessionReplayImageViewThingy thingy = new SessionReplayImageViewThingy(new ViewDetails(iv), iv, cfg);
+        java.lang.reflect.Method m = SessionReplayImageViewThingy.class.getDeclaredMethod(
+                "generateCacheKey", android.graphics.drawable.Drawable.class, android.widget.ImageView.class);
+        m.setAccessible(true);
+        return (String) m.invoke(thingy, d, iv);
+    }
 }
