@@ -225,8 +225,15 @@ public class SessionReplayImageViewThingyTest {
                     1, recordingExecutor.size());
 
             recordingExecutor.runAll();
-            Assert.assertNotNull("imageData must be populated after worker runs",
+            // The worker populates the cache only; it does NOT back-fill this thingy's
+            // imageData (which would mutate the previous frame's snapshot and suppress the
+            // background-image mutation when the diff runs). The current frame's thingy
+            // stays at the value it had at capture time (null); the next captured frame
+            // will resolve from the cache.
+            Assert.assertNull("worker must not back-fill the captured frame's imageData",
                     thingy.getImageData());
+            Assert.assertNotNull("worker must populate the cache for the next frame to hit",
+                    getStaticCache().get(getStaticCache().snapshot().keySet().iterator().next()));
         } finally {
             restoreExecutor();
         }
@@ -282,6 +289,54 @@ public class SessionReplayImageViewThingyTest {
             Assert.assertNull("masked image must not have imageData", thingy.getImageData());
             Assert.assertEquals("masked image must not dispatch compression",
                     0, recordingExecutor.size());
+        } finally {
+            restoreExecutor();
+        }
+    }
+
+    // ==================== Cold→hot diff transition ====================
+
+    @Test
+    public void generateDifferences_coldToHotTransition_emitsBackgroundImageMutation() throws Exception {
+        installRecordingExecutor();
+        try {
+            android.content.Context ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext();
+            android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(8, 8, android.graphics.Bitmap.Config.ARGB_8888);
+            bm.eraseColor(android.graphics.Color.GREEN);
+            android.graphics.drawable.BitmapDrawable d = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), bm);
+
+            android.widget.ImageView iv = new android.widget.ImageView(ctx);
+            iv.layout(0, 0, 8, 8);
+            iv.setImageDrawable(d);
+
+            com.newrelic.agent.android.AgentConfiguration cfg = new com.newrelic.agent.android.AgentConfiguration();
+            cfg.getSessionReplayConfiguration().setMaskAllImages(false);
+
+            // Frame N: first sighting — cache miss, imageData null, async task queued.
+            SessionReplayImageViewThingy frameN = new SessionReplayImageViewThingy(new ViewDetails(iv), iv, cfg);
+            Assert.assertNull("frame N must have null imageData while compression is in flight",
+                    frameN.getImageData());
+
+            // Worker runs, populates cache.
+            recordingExecutor.runAll();
+
+            // Frame N+1: cache hit, imageData populated synchronously.
+            SessionReplayImageViewThingy frameNPlus1 = new SessionReplayImageViewThingy(new ViewDetails(iv), iv, cfg);
+            Assert.assertNotNull("frame N+1 must resolve imageData synchronously from the cache",
+                    frameNPlus1.getImageData());
+
+            // Diff frame N (null) → frame N+1 (resolved) must emit a background-image mutation.
+            java.util.List<com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord> records =
+                    frameN.generateDifferences(frameNPlus1);
+            Assert.assertEquals("cold→hot transition must emit exactly one mutation record",
+                    1, records.size());
+
+            com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData.AttributeRecord attr =
+                    (com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData.AttributeRecord) records.get(0);
+            String bgImage = attr.attributes.metadata.get("background-image");
+            Assert.assertNotNull("background-image must be present in the mutation record", bgImage);
+            Assert.assertTrue("background-image must include the resolved data URL but was: " + bgImage,
+                    bgImage.contains("url(") && bgImage.contains("data:image/webp;base64,"));
         } finally {
             restoreExecutor();
         }

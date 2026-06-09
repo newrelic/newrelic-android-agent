@@ -120,8 +120,13 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
                 try {
                     String b64 = bitmapToBase64(bitmap);
                     if (b64 != null) {
+                        // Populate the cache only — do NOT back-fill this.imageData. This thingy
+                        // is the per-frame snapshot for frame N (whose capture-time imageData is
+                        // null because compression hadn't completed yet); back-filling would mutate
+                        // frame N's stored thingy and make the diff against frame N+1 see equal
+                        // values, suppressing the background-image mutation. Frame N+1 builds a
+                        // fresh thingy that resolves from the cache.
                         imageCache.put(cacheKey, b64);
-                        SessionReplayImageViewThingy.this.imageData = b64;
                         log.debug("Cached image data for key: " + cacheKey);
                     }
                 } catch (Exception e) {
@@ -347,8 +352,14 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             styleDifferences.put("background-color", otherDetails.backgroundColor);
         }
 
-        if (this.getImageData() != null && !this.getImageData().equals(((SessionReplayImageViewThingy) other).getImageData())) {
-            styleDifferences.put("background-image"," url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
+        // Emit the background-image mutation whenever imageData differs and the new
+        // value is non-null. This includes the cold→hot transition where the previous
+        // frame had imageData=null (placeholder while async compression was in flight)
+        // and the new frame has imageData=<base64> (cache hit) — without this, async-fill
+        // images would never resolve in the rrweb stream after the first placeholder frame.
+        String otherImageData = ((SessionReplayImageViewThingy) other).getImageData();
+        if (!Objects.equals(this.getImageData(), otherImageData) && otherImageData != null) {
+            styleDifferences.put("background-image", " url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
         }
 
         SessionReplayImageViewThingy otherImage = (SessionReplayImageViewThingy) other;

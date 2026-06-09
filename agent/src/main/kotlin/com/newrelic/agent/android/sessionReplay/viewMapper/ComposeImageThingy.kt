@@ -146,8 +146,11 @@ open class ComposeImageThingy(
                     try {
                         val b64 = bitmapToBase64(bitmap)
                         if (b64 != null) {
+                            // Populate the cache only — do NOT back-fill this.imageData. See the
+                            // matching note in SessionReplayImageViewThingy: back-filling would
+                            // mutate the previous frame's stored thingy and suppress the
+                            // background-image mutation in the rrweb diff.
                             imageCache.put(cacheKey, b64)
-                            imageData = b64
                             log.debug("Cached image data for key: $cacheKey")
                         }
                     } catch (e: Exception) {
@@ -411,7 +414,7 @@ open class ComposeImageThingy(
      *    - Indicates sensitive content to reviewers
      *
      * ### Performance:
-     * - Lazy imageDataUrl evaluation (computed once on first access)
+     * - imageDataUrl is re-evaluated on each read so async-fill imageData updates take effect
      * - Skips background-image properties for masked images (~30 bytes saved)
      * - Reuses backgroundSize lazy property
      */
