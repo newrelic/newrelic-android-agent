@@ -449,12 +449,14 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
 
     @Override
     public boolean hasChanged(SessionReplayViewThingyInterface other) {
-        // Quick check: if it's not the same type, it has changed
-        if (other == null || !(other instanceof SessionReplayImageViewThingy)) {
+        if (!(other instanceof SessionReplayImageViewThingy)) {
             return true;
         }
-
-        // Compare using hashCode (which should reflect the content)
-        return this.hashCode() != other.hashCode();
+        SessionReplayImageViewThingy o = (SessionReplayImageViewThingy) other;
+        return !Objects.equals(viewDetails, o.viewDetails)
+                || !Objects.equals(imageData, o.imageData)
+                || !Objects.equals(backgroundColor, o.backgroundColor)
+                || isMasked != o.isMasked
+                || scaleType != o.scaleType;
     }
 }

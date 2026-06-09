@@ -21,6 +21,8 @@ public class SessionReplayImageViewThingyTest {
     @Before
     public void setUp() {
         SessionReplayImageViewThingy.clearImageCache();
+        // Reset the shared ImageView so per-class static state does not leak across tests.
+        sharedImageView = null;
     }
 
     // ==================== LRU CACHE SIZING ====================
@@ -38,6 +40,57 @@ public class SessionReplayImageViewThingyTest {
         LruCache<String, String> cache = getStaticCache();
         Assert.assertTrue("max cache size should be at least 50 MB",
                 cache.maxSize() >= 50 * 1024 * 1024);
+    }
+
+    // ==================== hasChanged ====================
+
+    @Test
+    public void hasChanged_identicalContent_returnsFalse() throws Exception {
+        SessionReplayImageViewThingy a = newThingyWithImageData("AAA");
+        SessionReplayImageViewThingy b = newThingyWithImageData("AAA");
+        Assert.assertFalse("two thingies with identical content must not register as changed",
+                a.hasChanged(b));
+    }
+
+    @Test
+    public void hasChanged_differentImageData_returnsTrue() throws Exception {
+        SessionReplayImageViewThingy a = newThingyWithImageData("AAA");
+        SessionReplayImageViewThingy b = newThingyWithImageData("BBB");
+        Assert.assertTrue("different imageData must register as changed",
+                a.hasChanged(b));
+    }
+
+    @Test
+    public void hasChanged_nonImageType_returnsTrue() throws Exception {
+        SessionReplayImageViewThingy a = newThingyWithImageData("AAA");
+        Assert.assertTrue("non-image other must register as changed",
+                a.hasChanged(null));
+    }
+
+    /**
+     * Build a SessionReplayImageViewThingy bypassing the constructor so tests do not
+     * need to drive a real ImageView through the bitmap pipeline. Sets the private
+     * imageData field via reflection.
+     *
+     * Reuses a single ImageView across calls so that hasChanged() comparisons that
+     * include viewDetails (which captures a per-View stable id) only differ on the
+     * fields the test is exercising. The shared view is reset in @Before so state
+     * does not leak across tests.
+     */
+    private static android.widget.ImageView sharedImageView;
+
+    private SessionReplayImageViewThingy newThingyWithImageData(String imageData) throws Exception {
+        android.content.Context ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext();
+        if (sharedImageView == null) {
+            sharedImageView = new android.widget.ImageView(ctx);
+            sharedImageView.layout(0, 0, 10, 10);
+        }
+        com.newrelic.agent.android.AgentConfiguration cfg = new com.newrelic.agent.android.AgentConfiguration();
+        SessionReplayImageViewThingy thingy = new SessionReplayImageViewThingy(new ViewDetails(sharedImageView), sharedImageView, cfg);
+        Field f = SessionReplayImageViewThingy.class.getDeclaredField("imageData");
+        f.setAccessible(true);
+        f.set(thingy, imageData);
+        return thingy;
     }
 
     @SuppressWarnings("unchecked")
