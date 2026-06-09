@@ -87,6 +87,12 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
 
     @Override
     public void onActivityPaused(Activity activity) {
+        if (isChangingConfig(activity)) {
+            // Configuration change (rotation, locale, etc.) - the activity will be recreated.
+            // Do not signal backgrounding; isInBackground stays false so the recreated
+            // activity's onResume/onStart won't spuriously fire applicationForegrounded either.
+            return;
+        }
         if (isInBackground.compareAndSet(false, true)) {
             Runnable runner = new Runnable() {
                 @Override
@@ -101,12 +107,13 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
 
     @Override
     public void onActivityStopped(Activity activity) {
+        final boolean isConfigChange = isChangingConfig(activity);
         if (isInBackground.getAndSet(true)) {
             Runnable runner = new Runnable() {
                 @Override
                 public void run() {
-                    log.debug("ActivityLifecycleBackgroundListener.onActivityStopped - notifying ApplicationStateMonitor");
-                    ApplicationStateMonitor.getInstance().activityStopped();
+                    log.debug("ActivityLifecycleBackgroundListener.onActivityStopped - notifying ApplicationStateMonitor (isConfigChange=" + isConfigChange + ")");
+                    ApplicationStateMonitor.getInstance().activityStopped(isConfigChange);
                 }
             };
             executor.submit(runner);
@@ -115,6 +122,10 @@ public class ActivityLifecycleBackgroundListener extends UiBackgroundListener im
 
     @Override
     public void onActivitySaveInstanceState(Activity activity, Bundle outState) {
+    }
+
+    private static boolean isChangingConfig(Activity activity) {
+        return activity != null && activity.isChangingConfigurations();
     }
 
 }
