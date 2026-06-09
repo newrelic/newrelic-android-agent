@@ -29,6 +29,7 @@ import java.util.Set;
 public class ActivityClassVisitor extends AgentDelegateClassVisitor {
 
     static final Type agentDelegateClassType = Type.getObjectType(Constants.ASM_CLASS_NAME);
+    static final Type activityClassType = Type.getObjectType("android/app/Activity");
 
     private boolean defaultInteractionsEnabled = false;
 
@@ -50,7 +51,7 @@ public class ActivityClassVisitor extends AgentDelegateClassVisitor {
 
     public static final Map<Method, Method> methodDelegateMap = ImmutableMap.of(
             new Method("onStart", "()V"), new Method("activityStarted", "()V"),
-            new Method("onStop", "()V"), new Method("activityStopped", "()V")
+            new Method("onStop", "()V"), new Method("activityStopped", "(Z)V")
     );
 
     // Return the access level for these methods
@@ -102,10 +103,18 @@ public class ActivityClassVisitor extends AgentDelegateClassVisitor {
             log.debug("[ActivityClassVisitor] injecting onStart method");
 
         } else if (method.getName().equalsIgnoreCase("onStop")) {
+            // Emit: ApplicationStateMonitor.getInstance().activityStopped(this.isChangingConfigurations());
+            // Stack walk:
+            //   invokeStatic getInstance        -> [ASM]
+            //   loadThis                        -> [ASM, this]
+            //   invokeVirtual isChangingConfigs -> [ASM, bool]
+            //   invokeVirtual activityStopped(Z)-> []
             generatorAdapter.invokeStatic(agentDelegateClassType, new Method("getInstance", agentDelegateClassType, new Type[0]));
+            generatorAdapter.loadThis();
+            generatorAdapter.invokeVirtual(activityClassType, new Method("isChangingConfigurations", "()Z"));
             generatorAdapter.invokeVirtual(agentDelegateClassType, agentDelegateMethod);
 
-            log.debug("[ActivityClassVisitor] injecting onStop method");
+            log.debug("[ActivityClassVisitor] injecting onStop method (with isChangingConfigurations guard)");
 
         } else if (method.getName().equalsIgnoreCase("onBackPressed")) {
             log.debug("[ActivityClassVisitor] injecting onBackPressed method");

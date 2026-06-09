@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import android.app.Activity;
+
 import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.background.ApplicationStateListener;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
@@ -12,6 +14,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.robolectric.RobolectricTestRunner;
 
 import java.util.ArrayList;
@@ -93,6 +96,55 @@ public class ActivityLifecycleBackgroundListenerTest {
 
         assertEquals(1, listener.getEvents().size());
         assertEquals("foreground", listener.getEvents().get(0));
+    }
+
+    @Test
+    public void rotationDoesNotEmitBackgroundOrForegroundEvents() throws Exception {
+        // Initial: foregrounded=true
+        assertFalse(ApplicationStateMonitorTest.isAppInBackground());
+
+        Activity oldActivity = Mockito.mock(Activity.class);
+        Mockito.when(oldActivity.isChangingConfigurations()).thenReturn(true);
+
+        Activity newActivity = Mockito.mock(Activity.class);
+        Mockito.when(newActivity.isChangingConfigurations()).thenReturn(false);
+
+        // Full rotation lifecycle: old paused/stopped/destroyed, new created/started/resumed
+        albl.onActivityPaused(oldActivity);
+        albl.onActivityStopped(oldActivity);
+        albl.onActivityDestroyed(oldActivity);
+        albl.onActivityCreated(newActivity, null);
+        albl.onActivityStarted(newActivity);
+        albl.onActivityResumed(newActivity);
+
+        Thread.sleep(750);
+        asm.shutdownExecutor();
+
+        assertEquals("No state events should fire during rotation", 0, listener.getEvents().size());
+        assertFalse("App should still be foregrounded after rotation",
+                ApplicationStateMonitorTest.isAppInBackground());
+    }
+
+    @Test
+    public void realBackgroundingStillEmitsEvents() throws Exception {
+        // Regression guard: an Activity that is NOT changing configurations
+        // continues to drive the existing background/foreground transitions.
+        Activity activity = Mockito.mock(Activity.class);
+        Mockito.when(activity.isChangingConfigurations()).thenReturn(false);
+
+        albl.onActivityPaused(activity);
+        albl.onActivityStopped(activity);
+        Thread.sleep(750);
+        assertTrue(ApplicationStateMonitorTest.isAppInBackground());
+
+        albl.onActivityStarted(activity);
+        albl.onActivityResumed(activity);
+        Thread.sleep(750);
+        asm.shutdownExecutor();
+
+        assertEquals(2, listener.getEvents().size());
+        assertEquals("background", listener.getEvents().get(0));
+        assertEquals("foreground", listener.getEvents().get(1));
     }
 
 
