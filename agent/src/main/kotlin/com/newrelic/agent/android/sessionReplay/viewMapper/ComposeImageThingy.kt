@@ -357,8 +357,10 @@ open class ComposeImageThingy(
                 || sessionReplayConfiguration.isMaskAllImages
             !hasMaskTag  // Unmask (capture) if no mask indicators
         } else {
-            // DEFAULT mode: Capture all images
-            true
+            // DEFAULT mode: no per-element privacy tags, so the global isMaskAllImages
+            // flag is the only signal. Capture only when masking is disabled. Previously
+            // hard-coded to true, which ignored remote-config isMaskAllImages entirely.
+            !sessionReplayConfiguration.isMaskAllImages
         }
     }
 
