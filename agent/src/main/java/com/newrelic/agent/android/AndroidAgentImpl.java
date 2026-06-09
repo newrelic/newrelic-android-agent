@@ -167,12 +167,15 @@ public class AndroidAgentImpl implements
         // used to determine when app backgrounds
         final UiBackgroundListener backgroundListener;
         if (Agent.getMonoInstrumentationFlag().equals("YES")) {
-            backgroundListener = new ActivityLifecycleBackgroundListener();
+            final boolean isHybridFramework =
+                    agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin
+                            || agentConfiguration.getApplicationFramework() == ApplicationFramework.MAUI;
+            backgroundListener = new ActivityLifecycleBackgroundListener(isHybridFramework);
             try {
                 if (context.getApplicationContext() instanceof Application) {
                     Application application = (Application) context.getApplicationContext();
                     application.registerActivityLifecycleCallbacks((Application.ActivityLifecycleCallbacks) backgroundListener);
-                    if (agentConfiguration.getApplicationFramework() == ApplicationFramework.Xamarin || agentConfiguration.getApplicationFramework() == ApplicationFramework.MAUI) {
+                    if (isHybridFramework) {
                         ApplicationStateMonitor.getInstance().activityStarted();
                     }
                 }
@@ -1088,10 +1091,10 @@ public class AndroidAgentImpl implements
             //clear activity traces
             TraceMachine.clearActivityHistory();
 
-            //clear analytics
+            //clear pending events only; session attributes must survive for the final shutdown harvest
             AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
             if (analyticsController != null) {
-                analyticsController.clear();
+                analyticsController.getEventManager().empty();
             }
 
             //clear measurementEngine
