@@ -248,7 +248,7 @@ public class ReactNativeSourceMapTest {
             formWriter.writeFilePart("sourcemap", sourceMapFile.getName(), fis, false);
             formWriter.writeFieldPart("sourcemapName", sourceMapFile.getName());
             formWriter.writeFieldPart("jsBundleId", buildId);
-            formWriter.writeFieldPart("appVersionId", APP_VERSION);
+            formWriter.writeFieldPart("appVersion", APP_VERSION);
             formWriter.finish();
         }
 
@@ -260,7 +260,7 @@ public class ReactNativeSourceMapTest {
         Assert.assertTrue(outBytes.contains("Content-Disposition: form-data; name=\"sourcemap\""));
         Assert.assertTrue(outBytes.contains("Content-Disposition: form-data; name=\"sourcemapName\""));
         Assert.assertTrue(outBytes.contains("Content-Disposition: form-data; name=\"jsBundleId\""));
-        Assert.assertTrue(outBytes.contains("Content-Disposition: form-data; name=\"appVersionId\""));
+        Assert.assertTrue(outBytes.contains("Content-Disposition: form-data; name=\"appVersion\""));
         Assert.assertTrue(outBytes.contains(sourceMapFile.getName()));
         Assert.assertTrue(outBytes.contains(buildId));
         Assert.assertTrue(outBytes.contains(APP_VERSION));

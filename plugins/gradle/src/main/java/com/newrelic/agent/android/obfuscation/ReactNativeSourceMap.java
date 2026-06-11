@@ -241,7 +241,7 @@ public class ReactNativeSourceMap {
 
                 MultipartFormWriter formWriter = new MultipartFormWriter(dos, USEFUL_BUFFER_SIZE);
 
-                formWriter.writeFieldPart("appVersionId", appVersionId);
+                formWriter.writeFieldPart("appVersion", appVersionId);
                 formWriter.writeFieldPart("jsBundleId", appVersionId);
                 formWriter.writeFieldPart("sourcemapName", sourceMapFile.getName());
                 formWriter.writeFilePart("sourcemap", fileName, bis, compressedUploads);
@@ -298,7 +298,7 @@ public class ReactNativeSourceMap {
             try (DataOutputStream dos = new DataOutputStream(outputStrm)) {
                 MultipartFormWriter formWriter = new MultipartFormWriter(dos, USEFUL_BUFFER_SIZE);
 
-                formWriter.writeFieldPart("appVersionId", appVersionId);
+                formWriter.writeFieldPart("appVersion", appVersionId);
                 formWriter.writeFieldPart("jsBundleId", appVersionId);
                 formWriter.writeFieldPart("sourcemapName", originalFileName);
 
