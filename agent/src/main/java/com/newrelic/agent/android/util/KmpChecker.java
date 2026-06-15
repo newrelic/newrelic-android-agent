@@ -24,16 +24,23 @@ public class KmpChecker {
     }
 
     private static boolean hasKmpLibraries() {
-        // Check for coroutines (most KMP apps use this for async operations)
-        boolean hasCoroutines = checkForClass("kotlinx.coroutines.Job");
+        // Check for Kotlin/Native concurrent primitives (only present in KMP projects with iOS/Native targets)
+        boolean hasNativeConcurrent = checkForClass("kotlin.native.concurrent.SharedImmutable") ||
+                                      checkForClass("kotlin.native.concurrent.FreezingException") ||
+                                      checkForClass("kotlin.native.concurrent.AtomicReference");
 
-        // Check for serialization (many KMP apps use this for JSON parsing)
-        boolean hasSerialization = checkForClass("kotlinx.serialization.KSerializer");
+        // Check for atomicfu (heavily used in KMP for shared state across platforms)
+        boolean hasAtomicFu = checkForClass("kotlinx.atomicfu.AtomicInt") ||
+                              checkForClass("kotlinx.atomicfu.AtomicRef");
 
-        // Check for Ktor client (popular KMP networking library)
-        boolean hasKtor = checkForClass("io.ktor.client.HttpClient");
+        // Check for Kotlin/JS indicators (present in KMP projects targeting JS)
+        boolean hasKotlinJs = checkForClass("kotlin.js.JsName") ||
+                              checkForClass("kotlin.js.JsExport");
 
-        return hasCoroutines || hasSerialization || hasKtor;
+        // Check for common.stdlib markers (multiplatform standard library)
+        boolean hasCommonStdlib = checkForClass("kotlin.native.concurrent.Worker");
+
+        return hasNativeConcurrent || hasAtomicFu || hasKotlinJs || hasCommonStdlib;
     }
 
     private static boolean checkForClass(String className) {

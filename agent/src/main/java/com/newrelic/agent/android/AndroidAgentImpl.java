@@ -259,6 +259,7 @@ public class AndroidAgentImpl implements
 
         //check if KMP is used for app
         if(KmpChecker.isKmpUsed()) {
+            log.debug("KMP detected.");
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_HYBRID_PLATFORM_KMP);
         }
 
