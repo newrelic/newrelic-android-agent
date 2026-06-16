@@ -9,6 +9,8 @@ import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 
 import com.newrelic.agent.android.AgentConfiguration;
@@ -59,6 +61,12 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
         AppTracer.getInstance().setAppOnCreateTime(SystemClock.uptimeMillis());
         if (this.context instanceof Application) {
             ((Application) this.context).registerActivityLifecycleCallbacks(this);
+            // Captures end of Application.onCreate(): ContentProvider.onCreate runs inside
+            // ActivityThread.handleBindApplication, which also runs Application.onCreate before
+            // returning. A Runnable posted here cannot execute until handleBindApplication
+            // returns, so it lands right after Application.onCreate completes.
+            new Handler(Looper.getMainLooper()).post(() ->
+                    AppTracer.getInstance().setAppOnCreateEndTime(SystemClock.uptimeMillis()));
         } else {
             log.error("Unable to register activity lifecycle callbacks: ApplicationContext is not an Application instance. " +
                     "Context type: " + (this.context != null ? this.context.getClass().getName() : "null"));
@@ -98,6 +106,12 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
     public void onActivityStarted(Activity activity) {
         log.debug("App launch time onActivityStarted " + new Date().getTime());
         AppTracer tracer = AppTracer.getInstance();
+        if (tracer.getFirstActivityStartTime() == 0L) {
+            // Cold-start fallback: the branch below only fires on background→foreground
+            // transitions, so without this firstActivityStartTime stays 0 on cold start
+            // and hotStartTime ends up ≈ uptime.
+            tracer.setFirstActivityStartTime(SystemClock.uptimeMillis());
+        }
         if (++activityReferences == 1 && !isActivityChangingConfig && isBackgrounded) {
             isForegrounded = true;
             isBackgrounded = false;
