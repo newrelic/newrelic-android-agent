@@ -39,12 +39,19 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
     @Internal
     abstract DirectoryProperty getProjectRoot()
 
+    @Internal
+    abstract DirectoryProperty getBuildDirectory()
+
     /**
      * FIX: Use an @OutputFile to prevent mutating the @InputFile.
+     *
+     * Resolved from the wired-in buildDirectory property rather than
+     * Task.project, so the task stays configuration-cache compatible
+     * (Task.project access is forbidden at execution time).
      */
     @OutputFile
     File getTaggedMappingFile() {
-        return project.layout.buildDirectory.file("outputs/newrelic/" + variantName.get() + "/mapping.txt").get().asFile
+        return buildDirectory.file("outputs/newrelic/" + variantName.get() + "/mapping.txt").get().asFile
     }
 
     @Internal
