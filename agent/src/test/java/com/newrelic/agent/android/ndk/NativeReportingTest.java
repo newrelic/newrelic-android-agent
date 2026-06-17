@@ -184,6 +184,24 @@ public class NativeReportingTest {
     }
 
     @Test
+    public void stopSurvivesNdkAbiMismatch() {
+        // Reproduces the runtime crash where the agent was compiled against an
+        // AgentNDK.stop() with a different return-type descriptor than the agent-ndk
+        // class loaded at runtime (void <-> boolean across releases). The JVM raises a
+        // NoSuchMethodError (a LinkageError) at the call site. stop() must not propagate
+        // it, otherwise backgrounding the app crashes the process.
+        AgentNDK mismatched = Mockito.mock(AgentNDK.class);
+        Mockito.doThrow(new NoSuchMethodError("No virtual method stop()V in class AgentNDK"))
+                .when(mismatched).stop();
+        NativeReporting.agentNdk.set(mismatched);
+
+        nativeReporter.stop();
+
+        Assert.assertTrue(statsEngineContains(MetricNames.SUPPORTABILITY_NDK_STOP));
+        Assert.assertNull(NativeReporting.agentNdk.get());
+    }
+
+    @Test
     public void onNativeCrash() {
         agentNDK.flushPendingReports();
         Assert.assertTrue(statsEngineContains(MetricNames.SUPPORTABILITY_NDK_REPORTS_CRASH));
