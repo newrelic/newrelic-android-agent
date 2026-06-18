@@ -67,10 +67,12 @@ public class CrashSenderTest {
 
     @Test
     public void call() throws Exception {
-        crash.incrementUploadCount();
         int preUploadCount = crash.getUploadCount();
+
         crashSender.call();
         Assert.assertTrue("Should increment upload count", preUploadCount < crash.getUploadCount());
+
+
     }
 
     @Test
@@ -117,6 +119,19 @@ public class CrashSenderTest {
         Mockito.doReturn(null).when(crashSender).getConnection();
         crashSender.call();
         verify(crashSender, atLeastOnce()).onFailedUpload(any(String.class));
+    }
+
+    @Test
+    public void testCallWhenOfflineDoesNotIncrementUploadCount() throws Exception {
+        int preUploadCount = crash.getUploadCount();
+
+        HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
+        Mockito.doThrow(new IOException("Network unreachable")).when(connection).connect();
+        Mockito.doReturn(connection).when(crashSender).getConnection();
+
+        crashSender.call();
+
+        Assert.assertEquals("Should not increment upload count when device is offline", preUploadCount, crash.getUploadCount());
     }
 
     private HttpURLConnection getMockedConnection(CrashSender crashSender) throws IOException {

@@ -50,12 +50,14 @@ public class CrashSender extends PayloadSender {
     public PayloadSender call() {
         setPayload(crash.toJsonString().getBytes());
 
-        // Increment the upload counter
-        crash.incrementUploadCount();
-        agentConfiguration.getCrashStore().store(crash);
-
         try {
-            return super.call();
+            PayloadSender result = super.call();
+
+            if(responseCode > 0) { // `responseCode` is part of the PayloadSender interface
+                crash.incrementUploadCount();
+                agentConfiguration.getCrashStore().store(crash);
+            }
+            return result;
 
         } catch (Exception e) {
             onFailedUpload("Unable to report crash to New Relic, will try again later. " + e);
