@@ -37,6 +37,9 @@ import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.sessioncontext.FileSessionContextStore;
+import com.newrelic.agent.android.sessioncontext.SessionContextStore;
+import com.newrelic.agent.android.sessioncontext.SessionManifest;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 import com.newrelic.agent.android.util.Streams;
@@ -61,6 +64,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -479,6 +483,46 @@ public class ApplicationExitMonitorTest {
 
     }
 
+
+    @Test
+    public void resolveSessionAttributesUsesManifestWhenPresent() {
+        SessionContextStore store = new FileSessionContextStore(spyContext.getContext(), new AgentConfiguration());
+        AgentConfiguration.getInstance().setSessionContextStore(store);
+        try {
+            HashSet<AnalyticsAttribute> frozen = new HashSet<>();
+            frozen.add(new AnalyticsAttribute("checkout_step", "review"));
+            store.upsert(new SessionManifest("S_PRIOR", 1234, 0L, 1L, frozen));
+
+            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_PRIOR", 1234);
+            Set<AnalyticsAttribute> resolved = applicationExitMonitor.resolveSessionAttributes(meta);
+
+            Assert.assertEquals(1, resolved.size());
+            AnalyticsAttribute attr = resolved.iterator().next();
+            Assert.assertEquals("checkout_step", attr.getName());
+            Assert.assertEquals("review", attr.getStringValue());
+        } finally {
+            store.clear();
+            AgentConfiguration.getInstance().setSessionContextStore(null);
+        }
+    }
+
+    @Test
+    public void resolveSessionAttributesIsEmptyAndCountsWhenManifestMissing() {
+        SessionContextStore store = new FileSessionContextStore(spyContext.getContext(), new AgentConfiguration());
+        AgentConfiguration.getInstance().setSessionContextStore(store);
+        StatsEngine.SUPPORTABILITY.getStatsMap().clear();
+        try {
+            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_UNKNOWN", 1234);
+            Set<AnalyticsAttribute> resolved = applicationExitMonitor.resolveSessionAttributes(meta);
+
+            Assert.assertTrue(resolved.isEmpty());
+            Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap()
+                    .containsKey(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_MISSING));
+        } finally {
+            store.clear();
+            AgentConfiguration.getInstance().setSessionContextStore(null);
+        }
+    }
 
     static AtomicInteger pidCtr = new AtomicInteger(5000);
 

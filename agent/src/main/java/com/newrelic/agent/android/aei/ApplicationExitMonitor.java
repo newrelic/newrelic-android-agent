@@ -17,12 +17,13 @@ import androidx.annotation.RequiresApi;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
-import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.sessioncontext.SessionContextStore;
+import com.newrelic.agent.android.sessioncontext.SessionManifest;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Streams;
 import com.newrelic.agent.android.error.Error;
@@ -35,6 +36,7 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -227,8 +229,7 @@ public class ApplicationExitMonitor {
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped.get());
 //                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_DROPPED, recordsDropped.get());
 
-                final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-                Error error = new Error(analyticsController.getSessionAttributes(), eventAttributes, sessionMeta);
+                Error error = new Error(resolveSessionAttributes(sessionMeta), eventAttributes, sessionMeta);
 
                 traceReporter.reportAEITrace(error.asJsonObject().toString(), exitInfo.getPid());
             }
@@ -245,6 +246,27 @@ public class ApplicationExitMonitor {
             log.warn("ApplicationExitMonitor: exit info reporting was enabled, but not supported by the current OS");
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_UNSUPPORTED_OS + Build.VERSION.SDK_INT);
         }
+    }
+
+    /**
+     * Resolve the session attributes to attach to an AEI for {@code sessionMeta}'s prior
+     * session. Prefers the frozen {@link SessionManifest} recorded for that session id. If
+     * no manifest exists (evicted, or recorded before this feature shipped), emit the AEI
+     * with NO session attributes plus a supportability metric — never stamp the current
+     * (post-restart) session's attributes, which would re-introduce the mis-attribution
+     * this fix addresses (NR-575950).
+     */
+    Set<AnalyticsAttribute> resolveSessionAttributes(AEISessionMapper.AEISessionMeta sessionMeta) {
+        SessionContextStore store = AgentConfiguration.getInstance().getSessionContextStore();
+        if (store != null && sessionMeta != null
+                && sessionMeta.sessionId != null && !sessionMeta.sessionId.isEmpty()) {
+            SessionManifest manifest = store.get(sessionMeta.sessionId);
+            if (manifest != null && manifest.getAttributes() != null && !manifest.getAttributes().isEmpty()) {
+                return manifest.getAttributes();
+            }
+        }
+        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_MISSING);
+        return Collections.emptySet();
     }
 
     /**
