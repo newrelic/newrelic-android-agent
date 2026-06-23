@@ -11,6 +11,7 @@ import com.google.gson.JsonParser;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.AbstractFileStore;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Streams;
 
 import java.io.File;
@@ -60,7 +61,13 @@ public class FileSessionContextStore extends AbstractFileStore<SessionManifest> 
             final String json = Streams.slurpString(target, StandardCharsets.UTF_8.name());
             return deserialize(sessionId, json);
         } catch (Exception e) {
-            log.debug("FileSessionContextStore.get: cannot read [" + sessionId + "]: " + e);
+            // Corrupt/unreadable entry: delete it and count, mirroring fetchAllInternal() so a
+            // bad dead-session file can't silently yield empty attributes on every AEI lookup.
+            log.debug("FileSessionContextStore.get: corrupt entry [" + sessionId + "], deleting: " + e);
+            if (!target.delete()) {
+                log.debug("FileSessionContextStore.get: failed to delete corrupt entry [" + sessionId + "]");
+            }
+            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_CORRUPTED);
             return null;
         }
     }

@@ -132,6 +132,21 @@ public class FileSessionContextStoreTest {
     }
 
     @Test
+    public void getOnCorruptFileDeletesAndCounts() throws Exception {
+        File corrupt = new File(cacheDir,
+                FileSessionContextStore.safeFilename("S_corrupt") + FileSessionContextStore.FILE_SUFFIX);
+        try (OutputStream os = new FileOutputStream(corrupt, false)) {
+            os.write("{not valid json".getBytes(StandardCharsets.UTF_8));
+        }
+        Assert.assertTrue(corrupt.exists());
+
+        Assert.assertNull(store.get("S_corrupt"));
+        Assert.assertFalse("get() must delete a corrupt entry", corrupt.exists());
+        Assert.assertTrue(StatsEngine.get().getStatsMap()
+                .containsKey(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_CORRUPTED));
+    }
+
+    @Test
     public void corruptFileIsSkippedAndCounted() throws Exception {
         store.upsert(new SessionManifest("S_A", 1, 0L, 1L, attrs("k", "a")));
 
