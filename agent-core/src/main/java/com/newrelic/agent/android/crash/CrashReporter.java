@@ -22,6 +22,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.net.ssl.HttpsURLConnection;
+
 public class CrashReporter extends PayloadReporter {
     protected static AtomicReference<CrashReporter> instance = new AtomicReference<>(null);
 
@@ -144,24 +146,7 @@ public class CrashReporter extends PayloadReporter {
                     final PayloadSender.CompletionHandler completionHandler = new PayloadSender.CompletionHandler() {
                         @Override
                         public void onResponse(PayloadSender payloadSender) {
-                            if (payloadSender.isSuccessfulResponse()) {
-                                if (crashStore != null) {
-                                    crashStore.delete(crash);
-                                }
-
-                                //add supportability metrics
-                                DeviceInformation deviceInformation = Agent.getDeviceInformation();
-                                String name = MetricNames.SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES
-                                        .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
-                                        .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
-                                        .replace(MetricNames.TAG_SUBDESTINATION, "mobile_crash");
-                                StatsEngine.get().sampleMetricDataUsage(name, crash.asJsonObject().toString().getBytes().length, 0);
-                            } else {
-                                //Offline storage: No network at all, don't send back data
-                                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
-                                    log.warn("CrashReporter didn't send due to lack of network connection");
-                                }
-                            }
+                            onCrashResponse(payloadSender, crash);
                         }
 
                         @Override
@@ -185,6 +170,32 @@ public class CrashReporter extends PayloadReporter {
         }
 
         return null;
+    }
+
+    void onCrashResponse(PayloadSender payloadSender, Crash crash) {
+        if (payloadSender.isSuccessfulResponse()) {
+            if (crashStore != null) {
+                crashStore.delete(crash);
+            }
+
+            //add supportability metrics
+            DeviceInformation deviceInformation = Agent.getDeviceInformation();
+            String name = MetricNames.SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES
+                    .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
+                    .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
+                    .replace(MetricNames.TAG_SUBDESTINATION, "mobile_crash");
+            StatsEngine.get().sampleMetricDataUsage(name, crash.asJsonObject().toString().getBytes().length, 0);
+        } else {
+            if (payloadSender.getResponseCode() == HttpsURLConnection.HTTP_BAD_REQUEST || payloadSender.getResponseCode() == HttpsURLConnection.HTTP_FORBIDDEN) {
+                if (crashStore != null) {
+                    crashStore.delete(crash);
+                }
+            } else {
+                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                    log.warn("CrashReporter didn't send due to lack of network connection");
+                }
+            }
+        }
     }
 
     public void storeAndReportCrash(Crash crash,boolean isNativeCrashReport) {

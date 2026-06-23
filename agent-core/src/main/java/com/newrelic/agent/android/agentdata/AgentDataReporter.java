@@ -23,6 +23,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.net.ssl.HttpsURLConnection;
+
 public class AgentDataReporter extends PayloadReporter {
     protected static final AtomicReference<AgentDataReporter> instance = new AtomicReference<>(null);
     private static boolean reportExceptions = false;
@@ -139,25 +141,7 @@ public class AgentDataReporter extends PayloadReporter {
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {
-                if (payloadSender.isSuccessfulResponse()) {
-                    if (payloadStore != null) {
-                        payloadStore.delete(payloadSender.getPayload());
-                    }
-
-                    //add supportability metrics
-                    DeviceInformation deviceInformation = Agent.getDeviceInformation();
-                    String name = MetricNames.SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES
-                            .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
-                            .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
-                            .replace(MetricNames.TAG_SUBDESTINATION, "f");
-                    StatsEngine.get().sampleMetricDataUsage(name, payloadSender.getPayload().getBytes().length, 0);
-                } else {
-                    // sender will remain in store and retry every harvest cycle
-                    //Offline storage: No network at all, don't send back data
-                    if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
-                        log.warn("AgentDataReporter didn't send due to lack of network connection");
-                    }
-                }
+                onAgentDataResponse(payloadSender);
             }
 
             @Override
@@ -178,6 +162,34 @@ public class AgentDataReporter extends PayloadReporter {
         }
 
         return reportAgentData(payload);
+    }
+
+    void onAgentDataResponse(PayloadSender payloadSender) {
+        if (payloadSender.isSuccessfulResponse()) {
+            if (payloadStore != null) {
+                payloadStore.delete(payloadSender.getPayload());
+            }
+
+            //add supportability metrics
+            DeviceInformation deviceInformation = Agent.getDeviceInformation();
+            String name = MetricNames.SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES
+                    .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
+                    .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
+                    .replace(MetricNames.TAG_SUBDESTINATION, "f");
+            StatsEngine.get().sampleMetricDataUsage(name, payloadSender.getPayload().getBytes().length, 0);
+        } else {
+            if (payloadSender.getResponseCode() == HttpsURLConnection.HTTP_BAD_REQUEST || payloadSender.getResponseCode() == HttpsURLConnection.HTTP_FORBIDDEN) {
+                if (payloadStore != null) {
+                    payloadStore.delete(payloadSender.getPayload());
+                }
+            } else {
+                // sender will remain in store and retry every harvest cycle
+                //Offline storage: No network at all, don't send back data
+                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                    log.warn("AgentDataReporter didn't send due to lack of network connection");
+                }
+            }
+        }
     }
 
     protected boolean isPayloadStale(Payload payload) {

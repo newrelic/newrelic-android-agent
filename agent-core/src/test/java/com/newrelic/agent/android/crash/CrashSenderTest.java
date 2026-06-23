@@ -101,7 +101,12 @@ public class CrashSenderTest {
         Mockito.reset();
         Mockito.doReturn(HttpsURLConnection.HTTP_BAD_REQUEST).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
-        verify(crashSender, atLeastOnce()).onFailedUpload(anyString());
+        Assert.assertTrue("Should contain 400 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE));
+
+        Mockito.reset();
+        Mockito.doReturn(HttpsURLConnection.HTTP_FORBIDDEN).when(connection).getResponseCode();
+        crashSender.onRequestResponse(connection);
+        Assert.assertTrue("Should contain 403 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE));
     }
 
     @Test
