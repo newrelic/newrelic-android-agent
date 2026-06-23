@@ -251,28 +251,32 @@ public class ApplicationExitMonitor {
 
     /**
      * Resolve the session attributes to attach to an AEI for {@code sessionMeta}'s prior
-     * session. Prefers the frozen {@link SessionManifest} recorded for that session id.
+     * session. Prefers the frozen {@link SessionManifest} recorded for that session id — the
+     * source of truth, used even if it captured no attributes.
      *
-     * <p>If no manifest exists — most notably right after an agent upgrade, where the prior
-     * session ran under a version that never persisted session context, but also if the
-     * manifest was evicted or the session died before its first harvest — fall back to the
-     * current session's attributes. This reproduces the agent's pre-NR-575950 behavior for
-     * that transitional window rather than shipping an attribute-less event; the
-     * {@code SessionContext/Missing} metric tracks how often the fallback is taken.
+     * <p>If a prior session was mapped but its manifest is absent — most notably right after an
+     * agent upgrade, where the prior session ran under a version that never persisted session
+     * context, but also if the manifest was evicted or the session died before its first
+     * harvest — fall back to the current session's attributes. This reproduces the agent's
+     * pre-NR-575950 behavior for that transitional window rather than shipping an attribute-less
+     * event, and the {@code SessionContext/Missing} metric counts that specific case (a mapped
+     * prior session with no manifest). The metric is intentionally NOT bumped when there is no
+     * prior-session mapping at all, no store configured, or an empty session id, so it stays a
+     * clean signal for "manifest missing" rather than "nothing to look up."
      */
     Set<AnalyticsAttribute> resolveSessionAttributes(AEISessionMapper.AEISessionMeta sessionMeta) {
         SessionContextStore store = AgentConfiguration.getInstance().getSessionContextStore();
         if (store != null && sessionMeta != null
                 && sessionMeta.sessionId != null && !sessionMeta.sessionId.isEmpty()) {
             SessionManifest manifest = store.get(sessionMeta.sessionId);
-            if (manifest != null && manifest.getAttributes() != null && !manifest.getAttributes().isEmpty()) {
-                return manifest.getAttributes();
+            if (manifest != null) {
+                Set<AnalyticsAttribute> frozen = manifest.getAttributes();
+                return frozen == null ? Collections.emptySet() : frozen;
             }
+            // Mapped a prior session but its manifest is absent — the only case that means
+            // "manifest missing." Count it here so the metric isn't diluted by the no-mapping paths.
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_MISSING);
         }
-        // No frozen snapshot for the prior session (pre-upgrade agent, evicted, or
-        // pre-first-harvest death). Fall back to the current session's attributes to match
-        // pre-NR-575950 behavior for that transitional window; tracked via the metric.
-        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_MISSING);
         AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
         return analyticsController == null ? Collections.emptySet() : analyticsController.getSessionAttributes();
     }

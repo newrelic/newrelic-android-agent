@@ -526,6 +526,25 @@ public class ApplicationExitMonitorTest {
         }
     }
 
+    @Test
+    public void resolveSessionAttributesDoesNotCountMissingWhenNoPriorMapping() {
+        SessionContextStore store = new FileSessionContextStore(spyContext.getContext(), new AgentConfiguration());
+        AgentConfiguration.getInstance().setSessionContextStore(store);
+        StatsEngine.SUPPORTABILITY.getStatsMap().clear();
+        try {
+            // No prior-session mapping at all → not a "manifest missing" case, so the metric
+            // must NOT be bumped; we still fall back to the current session's attributes.
+            Set<AnalyticsAttribute> resolved = applicationExitMonitor.resolveSessionAttributes(null);
+
+            Assert.assertEquals(AnalyticsControllerImpl.getInstance().getSessionAttributes(), resolved);
+            Assert.assertFalse(StatsEngine.SUPPORTABILITY.getStatsMap()
+                    .containsKey(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_MISSING));
+        } finally {
+            store.clear();
+            AgentConfiguration.getInstance().setSessionContextStore(null);
+        }
+    }
+
     static AtomicInteger pidCtr = new AtomicInteger(5000);
 
     void resetMocks() {
