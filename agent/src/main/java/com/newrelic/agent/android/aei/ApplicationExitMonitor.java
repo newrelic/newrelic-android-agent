@@ -17,6 +17,7 @@ import androidx.annotation.RequiresApi;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -250,11 +251,14 @@ public class ApplicationExitMonitor {
 
     /**
      * Resolve the session attributes to attach to an AEI for {@code sessionMeta}'s prior
-     * session. Prefers the frozen {@link SessionManifest} recorded for that session id. If
-     * no manifest exists (evicted, or recorded before this feature shipped), emit the AEI
-     * with NO session attributes plus a supportability metric — never stamp the current
-     * (post-restart) session's attributes, which would re-introduce the mis-attribution
-     * this fix addresses (NR-575950).
+     * session. Prefers the frozen {@link SessionManifest} recorded for that session id.
+     *
+     * <p>If no manifest exists — most notably right after an agent upgrade, where the prior
+     * session ran under a version that never persisted session context, but also if the
+     * manifest was evicted or the session died before its first harvest — fall back to the
+     * current session's attributes. This reproduces the agent's pre-NR-575950 behavior for
+     * that transitional window rather than shipping an attribute-less event; the
+     * {@code SessionContext/Missing} metric tracks how often the fallback is taken.
      */
     Set<AnalyticsAttribute> resolveSessionAttributes(AEISessionMapper.AEISessionMeta sessionMeta) {
         SessionContextStore store = AgentConfiguration.getInstance().getSessionContextStore();
@@ -265,8 +269,12 @@ public class ApplicationExitMonitor {
                 return manifest.getAttributes();
             }
         }
+        // No frozen snapshot for the prior session (pre-upgrade agent, evicted, or
+        // pre-first-harvest death). Fall back to the current session's attributes to match
+        // pre-NR-575950 behavior for that transitional window; tracked via the metric.
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_MISSING);
-        return Collections.emptySet();
+        AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+        return analyticsController == null ? Collections.emptySet() : analyticsController.getSessionAttributes();
     }
 
     /**

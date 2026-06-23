@@ -507,7 +507,7 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
-    public void resolveSessionAttributesIsEmptyAndCountsWhenManifestMissing() {
+    public void resolveSessionAttributesFallsBackToCurrentWhenManifestMissing() {
         SessionContextStore store = new FileSessionContextStore(spyContext.getContext(), new AgentConfiguration());
         AgentConfiguration.getInstance().setSessionContextStore(store);
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
@@ -515,7 +515,9 @@ public class ApplicationExitMonitorTest {
             AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_UNKNOWN", 1234);
             Set<AnalyticsAttribute> resolved = applicationExitMonitor.resolveSessionAttributes(meta);
 
-            Assert.assertTrue(resolved.isEmpty());
+            // No manifest (e.g. prior session ran under a pre-upgrade agent) → transitional
+            // fallback to the current session's attributes, plus the Missing metric.
+            Assert.assertEquals(AnalyticsControllerImpl.getInstance().getSessionAttributes(), resolved);
             Assert.assertTrue(StatsEngine.SUPPORTABILITY.getStatsMap()
                     .containsKey(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_MISSING));
         } finally {
