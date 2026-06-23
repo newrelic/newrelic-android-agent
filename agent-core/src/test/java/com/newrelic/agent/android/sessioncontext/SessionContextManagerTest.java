@@ -78,4 +78,17 @@ public class SessionContextManagerTest {
         // Must not throw.
         new SessionContextManager().snapshotCurrentSessionContext();
     }
+
+    @Test
+    public void initializeReturnsSameInstanceAndReRegistersIdempotently() {
+        try {
+            SessionContextManager first = SessionContextManager.initialize();
+            // A second initialize() (as happens on a stop/start cycle) must reuse the singleton
+            // and re-register without throwing or double-registering.
+            SessionContextManager second = SessionContextManager.initialize();
+            Assert.assertSame(first, second);
+        } finally {
+            SessionContextManager.shutdown();
+        }
+    }
 }

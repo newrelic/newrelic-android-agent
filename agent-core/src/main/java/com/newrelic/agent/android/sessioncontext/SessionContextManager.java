@@ -30,12 +30,16 @@ public class SessionContextManager implements HarvestLifecycleAware {
 
     private static SessionContextManager instance;
 
-    /** Create (once) and register as a harvest listener. Idempotent. */
+    /** Create (once) and ensure registration as a harvest listener. Idempotent. */
     public static synchronized SessionContextManager initialize() {
         if (instance == null) {
             instance = new SessionContextManager();
-            Harvest.addHarvestListener(instance);
         }
+        // Always (re-)register. A stop/start cycle in the same process builds a new Harvester,
+        // so registering only on first creation would leave the manager detached after restart
+        // and silently stop writing snapshots. Harvester.addHarvestListener de-dups, so calling
+        // this when already registered (same Harvester reused) is a harmless no-op.
+        Harvest.addHarvestListener(instance);
         return instance;
     }
 
