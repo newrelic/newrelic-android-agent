@@ -47,6 +47,9 @@ public class MetricNames {
     public static final String SUPPORTABILITY_PAYLOAD_CORRUPTED = SUPPORTABILITY_AGENT + "Payload/Corrupted";
     public static final String SUPPORTABILITY_JS_ERROR_EVICTED = SUPPORTABILITY_AGENT + "JSError/Removed/Evicted";
     public static final String SUPPORTABILITY_JS_ERROR_CORRUPTED = SUPPORTABILITY_AGENT + "JSError/Corrupted";
+    public static final String SUPPORTABILITY_SESSION_CONTEXT_EVICTED = SUPPORTABILITY_AGENT + "SessionContext/Removed/Evicted";
+    public static final String SUPPORTABILITY_SESSION_CONTEXT_CORRUPTED = SUPPORTABILITY_AGENT + "SessionContext/Corrupted";
+    public static final String SUPPORTABILITY_SESSION_CONTEXT_MISSING = SUPPORTABILITY_AGENT + "SessionContext/Missing";
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
 
