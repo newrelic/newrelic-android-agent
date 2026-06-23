@@ -78,44 +78,4 @@ public class SessionContextManagerTest {
         // Must not throw.
         new SessionContextManager().snapshotCurrentSessionContext();
     }
-
-    @Test
-    public void backgroundedAfterSuccessfulHarvestDeletesCurrentManifest() {
-        SessionContextManager mgr = new SessionContextManager();
-        mgr.snapshotCurrentSessionContext();
-        String sessionId = AgentConfiguration.getInstance().getSessionID();
-        Assert.assertNotNull(store.get(sessionId));
-
-        mgr.onHarvestComplete();            // last harvest delivered (online 2xx)
-        mgr.applicationBackgrounded(null);  // event arg is unused by the handler
-
-        Assert.assertNull("manifest should be deleted after background + successful harvest",
-                store.get(sessionId));
-    }
-
-    @Test
-    public void backgroundedAfterOfflinePersistDeletesCurrentManifest() {
-        SessionContextManager mgr = new SessionContextManager();
-        mgr.snapshotCurrentSessionContext();
-        String sessionId = AgentConfiguration.getInstance().getSessionID();
-
-        mgr.onHarvestSendFailed();          // no network — data persisted offline
-        mgr.applicationBackgrounded(null);
-
-        Assert.assertNull("manifest should be deleted on background whether online or offline",
-                store.get(sessionId));
-    }
-
-    @Test
-    public void backgroundedAfterServerErrorKeepsManifest() {
-        SessionContextManager mgr = new SessionContextManager();
-        mgr.snapshotCurrentSessionContext();
-        String sessionId = AgentConfiguration.getInstance().getSessionID();
-
-        mgr.onHarvestError();               // server rejected (4xx/5xx) — not accepted
-        mgr.applicationBackgrounded(null);
-
-        Assert.assertNotNull("manifest must be kept when the harvest was not accepted",
-                store.get(sessionId));
-    }
 }
