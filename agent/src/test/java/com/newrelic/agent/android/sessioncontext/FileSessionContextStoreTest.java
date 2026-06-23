@@ -122,6 +122,16 @@ public class FileSessionContextStoreTest {
     }
 
     @Test
+    public void defaultCapBoundsStore() {
+        Assert.assertEquals(32, AgentConfiguration.DEFAULT_MAX_CACHED_SESSION_CONTEXT_COUNT);
+        // store was created in setUp() with a default-config cap of 32.
+        for (int i = 0; i < 40; i++) {
+            store.upsert(new SessionManifest("S_" + i, 1, 0L, i + 1, attrs("k", String.valueOf(i))));
+        }
+        Assert.assertEquals(32, store.count());
+    }
+
+    @Test
     public void corruptFileIsSkippedAndCounted() throws Exception {
         store.upsert(new SessionManifest("S_A", 1, 0L, 1L, attrs("k", "a")));
 

@@ -60,7 +60,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     public static final int DEFAULT_MAX_CACHED_PAYLOAD_COUNT = Integer.MAX_VALUE;
 
     public static final int DEFAULT_MAX_CACHED_JS_ERROR_COUNT = Integer.MAX_VALUE;
-    public static final int DEFAULT_MAX_CACHED_SESSION_CONTEXT_COUNT = Integer.MAX_VALUE;
+    public static final int DEFAULT_MAX_CACHED_SESSION_CONTEXT_COUNT = 32;
 
     public static final int DEFAULT_MAX_CACHED_CRASH_COUNT = Integer.MAX_VALUE;
 
