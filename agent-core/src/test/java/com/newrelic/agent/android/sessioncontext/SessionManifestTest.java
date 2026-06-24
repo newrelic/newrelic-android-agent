@@ -70,4 +70,29 @@ public class SessionManifestTest {
         Assert.assertEquals(0L, restored.getLastUpdateMs());
         Assert.assertTrue(restored.getAttributes().isEmpty());
     }
+
+    @Test
+    public void roundTripsInternalSrAndExitFields() {
+        SessionManifest m = new SessionManifest(
+                SessionManifest.CURRENT_SCHEMA_VERSION, "S_A", 1234, 10L, 20L,
+                new java.util.HashSet<>(), Boolean.TRUE, Boolean.FALSE, Integer.valueOf(6));
+        SessionManifest restored = SessionManifest.fromJson(m.toJson());
+
+        Assert.assertEquals(Boolean.TRUE, restored.getReachedFullMode());
+        Assert.assertEquals(Boolean.FALSE, restored.getIsFirstChunk());
+        Assert.assertEquals(Integer.valueOf(6), restored.getExitReason());
+        // Internal fields must NOT leak into the attribute object that events send.
+        Assert.assertFalse(m.toJson().getAsJsonObject("attributes").has("reachedFullMode"));
+        Assert.assertFalse(m.toJson().getAsJsonObject("attributes").has("exitReason"));
+    }
+
+    @Test
+    public void absentInternalFieldsDeserializeToNull() {
+        // The Phase-1 5-arg constructor leaves the internal fields unset.
+        SessionManifest m = new SessionManifest("S_B", 7, 0L, 0L, new java.util.HashSet<>());
+        SessionManifest restored = SessionManifest.fromJson(m.toJson());
+        Assert.assertNull(restored.getReachedFullMode());
+        Assert.assertNull(restored.getIsFirstChunk());
+        Assert.assertNull(restored.getExitReason());
+    }
 }
