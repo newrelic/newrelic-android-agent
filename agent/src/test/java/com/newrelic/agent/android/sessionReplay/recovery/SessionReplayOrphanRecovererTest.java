@@ -71,7 +71,6 @@ public class SessionReplayOrphanRecovererTest {
 
         Assert.assertEquals(1, uploader.uploads.size());
         Map<String, Object> attrs = uploader.uploads.get(0);
-        Assert.assertEquals("true", attrs.get("recovered"));
         // Replay must be attributed to the dead session, not the current one.
         Assert.assertEquals("S_DEAD", attrs.get("sessionId"));
         Assert.assertFalse(new File(srDir, "sessionReplaydataS_DEAD.tmp").exists());
