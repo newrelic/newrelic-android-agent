@@ -27,6 +27,9 @@ import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFileManager;
+import com.newrelic.agent.android.sessionReplay.recovery.SessionReplayOrphanRecoverer;
+
+import java.io.File;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFrame;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayProcessor;
 import com.newrelic.agent.android.sessionReplay.capture.ViewDrawInterceptor;
@@ -263,6 +266,20 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Initialize file manager
         instance.fileManager = new SessionReplayFileManager(processor);
         SessionReplayFileManager.initialize(application);
+
+        // Recover any Session Replay buffers orphaned by a prior abnormal termination
+        // (force-close, ANR, crash, OOM) and re-enqueue eligible ones for upload.
+        try {
+            File srDir = SessionReplayFileManager.getSessionReplayDataStore();
+            AgentConfiguration cfg = AgentConfiguration.getInstance();
+            new SessionReplayOrphanRecoverer(
+                    application, srDir, cfg.getSessionContextStore(),
+                    cfg.getOfflineSessionReplayStore(), cfg.getSessionID(),
+                    cfg.getPayloadTTL())
+                    .recover();
+        } catch (Exception e) {
+            log.error("SessionReplay: orphan recovery failed: " + e);
+        }
 
         if(mode == SessionReplayMode.ERROR) {
             // Register SessionReplay as event listener using composite pattern
