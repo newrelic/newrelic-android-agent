@@ -111,7 +111,6 @@ public class CrashSenderTest {
 
     @Test
     public void testFailedUpload() throws Exception {
-        CrashSender crashSender = spy(new CrashSender(crash, agentConfiguration));
 
         crashSender.onFailedUpload("Upload failure");
         Assert.assertTrue("Should contain 500 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_FAILED_UPLOAD));
@@ -120,7 +119,6 @@ public class CrashSenderTest {
 
     @Test
     public void testRequestException() throws Exception {
-        CrashSender crashSender = spy(new CrashSender(crash, agentConfiguration));
         Mockito.doReturn(null).when(crashSender).getConnection();
         crashSender.call();
         verify(crashSender, atLeastOnce()).onFailedUpload(any(String.class));

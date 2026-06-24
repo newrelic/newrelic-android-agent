@@ -19,11 +19,10 @@ import com.newrelic.agent.android.payload.PayloadStore;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
+import java.net.HttpURLConnection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
-
-import javax.net.ssl.HttpsURLConnection;
 
 public class AgentDataReporter extends PayloadReporter {
     protected static final AtomicReference<AgentDataReporter> instance = new AtomicReference<>(null);
@@ -133,7 +132,7 @@ public class AgentDataReporter extends PayloadReporter {
                     .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
                     .replace(MetricNames.TAG_SUBDESTINATION, "f");
             StatsEngine.notice().inc(name);
-            payloadStore.delete(payload);
+            deletePayload(payload);
             log.error("Unable to upload handled exceptions because payload is larger than 1 MB, handled exceptions are discarded.");
             return null;
         }
@@ -166,10 +165,7 @@ public class AgentDataReporter extends PayloadReporter {
 
     void onAgentDataResponse(PayloadSender payloadSender) {
         if (payloadSender.isSuccessfulResponse()) {
-            if (payloadStore != null) {
-                payloadStore.delete(payloadSender.getPayload());
-            }
-
+            deletePayload(payloadSender.getPayload());
             //add supportability metrics
             DeviceInformation deviceInformation = Agent.getDeviceInformation();
             String name = MetricNames.SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES
@@ -178,10 +174,9 @@ public class AgentDataReporter extends PayloadReporter {
                     .replace(MetricNames.TAG_SUBDESTINATION, "f");
             StatsEngine.get().sampleMetricDataUsage(name, payloadSender.getPayload().getBytes().length, 0);
         } else {
-            if (payloadSender.getResponseCode() == HttpsURLConnection.HTTP_BAD_REQUEST || payloadSender.getResponseCode() == HttpsURLConnection.HTTP_FORBIDDEN) {
-                if (payloadStore != null) {
-                    payloadStore.delete(payloadSender.getPayload());
-                }
+            if (payloadSender.getResponseCode() == HttpURLConnection.HTTP_BAD_REQUEST ||
+                payloadSender.getResponseCode() == HttpURLConnection.HTTP_FORBIDDEN) {
+                    deletePayload(payloadSender.getPayload());
             } else {
                 // sender will remain in store and retry every harvest cycle
                 //Offline storage: No network at all, don't send back data
@@ -192,9 +187,14 @@ public class AgentDataReporter extends PayloadReporter {
         }
     }
 
+    void deletePayload(Payload payload) {
+        if (payloadStore != null) {
+            payloadStore.delete(payload);
+        }
+    }
     protected boolean isPayloadStale(Payload payload) {
         if (payload.isStale(agentConfiguration.getPayloadTTL())) {
-            payloadStore.delete(payload);
+            deletePayload(payload);
             log.info("Payload [" + payload.getUuid() + "] has become stale, and has been removed");
             StatsEngine.get().inc(MetricNames.SUPPORTABILITY_PAYLOAD_REMOVED_STALE);
             return true;

@@ -177,7 +177,7 @@ public class CrashReporterTests {
     }
 
     @Test
-    public void testOfflineCrashUpload() throws Exception {
+    public void testPermanentlyRejectedCrashLogged() throws Exception {
         HttpURLConnection connection = getMockedConnection();
         Mockito.doReturn(HttpsURLConnection.HTTP_FORBIDDEN).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);

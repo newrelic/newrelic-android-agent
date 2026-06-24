@@ -29,8 +29,6 @@ import org.mockito.Mockito;
 import java.net.HttpURLConnection;
 import java.nio.ByteBuffer;
 
-import javax.net.ssl.HttpsURLConnection;
-
 import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.payload.PayloadStore;
 
@@ -169,7 +167,7 @@ public class AgentDataReporterTest {
         Mockito.when(mockSender.isSuccessfulResponse()).thenReturn(false);
         Mockito.when(mockSender.getPayload()).thenReturn(payload);
 
-        Mockito.when(mockSender.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_FORBIDDEN);
+        Mockito.when(mockSender.getResponseCode()).thenReturn(HttpURLConnection.HTTP_FORBIDDEN);
         reporter.onAgentDataResponse(mockSender);
         Assert.assertEquals("Payload should be deleted on 403", 0, agentConfiguration.getPayloadStore().count());
 
