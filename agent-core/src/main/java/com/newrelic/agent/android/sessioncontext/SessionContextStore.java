@@ -16,6 +16,12 @@ public interface SessionContextStore {
     /** Store or replace the manifest for its {@code sessionId}. Returns false on IO failure. */
     boolean upsert(SessionManifest manifest);
 
+    /** Set the Session Replay state for a session, preserving its context fields. Creates a minimal record if absent. */
+    void updateSessionReplayState(String sessionId, boolean reachedFullMode, boolean isFirstChunk);
+
+    /** Set the OS exit reason for a session, preserving all other fields. No-op if the session has no record. */
+    void updateExitReason(String sessionId, int exitReason);
+
     /** Returns the manifest for {@code sessionId}, or {@code null} if absent/unreadable. */
     SessionManifest get(String sessionId);
 

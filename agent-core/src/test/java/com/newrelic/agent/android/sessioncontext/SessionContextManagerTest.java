@@ -33,6 +33,22 @@ public class SessionContextManagerTest {
         @Override public void delete(String id) { map.remove(id); }
         @Override public int count() { return map.size(); }
         @Override public void clear() { map.clear(); }
+        @Override public void updateSessionReplayState(String id, boolean reachedFullMode, boolean isFirstChunk) {
+            SessionManifest e = map.get(id);
+            map.put(id, new SessionManifest(SessionManifest.CURRENT_SCHEMA_VERSION, id,
+                    e != null ? e.getRealAgentId() : 0,
+                    e != null ? e.getSessionStartMs() : 0L,
+                    e != null ? e.getLastUpdateMs() : 0L,
+                    e != null ? e.getAttributes() : null,
+                    reachedFullMode, isFirstChunk, e != null ? e.getExitReason() : null));
+        }
+        @Override public void updateExitReason(String id, int exitReason) {
+            SessionManifest e = map.get(id);
+            if (e == null) { return; }
+            map.put(id, new SessionManifest(SessionManifest.CURRENT_SCHEMA_VERSION, id, e.getRealAgentId(),
+                    e.getSessionStartMs(), e.getLastUpdateMs(), e.getAttributes(),
+                    e.getReachedFullMode(), e.getIsFirstChunk(), Integer.valueOf(exitReason)));
+        }
     }
 
     private InMemorySessionContextStore store;
