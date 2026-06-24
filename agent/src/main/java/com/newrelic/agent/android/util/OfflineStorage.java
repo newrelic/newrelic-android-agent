@@ -10,16 +10,21 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class OfflineStorage {
     private static final String OFFLINE_STORAGE = "nr_offline_storage";
     private static final int DEFAULT_MAX_OFFLINE_Storage_SIZE = 100 * 1024 * 1024; //MB
+    static final long DEFAULT_OFFLINE_STORAGE_TTL = TimeUnit.DAYS.toMillis(7);
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static File offlineStorage;
     private static String offlineFilePath = "";
     private static int offlineStorageSize = 100 * 1024 * 1024; //MB
+    private static long offlineStorageTTL = DEFAULT_OFFLINE_STORAGE_TTL;
 
     public OfflineStorage(Context context) {
         try {
@@ -37,7 +42,24 @@ public class OfflineStorage {
         try {
             double totalData = getTotalFileSize() + data.getBytes().length;
             if (totalData > offlineStorageSize) {
-                return false;
+                File[] files = offlineStorage.listFiles();
+                if (files != null && files.length > 0) {
+                    Arrays.sort(files, new Comparator<File>() {
+                        @Override
+                        public int compare(File a, File b) {
+                            return Long.compare(a.lastModified(), b.lastModified());
+                        }
+                    });
+                    for (File file : files) {
+                        //file.delete();
+                        if (totalData <= offlineStorageSize) {
+                            break;
+                        }
+                    }
+                }
+                if (totalData > offlineStorageSize) {
+                    return false;
+                }
             }
 
             if (!offlineStorage.exists()) {
@@ -72,7 +94,12 @@ public class OfflineStorage {
 
             File[] files = offlineStorage.listFiles();
             if (files.length > 0) {
+                long expiryTime = System.currentTimeMillis() - offlineStorageTTL;
                 for (int i = 0; i < files.length; i++) {
+                    if (files[i].lastModified() < expiryTime) {
+                        files[i].delete();
+                        continue;
+                    }
                     BufferedReader in = null;
                     try {
                         in = new BufferedReader(new FileReader(files[i]));
@@ -81,7 +108,6 @@ public class OfflineStorage {
                     } catch (Exception e) {
                         log.error("OfflineStorage: ", e);
                     }
-
                 }
             }
         } catch (Exception e) {
@@ -158,5 +184,13 @@ public class OfflineStorage {
 
     public void setOfflineStorageSize(int maxSize) {
         offlineStorageSize = maxSize;
+    }
+
+    public static long getOfflineStorageTTL() {
+        return offlineStorageTTL;
+    }
+
+    public static void setOfflineStorageTTL(long ttl) {
+        offlineStorageTTL = ttl;
     }
 }
