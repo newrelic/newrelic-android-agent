@@ -215,6 +215,15 @@ public class ApplicationExitMonitor {
                     log.debug("ApplicationExitMonitor: Using session meta [" + sessionMeta.sessionId + ", " + sessionMeta.realAgentId + "] for AEI pid[" + exitInfo.getPid() + "]");
                 }
 
+                // Record the OS exit reason into the prior session's manifest so the next-launch
+                // Session Replay recoverer can decide whether the buffered replay is worth uploading.
+                if (sessionMeta != null && sessionMeta.sessionId != null && !sessionMeta.sessionId.isEmpty()) {
+                    SessionContextStore scStore = AgentConfiguration.getInstance().getSessionContextStore();
+                    if (scStore != null) {
+                        scStore.updateExitReason(sessionMeta.sessionId, exitInfo.getReason());
+                    }
+                }
+
                 // finally, emit an event for the record
                 final HashMap<String, Object> eventAttributes;
                 try {
