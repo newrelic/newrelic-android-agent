@@ -72,6 +72,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     // file manager, and re-register the Harvest listener (causing onHarvest() to fire twice
     // per cycle). Cleared in deInitialize() so onSessionRestarted can re-init normally.
     private static final AtomicBoolean isInitialized = new AtomicBoolean(false);
+    private static final AtomicBoolean orphanRecoveryDone = new AtomicBoolean(false);
 
     // Buffer for queuing frames and touch data that arrive during harvest
     private static final AtomicBoolean isHarvesting = new AtomicBoolean(false);
@@ -266,20 +267,6 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Initialize file manager
         instance.fileManager = new SessionReplayFileManager(processor);
         SessionReplayFileManager.initialize(application);
-
-        // Recover any Session Replay buffers orphaned by a prior abnormal termination
-        // (force-close, ANR, crash, OOM) and re-enqueue eligible ones for upload.
-        try {
-            File srDir = SessionReplayFileManager.getSessionReplayDataStore();
-            AgentConfiguration cfg = AgentConfiguration.getInstance();
-            new SessionReplayOrphanRecoverer(
-                    srDir, cfg.getSessionContextStore(),
-                    SessionReplayReporter::reportSessionReplayData, cfg.getSessionID(),
-                    cfg.getPayloadTTL())
-                    .recover();
-        } catch (Exception e) {
-            log.error("SessionReplay: orphan recovery failed: " + e);
-        }
 
         if(mode == SessionReplayMode.ERROR) {
             // Register SessionReplay as event listener using composite pattern
@@ -580,6 +567,29 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * Persists the Session Replay state for the current session into the session manifest so a
      * next-launch recoverer can decide whether an orphaned {@code .tmp} buffer is worth uploading.
      */
+    /**
+     * Recover Session Replay buffers orphaned by a prior abnormal termination (force-close, ANR,
+     * crash, OOM) and re-report eligible ones for upload. Runs once per launch. Must be invoked
+     * after both {@code SessionReplayReporter} is initialized and the prior session's exit reasons
+     * have been recorded into the manifests (i.e. after the AEI harvest on harvest-connect).
+     */
+    public static void recoverOrphans() {
+        if (!orphanRecoveryDone.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            File srDir = SessionReplayFileManager.getSessionReplayDataStore();
+            AgentConfiguration cfg = AgentConfiguration.getInstance();
+            new SessionReplayOrphanRecoverer(
+                    srDir, cfg.getSessionContextStore(),
+                    SessionReplayReporter::reportSessionReplayData, cfg.getSessionID(),
+                    cfg.getPayloadTTL())
+                    .recover();
+        } catch (Exception e) {
+            log.error("SessionReplay: orphan recovery failed: " + e);
+        }
+    }
+
     private static void persistSrState(boolean reachedFullMode, boolean isFirstChunkValue) {
         try {
             SessionContextStore store = AgentConfiguration.getInstance().getSessionContextStore();

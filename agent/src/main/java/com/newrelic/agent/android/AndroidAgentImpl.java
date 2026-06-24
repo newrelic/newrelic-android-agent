@@ -1179,6 +1179,11 @@ public class AndroidAgentImpl implements
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
             startSessionReplayRecorder(context, agentConfiguration);
 
+            // Recover orphaned SR buffers from a prior abnormal termination. Runs here (not at SR
+            // init) so the reporter is initialized and the prior session's AEI exit reasons have
+            // already been recorded into the manifests above.
+            SessionReplay.recoverOrphans();
+
             // Re-coordinate logging override after SR reseed — mode may have changed
             SessionReplayMode currentSrMode = SessionReplay.getCurrentMode();
             reconcileLoggingOverride(currentSrMode, agentConfiguration);
