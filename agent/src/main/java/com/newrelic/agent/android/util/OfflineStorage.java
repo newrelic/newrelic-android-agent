@@ -51,7 +51,10 @@ public class OfflineStorage {
                         }
                     });
                     for (File file : files) {
-                        //file.delete();
+                        if (file.length() > 0) {
+                            totalData -= file.length();
+                            file.delete();
+                        }
                         if (totalData <= offlineStorageSize) {
                             break;
                         }
