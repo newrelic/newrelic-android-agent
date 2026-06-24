@@ -139,7 +139,12 @@ class DexGuardHelper {
             buildHelper.variantAdapter.wiredWithMapUploadProvider(variantName)
 
             buildHelper.project.afterEvaluate {
-                def wiredTaskNames = [DEXGUARD_APK_TASK, DEXGUARD_AAB_TASK, DEXGUARD_BUNDLE_TASK, DEXGUARD_AAR_TASK].collect { it + variantName.capitalize() }
+                // Use priority-based selection to prevent dual execution of APK and AAB tasks
+                def primaryTaskType = determinePrimaryDexGuardTaskType()
+                def wiredTaskNames = [primaryTaskType].collect { it + variantName.capitalize() }
+
+                logger.debug("DexGuard: Selected primary task type '${primaryTaskType}' for variant '${variantName}'")
+
                 buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames.toSet()) { taskProvider ->
                     if (taskProvider.name.startsWith(DEXGUARD_APK_TASK)) {
                         finalizeMapUploadProvider(taskProvider, variantName) {
@@ -149,11 +154,13 @@ class DexGuardHelper {
                         finalizeMapUploadProvider(taskProvider, variantName) {
                             it.replace("<target>", "bundle")
                         }
-
                     } else if (taskProvider.name.startsWith(DEXGUARD_AAB_TASK)) {
                         finalizeMapUploadProvider(taskProvider, variantName) {
                             it.replace("<target>", "bundle")
                         }
+                    } else if (taskProvider.name.startsWith(DEXGUARD_AAR_TASK)) {
+                        // AAR tasks don't need target replacement as they use different path structure
+                        finalizeMapUploadProvider(taskProvider, variantName)
                     }
                 }
             }
@@ -250,6 +257,25 @@ class DexGuardHelper {
         } catch (UnknownTaskException e) {
             // task for this variant not available or other configuration error
             logger.error("finalizeMapUploadProvider: $e")
+        }
+    }
+
+    /**
+     * Determines the primary DexGuard task type to wire based on project type.
+     * Uses simple priority: Library -> AAR, Application -> AAB, Default -> APK
+     *
+     * @return The primary DexGuard task type constant
+     */
+    private String determinePrimaryDexGuardTaskType() {
+        if (buildHelper.checkLibrary()) {
+            // Libraries need AAR tasks for proper artifact generation
+            return DEXGUARD_AAR_TASK
+        } else if (buildHelper.checkApplication()) {
+            // Applications prefer AAB (Google's recommended format)
+            return DEXGUARD_AAB_TASK
+        } else {
+            // Safe fallback to APK for unknown project types
+            return DEXGUARD_APK_TASK
         }
     }
 
