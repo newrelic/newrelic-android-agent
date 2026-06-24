@@ -60,6 +60,7 @@ public class AgentDataReporterTest {
         FeatureFlag.enableFeature(FeatureFlag.HandledExceptions);
 
         PayloadController.initialize(agentConfiguration);
+        AgentDataReporter.initialize(agentConfiguration);
 
         final Map<String, Object> sessionAttributes = new HashMap<String, Object>() {{
             put("a string", "hello");
@@ -93,6 +94,7 @@ public class AgentDataReporterTest {
 
     @After
     public void tearDown() throws Exception {
+        AgentDataReporter.shutdown();
         Agent.stop();
     }
 
@@ -193,6 +195,22 @@ public class AgentDataReporterTest {
             reporter.onAgentDataResponse(mockSender);
             Assert.assertEquals("Payload should be retained on " + code, 1, agentConfiguration.getPayloadStore().count());
         }
+    }
+
+    @Test
+    public void testSuccessfulResponseDeletesPayloadFromStore() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+        AgentDataReporter reporter = AgentDataReporter.initialize(agentConfiguration);
+        Payload payload = new Payload(flat.dataBuffer().array());
+        agentConfiguration.getPayloadStore().store(payload);
+        Assert.assertEquals(1, agentConfiguration.getPayloadStore().count());
+
+        PayloadSender mockSender = Mockito.mock(PayloadSender.class);
+        Mockito.when(mockSender.isSuccessfulResponse()).thenReturn(true);
+        Mockito.when(mockSender.getPayload()).thenReturn(payload);
+
+        reporter.onAgentDataResponse(mockSender);
+        Assert.assertEquals("Payload should be deleted on success", 0, agentConfiguration.getPayloadStore().count());
     }
 
     @Test

@@ -220,6 +220,20 @@ public class CrashReporterTests {
     }
 
     @Test
+    public void testSuccessfulCrashDeletedFromStore() {
+        Agent.setImpl(new StubAgentImpl());
+        Crash testCrash = new Crash(new RuntimeException("successful upload"));
+        crashStore.store(testCrash);
+        Assert.assertEquals(1, crashStore.count());
+
+        PayloadSender mockSender = Mockito.mock(PayloadSender.class);
+        Mockito.when(mockSender.isSuccessfulResponse()).thenReturn(true);
+
+        crashReporter.onCrashResponse(mockSender, testCrash);
+        Assert.assertEquals("Crash should be deleted on success", 0, crashStore.count());
+    }
+
+    @Test
     public void testFailedCrashUpload() throws Exception {
         HttpURLConnection connection = getMockedConnection();
 
