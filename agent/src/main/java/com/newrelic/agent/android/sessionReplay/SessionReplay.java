@@ -13,6 +13,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.sessioncontext.SessionContextStore;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.EventListener;
@@ -238,6 +239,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Clear file after successful harvest
         fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
+        persistSrState(true, false);
         takeFullSnapshot.set(true);
 
     }
@@ -302,6 +304,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Start sliding window timer if in ERROR mode
         if (mode == SessionReplayMode.ERROR) {
             startSlidingWindowTimer();
+        } else if (mode == SessionReplayMode.FULL) {
+            persistSrState(true, true);
         }
 
         uiThreadHandler.post(() -> {
@@ -534,6 +538,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
                 stopSlidingWindowTimer();
                 // Force a full snapshot to ensure we have complete data from this point forward
                 setTakeFullSnapshot(true);
+                persistSrState(true, true);
                 return true;
             }
         }
@@ -552,6 +557,22 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             log.debug("SessionReplay: Error detected but session replay not initialized");
         }
         switchModeOnError();
+    }
+
+    /**
+     * Persists the Session Replay state for the current session into the session manifest so a
+     * next-launch recoverer can decide whether an orphaned {@code .tmp} buffer is worth uploading.
+     */
+    private static void persistSrState(boolean reachedFullMode, boolean isFirstChunkValue) {
+        try {
+            SessionContextStore store = AgentConfiguration.getInstance().getSessionContextStore();
+            if (store != null) {
+                store.updateSessionReplayState(
+                        AgentConfiguration.getInstance().getSessionID(), reachedFullMode, isFirstChunkValue);
+            }
+        } catch (Exception e) {
+            log.error("SessionReplay: failed to persist SR state: " + e);
+        }
     }
 
     /**
