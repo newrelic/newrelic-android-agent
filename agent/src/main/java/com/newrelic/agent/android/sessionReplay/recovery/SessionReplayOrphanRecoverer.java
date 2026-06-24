@@ -5,19 +5,14 @@
 package com.newrelic.agent.android.sessionReplay.recovery;
 
 import android.app.ApplicationExitInfo;
-import android.content.Context;
 import android.os.Build;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
-import com.newrelic.agent.android.sessionReplay.OfflineSessionReplayPayload;
-import com.newrelic.agent.android.sessionReplay.OfflineSessionReplayStore;
 import com.newrelic.agent.android.sessioncontext.SessionContextStore;
 import com.newrelic.agent.android.sessioncontext.SessionManifest;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -25,38 +20,42 @@ import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.Streams;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.zip.GZIPOutputStream;
 
 /**
  * Scans for Session Replay {@code .tmp} files left behind by a prior session that died
- * abnormally, and (when eligible) re-enqueues their events to the offline store so the
- * existing drain uploads them. Runs once at SR init on the next launch.
+ * abnormally, and (when eligible) re-reports their events through the normal Session Replay
+ * upload path so they are uploaded on the next launch. Runs once at SR init.
+ *
+ * <p>Recovered data is uploaded directly (not via the offline store) so it is sent regardless
+ * of whether the {@code OfflineStorage} feature flag is enabled. Reporting is fire-and-forget:
+ * an orphan is removed as soon as its events are submitted. The dead session's {@code sessionId}
+ * is preserved so the replay is attributed to the session that actually produced it.
  */
 public class SessionReplayOrphanRecoverer {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
-    private final Context context;
+    /** Sink for recovered replay bytes — defaults to {@code SessionReplayReporter::reportSessionReplayData}. */
+    public interface ReplayUploader {
+        /** @return true if the payload was submitted (reporter ready), false otherwise. */
+        boolean upload(byte[] rawEventBytes, Map<String, Object> attributes);
+    }
+
     private final File srDir;
     private final SessionContextStore contextStore;
-    private final OfflineSessionReplayStore offlineStore;
+    private final ReplayUploader uploader;
     private final String currentSessionId;
     private final long payloadTtlMs;
 
-    public SessionReplayOrphanRecoverer(Context context, File srDir, SessionContextStore contextStore,
-                                        OfflineSessionReplayStore offlineStore, String currentSessionId,
+    public SessionReplayOrphanRecoverer(File srDir, SessionContextStore contextStore,
+                                        ReplayUploader uploader, String currentSessionId,
                                         long payloadTtlMs) {
-        this.context = context;
         this.srDir = srDir;
         this.contextStore = contextStore;
-        this.offlineStore = offlineStore;
+        this.uploader = uploader;
         this.currentSessionId = currentSessionId == null ? "" : currentSessionId;
         this.payloadTtlMs = payloadTtlMs;
     }
@@ -79,7 +78,7 @@ public class SessionReplayOrphanRecoverer {
     }
 
     public void recover() {
-        if (srDir == null || !srDir.isDirectory() || offlineStore == null) {
+        if (srDir == null || !srDir.isDirectory() || uploader == null) {
             return;
         }
         File[] files = srDir.listFiles((d, name) -> name.endsWith(".tmp"));
@@ -127,33 +126,30 @@ public class SessionReplayOrphanRecoverer {
         boolean isFirstChunk = manifest == null || manifest.getIsFirstChunk() == null
                 || Boolean.TRUE.equals(manifest.getIsFirstChunk());
 
-        Map<String, String> attrs = buildRecoveredAttributes(manifest, sessionId, bounds, isFirstChunk);
-        byte[] gzipped = gzip(events.toString().getBytes());
-        long ts = file.lastModified();
-        offlineStore.store(new OfflineSessionReplayPayload(
-                UUID.randomUUID().toString(), ts, ts, attrs, gzipped));
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_RECOVERED);
-        delete(file);
+        Map<String, Object> attrs = buildRecoveredAttributes(sessionId, bounds, isFirstChunk);
+
+        // Fire-and-forget direct report (not OfflineStorage-gated). Submitted → orphan removed;
+        // when OfflineStorage is enabled the reporter itself re-caches on a failed send.
+        boolean submitted = uploader.upload(events.toString().getBytes(), attrs);
+        if (submitted) {
+            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_RECOVERED);
+            delete(file);
+        } else {
+            // Reporter not ready yet — keep the orphan so a later launch can retry.
+            log.debug("SessionReplayOrphanRecoverer: reporter not ready, retaining [" + file.getName() + "]");
+        }
     }
 
-    private Map<String, String> buildRecoveredAttributes(SessionManifest manifest, String sessionId,
-                                                         long[] bounds, boolean isFirstChunk) {
-        AgentConfiguration cfg = AgentConfiguration.getInstance();
-        Map<String, String> attrs = new LinkedHashMap<>();
-        attrs.put(Constants.SessionReplay.ENTITY_GUID, cfg.getEntityGuid());
-        attrs.put(Constants.SessionReplay.SESSION_ID, sessionId);
-        attrs.put(Constants.SessionReplay.IS_FIRST_CHUNK, String.valueOf(isFirstChunk));
+    private Map<String, Object> buildRecoveredAttributes(String sessionId, long[] bounds, boolean isFirstChunk) {
+        Map<String, Object> attrs = new LinkedHashMap<>();
+        // Keys consumed by SessionReplaySender: timestamps, first-chunk, has-meta, and the
+        // prior session's id (sender overrides sessionId from this map) so the replay is
+        // attributed to the dead session rather than the current one.
+        attrs.put(Constants.SessionReplay.FIRST_TIMESTAMP, bounds[0]);
+        attrs.put(Constants.SessionReplay.LAST_TIMESTAMP, bounds[1]);
+        attrs.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
         attrs.put(Constants.SessionReplay.HAS_META, "true");
-        attrs.put(Constants.SessionReplay.REPLAY_FIRST_TIMESTAMP, String.valueOf(bounds[0]));
-        attrs.put(Constants.SessionReplay.REPLAY_LAST_TIMESTAMP, String.valueOf(bounds[1]));
-        attrs.put(Constants.SessionReplay.RECOVERED, "true");
-        // Prior session's frozen attributes (minimal if none were captured before death).
-        Set<AnalyticsAttribute> sessionAttrs = manifest != null ? manifest.getAttributes() : new HashSet<>();
-        for (AnalyticsAttribute a : sessionAttrs) {
-            if (a.asJsonElement() != null) {
-                attrs.put(a.getName(), a.asJsonElement().getAsString());
-            }
-        }
+        attrs.put(Constants.SessionReplay.SESSION_ID, sessionId);
         return attrs;
     }
 
@@ -198,17 +194,5 @@ public class SessionReplayOrphanRecoverer {
             return name.substring(prefix.length(), name.length() - ".tmp".length());
         }
         return null;
-    }
-
-    private static byte[] gzip(byte[] data) {
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            try (GZIPOutputStream gz = new GZIPOutputStream(bos)) {
-                gz.write(data);
-            }
-            return bos.toByteArray();
-        } catch (Exception e) {
-            return data;
-        }
     }
 }

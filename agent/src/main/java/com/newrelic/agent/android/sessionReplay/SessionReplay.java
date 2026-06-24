@@ -273,8 +273,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             File srDir = SessionReplayFileManager.getSessionReplayDataStore();
             AgentConfiguration cfg = AgentConfiguration.getInstance();
             new SessionReplayOrphanRecoverer(
-                    application, srDir, cfg.getSessionContextStore(),
-                    cfg.getOfflineSessionReplayStore(), cfg.getSessionID(),
+                    srDir, cfg.getSessionContextStore(),
+                    SessionReplayReporter::reportSessionReplayData, cfg.getSessionID(),
                     cfg.getPayloadTTL())
                     .recover();
         } catch (Exception e) {
