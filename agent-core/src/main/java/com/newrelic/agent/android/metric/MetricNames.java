@@ -44,7 +44,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_CONFIGURATION_CHANGED = SUPPORTABILITY_AGENT + "Configuration/Updated";
     public static final String SUPPORTABILITY_PAYLOAD_REMOVED_STALE = SUPPORTABILITY_AGENT + "Payload/Removed/Stale";
     public static final String SUPPORTABILITY_PAYLOAD_EVICTED = SUPPORTABILITY_AGENT + "Payload/Removed/Evicted";
-    public static final String SUPPORTABILITY_PAYLOAD_REJECTED_DEVICE_OFFLINE = SUPPORTABILITY_AGENT + "Offline/Rejected";
+    public static final String SUPPORTABILITY_PAYLOAD_REJECTED_DEVICE_OFFLINE = SUPPORTABILITY_AGENT + "Payload/Offline/Rejected";
 
     public static final String SUPPORTABILITY_PAYLOAD_CORRUPTED = SUPPORTABILITY_AGENT + "Payload/Corrupted";
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
