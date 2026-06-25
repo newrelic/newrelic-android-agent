@@ -211,16 +211,17 @@ public class EventManagerImpl implements EventManager, EventListener {
                 // next harvest can re-attribute it (see AnalyticsControllerImpl.onHarvest).
                 if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence) && eventStore != null
                         && !hasSessionId(event)) {
-                    // Stamp the current sessionId so a replay on the next launch can be
-                    // re-attributed, then strip it from the in-memory event (store() already
-                    // serialized the stamped copy to disk, and the live harvest carries sessionId
-                    // in its own session-attributes block).
-                    AnalyticsAttribute sessionIdAttr = new AnalyticsAttribute(
+                    // Persist a clone stamped with the origin sessionId (for next-launch
+                    // re-attribution), leaving the in-memory event clean so the live harvest is
+                    // unaffected. The clone keeps the same UUID so the harvest-time delete-by-UUID
+                    // still removes it. The store serializes and writes the clone off the calling
+                    // (often main) thread, so this hot path never blocks on disk I/O.
+                    AnalyticsEvent persisted = new AnalyticsEvent(event);
+                    persisted.setEventUUID(event.getEventUUID());
+                    persisted.putAttributesUnchecked(Collections.singleton(new AnalyticsAttribute(
                             AnalyticsAttribute.SESSION_ID_ATTRIBUTE,
-                            AgentConfiguration.getInstance().getSessionID(), false);
-                    event.putAttributesUnchecked(Collections.singleton(sessionIdAttr));
-                    eventStore.store(event);
-                    event.removeAttributeUnchecked(sessionIdAttr);
+                            AgentConfiguration.getInstance().getSessionID(), false)));
+                    eventStore.store(persisted);
                 }
                 eventsRecorded.incrementAndGet();
                 return true;

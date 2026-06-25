@@ -147,17 +147,6 @@ public class AnalyticsEvent extends HarvestableObject {
         }
     }
 
-    /**
-     * Removes a previously-added attribute (equality is by name). Trusted internal use, e.g. to
-     * strip a transient persistence stamp from the in-memory event after it has been serialized to
-     * the store, so the live harvest is unaffected.
-     */
-    void removeAttributeUnchecked(AnalyticsAttribute attribute) {
-        if (attribute != null) {
-            attributeSet.remove(attribute);
-        }
-    }
-
     public String getName() {
         return name;
     }

@@ -6,26 +6,25 @@
 package com.newrelic.agent.android.analytics;
 
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 public class TestEventStore implements AnalyticsEventStore {
-    Set<AnalyticsEvent> events = new HashSet<>();
+    // Keyed by event UUID to mirror FileEventStore (which stores one file per UUID and
+    // deletes by UUID), so a persisted clone is correctly de-duped and deletable.
+    Map<String, AnalyticsEvent> events = new LinkedHashMap<>();
 
     @Override
     public boolean store(AnalyticsEvent event) {
-        events.add(event);
-        Assert.assertTrue(events.contains(event));
-        return events.contains(event);
+        events.put(event.getEventUUID(), event);
+        return true;
     }
 
     @Override
     public List<AnalyticsEvent> fetchAll() {
-        return new ArrayList<>(events);
+        return new ArrayList<>(events.values());
     }
 
     @Override
@@ -40,7 +39,7 @@ public class TestEventStore implements AnalyticsEventStore {
 
     @Override
     public void delete(AnalyticsEvent event) {
-        events.remove(event);
+        events.remove(event.getEventUUID());
     }
 
     @Override
