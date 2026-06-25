@@ -15,13 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4 -- using sha to avoid malicious changes
         with:
           token: ${{ secrets.RELEASE_BOT_PAT }}
           fetch-depth: 0
 
       - id: release-please
-        uses: googleapis/release-please-action@v5
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 #v5 -- using sha to avoid malicious changes
         with:
           token: ${{ secrets.RELEASE_BOT_PAT }}
           target-branch: develop
