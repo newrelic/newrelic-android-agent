@@ -204,8 +204,23 @@ public class EventManagerImpl implements EventManager, EventListener {
 
             if (events.get().add(event)) {
                 // log.audit("Event added: [" + event.asJson() + "]");
-                if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence) && eventStore != null) {
+                // Persist only freshly-recorded events. A reloaded event from a prior session
+                // already carries its origin sessionId and is already on disk (it came from
+                // eventStore.fetchAll() at init), so re-storing it would be a redundant write of an
+                // event we just read. Skip it; it stays queued with its origin sessionId so the
+                // next harvest can re-attribute it (see AnalyticsControllerImpl.onHarvest).
+                if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence) && eventStore != null
+                        && !hasSessionId(event)) {
+                    // Stamp the current sessionId so a replay on the next launch can be
+                    // re-attributed, then strip it from the in-memory event (store() already
+                    // serialized the stamped copy to disk, and the live harvest carries sessionId
+                    // in its own session-attributes block).
+                    AnalyticsAttribute sessionIdAttr = new AnalyticsAttribute(
+                            AnalyticsAttribute.SESSION_ID_ATTRIBUTE,
+                            AgentConfiguration.getInstance().getSessionID(), false);
+                    event.putAttributesUnchecked(Collections.singleton(sessionIdAttr));
                     eventStore.store(event);
+                    event.removeAttributeUnchecked(sessionIdAttr);
                 }
                 eventsRecorded.incrementAndGet();
                 return true;
@@ -213,6 +228,16 @@ public class EventManagerImpl implements EventManager, EventListener {
 
             return false;
         }
+    }
+
+    /** @return true if the event already carries an origin sessionId (i.e. a reloaded persisted event). */
+    private static boolean hasSessionId(AnalyticsEvent event) {
+        for (AnalyticsAttribute attribute : event.getAttributeSet()) {
+            if (AnalyticsAttribute.SESSION_ID_ATTRIBUTE.equals(attribute.getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

@@ -132,6 +132,32 @@ public class AnalyticsEvent extends HarvestableObject {
         }
     }
 
+    /**
+     * Trusted internal merge used by the event-persistence session-attribution path. Bypasses
+     * {@link AnalyticsValidator} (so reserved names such as {@code sessionId} are allowed) and
+     * replaces any same-named attribute already present ({@link AnalyticsAttribute} equality is by
+     * name), so the supplied (origin-session) attributes win. Not for public/event-author use.
+     */
+    void putAttributesUnchecked(Set<AnalyticsAttribute> attrs) {
+        if (attrs != null) {
+            for (AnalyticsAttribute attribute : attrs) {
+                attributeSet.remove(attribute); // drop any same-named attr first
+                attributeSet.add(attribute);
+            }
+        }
+    }
+
+    /**
+     * Removes a previously-added attribute (equality is by name). Trusted internal use, e.g. to
+     * strip a transient persistence stamp from the in-memory event after it has been serialized to
+     * the store, so the live harvest is unaffected.
+     */
+    void removeAttributeUnchecked(AnalyticsAttribute attribute) {
+        if (attribute != null) {
+            attributeSet.remove(attribute);
+        }
+    }
+
     public String getName() {
         return name;
     }
