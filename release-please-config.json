@@ -5,7 +5,7 @@
   "include-v-in-tag": false,
   "draft": false,
   "prerelease": false,
-  "release-search-depth": 100,
+  "release-search-depth": 150,
   "packages": {
     ".": {
       "package-name": "newrelic-android-agent",
