@@ -20,7 +20,11 @@ import com.newrelic.agent.android.harvest.HarvestAdapter;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.sessioncontext.SessionContextStore;
+import com.newrelic.agent.android.sessioncontext.SessionManifest;
 import com.newrelic.agent.android.stats.StatsEngine;
+
+import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -147,9 +151,13 @@ public class NativeReporting extends HarvestAdapter {
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_NDK_REPORTS_CRASH);
 
             final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-            final Set<AnalyticsAttribute> sessionAttributes = new HashSet<AnalyticsAttribute>() {{
-                addAll(analyticsController.getSessionAttributes());
-            }};
+            // A native crash is captured in the crashing session but flushed on the next launch
+            // (after the process dies). Attribute it to the session that actually crashed — its
+            // sessionId is embedded in the native report ("backtrace.sessionid") — by resolving
+            // that session's attributes from the SessionContextStore rather than stamping the
+            // current (relaunched) session's attributes.
+            final Set<AnalyticsAttribute> sessionAttributes =
+                    new HashSet<>(resolveCrashSessionAttributes(crashAsString, analyticsController));
 
             NativeException exceptionToHandle = new NativeCrashException(crashAsString);
 
@@ -225,6 +233,43 @@ public class NativeReporting extends HarvestAdapter {
             }
 
             return false;
+        }
+
+        /**
+         * Resolve the session attributes to attach to a native crash. When the crash originated in
+         * a prior session (its {@code sessionid} differs from the current one), use that session's
+         * frozen attributes from the {@link SessionContextStore} so the crash is attributed to the
+         * session that produced it. Falls back to the current session's attributes when the origin
+         * is unknown or has no stored manifest (e.g. it crashed before its first harvest).
+         */
+        private Set<AnalyticsAttribute> resolveCrashSessionAttributes(String crashAsString,
+                                                                      AnalyticsControllerImpl controller) {
+            final String originSessionId = extractNativeSessionId(crashAsString);
+            final String currentSessionId = AgentConfiguration.getInstance().getSessionID();
+            if (originSessionId != null && !originSessionId.isEmpty()
+                    && !originSessionId.equals(currentSessionId)) {
+                final SessionContextStore store = AgentConfiguration.getInstance().getSessionContextStore();
+                final SessionManifest manifest = (store != null) ? store.get(originSessionId) : null;
+                if (manifest != null) {
+                    return manifest.getAttributes();
+                }
+                log.warn("NativeReporting: no session manifest for crash origin [" + originSessionId
+                        + "]; using current session attributes");
+            }
+            return controller.getSessionAttributes();
+        }
+
+        /** @return the originating sessionId from a native crash report ({@code backtrace.sessionid}), or null. */
+        private String extractNativeSessionId(String crashAsString) {
+            try {
+                final String sessionId = new JSONObject(crashAsString)
+                        .getJSONObject("backtrace")
+                        .optString("sessionid", null);
+                return (sessionId == null || sessionId.isEmpty()) ? null : sessionId;
+            } catch (Exception e) {
+                log.warn("NativeReporting: could not read sessionid from native report: " + e);
+                return null;
+            }
         }
 
     }
