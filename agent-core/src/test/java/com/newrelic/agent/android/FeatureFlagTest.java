@@ -69,6 +69,7 @@ public class FeatureFlagTest {
         Assert.assertTrue("AppStartMetrics is enabled by default", FeatureFlag.featureEnabled(AppStartMetrics));
         Assert.assertTrue("ApplicationExitReporting is enabled by default", FeatureFlag.featureEnabled(ApplicationExitReporting));
         Assert.assertTrue("LogReporting is enabled by default", FeatureFlag.featureEnabled(LogReporting));
+        Assert.assertTrue("EventPersistence is enabled by default", FeatureFlag.featureEnabled(EventPersistence));
     }
 
     @Test
@@ -76,7 +77,6 @@ public class FeatureFlagTest {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));
-        Assert.assertFalse("EventPersistence is disabled by default", FeatureFlag.featureEnabled(EventPersistence));
     }
 
     @Test
