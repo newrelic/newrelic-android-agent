@@ -23,6 +23,8 @@ import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.sessioncontext.SessionContextStore;
+import com.newrelic.agent.android.sessioncontext.SessionManifest;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Streams;
 import com.newrelic.agent.android.error.Error;
@@ -35,6 +37,7 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -212,6 +215,15 @@ public class ApplicationExitMonitor {
                     log.debug("ApplicationExitMonitor: Using session meta [" + sessionMeta.sessionId + ", " + sessionMeta.realAgentId + "] for AEI pid[" + exitInfo.getPid() + "]");
                 }
 
+                // Record the OS exit reason into the prior session's manifest so the next-launch
+                // Session Replay recoverer can decide whether the buffered replay is worth uploading.
+                if (sessionMeta != null && sessionMeta.sessionId != null && !sessionMeta.sessionId.isEmpty()) {
+                    SessionContextStore scStore = AgentConfiguration.getInstance().getSessionContextStore();
+                    if (scStore != null) {
+                        scStore.updateExitReason(sessionMeta.sessionId, exitInfo.getReason());
+                    }
+                }
+
                 // finally, emit an event for the record
                 final HashMap<String, Object> eventAttributes;
                 try {
@@ -227,8 +239,7 @@ public class ApplicationExitMonitor {
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_SKIPPED, recordsSkipped.get());
 //                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_AEI_DROPPED, recordsDropped.get());
 
-                final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-                Error error = new Error(analyticsController.getSessionAttributes(), eventAttributes, sessionMeta);
+                Error error = new Error(resolveSessionAttributes(sessionMeta), eventAttributes, sessionMeta);
 
                 traceReporter.reportAEITrace(error.asJsonObject().toString(), exitInfo.getPid());
             }
@@ -245,6 +256,38 @@ public class ApplicationExitMonitor {
             log.warn("ApplicationExitMonitor: exit info reporting was enabled, but not supported by the current OS");
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_AEI_UNSUPPORTED_OS + Build.VERSION.SDK_INT);
         }
+    }
+
+    /**
+     * Resolve the session attributes to attach to an AEI for {@code sessionMeta}'s prior
+     * session. Prefers the frozen {@link SessionManifest} recorded for that session id — the
+     * source of truth, used even if it captured no attributes.
+     *
+     * <p>If a prior session was mapped but its manifest is absent — most notably right after an
+     * agent upgrade, where the prior session ran under a version that never persisted session
+     * context, but also if the manifest was evicted or the session died before its first
+     * harvest — fall back to the current session's attributes. This reproduces the agent's
+     * pre-NR-575950 behavior for that transitional window rather than shipping an attribute-less
+     * event, and the {@code SessionContext/Missing} metric counts that specific case (a mapped
+     * prior session with no manifest). The metric is intentionally NOT bumped when there is no
+     * prior-session mapping at all, no store configured, or an empty session id, so it stays a
+     * clean signal for "manifest missing" rather than "nothing to look up."
+     */
+    Set<AnalyticsAttribute> resolveSessionAttributes(AEISessionMapper.AEISessionMeta sessionMeta) {
+        SessionContextStore store = AgentConfiguration.getInstance().getSessionContextStore();
+        if (store != null && sessionMeta != null
+                && sessionMeta.sessionId != null && !sessionMeta.sessionId.isEmpty()) {
+            SessionManifest manifest = store.get(sessionMeta.sessionId);
+            if (manifest != null) {
+                Set<AnalyticsAttribute> frozen = manifest.getAttributes();
+                return frozen == null ? Collections.emptySet() : frozen;
+            }
+            // Mapped a prior session but its manifest is absent — the only case that means
+            // "manifest missing." Count it here so the metric isn't diluted by the no-mapping paths.
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_MISSING);
+        }
+        AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+        return analyticsController == null ? Collections.emptySet() : analyticsController.getSessionAttributes();
     }
 
     /**

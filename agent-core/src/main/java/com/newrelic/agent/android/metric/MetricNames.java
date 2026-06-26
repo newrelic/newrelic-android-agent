@@ -47,6 +47,15 @@ public class MetricNames {
     public static final String SUPPORTABILITY_PAYLOAD_CORRUPTED = SUPPORTABILITY_AGENT + "Payload/Corrupted";
     public static final String SUPPORTABILITY_JS_ERROR_EVICTED = SUPPORTABILITY_AGENT + "JSError/Removed/Evicted";
     public static final String SUPPORTABILITY_JS_ERROR_CORRUPTED = SUPPORTABILITY_AGENT + "JSError/Corrupted";
+    public static final String SUPPORTABILITY_SESSION_CONTEXT_EVICTED = SUPPORTABILITY_AGENT + "SessionContext/Removed/Evicted";
+    public static final String SUPPORTABILITY_SESSION_CONTEXT_CORRUPTED = SUPPORTABILITY_AGENT + "SessionContext/Corrupted";
+    public static final String SUPPORTABILITY_SESSION_CONTEXT_MISSING = SUPPORTABILITY_AGENT + "SessionContext/Missing";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_RECOVERED = SUPPORTABILITY_AGENT + "SessionReplay/Recovered";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_RECOVER_SKIPPED = SUPPORTABILITY_AGENT + "SessionReplay/Recover/Skipped";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_RECOVER_STALE = SUPPORTABILITY_AGENT + "SessionReplay/Recover/Stale";
+    public static final String SUPPORTABILITY_SESSION_REPLAY_RECOVER_CORRUPT = SUPPORTABILITY_AGENT + "SessionReplay/Recover/Corrupt";
+    public static final String SUPPORTABILITY_EVENT_PERSISTENCE_REATTRIBUTED = SUPPORTABILITY_AGENT + "EventPersistence/Reattributed";
+    public static final String SUPPORTABILITY_EVENT_PERSISTENCE_MANIFEST_MISSING = SUPPORTABILITY_AGENT + "EventPersistence/ManifestMissing";
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
 

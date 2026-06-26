@@ -63,6 +63,7 @@ public class FileEventStoreTest {
 
         Assert.assertTrue(store.store(a));
         Assert.assertTrue(store.store(b));
+        store.awaitWrites(5000);
         Assert.assertEquals(2, store.count());
 
         List<AnalyticsEvent> fetched = store.fetchAll();
@@ -96,6 +97,7 @@ public class FileEventStoreTest {
 
         Assert.assertEquals(3, store.count());
         Assert.assertTrue(store.store(newest));
+        store.awaitWrites(5000);
         Assert.assertEquals(3, store.count());
 
         Assert.assertTrue("eviction metric should fire",
@@ -106,6 +108,7 @@ public class FileEventStoreTest {
     public void store_writesAtomically() {
         AnalyticsEvent e = new AnalyticsEvent("atomic");
         Assert.assertTrue(store.store(e));
+        store.awaitWrites(5000);
 
         File[] jsonFiles = cacheDir.listFiles((d, n) -> n.endsWith(AbstractFileStore.FILE_SUFFIX));
         File[] tmpFiles = cacheDir.listFiles((d, n) -> n.endsWith(AbstractFileStore.TMP_SUFFIX));
@@ -135,6 +138,7 @@ public class FileEventStoreTest {
     public void fetchAll_skipsCorruptedFiles() throws IOException {
         AnalyticsEvent good = new AnalyticsEvent("good");
         Assert.assertTrue(store.store(good));
+        store.awaitWrites(5000);
 
         File corrupt = new File(cacheDir, "garbage" + AbstractFileStore.FILE_SUFFIX);
         try (OutputStream os = new FileOutputStream(corrupt)) {
@@ -154,6 +158,7 @@ public class FileEventStoreTest {
         AnalyticsEvent e = new AnalyticsEvent("dup");
         Assert.assertTrue(store.store(e));
         Assert.assertTrue(store.store(e));
+        store.awaitWrites(5000);
         Assert.assertEquals(1, store.count());
     }
 
@@ -162,6 +167,7 @@ public class FileEventStoreTest {
         AnalyticsEvent missing = new AnalyticsEvent("never");
         store.delete(missing);
         store.delete(missing);
+        store.awaitWrites(5000);
         Assert.assertEquals(0, store.count());
     }
 
@@ -169,6 +175,7 @@ public class FileEventStoreTest {
     public void clear_removesEverything() throws IOException {
         AnalyticsEvent e = new AnalyticsEvent("gone");
         Assert.assertTrue(store.store(e));
+        store.awaitWrites(5000);
         File strayTmp = new File(cacheDir, "stray" + AbstractFileStore.TMP_SUFFIX);
         try (OutputStream os = new FileOutputStream(strayTmp)) {
             os.write("tmp".getBytes(StandardCharsets.UTF_8));
@@ -232,12 +239,14 @@ public class FileEventStoreTest {
         deleter.start();
         start.countDown();
         Assert.assertTrue(done.await(10, TimeUnit.SECONDS));
+        store.awaitWrites(5000);
 
         Assert.assertEquals(0, failures.get());
         Assert.assertTrue(store.count() >= 0);
     }
 
     private void setFileMtime(AnalyticsEvent e, long mtime) {
+        store.awaitWrites(5000);
         File f = new File(cacheDir, e.getEventUUID() + AbstractFileStore.FILE_SUFFIX);
         Assert.assertTrue("Expected file to exist for " + e.getEventUUID(), f.exists());
         Assert.assertTrue("Setting mtime should succeed", f.setLastModified(mtime));

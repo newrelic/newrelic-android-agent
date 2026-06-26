@@ -101,9 +101,6 @@ public class JSErrorDataControllerFeatureFlagTest {
         final Map<String, String> data = new HashMap<>();
         /** Released after the first {@link #store} call so tests can join the worker thread. */
         final CountDownLatch stored = new CountDownLatch(1);
-    private static final class CountingJSErrorStore implements JSErrorStore {
-        final AtomicInteger storeCalls = new AtomicInteger(0);
-        final Map<String, String> data = new HashMap<>();
 
         @Override
         public boolean store(String id, String value) {

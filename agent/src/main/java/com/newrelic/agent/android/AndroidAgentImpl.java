@@ -60,6 +60,8 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
 import com.newrelic.agent.android.hybrid.FileJSErrorStore;
+import com.newrelic.agent.android.sessioncontext.FileSessionContextStore;
+import com.newrelic.agent.android.sessioncontext.SessionContextManager;
 import com.newrelic.agent.android.payload.FilePayloadStore;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.sample.MachineMeasurementConsumer;
@@ -175,6 +177,8 @@ public class AndroidAgentImpl implements
         agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
         context.deleteSharedPreferences("NRJSErrorStore");
 
+        agentConfiguration.setSessionContextStore(new FileSessionContextStore(context, agentConfiguration));
+
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         // used to determine when app backgrounds
         final UiBackgroundListener backgroundListener;
@@ -254,6 +258,8 @@ public class AndroidAgentImpl implements
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_UNCAUGHT_HANDLER
                 .replace(MetricNames.TAG_NAME, getUnhandledExceptionHandlerName()));
         PayloadController.initialize(agentConfiguration);
+
+        SessionContextManager.initialize();
 
         // Set up the sampler
         Sampler.init(context);
@@ -1172,6 +1178,11 @@ public class AndroidAgentImpl implements
 
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
             startSessionReplayRecorder(context, agentConfiguration);
+
+            // Recover orphaned SR buffers from a prior abnormal termination. Runs here (not at SR
+            // init) so the reporter is initialized and the prior session's AEI exit reasons have
+            // already been recorded into the manifests above.
+            SessionReplay.recoverOrphans();
 
             // Re-coordinate logging override after SR reseed — mode may have changed
             SessionReplayMode currentSrMode = SessionReplay.getCurrentMode();

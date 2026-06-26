@@ -41,6 +41,7 @@ public final class Constants {
         public static final String CONTENT_ENCODING = "content_encoding";
         public static final String APP_VERSION = "appVersion";
         public static final String SESSION_ID = "sessionId";
+        public static final String RECOVERED = "recovered";
         public static final String FIRST_TIMESTAMP = "firstTimestamp";
         public static final String LAST_TIMESTAMP = "lastTimestamp";
 

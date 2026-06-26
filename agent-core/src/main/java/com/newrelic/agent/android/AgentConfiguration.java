@@ -12,6 +12,7 @@ import com.newrelic.agent.android.crash.CrashStore;
 import com.newrelic.agent.android.harvest.HarvestConfigurable;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.hybrid.JSErrorStore;
+import com.newrelic.agent.android.sessioncontext.SessionContextStore;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.LogLevel;
@@ -59,6 +60,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     public static final int DEFAULT_MAX_CACHED_PAYLOAD_COUNT = Integer.MAX_VALUE;
 
     public static final int DEFAULT_MAX_CACHED_JS_ERROR_COUNT = Integer.MAX_VALUE;
+    public static final int DEFAULT_MAX_CACHED_SESSION_CONTEXT_COUNT = 32;
 
     public static final int DEFAULT_MAX_CACHED_CRASH_COUNT = Integer.MAX_VALUE;
 
@@ -86,12 +88,14 @@ public class AgentConfiguration implements HarvestConfigurable {
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
     private int maxCachedPayloadCount = DEFAULT_MAX_CACHED_PAYLOAD_COUNT;
     private int maxCachedJsErrorCount = DEFAULT_MAX_CACHED_JS_ERROR_COUNT;
+    private int maxCachedSessionContextCount = DEFAULT_MAX_CACHED_SESSION_CONTEXT_COUNT;
     private int maxCachedCrashCount = DEFAULT_MAX_CACHED_CRASH_COUNT;
     private int maxCachedEventCount = DEFAULT_MAX_CACHED_EVENT_COUNT;
     private AnalyticsEventStore eventStore;
     private SessionReplayStore sessionReplayStore;
     private OfflineSessionReplayStore offlineSessionReplayStore;
     private JSErrorStore jsErrorStore;
+    private SessionContextStore sessionContextStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
@@ -197,6 +201,14 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setJsErrorStore(JSErrorStore jsErrorStore) {
         this.jsErrorStore = jsErrorStore;
+    }
+
+    public SessionContextStore getSessionContextStore() {
+        return sessionContextStore;
+    }
+
+    public void setSessionContextStore(SessionContextStore sessionContextStore) {
+        this.sessionContextStore = sessionContextStore;
     }
 
     public boolean getReportHandledExceptions() {
@@ -337,6 +349,14 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setMaxCachedJsErrorCount(int n) {
         this.maxCachedJsErrorCount = n > 0 ? n : DEFAULT_MAX_CACHED_JS_ERROR_COUNT;
+    }
+
+    public int getMaxCachedSessionContextCount() {
+        return maxCachedSessionContextCount;
+    }
+
+    public void setMaxCachedSessionContextCount(int n) {
+        this.maxCachedSessionContextCount = n > 0 ? n : DEFAULT_MAX_CACHED_SESSION_CONTEXT_COUNT;
     }
 
     public int getMaxCachedCrashCount() {
