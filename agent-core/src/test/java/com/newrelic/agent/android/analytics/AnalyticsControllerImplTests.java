@@ -7,6 +7,8 @@ package com.newrelic.agent.android.analytics;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.sessioncontext.SessionContextStore;
+import com.newrelic.agent.android.sessioncontext.SessionManifest;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.Harvest;
@@ -95,6 +97,55 @@ public class AnalyticsControllerImplTests {
     @After
     public void tearDown() throws Exception {
 
+    }
+
+    @Test
+    public void reattributesRecoveredEventToOriginSession() {
+        InMemorySessionContextStore store = new InMemorySessionContextStore();
+        AgentConfiguration.getInstance().setSessionContextStore(store);
+        String current = AgentConfiguration.getInstance().getSessionID();
+
+        Set<AnalyticsAttribute> originAttrs = new HashSet<AnalyticsAttribute>();
+        originAttrs.add(new AnalyticsAttribute("userId", "u1"));
+        store.upsert(new SessionManifest("S_OLD", 7, 0L, 0L, originAttrs));
+
+        AnalyticsEvent recovered = stampedEvent("recovered", "S_OLD");
+        AnalyticsEvent live = stampedEvent("live", current);
+
+        controller.reattributeRecoveredEvents(Arrays.asList(recovered, live));
+
+        // Recovered event picks up its origin session's attributes, keyed to the dead session.
+        Assert.assertEquals("u1", attrValue(recovered, "userId"));
+        Assert.assertEquals("S_OLD", attrValue(recovered, AnalyticsAttribute.SESSION_ID_ATTRIBUTE));
+        // Live (current-session) event is left for the harvest's current-session block.
+        Assert.assertNull(attrValue(live, "userId"));
+    }
+
+    @Test
+    public void manifestMissingKeepsOriginSessionId() {
+        AgentConfiguration.getInstance().setSessionContextStore(new InMemorySessionContextStore());
+        AnalyticsEvent recovered = stampedEvent("recovered", "S_GONE");
+
+        controller.reattributeRecoveredEvents(Arrays.asList(recovered));
+
+        Assert.assertEquals("S_GONE", attrValue(recovered, AnalyticsAttribute.SESSION_ID_ATTRIBUTE));
+    }
+
+    private static AnalyticsEvent stampedEvent(String name, String sessionId) {
+        AnalyticsEvent event = new AnalyticsEvent(name);
+        Set<AnalyticsAttribute> attrs = new HashSet<AnalyticsAttribute>();
+        attrs.add(new AnalyticsAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, sessionId, false));
+        event.putAttributesUnchecked(attrs);
+        return event;
+    }
+
+    private static String attrValue(AnalyticsEvent event, String name) {
+        for (AnalyticsAttribute a : event.getAttributeSet()) {
+            if (name.equals(a.getName())) {
+                return a.getStringValue();
+            }
+        }
+        return null;
     }
 
     @Test
@@ -1206,5 +1257,18 @@ public class AnalyticsControllerImplTests {
         protected Harvester getHarvester() {
             return new HarvesterStub();
         }
+    }
+
+    private static class InMemorySessionContextStore implements SessionContextStore {
+        final Map<String, SessionManifest> map = new HashMap<String, SessionManifest>();
+
+        @Override public boolean upsert(SessionManifest m) { map.put(m.getSessionId(), m); return true; }
+        @Override public SessionManifest get(String id) { return map.get(id); }
+        @Override public List<SessionManifest> fetchAll() { return new ArrayList<SessionManifest>(map.values()); }
+        @Override public void delete(String id) { map.remove(id); }
+        @Override public int count() { return map.size(); }
+        @Override public void clear() { map.clear(); }
+        @Override public void updateSessionReplayState(String id, boolean reachedFullMode, boolean isFirstChunk) { }
+        @Override public void updateExitReason(String id, int exitReason) { }
     }
 }
