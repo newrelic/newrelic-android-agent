@@ -269,4 +269,26 @@ public class OfflineStorageTest {
         boolean saved = instance.persistHarvestDataToDisk(payload);
         Assert.assertFalse("Should return false when payload exceeds cap", saved);
     }
+
+    @Test
+    public void testOversizedPayloadDoesNotEvictExistingFiles() {
+        // Store a small payload that fits within cap
+        instance.setOfflineStorageSize(50);
+        Assert.assertTrue(instance.persistHarvestDataToDisk("{'ok':'data'}"));
+
+        File[] filesBefore = instance.getOfflineStorage().listFiles();
+        Assert.assertNotNull(filesBefore);
+        Assert.assertEquals(1, filesBefore.length);
+
+        // Payload larger than the cap — should be rejected without evicting the stored file
+        String oversized = "{'k':'v','padding':'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}";
+        Assert.assertTrue("oversized payload must exceed cap for this test", oversized.getBytes().length > 50);
+
+        boolean saved = instance.persistHarvestDataToDisk(oversized);
+        Assert.assertFalse("Oversized payload should be rejected", saved);
+
+        File[] filesAfter = instance.getOfflineStorage().listFiles();
+        Assert.assertNotNull(filesAfter);
+        Assert.assertEquals("Existing files must not be evicted by an oversized payload", 1, filesAfter.length);
+    }
 }

@@ -40,7 +40,11 @@ public class OfflineStorage {
     public boolean persistHarvestDataToDisk(String data) {
         boolean isSaved = false;
         try {
-            double totalData = getTotalFileSize() + data.getBytes().length;
+            long payloadSize = data.getBytes().length;
+            if (payloadSize > offlineStorageSize) {
+                return false;
+            }
+            double totalData = getTotalFileSize() + payloadSize;
             if (totalData > offlineStorageSize) {
                 File[] files = offlineStorage.listFiles();
                 if (files != null && files.length > 0) {
@@ -52,8 +56,10 @@ public class OfflineStorage {
                     });
                     for (File file : files) {
                         if (file.length() > 0) {
-                            totalData -= file.length();
-                            file.delete();
+                            long fileSize = file.length();
+                            if (file.delete()) {
+                                totalData -= fileSize;
+                            }
                         }
                         if (totalData <= offlineStorageSize) {
                             break;
