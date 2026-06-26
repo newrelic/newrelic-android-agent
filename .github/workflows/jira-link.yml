@@ -1,6 +1,6 @@
 name: Add JIRA Links
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, edited, reopened]
 
   workflow_dispatch:

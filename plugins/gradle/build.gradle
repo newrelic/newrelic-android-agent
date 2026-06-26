@@ -182,6 +182,13 @@ tasks.named('check') {
 
 shadowJar {
     archiveClassifier = null
+
+    // Relocate bundled commons-io so the plugin jar does not pollute the root
+    // buildscript classpath with an unrelocated copy. Without this, the pinned
+    // commons-io version collides with newer commons-io required by other
+    // applied plugins (e.g. Guardsquare/DexGuard), causing NoSuchMethodError
+    // on the shared buildscript classloader. See NR-577053 / issue #560.
+    relocate 'org.apache.commons.io', 'com.newrelic.org.apache.commons.io'
 }
 
 artifacts {
