@@ -112,7 +112,14 @@ public class NativeReporting extends HarvestAdapter {
         if (NativeReporting.isInitialized()) {
             try {
                 agentNdk.get().stop();
-            } catch (Exception e) {
+            } catch (Exception | LinkageError e) {
+                // AgentNDK.stop()/nativeStop() have changed return type across agent-ndk
+                // releases (void <-> boolean). agent-ndk is a compileOnly dependency whose
+                // version the host app resolves independently (often via a dynamic "1.+"
+                // range), so the method descriptor this agent was compiled against can differ
+                // from the AgentNDK class loaded at runtime. That surfaces here as a
+                // NoSuchMethodError (a LinkageError, not an Exception). The return value is
+                // unused, so degrade gracefully on shutdown instead of crashing the app.
                 log.error(e.toString());
             }
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_NDK_STOP);
