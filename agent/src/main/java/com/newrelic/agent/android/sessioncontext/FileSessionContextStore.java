@@ -40,12 +40,53 @@ public class FileSessionContextStore extends AbstractFileStore<SessionManifest> 
     }
 
     @Override
-    public boolean upsert(SessionManifest manifest) {
+    public synchronized boolean upsert(SessionManifest manifest) {
         if (manifest == null || !manifest.isValid()) {
             log.warn("FileSessionContextStore.upsert: null or invalid manifest");
             return false;
         }
-        return storeInternal(manifest);
+        SessionManifest existing = get(manifest.getSessionId());
+        SessionManifest merged = (existing == null) ? manifest : new SessionManifest(
+                SessionManifest.CURRENT_SCHEMA_VERSION,
+                manifest.getSessionId(), manifest.getRealAgentId(),
+                manifest.getSessionStartMs(), manifest.getLastUpdateMs(),
+                manifest.getAttributes(),
+                manifest.getReachedFullMode() != null ? manifest.getReachedFullMode() : existing.getReachedFullMode(),
+                manifest.getIsFirstChunk() != null ? manifest.getIsFirstChunk() : existing.getIsFirstChunk(),
+                manifest.getExitReason() != null ? manifest.getExitReason() : existing.getExitReason());
+        return storeInternal(merged);
+    }
+
+    @Override
+    public synchronized void updateSessionReplayState(String sessionId, boolean reachedFullMode, boolean isFirstChunk) {
+        if (sessionId == null || sessionId.isEmpty()) {
+            return;
+        }
+        SessionManifest existing = get(sessionId);
+        long now = existing != null ? existing.getLastUpdateMs() : 0L;
+        SessionManifest merged = new SessionManifest(
+                SessionManifest.CURRENT_SCHEMA_VERSION, sessionId,
+                existing != null ? existing.getRealAgentId() : 0,
+                existing != null ? existing.getSessionStartMs() : 0L, now,
+                existing != null ? existing.getAttributes() : null,
+                reachedFullMode, isFirstChunk,
+                existing != null ? existing.getExitReason() : null);
+        storeInternal(merged);
+    }
+
+    @Override
+    public synchronized void updateExitReason(String sessionId, int exitReason) {
+        if (sessionId == null || sessionId.isEmpty()) {
+            return;
+        }
+        SessionManifest existing = get(sessionId);
+        if (existing == null) {
+            return; // No record to attach an exit reason to.
+        }
+        storeInternal(new SessionManifest(
+                SessionManifest.CURRENT_SCHEMA_VERSION, sessionId, existing.getRealAgentId(),
+                existing.getSessionStartMs(), existing.getLastUpdateMs(), existing.getAttributes(),
+                existing.getReachedFullMode(), existing.getIsFirstChunk(), Integer.valueOf(exitReason)));
     }
 
     @Override

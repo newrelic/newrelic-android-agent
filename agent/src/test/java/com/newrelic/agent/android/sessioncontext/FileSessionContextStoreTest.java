@@ -161,4 +161,23 @@ public class FileSessionContextStoreTest {
         Assert.assertTrue(StatsEngine.get().getStatsMap()
                 .containsKey(MetricNames.SUPPORTABILITY_SESSION_CONTEXT_CORRUPTED));
     }
+
+    @Test
+    public void updatersMergeAndUpsertPreservesInternalFields() {
+        // SR writes its state first (no context yet) — creates a minimal record.
+        store.updateSessionReplayState("S_A", true, true);
+        // Manager upsert with null internal fields must preserve the SR state.
+        store.upsert(new SessionManifest("S_A", 9, 1L, 2L, attrs("k", "v")));
+        SessionManifest m = store.get("S_A");
+        Assert.assertEquals(Boolean.TRUE, m.getReachedFullMode());
+        Assert.assertEquals(Boolean.TRUE, m.getIsFirstChunk());
+        Assert.assertEquals(9, m.getRealAgentId());
+        Assert.assertEquals(1, m.getAttributes().size());
+        // AEI writes the exit reason, preserving SR + context.
+        store.updateExitReason("S_A", 6);
+        m = store.get("S_A");
+        Assert.assertEquals(Integer.valueOf(6), m.getExitReason());
+        Assert.assertEquals(Boolean.TRUE, m.getReachedFullMode());
+        Assert.assertEquals(1, m.getAttributes().size());
+    }
 }

@@ -35,6 +35,9 @@ public class SessionManifest {
     static final String KEY_SESSION_START_MS = "sessionStartMs";
     static final String KEY_LAST_UPDATE_MS = "lastUpdateMs";
     static final String KEY_ATTRIBUTES = "attributes";
+    static final String KEY_REACHED_FULL_MODE = "reachedFullMode";
+    static final String KEY_IS_FIRST_CHUNK = "isFirstChunk";
+    static final String KEY_EXIT_REASON = "exitReason";
 
     private final int schemaVersion;
     private final String sessionId;
@@ -42,20 +45,35 @@ public class SessionManifest {
     private final long sessionStartMs;
     private final long lastUpdateMs;
     private final Set<AnalyticsAttribute> attributes;
+    // Internal, never-sent fields. null = "unknown / not set by any writer".
+    private final Boolean reachedFullMode;
+    private final Boolean isFirstChunk;
+    private final Integer exitReason;
 
     public SessionManifest(String sessionId, int realAgentId, long sessionStartMs,
                            long lastUpdateMs, Set<AnalyticsAttribute> attributes) {
-        this(CURRENT_SCHEMA_VERSION, sessionId, realAgentId, sessionStartMs, lastUpdateMs, attributes);
+        this(CURRENT_SCHEMA_VERSION, sessionId, realAgentId, sessionStartMs, lastUpdateMs,
+                attributes, null, null, null);
     }
 
     SessionManifest(int schemaVersion, String sessionId, int realAgentId, long sessionStartMs,
                     long lastUpdateMs, Set<AnalyticsAttribute> attributes) {
+        this(schemaVersion, sessionId, realAgentId, sessionStartMs, lastUpdateMs,
+                attributes, null, null, null);
+    }
+
+    public SessionManifest(int schemaVersion, String sessionId, int realAgentId, long sessionStartMs,
+                           long lastUpdateMs, Set<AnalyticsAttribute> attributes,
+                           Boolean reachedFullMode, Boolean isFirstChunk, Integer exitReason) {
         this.schemaVersion = schemaVersion;
         this.sessionId = sessionId == null ? "" : sessionId;
         this.realAgentId = realAgentId;
         this.sessionStartMs = sessionStartMs;
         this.lastUpdateMs = lastUpdateMs;
         this.attributes = attributes == null ? new HashSet<>() : new HashSet<>(attributes);
+        this.reachedFullMode = reachedFullMode;
+        this.isFirstChunk = isFirstChunk;
+        this.exitReason = exitReason;
     }
 
     public int getSchemaVersion() {
@@ -82,6 +100,18 @@ public class SessionManifest {
         return Collections.unmodifiableSet(attributes);
     }
 
+    public Boolean getReachedFullMode() {
+        return reachedFullMode;
+    }
+
+    public Boolean getIsFirstChunk() {
+        return isFirstChunk;
+    }
+
+    public Integer getExitReason() {
+        return exitReason;
+    }
+
     public boolean isValid() {
         return sessionId != null && !sessionId.isEmpty();
     }
@@ -102,6 +132,17 @@ public class SessionManifest {
             }
         }
         root.add(KEY_ATTRIBUTES, attrs);
+
+        // Internal, never-sent fields live at the manifest top level, never inside attributes.
+        if (reachedFullMode != null) {
+            root.addProperty(KEY_REACHED_FULL_MODE, reachedFullMode);
+        }
+        if (isFirstChunk != null) {
+            root.addProperty(KEY_IS_FIRST_CHUNK, isFirstChunk);
+        }
+        if (exitReason != null) {
+            root.addProperty(KEY_EXIT_REASON, exitReason);
+        }
         return root;
     }
 
@@ -121,6 +162,11 @@ public class SessionManifest {
         } else {
             attributes = new HashSet<>();
         }
-        return new SessionManifest(schemaVersion, sessionId, realAgentId, sessionStartMs, lastUpdateMs, attributes);
+
+        Boolean reachedFullMode = root.has(KEY_REACHED_FULL_MODE) ? root.get(KEY_REACHED_FULL_MODE).getAsBoolean() : null;
+        Boolean isFirstChunk = root.has(KEY_IS_FIRST_CHUNK) ? root.get(KEY_IS_FIRST_CHUNK).getAsBoolean() : null;
+        Integer exitReason = root.has(KEY_EXIT_REASON) ? root.get(KEY_EXIT_REASON).getAsInt() : null;
+        return new SessionManifest(schemaVersion, sessionId, realAgentId, sessionStartMs, lastUpdateMs,
+                attributes, reachedFullMode, isFirstChunk, exitReason);
     }
 }
