@@ -1,0 +1,136 @@
+name: Nightly Release
+
+# CDD rollout step 1: workflow_dispatch only until end-to-end verification is complete.
+# Uncomment schedule (step 3) after a successful manual run.
+on:
+  # schedule:
+  #   - cron: '0 2 * * *'  # 2:00 AM UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Skip check and version resolution
+    runs-on: ubuntu-latest
+    outputs:
+      skip:            ${{ steps.skip-check.outputs.skip }}
+      date:            ${{ steps.vars.outputs.date }}
+      nightly_version: ${{ steps.vars.outputs.nightly_version }}
+      tag:             ${{ steps.vars.outputs.tag }}
+      head_sha:        ${{ steps.vars.outputs.head_sha }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Skip if no new commits since last nightly
+        id: skip-check
+        run: |
+          LAST_NIGHTLY=$(git tag -l 'nightly-*' --sort=-version:refname | head -1)
+          if [ -z "$LAST_NIGHTLY" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          LAST_NIGHTLY_SHA=$(git rev-list -n 1 "$LAST_NIGHTLY")
+          HEAD_SHA=$(git rev-parse HEAD)
+          if [ "$LAST_NIGHTLY_SHA" = "$HEAD_SHA" ]; then
+            echo "No new commits since $LAST_NIGHTLY — skipping nightly."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve version and date
+        if: steps.skip-check.outputs.skip != 'true'
+        id: vars
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          DATE_COMPACT=$(date -u +%Y%m%d)
+          BASE_VERSION=$(grep '^newrelic\.agent\.version' gradle.properties \
+            | sed 's/.*=\s*\([0-9][0-9.]*\).*/\1/')
+          echo "date=${DATE}"                                             >> "$GITHUB_OUTPUT"
+          echo "nightly_version=${BASE_VERSION}-nightly-${DATE_COMPACT}" >> "$GITHUB_OUTPUT"
+          echo "tag=nightly-${DATE}"                                      >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(git rev-parse HEAD)"                           >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build and test
+    needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
+    uses: ./.github/workflows/android.yml
+    with:
+      ref: develop
+
+  publish:
+    name: Publish nightly artifacts to Sonatype
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: develop
+
+      - name: Set up JDK 17
+        # TODO: pin to full commit SHA per CDD threat model (actions/setup-java v3)
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Publish to Sonatype
+        env:
+          ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKeyId:      ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingPassword:   ${{ secrets.SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey:        ${{ secrets.SIGNING_KEY }}
+        run: |
+          ./gradlew clean publishToSonatype closeSonatypeStagingRepository \
+            --max-workers 1 \
+            "-Pnewrelic.agent.version=${{ needs.prepare.outputs.nightly_version }}"
+
+  release:
+    name: Tag and create GitHub pre-release
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Create and push nightly tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ needs.prepare.outputs.tag }}"
+          git push origin "${{ needs.prepare.outputs.tag }}"
+
+      - name: Create GitHub pre-release
+        env:
+          GH_TOKEN:        ${{ github.token }}
+          TAG:             ${{ needs.prepare.outputs.tag }}
+          DATE:            ${{ needs.prepare.outputs.date }}
+          HEAD_SHA:        ${{ needs.prepare.outputs.head_sha }}
+          NIGHTLY_VERSION: ${{ needs.prepare.outputs.nightly_version }}
+        run: |
+          {
+            echo "Nightly pre-release from \`main\` at commit \`${HEAD_SHA}\`."
+            echo ""
+            echo "**Maven artifact version:** \`${NIGHTLY_VERSION}\`"
+            echo ""
+            echo '```groovy'
+            echo "implementation 'com.newrelic.agent.android:android-agent:${NIGHTLY_VERSION}'"
+            echo '```'
+            echo ""
+            echo "> Pre-release build — not intended for production use."
+          } > /tmp/release-notes.md
+
+          gh release create "$TAG" \
+            --title "Nightly Build — ${DATE}" \
+            --notes-file /tmp/release-notes.md \
+            --prerelease
