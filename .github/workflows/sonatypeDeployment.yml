@@ -6,6 +6,18 @@ on:
   pull_request:
     branches: ["main", "release/*"]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Artifact version override (e.g. nightly build version)'
+        required: false
+        type: string
+        default: ''
+      ref:
+        description: 'Git ref to check out'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   publish_release:
@@ -13,6 +25,8 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@v3
+          with:
+            ref: ${{ inputs.ref || github.sha }}
         - name: Setup JDK 17
           uses: actions/setup-java@v3
           with:
@@ -26,7 +40,10 @@ jobs:
             ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.SIGNING_KEY_ID }}
             ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
             ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
-          run: ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1
+          run: |
+            EXTRA=""
+            [ -n "${{ inputs.version }}" ] && EXTRA="-Pnewrelic.agent.version=${{ inputs.version }}"
+            ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1 $EXTRA
           
         # - name: Upload staged artifacts to Central Sonatype
         #   env:
@@ -58,6 +75,8 @@ jobs:
      runs-on: ubuntu-latest
      steps:
        - uses: actions/checkout@v3
+         with:
+           ref: ${{ inputs.ref || github.sha }}
        - name: Setup JDK 17
          uses: actions/setup-java@v3
          with:
@@ -71,4 +90,7 @@ jobs:
            ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.SIGNING_KEY_ID }}
            ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
            ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
-         run: ./gradlew clean publishToSonatype closeSonatypeStagingRepository  --max-workers 1 -PmonoEnabled=true
+         run: |
+           EXTRA=""
+           [ -n "${{ inputs.version }}" ] && EXTRA="-Pnewrelic.agent.version=${{ inputs.version }}"
+           ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1 -PmonoEnabled=true $EXTRA
