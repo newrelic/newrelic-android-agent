@@ -7,6 +7,7 @@ package com.newrelic.agent.android.sessionReplay.capture;
 
 import android.content.Context;
 import android.view.View;
+import android.widget.FrameLayout;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -120,15 +121,19 @@ public class SessionReplayProcessorTest {
      */
     @Test
     public void testIncrementalAdds_parentBeforeChild() {
-        View rootView = new View(context);
+        FrameLayout rootView = new FrameLayout(context);
         View viewA = new View(context);
-        View viewP = new View(context);
+        FrameLayout viewP = new FrameLayout(context);
         View viewQ = new View(context);
 
         // Old frame: root -> [A]
+        rootView.addView(viewA);
         SessionReplayViewThingy oldRoot = thingy(rootView, thingy(viewA));
 
         // New frame: root -> [A, P -> [Q]]  (P and Q are new)
+        rootView.addView(viewP);
+        viewP.addView(viewQ);
+
         SessionReplayViewThingy newP = thingy(viewP, thingy(viewQ));
         SessionReplayViewThingy newRoot = thingy(rootView, thingy(viewA), newP);
 
@@ -141,6 +146,15 @@ public class SessionReplayProcessorTest {
         Assert.assertTrue("Child Q should be added", childIndex >= 0);
         Assert.assertTrue("Parent must be emitted before its child",
                 parentIndex < childIndex);
+
+        RRWebMutationData.AddRecord parentAdd = addForNodeId(adds, viewId(viewP));
+        RRWebMutationData.AddRecord childAdd = addForNodeId(adds, viewId(viewQ));
+        Assert.assertNotNull("Parent add record should exist", parentAdd);
+        Assert.assertNotNull("Child add record should exist", childAdd);
+        Assert.assertEquals("Parent P should be attached to root",
+                viewId(rootView), parentAdd.parentId);
+        Assert.assertEquals("Child Q should be attached to parent P",
+                viewId(viewP), childAdd.parentId);
     }
 
     // ==================== HELPERS ====================
@@ -168,6 +182,15 @@ public class SessionReplayProcessorTest {
             }
         }
         return -1;
+    }
+
+    private RRWebMutationData.AddRecord addForNodeId(List<RRWebMutationData.AddRecord> adds, int viewId) {
+        for (RRWebMutationData.AddRecord add : adds) {
+            if (nodeId(add) == viewId) {
+                return add;
+            }
+        }
+        return null;
     }
 
     /**
