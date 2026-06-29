@@ -29,6 +29,7 @@ import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
+import com.newrelic.agent.android.util.NamedThreadFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,27 +38,38 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 public class SessionReplayImageViewThingy implements SessionReplayViewThingyInterface {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     
-    // Static cache shared across all instances
-    // Increased cache size to 1MB for better performance
-    private static final LruCache<String, String> imageCache = new LruCache<String, String>(1024) {
+    // Static cache shared across all instances.
+    // Sized in bytes (Java chars are 2 bytes), capped at 4 MB so a screen full of
+    // small icons cannot bypass eviction the way the previous "value.length() / 1024"
+    // floor allowed (small strings sized to 0 KB and never evicted by size).
+    private static final int MAX_CACHE_SIZE_BYTES = 4 * 1024 * 1024;
+    private static final LruCache<String, String> imageCache = new LruCache<String, String>(MAX_CACHE_SIZE_BYTES) {
         @Override
         protected int sizeOf(String key, String value) {
-            // Return the size in KB (approximate)
-            return value.length() / 1024;
+            return value.length() * 2;
         }
     };
-    
+
+    /**
+     * Single-thread executor for off-main bitmap compression. Single-thread keeps cache
+     * writes ordered and avoids races between concurrent fills on the same key.
+     * Package-private and non-final so tests can substitute a deterministic executor.
+     */
+    static volatile Executor compressionExecutor = Executors.newSingleThreadExecutor(new NamedThreadFactory("nr-sr-image-compress"));
+
     private List<? extends SessionReplayViewThingyInterface> subviews = new ArrayList<>();
     private final ViewDetails viewDetails;
 
     public boolean shouldRecordSubviews = false;
     private final ImageView.ScaleType scaleType;
     private final String backgroundColor;
-    private String imageData; // Base64 encoded image data
+    private volatile String imageData; // Base64 encoded image data — written off-main
     private final boolean isMasked;
     protected SessionReplayLocalConfiguration sessionReplayLocalConfiguration;
     protected SessionReplayConfiguration sessionReplayConfiguration;
@@ -75,11 +87,12 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     }
 
     /**
-     * Extracts the image from an ImageView and converts it to a Base64 encoded string
-     * @param imageView The ImageView to extract the image from
-     * @return Base64 encoded image data or null if no image is available
+     * Synchronously checks the LRU cache. On hit, returns the cached Base64. On miss,
+     * snapshots the bitmap reference and dispatches compression to a worker thread,
+     * which populates the cache and back-fills this instance's imageData when done.
+     * Returns null on miss so the caller renders a placeholder for this frame; the
+     * next captured frame will resolve from cache.
      */
-    @WorkerThread
     private String getImageFromImageView(ImageView imageView) {
         try {
             Drawable drawable = imageView.getDrawable();
@@ -87,29 +100,39 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
                 return null;
             }
 
-            String cacheKey = generateCacheKey(drawable, imageView);
-            
+            final String cacheKey = generateCacheKey(drawable, imageView);
+
             String cachedData = imageCache.get(cacheKey);
             if (cachedData != null) {
                 log.debug("Cache hit for image: " + cacheKey);
                 return cachedData;
             }
 
-            Bitmap bitmap = drawableToBitmap(drawable, imageView);
-
-            if (bitmap != null && !bitmap.isRecycled()) {
-                String base64Data = bitmapToBase64(bitmap);
-                if (base64Data != null) {
-                    imageCache.put(cacheKey, base64Data);
-                    log.debug("Cached image data for key: " + cacheKey);
-                }
-                return base64Data;
+            final Bitmap bitmap = drawableToBitmap(drawable, imageView);
+            if (bitmap == null || bitmap.isRecycled()) {
+                return null;
             }
+
+            compressionExecutor.execute(() -> {
+                try {
+                    String b64 = bitmapToBase64(bitmap);
+                    if (b64 != null) {
+                        // Populate the cache only — do NOT back-fill this.imageData. This thingy
+                        // is the per-frame snapshot for frame N (whose capture-time imageData is
+                        // null because compression hadn't completed yet); back-filling would mutate
+                        // frame N's stored thingy and make the diff against frame N+1 see equal
+                        // values, suppressing the background-image mutation. Frame N+1 builds a
+                        // fresh thingy that resolves from the cache.
+                        imageCache.put(cacheKey, b64);
+                        log.debug("Cached image data for key: " + cacheKey);
+                    }
+                } catch (Exception e) {
+                    log.error("Async image compression failed", e);
+                }
+            });
         } catch (Exception e) {
             log.error("Error processing image", e);
-            return null;
         }
-        
         return null;
     }
 
@@ -158,25 +181,39 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
     }
 
     /**
-     * Generates a cache key based on drawable properties
+     * Generates a cache key derived from stable identity. Uses Drawable.getConstantState()
+     * (shared across drawable instances loaded from the same resource) and, when the drawable
+     * is a BitmapDrawable, the Bitmap.getGenerationId() so re-decoded or mutated bitmaps
+     * receive a fresh key. Falls back to identityHashCode when ConstantState is null
+     * (rare — programmatically constructed drawables).
      */
     private String generateCacheKey(Drawable drawable, ImageView imageView) {
         StringBuilder keyBuilder = new StringBuilder();
-        
-        keyBuilder.append(drawable.getClass().getSimpleName());
-        keyBuilder.append("_");
-        keyBuilder.append(drawable.hashCode());
-        
+        keyBuilder.append(drawable.getClass().getSimpleName()).append('_');
+
+        Drawable.ConstantState cs = drawable.getConstantState();
+        if (cs != null) {
+            keyBuilder.append("cs").append(System.identityHashCode(cs));
+        } else {
+            keyBuilder.append("d").append(System.identityHashCode(drawable));
+        }
+
+        if (drawable instanceof BitmapDrawable) {
+            Bitmap bm = ((BitmapDrawable) drawable).getBitmap();
+            if (bm != null && !bm.isRecycled()) {
+                keyBuilder.append("_g").append(bm.getGenerationId());
+            }
+        }
+
         int width = drawable.getIntrinsicWidth();
         int height = drawable.getIntrinsicHeight();
         if (width <= 0 || height <= 0) {
             width = imageView.getWidth();
             height = imageView.getHeight();
         }
-        keyBuilder.append("_").append(width).append("x").append(height);
-        
-        keyBuilder.append("_").append(scaleType.name());
-        
+        keyBuilder.append('_').append(width).append('x').append(height);
+        keyBuilder.append('_').append(scaleType.name());
+
         return keyBuilder.toString();
     }
 
@@ -312,8 +349,14 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
             styleDifferences.put("background-color", otherDetails.backgroundColor);
         }
 
-        if (this.getImageData() != null && !this.getImageData().equals(((SessionReplayImageViewThingy) other).getImageData())) {
-            styleDifferences.put("background-image"," url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
+        // Emit the background-image mutation whenever imageData differs and the new
+        // value is non-null. This includes the cold→hot transition where the previous
+        // frame had imageData=null (placeholder while async compression was in flight)
+        // and the new frame has imageData=<base64> (cache hit) — without this, async-fill
+        // images would never resolve in the rrweb stream after the first placeholder frame.
+        String otherImageData = ((SessionReplayImageViewThingy) other).getImageData();
+        if (!Objects.equals(this.getImageData(), otherImageData) && otherImageData != null) {
+            styleDifferences.put("background-image", " url(" + ((SessionReplayImageViewThingy) other).getImageDataUrl() + ")");
         }
 
         SessionReplayImageViewThingy otherImage = (SessionReplayImageViewThingy) other;
@@ -447,12 +490,14 @@ public class SessionReplayImageViewThingy implements SessionReplayViewThingyInte
 
     @Override
     public boolean hasChanged(SessionReplayViewThingyInterface other) {
-        // Quick check: if it's not the same type, it has changed
-        if (other == null || !(other instanceof SessionReplayImageViewThingy)) {
+        if (!(other instanceof SessionReplayImageViewThingy)) {
             return true;
         }
-
-        // Compare using hashCode (which should reflect the content)
-        return this.hashCode() != other.hashCode();
+        SessionReplayImageViewThingy o = (SessionReplayImageViewThingy) other;
+        return !Objects.equals(viewDetails, o.viewDetails)
+                || !Objects.equals(imageData, o.imageData)
+                || !Objects.equals(backgroundColor, o.backgroundColor)
+                || isMasked != o.isMasked
+                || scaleType != o.scaleType;
     }
 }
