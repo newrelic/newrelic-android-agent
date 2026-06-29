@@ -99,7 +99,7 @@ jobs:
           NIGHTLY_VERSION: ${{ needs.prepare.outputs.nightly_version }}
         run: |
           {
-            echo "Nightly pre-release from \`main\` at commit \`${HEAD_SHA}\`."
+            echo "Nightly pre-release from \`develop\` at commit \`${HEAD_SHA}\`."
             echo ""
             echo "**Maven artifact version:** \`${NIGHTLY_VERSION}\`"
             echo ""
