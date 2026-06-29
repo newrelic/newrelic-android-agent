@@ -67,31 +67,11 @@ jobs:
   publish:
     name: Publish nightly artifacts to Sonatype
     needs: [prepare, build]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          ref: develop
-
-      - name: Set up JDK 17
-        # TODO: pin to full commit SHA per CDD threat model (actions/setup-java v3)
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: gradle
-
-      - name: Publish to Sonatype
-        env:
-          ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
-          ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingKeyId:      ${{ secrets.SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingPassword:   ${{ secrets.SIGNING_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingKey:        ${{ secrets.SIGNING_KEY }}
-        run: |
-          ./gradlew clean publishToSonatype closeSonatypeStagingRepository \
-            --max-workers 1 \
-            "-Pnewrelic.agent.version=${{ needs.prepare.outputs.nightly_version }}"
+    uses: ./.github/workflows/sonatypeDeployment.yml
+    with:
+      ref: develop
+      version: ${{ needs.prepare.outputs.nightly_version }}
+    secrets: inherit
 
   release:
     name: Tag and create GitHub pre-release
