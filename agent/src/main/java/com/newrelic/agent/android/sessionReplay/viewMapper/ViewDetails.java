@@ -19,7 +19,6 @@ public class ViewDetails {
     public final int parentId;
     public final String viewName;
     public final float density;
-    public final int zIndex;
 
 
     // Computed property: cssSelector
@@ -76,14 +75,6 @@ public class ViewDetails {
             parentId = 0;
         }
 
-        // Capture z-index only for React Native views, which use view.getZ() (elevation + translationZ)
-        // to implement CSS z-index. Non-RN views get 0 (no z-index emitted) to preserve existing behavior.
-       this.zIndex = isReactNativeView(view) ? Math.round(view.getZ()) : 0;
-
-    }
-
-    private static boolean isReactNativeView(View view) {
-        return view.getClass().getName().startsWith("com.facebook.react");
     }
 
     // Getters for the final properties
