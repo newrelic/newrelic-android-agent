@@ -24,8 +24,8 @@ public class Agent {
 
     private static Object implLock = new Object();
     private static AgentImpl impl = NULL_AGENT_IMPL;
-    private static String buildId = null;
-    private static boolean obfuscated = false;
+    private static volatile String buildId = null;
+    private static volatile boolean obfuscated = false;
 
     public static void setImpl(final AgentImpl impl) {
         synchronized (implLock) {
