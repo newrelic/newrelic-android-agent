@@ -240,6 +240,10 @@ public class Harvester implements HarvestConfigurable {
         // Network level error, or something else really bad. Don't clear the harvest data, we'll attempt again
         if (response == null || response.isUnknown()) {
             log.debug("Harvest data response: " + response.getResponseCode());
+            // The data POST body was sent but no response could be read (e.g. read timeout). The
+            // collector may already have ingested the payload, yet the retained buffer is resent
+            // next cycle, risking duplicate events. Track frequency to correlate with collector latency.
+            StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/UNKNOWN");
             checkOfflineAndPersist();
             fireOnHarvestSendFailed();
             return;

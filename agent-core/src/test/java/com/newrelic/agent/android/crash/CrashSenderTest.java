@@ -67,15 +67,17 @@ public class CrashSenderTest {
 
     @Test
     public void call() throws Exception {
-        crash.incrementUploadCount();
         int preUploadCount = crash.getUploadCount();
+
         crashSender.call();
         Assert.assertTrue("Should increment upload count", preUploadCount < crash.getUploadCount());
+
+
     }
 
     @Test
     public void testRequestResponse() throws Exception {
-        HttpURLConnection connection = getMockedConnection(crashSender);
+        HttpURLConnection connection = getMockedConnection();
 
         Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
@@ -99,12 +101,16 @@ public class CrashSenderTest {
         Mockito.reset();
         Mockito.doReturn(HttpsURLConnection.HTTP_BAD_REQUEST).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
-        verify(crashSender, atLeastOnce()).onFailedUpload(anyString());
+        Assert.assertTrue("Should contain 400 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE));
+
+        Mockito.reset();
+        Mockito.doReturn(HttpsURLConnection.HTTP_FORBIDDEN).when(connection).getResponseCode();
+        crashSender.onRequestResponse(connection);
+        Assert.assertTrue("Should contain 403 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE));
     }
 
     @Test
     public void testFailedUpload() throws Exception {
-        CrashSender crashSender = spy(new CrashSender(crash, agentConfiguration));
 
         crashSender.onFailedUpload("Upload failure");
         Assert.assertTrue("Should contain 500 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_FAILED_UPLOAD));
@@ -113,13 +119,26 @@ public class CrashSenderTest {
 
     @Test
     public void testRequestException() throws Exception {
-        CrashSender crashSender = spy(new CrashSender(crash, agentConfiguration));
         Mockito.doReturn(null).when(crashSender).getConnection();
         crashSender.call();
         verify(crashSender, atLeastOnce()).onFailedUpload(any(String.class));
     }
 
-    private HttpURLConnection getMockedConnection(CrashSender crashSender) throws IOException {
+    @Test
+    public void testCallWhenOfflineDoesNotIncrementUploadCount() throws Exception {
+        int preUploadCount = crash.getUploadCount();
+
+        HttpURLConnection connection = getMockedConnection();
+
+        Mockito.doThrow(new IOException("Network unreachable")).when(connection).connect();
+        Mockito.doReturn(connection).when(crashSender).getConnection();
+
+        crashSender.call();
+
+        Assert.assertEquals("Should not increment upload count when device is offline", preUploadCount, crash.getUploadCount());
+    }
+
+    private HttpURLConnection getMockedConnection() throws IOException {
         HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
 
         Mockito.doReturn(false).when(connection).getDoOutput();

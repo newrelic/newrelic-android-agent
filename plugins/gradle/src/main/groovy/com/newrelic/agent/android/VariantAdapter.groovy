@@ -203,6 +203,7 @@ abstract class VariantAdapter {
             mapUploadTask.mappingFile.set(variantMap)
             mapUploadTask.taggedMappingFiles.set(buildHelper.project.files())
             mapUploadTask.projectRoot.set(buildHelper.project.layout.projectDirectory)
+            mapUploadTask.buildDirectory.set(buildHelper.project.layout.buildDirectory)
             mapUploadTask.buildId.convention(uuid)
             mapUploadTask.variantName.set(objectFactory.property(String).value(variantName))
             mapUploadTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
