@@ -87,6 +87,12 @@ public class CrashSender extends PayloadSender {
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] was has timed out - (will try again later) - Response code [" + responseCode + "]");
                 break;
 
+            case HttpsURLConnection.HTTP_FORBIDDEN:
+            case HttpsURLConnection.HTTP_BAD_REQUEST:
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE);
+                onFailedUpload("The crash was rejected - Response code " + connection.getResponseCode());
+                break;
+
             case HttpsURLConnection.HTTP_INTERNAL_ERROR:
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_REMOVED_REJECTED);
                 onFailedUpload("The crash was rejected and will be deleted - Response code " + connection.getResponseCode());

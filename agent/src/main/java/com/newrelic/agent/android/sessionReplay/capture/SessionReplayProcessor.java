@@ -17,9 +17,11 @@ import com.newrelic.agent.android.sessionReplay.models.RRWebMetaEvent;
 import com.newrelic.agent.android.sessionReplay.models.RRWebNode;
 import com.newrelic.agent.android.sessionReplay.models.RRWebTextNode;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,18 +183,23 @@ public class SessionReplayProcessor {
 
     private List<SessionReplayViewThingyInterface> flattenTree(SessionReplayViewThingyInterface rootThingy) {
         List<SessionReplayViewThingyInterface> thingies = new ArrayList<>();
-        List<SessionReplayViewThingyInterface> queue = new ArrayList<>();
-        queue.add(rootThingy);
+        Deque<SessionReplayViewThingyInterface> stack = new ArrayDeque<>();
+        stack.push(rootThingy);
 
-        while (!queue.isEmpty()) {
-            // In Swift, popLast() removes and returns the last element
-            // In Java, we'll remove from the end of the list to mimic this behavior
-            SessionReplayViewThingyInterface thingy = queue.remove(queue.size() - 1);
+        while (!stack.isEmpty()) {
+            SessionReplayViewThingyInterface thingy = stack.pop();
             thingies.add(thingy);
 
-            // In Swift, append(contentsOf:) adds all elements from another collection
-            // In Java, we'll add all elements from the subviews list
-            queue.addAll(thingy.getSubviews());
+            // Push children in reverse so they are popped (and therefore flattened) in their
+            // natural front-to-back sibling order. A naive LIFO that pushes children front-to-back
+            // reverses each sibling group: rrweb appends added nodes with nextId == null (append as
+            // last child), so a reversed flatten makes incremental ADDs render in the wrong order
+            // and visually clobber/hide siblings. Pre-order DFS keeps parents before children and
+            // preserves sibling order, matching the full-snapshot traversal.
+            List<? extends SessionReplayViewThingyInterface> subviews = thingy.getSubviews();
+            for (int i = subviews.size() - 1; i >= 0; i--) {
+                stack.push(subviews.get(i));
+            }
         }
 
         return thingies;

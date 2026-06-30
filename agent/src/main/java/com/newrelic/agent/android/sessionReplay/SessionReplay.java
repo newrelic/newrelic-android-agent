@@ -34,6 +34,8 @@ import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFrame;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayProcessor;
 import com.newrelic.agent.android.sessionReplay.capture.ViewDrawInterceptor;
 import com.newrelic.agent.android.sessionReplay.internal.OnFrameTakenListener;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeImageThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayImageViewThingy;
 import com.newrelic.agent.android.sessionReplay.touch.OnTouchRecordedListener;
 import com.newrelic.agent.android.sessionReplay.touch.TouchTracker;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
@@ -387,6 +389,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         if (fileManager != null) {
             fileManager.clearWorkingFile();
         }
+        // Free the per-class image caches so a backgrounded process does not retain
+        // up to ~8 MB (4 MB View + 4 MB Compose) of base64 image data until
+        // process death. The next foreground capture will repopulate from drawables.
+        SessionReplayImageViewThingy.clearImageCache();
+        ComposeImageThingy.clearImageCache();
     }
 
     /**

@@ -15,6 +15,7 @@ import com.newrelic.agent.android.harvest.DataToken;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.PayloadController;
+import com.newrelic.agent.android.payload.PayloadSender;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
@@ -173,6 +174,63 @@ public class CrashReporterTests {
         Mockito.doReturn(HttpsURLConnection.HTTP_CREATED).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
         Assert.assertFalse("Should not contain 202 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_TIME));
+    }
+
+    @Test
+    public void testPermanentlyRejectedCrashLogged() throws Exception {
+        HttpURLConnection connection = getMockedConnection();
+        Mockito.doReturn(HttpsURLConnection.HTTP_FORBIDDEN).when(connection).getResponseCode();
+        crashSender.onRequestResponse(connection);
+        Assert.assertTrue("Should contain 403 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE));
+    }
+
+    @Test
+    public void testPermanentlyRejectedCrashDeletedFromStore() {
+        Crash testCrash = new Crash(new RuntimeException("permanently rejected"));
+        crashStore.store(testCrash);
+        Assert.assertEquals(1, crashStore.count());
+
+        PayloadSender mockSender = Mockito.mock(PayloadSender.class);
+        Mockito.when(mockSender.isSuccessfulResponse()).thenReturn(false);
+
+        Mockito.when(mockSender.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_FORBIDDEN);
+        crashReporter.onCrashResponse(mockSender, testCrash);
+        Assert.assertEquals("Crash should be deleted on 403", 0, crashStore.count());
+
+        crashStore.store(testCrash);
+        Mockito.when(mockSender.getResponseCode()).thenReturn(HttpsURLConnection.HTTP_BAD_REQUEST);
+        crashReporter.onCrashResponse(mockSender, testCrash);
+        Assert.assertEquals("Crash should be deleted on 400", 0, crashStore.count());
+    }
+
+    @Test
+    public void testTransientErrorRetainsCrashInStore() {
+        Crash testCrash = new Crash(new RuntimeException("transient error"));
+        crashStore.store(testCrash);
+        Assert.assertEquals(1, crashStore.count());
+
+        PayloadSender mockSender = Mockito.mock(PayloadSender.class);
+        Mockito.when(mockSender.isSuccessfulResponse()).thenReturn(false);
+
+        for (int code : new int[]{HttpURLConnection.HTTP_CLIENT_TIMEOUT, 429, HttpURLConnection.HTTP_UNAVAILABLE}) {
+            Mockito.when(mockSender.getResponseCode()).thenReturn(code);
+            crashReporter.onCrashResponse(mockSender, testCrash);
+            Assert.assertEquals("Crash should be retained on " + code, 1, crashStore.count());
+        }
+    }
+
+    @Test
+    public void testSuccessfulCrashDeletedFromStore() {
+        Agent.setImpl(new StubAgentImpl());
+        Crash testCrash = new Crash(new RuntimeException("successful upload"));
+        crashStore.store(testCrash);
+        Assert.assertEquals(1, crashStore.count());
+
+        PayloadSender mockSender = Mockito.mock(PayloadSender.class);
+        Mockito.when(mockSender.isSuccessfulResponse()).thenReturn(true);
+
+        crashReporter.onCrashResponse(mockSender, testCrash);
+        Assert.assertEquals("Crash should be deleted on success", 0, crashStore.count());
     }
 
     @Test
