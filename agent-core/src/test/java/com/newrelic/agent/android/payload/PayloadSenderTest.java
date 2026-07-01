@@ -10,7 +10,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.crash.CrashReporterTests;
+import com.newrelic.agent.android.crash.CrashReporterTest;
 import com.newrelic.agent.android.stats.StatsEngine;
 
 import org.junit.Assert;
@@ -22,7 +22,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -40,7 +39,7 @@ public class PayloadSenderTest {
     public void setUp() throws Exception {
         agentConfiguration = Mockito.spy(new AgentConfiguration());
 
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(true);
         agentConfiguration.setReportHandledExceptions(true);

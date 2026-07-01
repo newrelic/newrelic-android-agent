@@ -10,7 +10,6 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.AgentImpl;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
-import com.newrelic.agent.android.harvest.DataToken;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 
@@ -33,7 +32,7 @@ public class UncaughtExceptionHandlerTest {
         crashStore = Mockito.spy(new TestCrashStore());
         agentConfiguration = new AgentConfiguration();
 
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setReportCrashes(false);
         agentConfiguration.setCrashStore(crashStore);
         agentConfiguration.setEnableAnalyticsEvents(true);
