@@ -34,5 +34,5 @@ jobs:
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
           git fetch origin --tags --force
-          git merge --ff "$TAG"
+          git merge --ff-only "$TAG"
           git push origin main
