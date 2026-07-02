@@ -44,6 +44,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_CONFIGURATION_CHANGED = SUPPORTABILITY_AGENT + "Configuration/Updated";
     public static final String SUPPORTABILITY_PAYLOAD_REMOVED_STALE = SUPPORTABILITY_AGENT + "Payload/Removed/Stale";
     public static final String SUPPORTABILITY_PAYLOAD_EVICTED = SUPPORTABILITY_AGENT + "Payload/Removed/Evicted";
+    public static final String SUPPORTABILITY_PAYLOAD_REJECTED_DEVICE_OFFLINE = SUPPORTABILITY_AGENT + "Payload/Offline/Rejected";
+
     public static final String SUPPORTABILITY_PAYLOAD_CORRUPTED = SUPPORTABILITY_AGENT + "Payload/Corrupted";
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
@@ -51,6 +53,7 @@ public class MetricNames {
     public static final String SUPPORTABILITY_CRASH = SUPPORTABILITY_AGENT + "Crash/";
     public static final String SUPPORTABILITY_CRASH_RECURSIVE_HANDLER = SUPPORTABILITY_CRASH + "UncaughtExceptionHandler/Recursion";
     public static final String SUPPORTABILITY_CRASH_UNCAUGHT_HANDLER = SUPPORTABILITY_AGENT + "UncaughtExceptionHandler/<name>";
+    public static final String SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE = SUPPORTABILITY_CRASH + "Offline/Rejected";
     public static final String SUPPORTABILITY_CRASH_UPLOAD_TIME = SUPPORTABILITY_CRASH + "UploadTime";
     public static final String SUPPORTABILITY_CRASH_UPLOAD_TIMEOUT = SUPPORTABILITY_CRASH + "UploadTimeOut";
     public static final String SUPPORTABILITY_CRASH_UPLOAD_THROTTLED = SUPPORTABILITY_CRASH + "UploadThrottled";

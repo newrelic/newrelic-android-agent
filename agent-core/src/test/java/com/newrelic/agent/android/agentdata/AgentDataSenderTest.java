@@ -192,4 +192,27 @@ public class AgentDataSenderTest {
         verify(agentDataSender, atLeastOnce()).onFailedUpload(anyString());
     }
 
+    @Test
+    public void testRejectedUpload() throws Exception {
+        AgentDataSender agentDataSender = spy(new AgentDataSender(flat.dataBuffer().slice().array(), agentConfiguration));
+        HttpURLConnection connection = getMockedConnection(agentDataSender);
+
+        Mockito.doReturn(HttpsURLConnection.HTTP_FORBIDDEN).when(connection).getResponseCode();
+        agentDataSender.onRequestResponse(connection);
+        Assert.assertTrue("Should record rejected metric on 403",
+                StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_PAYLOAD_REJECTED_DEVICE_OFFLINE));
+
+        StatsEngine.get().getStatsMap().clear();
+        Mockito.doReturn(HttpURLConnection.HTTP_BAD_REQUEST).when(connection).getResponseCode();
+        agentDataSender.onRequestResponse(connection);
+        Assert.assertTrue("Should record rejected metric on 400",
+                StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_PAYLOAD_REJECTED_DEVICE_OFFLINE));
+
+        StatsEngine.get().getStatsMap().clear();
+        Mockito.doReturn(HttpsURLConnection.HTTP_INTERNAL_ERROR).when(connection).getResponseCode();
+        agentDataSender.onRequestResponse(connection);
+        Assert.assertFalse("Should not record rejected metric on 500",
+                StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_PAYLOAD_REJECTED_DEVICE_OFFLINE));
+    }
+
 }
