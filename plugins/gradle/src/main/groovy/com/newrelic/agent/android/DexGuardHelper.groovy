@@ -261,22 +261,38 @@ class DexGuardHelper {
     }
 
     /**
-     * Determines the primary DexGuard task type to wire based on project type.
-     * Uses simple priority: Library -> AAR, Application -> AAB, Default -> APK
+     * Determines the primary DexGuard task type to wire.
+     *
+     * Libraries always produce AARs. For applications we select APK vs AAB based on the
+     * tasks the user actually requested, so the map upload is wired to whatever packaging
+     * output is being built. (Previously this always chose AAB for applications, which meant
+     * APK-only builds such as {@code dexguardApkRelease} never triggered the map upload.)
+     *
+     * A single task type is returned (rather than wiring both APK and AAB) to avoid the
+     * shared map-upload task having its mapping-file path reconfigured by two packaging
+     * branches in the same build. AAB is only chosen when a bundle/AAB build is requested
+     * without an accompanying APK build; otherwise we default to APK, which matches the
+     * output of {@code assemble}/{@code build}.
      *
      * @return The primary DexGuard task type constant
      */
     private String determinePrimaryDexGuardTaskType() {
+        // Libraries need AAR tasks for proper artifact generation
         if (buildHelper.checkLibrary()) {
-            // Libraries need AAR tasks for proper artifact generation
             return DEXGUARD_AAR_TASK
-        } else if (buildHelper.checkApplication()) {
-            // Applications prefer AAB (Google's recommended format)
-            return DEXGUARD_AAB_TASK
-        } else {
-            // Safe fallback to APK for unknown project types
-            return DEXGUARD_APK_TASK
         }
+
+        if (buildHelper.checkApplication()) {
+            def requestedTasks = buildHelper.project.gradle.startParameter.taskNames*.toLowerCase()
+            def wantsBundle = requestedTasks.any { it.contains("bundle") || it.contains("aab") }
+            def wantsApk = requestedTasks.any { it.contains("assemble") || it.contains("apk") }
+
+            // Prefer AAB only for a bundle-only build; otherwise default to APK.
+            return (wantsBundle && !wantsApk) ? DEXGUARD_AAB_TASK : DEXGUARD_APK_TASK
+        }
+
+        // Safe fallback to APK for unknown project types
+        return DEXGUARD_APK_TASK
     }
 
     static Set<String> wiredTaskNames(String vnc) {

@@ -6,17 +6,14 @@
 package com.newrelic.agent.android.payload;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.crash.CrashReporterTests;
+import com.newrelic.agent.android.crash.CrashReporterTest;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.io.IOException;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -31,7 +28,7 @@ public class PayloadReaperTest {
     @Before
     public void setUp() throws Exception {
         agentConfiguration = Mockito.spy(new AgentConfiguration());
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(true);
         agentConfiguration.setReportHandledExceptions(true);
