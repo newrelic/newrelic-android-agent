@@ -82,6 +82,22 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     // applicationBackgrounded()/applicationForegrounded() handlers below actually run.
     private static final AtomicBoolean listenerRegistered = new AtomicBoolean(false);
 
+    // When true, an external source (e.g. the New Relic Flutter agent) supplies
+    // session-replay frames via recordSessionReplayEvents; the native view-capture
+    // loop is suppressed (a Flutter app is a single opaque view that records as
+    // blank frames). Ingest, upload, config, and mode remain active. Set before
+    // initialize()/startRecording() (ideally before startAgent) to be race-free.
+    private static final AtomicBoolean externalCaptureSource = new AtomicBoolean(false);
+
+    public static void setExternalCaptureSource(boolean external) {
+        externalCaptureSource.set(external);
+        log.debug("SessionReplay: externalCaptureSource set to " + external);
+    }
+
+    public static boolean isExternalCaptureSourceEnabled() {
+        return externalCaptureSource.get();
+    }
+
     // Buffer for queuing frames and touch data that arrive during harvest
     private static final AtomicBoolean isHarvesting = new AtomicBoolean(false);
     private final List<List<RRWebEvent>> frameBufferDuringHarvest =
@@ -150,7 +166,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         modeManager.transitionTo(mode, "Initialization");
 
         sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application,modeManager);
-        registerCallbacks();
+        // Skip native touch/activity capture when an external source supplies frames.
+        if (!externalCaptureSource.get()) {
+            registerCallbacks();
+        }
 
         if (listenerRegistered.compareAndSet(false, true)) {
             ApplicationStateMonitor.getInstance().addApplicationStateListener(instance);
@@ -270,6 +289,77 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     }
 
+    @Override
+    public void onSessionRestarted() {
+        // New session: force a fresh full snapshot and mark the next upload as the
+        // session's first chunk. Keeps the agent's isFirstChunk in lockstep with the
+        // native session boundary for external (e.g. Flutter) ingest, whose plugin
+        // listener re-triggers a FullSnapshot on the same event.
+        isFirstChunk = true;
+        takeFullSnapshot.set(true);
+        log.debug("SessionReplay: session restarted — reset isFirstChunk + full snapshot");
+    }
+
+    /**
+     * Ingest already-serialized rrweb events produced off-agent (e.g. by the New
+     * Relic Flutter agent). {@code eventsJSON} is a JSON string encoding an array
+     * of rrweb events. Builds the same upload attributes the native harvest path
+     * uses (first/last timestamp, isFirstChunk) and forwards to the uploader,
+     * which gzips and enqueues it. Full recording mode only — externally-produced
+     * frames have no error-mode buffer.
+     *
+     * @param eventsJSON JSON array string of rrweb events
+     * @return true if the batch was accepted for upload, false otherwise
+     */
+    public static boolean recordSessionReplayEvents(String eventsJSON) {
+        if (eventsJSON == null || eventsJSON.isEmpty()) {
+            return false;
+        }
+        // Full-mode only: external frames have no error-mode buffer.
+        if (modeManager == null || modeManager.getCurrentMode() != SessionReplayMode.FULL) {
+            log.debug("recordSessionReplayEvents: not in FULL recording mode; dropping events.");
+            return false;
+        }
+
+        try {
+            JsonArray jsonArray = new Gson().fromJson(eventsJSON, JsonArray.class);
+            if (jsonArray == null || jsonArray.isEmpty()) {
+                return false;
+            }
+
+            long firstTimestamp = System.currentTimeMillis();
+            long lastTimestamp = firstTimestamp;
+            try {
+                JsonObject firstEvent = jsonArray.get(0).getAsJsonObject();
+                if (firstEvent.has("timestamp")) {
+                    long t = firstEvent.get("timestamp").getAsLong();
+                    if (t > 0) firstTimestamp = t;
+                }
+                JsonObject lastEvent = jsonArray.get(jsonArray.size() - 1).getAsJsonObject();
+                if (lastEvent.has("timestamp")) {
+                    long t = lastEvent.get("timestamp").getAsLong();
+                    if (t > 0) lastTimestamp = t;
+                }
+            } catch (Exception e) {
+                log.warn("recordSessionReplayEvents: failed to extract timestamps");
+            }
+
+            Map<String, Object> attributes = new HashMap<>();
+            attributes.put(Constants.SessionReplay.FIRST_TIMESTAMP, firstTimestamp);
+            attributes.put(Constants.SessionReplay.LAST_TIMESTAMP, lastTimestamp);
+            attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
+
+            boolean reported = SessionReplayReporter.reportSessionReplayData(eventsJSON.getBytes(), attributes);
+            if (reported) {
+                isFirstChunk = false;
+            }
+            return reported;
+        } catch (Exception e) {
+            log.error("recordSessionReplayEvents: " + e);
+            return false;
+        }
+    }
+
 
     private static void registerCallbacks() {
         application.registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
@@ -332,6 +422,14 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             startSlidingWindowTimer();
         } else if (mode == SessionReplayMode.FULL) {
             persistSrState(true, true);
+        }
+
+        // Skip native frame/touch capture when an external source supplies frames.
+        // Harvest listener + mode remain active above, so onHarvest (empty file)
+        // and onSessionRestarted still run for external ingest.
+        if (externalCaptureSource.get()) {
+            log.debug("SessionReplay: external capture source active — skipping native capture setup.");
+            return;
         }
 
         // curtains.Curtains is a main-thread-only, non-thread-safe API (NR-608999): every

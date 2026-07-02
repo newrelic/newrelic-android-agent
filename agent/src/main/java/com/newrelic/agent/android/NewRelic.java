@@ -1480,4 +1480,41 @@ public final class NewRelic {
         }
     }
 
+    /**
+     * Ingest already-serialized rrweb session-replay events produced off-agent
+     * (e.g. by the New Relic Flutter agent). The JSON string encodes an array of
+     * rrweb events; they are uploaded through the native session-replay pipeline
+     * (gzip + enqueue) using the resolved session configuration. Full recording
+     * mode only — externally-produced frames have no error-mode buffer.
+     *
+     * @param eventsJSON a JSON string encoding an array of rrweb events
+     * @return true if the batch was accepted for upload, false otherwise
+     */
+    public static boolean recordSessionReplayEvents(String eventsJSON) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "recordSessionReplayEvents"));
+
+        if (eventsJSON == null || eventsJSON.isEmpty()) {
+            return false;
+        }
+
+        return SessionReplay.recordSessionReplayEvents(eventsJSON);
+    }
+
+    /**
+     * Declares that session-replay frames are supplied by an external source
+     * (e.g. the New Relic Flutter agent). When enabled, the native agent does not
+     * run its own capture loop — otherwise it records an opaque host view (e.g. a
+     * Flutter surface) as blank frames. Ingest, upload, sampling, and config
+     * remain active. Call before or during startAgent so native capture never
+     * starts.
+     *
+     * @param external true to suppress native capture in favor of external frames
+     */
+    public static void setSessionReplayExternalCaptureSource(boolean external) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setSessionReplayExternalCaptureSource"));
+        SessionReplay.setExternalCaptureSource(external);
+    }
+
 }
