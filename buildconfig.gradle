@@ -12,7 +12,7 @@ buildscript {
     ext {
         newrelic = [
                 agent: [
-                        version : hasOptional('newrelic.agent.version', '7.+'),
+                        version : hasOptional('newrelic.agent.version', '7.+').toString().split('#')[0].trim(),
                         snapshot: hasOptional('newrelic.agent.snapshot', null),
                         ndk     : hasOptional('newrelic.ndk.version', '1.+')
                 ]
