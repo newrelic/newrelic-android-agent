@@ -39,7 +39,7 @@ jobs:
             const jiraTicketRegex = new RegExp(issuePattern);
             const jiraLinkLineRegex = new RegExp(
               `^🔗 Linked to JIRA ticket: \\[${issuePattern}\\]\\([^)]+\\)\\s*$`,
-              'm'
+              'gm'
             );
 
             const prTitle = pr.title ?? '';
