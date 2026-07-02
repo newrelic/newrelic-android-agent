@@ -13,9 +13,65 @@ jobs:
   add-jira-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: codenamegrant/jira-pr-link-action@6151a1959fff01a7c73d8bab7081624eb9c4c7ef # v1
+      - uses: actions/github-script@v7
+        env:
+          JIRA_BASE_URL: https://newrelic.atlassian.net
+          JIRA_LINK_MODE: body-start
+          ISSUE_PATTERN: (NR-\d+)
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          jira-base-url: 'https://newrelic.atlassian.net'
-          jira-link-mode: 'body-start'
-          issue-pattern: '(NR-\d+)'
+          script: |
+            const pr = context.payload.pull_request;
+
+            if (!pr?.number) {
+              core.setFailed('This workflow must run on a pull request event.');
+              return;
+            }
+
+            const jiraBaseUrl = (process.env.JIRA_BASE_URL || '').replace(/\/$/, '');
+            const jiraLinkMode = process.env.JIRA_LINK_MODE || 'body-start';
+            const issuePattern = process.env.ISSUE_PATTERN || '(NR-\\d+)';
+
+            if (!jiraBaseUrl) {
+              core.setFailed('JIRA_BASE_URL is required.');
+              return;
+            }
+
+            const jiraTicketRegex = new RegExp(issuePattern);
+            const jiraLinkLineRegex = new RegExp(
+              `^🔗 Linked to JIRA ticket: \\[${issuePattern}\\]\\([^)]+\\)\\s*$`,
+              'gm'
+            );
+
+            const prTitle = pr.title ?? '';
+            const prBody = pr.body ?? '';
+            const jiraTicketMatch = prTitle.match(jiraTicketRegex);
+            const prBodyWithoutJiraLink = prBody.replace(jiraLinkLineRegex, '').trim();
+
+            let newBody = prBodyWithoutJiraLink;
+
+            if (jiraTicketMatch) {
+              const jiraTicket = jiraTicketMatch[1];
+              const jiraLink = `🔗 Linked to JIRA ticket: [${jiraTicket}](${jiraBaseUrl}/browse/${jiraTicket})`;
+
+              newBody = jiraLinkMode === 'body-end'
+                ? `${prBodyWithoutJiraLink}\n\n${jiraLink}`.trim()
+                : `${jiraLink}\n\n${prBodyWithoutJiraLink}`.trim();
+            }
+
+            if (newBody === prBody) {
+              core.info('JIRA link already up to date. No changes made.');
+              return;
+            }
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              body: newBody
+            });
+
+            core.info(
+              jiraTicketMatch
+                ? 'Updated PR description with JIRA link.'
+                : 'Removed existing JIRA link from PR description.'
+            );
