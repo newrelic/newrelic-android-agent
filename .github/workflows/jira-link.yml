@@ -29,19 +29,16 @@ jobs:
 
             const jiraBaseUrl = (process.env.JIRA_BASE_URL || '').replace(/\/$/, '');
             const jiraLinkMode = process.env.JIRA_LINK_MODE || 'body-start';
-            const issuePatternInput = process.env.ISSUE_PATTERN || '([A-Z][A-Z0-9_]*-\\d+)';
+            const issuePattern = process.env.ISSUE_PATTERN || '(NR-\\d+)';
 
             if (!jiraBaseUrl) {
               core.setFailed('JIRA_BASE_URL is required.');
               return;
             }
 
-            const ticketPattern = issuePatternInput.includes('(')
-              ? issuePatternInput
-              : `(${issuePatternInput})`;
-            const jiraTicketRegex = new RegExp(ticketPattern);
+            const jiraTicketRegex = new RegExp(issuePattern);
             const jiraLinkLineRegex = new RegExp(
-              `^🔗 Linked to JIRA ticket: \\[${ticketPattern}\\]\\(.+?\\)\\s*$`,
+              `^🔗 Linked to JIRA ticket: \\[${issuePattern}\\]\\([^)]+\\)\\s*$`,
               'm'
             );
 
