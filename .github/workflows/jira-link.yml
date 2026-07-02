@@ -27,9 +27,15 @@ jobs:
               return;
             }
 
-            const jiraBaseUrl = process.env.JIRA_BASE_URL.replace(/\/$/, '');
+            const jiraBaseUrl = (process.env.JIRA_BASE_URL || '').replace(/\/$/, '');
             const jiraLinkMode = process.env.JIRA_LINK_MODE || 'body-start';
             const issuePatternInput = process.env.ISSUE_PATTERN || '([A-Z][A-Z0-9_]*-\\d+)';
+
+            if (!jiraBaseUrl) {
+              core.setFailed('JIRA_BASE_URL is required.');
+              return;
+            }
+
             const ticketPattern = issuePatternInput.includes('(')
               ? issuePatternInput
               : `(${issuePatternInput})`;
