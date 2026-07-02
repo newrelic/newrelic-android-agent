@@ -38,7 +38,7 @@ import java.util.concurrent.Future;
 import javax.net.ssl.HttpsURLConnection;
 
 @RunWith(JUnit4.class)
-public class CrashReporterTests {
+public class CrashReporterTest {
 
     private static AgentConfiguration agentConfiguration;
     private static CrashStore crashStore;
@@ -52,7 +52,7 @@ public class CrashReporterTests {
         crashStore = new TestCrashStore();
 
         agentConfiguration = new AgentConfiguration();
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(true);
         agentConfiguration.setCrashStore(crashStore);

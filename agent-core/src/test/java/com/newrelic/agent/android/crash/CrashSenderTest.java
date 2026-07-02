@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.crash;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
@@ -38,7 +37,7 @@ public class CrashSenderTest {
         crashStore = spy(new TestCrashStore());
 
         agentConfiguration = new AgentConfiguration();
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(false);
         agentConfiguration.setCrashStore(crashStore);

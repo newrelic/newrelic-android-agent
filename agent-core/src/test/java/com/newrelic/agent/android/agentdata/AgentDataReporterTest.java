@@ -12,7 +12,7 @@ import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.agentdata.builder.AgentDataBuilder;
-import com.newrelic.agent.android.crash.CrashReporterTests;
+import com.newrelic.agent.android.crash.CrashReporterTest;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -48,7 +48,7 @@ public class AgentDataReporterTest {
     @Before
     public void setUp() throws Exception {
         agentConfiguration = new AgentConfiguration();
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(true);
         agentConfiguration.setReportHandledExceptions(true);
