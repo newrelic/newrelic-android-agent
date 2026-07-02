@@ -212,4 +212,41 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         }
     }
 
+    def "verify dexguard apk map upload when invoking dexguardApk directly"() {
+        // Regression for NR-564988: invoking the DexGuard APK packaging task directly
+        // (e.g. dexguardApkRelease/dexguardApkQa) must trigger the New Relic map upload.
+        // Previously the upload was only wired to the AAB task for application modules,
+        // so APK-only builds never uploaded a mapping.
+        given: "Build the app's DexGuard APK directly"
+        def runner = provideRunner()
+                .withGradleVersion(gradleVersion)
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-Pcompiler=dexguard",
+                        "-Ddexguard.license=${dexguardLicenseFile}",
+                        "-PdexguardMavenToken=${dexguardMavenToken}",
+                        "-Pdexguard.plugin.version=${dexguardPluginVersion}",
+                        "clean",
+                        DexGuardHelper.DEXGUARD_APK_TASK)
+
+        when: "run the build and cache the results"
+        buildResult = runner.build()
+        filteredOutput = printFilter
+
+        then: "the DexGuard APK task ran and finalized the New Relic map upload"
+        instrumentationVariants.each { var ->
+            buildResult.task(":${DexGuardHelper.DEXGUARD_APK_TASK}${var.capitalize()}").outcome == SUCCESS
+        }
+        mapUploadVariants.each { var ->
+            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            // APK mapping is tagged with the NR build ID and copied to the tagged output
+            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
+                exists()
+                text.contains(Proguard.NR_MAP_PREFIX)
+            }
+        }
+    }
+
 }

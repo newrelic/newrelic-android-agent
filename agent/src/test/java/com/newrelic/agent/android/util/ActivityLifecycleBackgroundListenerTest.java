@@ -87,12 +87,25 @@ public class ActivityLifecycleBackgroundListenerTest {
 
     @Test
     public void ensureForegroundStateWhenActivityIsRestarted() throws Exception {
+        // setUp() queues an async activityStarted() on asm's single-thread executor
+        // (count 0 -> 1, no event while foregrounded). Drain it first so the monitor is
+        // in a known state; otherwise that task races this test body's foregrounded flag
+        // change and the emitted-event count is nondeterministic -- passing in isolation
+        // but flaking under full-suite timing.
+        asm.getExecutor().submit(() -> {}).get();
+
+        // Put the app in the background WITHOUT emitting a background event: a
+        // config-change stop decrements the started-activity count back to 0 without
+        // calling uiHidden(), then clear the foreground flag directly.
+        asm.activityStopped(true);
+        asm.getExecutor().submit(() -> {}).get();
         asm.getForegroundState().set(false);
         assertTrue(ApplicationStateMonitorTest.isAppInBackground());
 
-        albl.onActivityStarted(null);
-        albl.onActivityResumed(null);
-        Thread.sleep(750);
+        // Restarting an activity (count 0 -> 1 while backgrounded) foregrounds the app,
+        // emitting exactly one foreground event.
+        asm.activityStarted();
+        asm.shutdownExecutor();
 
         assertEquals(1, listener.getEvents().size());
         assertEquals("foreground", listener.getEvents().get(0));

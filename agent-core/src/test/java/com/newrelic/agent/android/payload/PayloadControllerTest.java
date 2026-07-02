@@ -15,7 +15,7 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.agentdata.AgentDataReporter;
 import com.newrelic.agent.android.agentdata.AgentDataSender;
 import com.newrelic.agent.android.crash.CrashReporter;
-import com.newrelic.agent.android.crash.CrashReporterTests;
+import com.newrelic.agent.android.crash.CrashReporterTest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
@@ -38,7 +38,6 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
@@ -83,7 +82,7 @@ public class PayloadControllerTest {
     @Before
     public void setUp() throws Exception {
         agentConfiguration = Mockito.spy(new AgentConfiguration());
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(false);
         agentConfiguration.setReportHandledExceptions(true);

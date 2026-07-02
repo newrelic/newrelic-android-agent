@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.crash;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.internal.verification.VerificationModeFactory.atLeastOnce;
@@ -38,7 +37,7 @@ public class CrashSenderTest {
         crashStore = spy(new TestCrashStore());
 
         agentConfiguration = new AgentConfiguration();
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(false);
         agentConfiguration.setCrashStore(crashStore);
@@ -101,12 +100,16 @@ public class CrashSenderTest {
         Mockito.reset();
         Mockito.doReturn(HttpsURLConnection.HTTP_BAD_REQUEST).when(connection).getResponseCode();
         crashSender.onRequestResponse(connection);
-        verify(crashSender, atLeastOnce()).onFailedUpload(anyString());
+        Assert.assertTrue("Should contain 400 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE));
+
+        Mockito.reset();
+        Mockito.doReturn(HttpsURLConnection.HTTP_FORBIDDEN).when(connection).getResponseCode();
+        crashSender.onRequestResponse(connection);
+        Assert.assertTrue("Should contain 403 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE));
     }
 
     @Test
     public void testFailedUpload() throws Exception {
-        CrashSender crashSender = spy(new CrashSender(crash, agentConfiguration));
 
         crashSender.onFailedUpload("Upload failure");
         Assert.assertTrue("Should contain 500 supportability metric", StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_CRASH_FAILED_UPLOAD));
@@ -115,7 +118,6 @@ public class CrashSenderTest {
 
     @Test
     public void testRequestException() throws Exception {
-        CrashSender crashSender = spy(new CrashSender(crash, agentConfiguration));
         Mockito.doReturn(null).when(crashSender).getConnection();
         crashSender.call();
         verify(crashSender, atLeastOnce()).onFailedUpload(any(String.class));
