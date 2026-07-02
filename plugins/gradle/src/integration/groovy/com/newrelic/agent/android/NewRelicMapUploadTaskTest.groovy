@@ -77,6 +77,7 @@ class NewRelicMapUploadTaskTest extends PluginTest {
             task.buildId.set("test-build-id")
             task.mapProvider.set("r8")
             task.projectRoot.set(project.layout.projectDirectory)
+            task.buildDirectory.set(project.layout.buildDirectory)
         }.get()
 
         def taggedFile = compoundProvider.getTaggedMappingFile()
@@ -99,6 +100,7 @@ class NewRelicMapUploadTaskTest extends PluginTest {
             task.buildId.set("test-build-id-123")
             task.mapProvider.set("r8")
             task.projectRoot.set(project.layout.projectDirectory)
+            task.buildDirectory.set(project.layout.buildDirectory)
         }.get()
 
         // Create mock input mapping file
