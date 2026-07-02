@@ -63,8 +63,6 @@ public class SessionReplayMapViewThingy implements SessionReplayViewThingyInterf
             "SessionReplayConfiguration cannot be null"
         );
         this.backgroundColor = getBackgroundColor(mapView);
-
-        log.debug("Created SessionReplayMapViewThingy for view: " + viewDetails.getViewId());
     }
 
     @Override
@@ -158,8 +156,6 @@ public class SessionReplayMapViewThingy implements SessionReplayViewThingyInterf
         // Safe type checking for ViewDetails
         Object otherViewDetailsObj = other.getViewDetails();
         if (!(otherViewDetailsObj instanceof ViewDetails)) {
-            log.debug("Cannot compare MapView: other view has incompatible ViewDetails type: " +
-                     (otherViewDetailsObj != null ? otherViewDetailsObj.getClass().getSimpleName() : "null"));
             return Collections.emptyList();
         }
 
@@ -177,7 +173,6 @@ public class SessionReplayMapViewThingy implements SessionReplayViewThingyInterf
             } else {
                 // Handle case where new frame is null (MapView was removed/hidden)
                 // For MapViews, null frame indicates the view should be hidden
-                log.debug("MapView frame is null, hiding view: " + viewDetails.getViewId());
                 styleDifferences.put("display", "none");
             }
         }

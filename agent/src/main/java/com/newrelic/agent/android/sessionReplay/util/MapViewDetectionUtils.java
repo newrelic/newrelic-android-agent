@@ -69,14 +69,12 @@ public class MapViewDetectionUtils {
         try {
             String className = viewClass.getName();
             if (className == null || className.trim().isEmpty()) {
-                log.debug("MapView detection failed: null or empty class name");
                 return false;
             }
 
             // STEP 1: Fast exact class name matches (O(1) for most common cases)
             for (String exactClass : EXACT_MAPVIEW_CLASSES) {
                 if (exactClass != null && exactClass.equals(className)) {
-                    log.debug("Detected MapView by exact match: " + className);
                     return true;
                 }
             }
@@ -85,7 +83,6 @@ public class MapViewDetectionUtils {
             // Patterns are pre-validated and trimmed, so no need for null/empty checks
             for (String pattern : MAPVIEW_CLASS_PATTERNS) {
                 if (className.contains(pattern)) {
-                    log.debug("Detected MapView by pattern '" + pattern + "': " + className);
                     return true;
                 }
             }
@@ -104,7 +101,6 @@ public class MapViewDetectionUtils {
                 // Check exact matches in hierarchy
                 for (String exactClass : EXACT_MAPVIEW_CLASSES) {
                     if (exactClass != null && exactClass.equals(superClassName)) {
-                        log.debug("Detected MapView by exact match in hierarchy: " + superClassName);
                         return true;
                     }
                 }
@@ -113,7 +109,6 @@ public class MapViewDetectionUtils {
                 // Patterns are pre-validated, so no need for null/empty checks
                 for (String pattern : MAPVIEW_CLASS_PATTERNS) {
                     if (superClassName.contains(pattern)) {
-                        log.debug("Detected MapView by pattern '" + pattern + "' in hierarchy: " + superClassName);
                         return true;
                     }
                 }
@@ -122,9 +117,6 @@ public class MapViewDetectionUtils {
                 hierarchyDepth++;
             }
 
-            if (hierarchyDepth >= MAX_HIERARCHY_DEPTH) {
-                log.debug("MapView hierarchy traversal stopped at max depth: " + MAX_HIERARCHY_DEPTH);
-            }
 
         } catch (Exception e) {
             log.debug("Error during MapView class analysis: " + e.getMessage());
@@ -152,13 +144,11 @@ public class MapViewDetectionUtils {
 
         // STEP 2: Semantic analysis (same as Compose views now)
         if (checkViewSemantics(view)) {
-            log.debug("Detected MapView by semantic analysis: " + view.getClass().getName());
             return true;
         }
 
         // STEP 3: Content analysis for custom implementations
         if (checkViewContent(view)) {
-            log.debug("Detected MapView by content analysis: " + view.getClass().getName());
             return true;
         }
 
@@ -210,7 +200,6 @@ public class MapViewDetectionUtils {
                     View view = (View) interopView;
                     Class<?> viewClass = view.getClass();
                     if (viewClass != null && isMapViewByClass(viewClass)) {
-                        log.debug("Detected MapView in AndroidView interop: " + viewClass.getName());
                         return true;
                     }
                 }
@@ -239,7 +228,6 @@ public class MapViewDetectionUtils {
                 if (contentDescriptions != null) {
                     for (String description : contentDescriptions) {
                         if (containsMapKeywords(description)) {
-                            log.debug("Detected MapView by semantic content description: " + description);
                             return true;
                         }
                     }
@@ -255,8 +243,6 @@ public class MapViewDetectionUtils {
                     for (androidx.compose.ui.text.AnnotatedString annotatedString : textList) {
                         String text = annotatedString.getText();
                         if (containsMapKeywords(text)) {
-                            String preview = createPreviewString(text);
-                            log.debug("Detected MapView by semantic text content: " + preview);
                             return true;
                         }
                     }
@@ -271,8 +257,6 @@ public class MapViewDetectionUtils {
                 if (editableText != null) {
                     String text = editableText.getText();
                     if (containsMapKeywords(text)) {
-                        String preview = createPreviewString(text);
-                        log.debug("Detected MapView by semantic editable text: " + preview);
                         return true;
                     }
                 }
@@ -303,14 +287,12 @@ public class MapViewDetectionUtils {
             // Check content description (accessibility)
             CharSequence contentDescription = view.getContentDescription();
             if (contentDescription != null && containsMapKeywords(contentDescription.toString())) {
-                log.debug("Detected MapView by contentDescription: " + contentDescription);
                 return true;
             }
 
             // Check tag for semantic hints
             Object tag = view.getTag();
             if (tag instanceof String && containsMapKeywords((String) tag)) {
-                log.debug("Detected MapView by tag: " + tag);
                 return true;
             }
 
@@ -320,16 +302,13 @@ public class MapViewDetectionUtils {
                 if (id != View.NO_ID) {
                     String resourceName = view.getResources().getResourceEntryName(id);
                     if (resourceName != null && containsMapKeywords(resourceName)) {
-                        log.debug("Detected MapView by resource name: " + resourceName);
                         return true;
                     }
                 }
             } catch (android.content.res.Resources.NotFoundException e) {
                 // Resource ID not found - this is normal for programmatically created views
-                log.debug("Resource name not found for view ID " + view.getId() + " (programmatically created view)");
             } catch (Exception e) {
                 // Other unexpected exceptions during resource access
-                log.debug("Unexpected error checking resource name for MapView detection: " + e.getMessage());
             }
 
         } catch (Exception e) {
@@ -353,15 +332,12 @@ public class MapViewDetectionUtils {
                 android.widget.TextView textView = (android.widget.TextView) view;
                 CharSequence text = textView.getText();
                 if (text != null && containsMapKeywords(text.toString())) {
-                    String preview = createPreviewString(text.toString());
-                    log.debug("Detected MapView by TextView content: " + preview);
                     return true;
                 }
 
                 // Check hint text as well
                 CharSequence hint = textView.getHint();
                 if (hint != null && containsMapKeywords(hint.toString())) {
-                    log.debug("Detected MapView by TextView hint: " + hint);
                     return true;
                 }
             }
@@ -370,7 +346,6 @@ public class MapViewDetectionUtils {
             if (view instanceof android.widget.ImageView) {
                 CharSequence contentDesc = view.getContentDescription();
                 if (contentDesc != null && containsMapKeywords(contentDesc.toString())) {
-                    log.debug("Detected MapView by ImageView contentDescription: " + contentDesc);
                     return true;
                 }
             }
@@ -453,40 +428,6 @@ public class MapViewDetectionUtils {
 
         // Note: In a full implementation, this would add to a dynamic list
         // For now, this is a placeholder for future extensibility
-        log.debug("Custom MapView pattern registration requested: " + trimmedPattern);
     }
 
-    /**
-     * Validates the unified detection strategy by logging detection capabilities.
-     * This method helps ensure consistent behavior across UI frameworks.
-     *
-     * @param view Optional traditional View for validation
-     * @param semanticsNode Optional Compose SemanticsNode for validation
-     */
-    public static void validateDetectionStrategy(View view, SemanticsNode semanticsNode) {
-        log.debug("=== MapView Detection Strategy Validation ===");
-
-        if (view != null) {
-            log.debug("Traditional View Analysis:");
-            log.debug("  Class: " + view.getClass().getName());
-            log.debug("  Class-based detection: " + isMapViewByClass(view.getClass()));
-            log.debug("  Semantic detection: " + checkViewSemantics(view));
-            log.debug("  Content detection: " + checkViewContent(view));
-            log.debug("  Overall result: " + isMapView(view));
-        }
-
-        if (semanticsNode != null) {
-            log.debug("Compose View Analysis:");
-            log.debug("  SemanticsNode ID: " + semanticsNode.getId());
-            log.debug("  AndroidView interop detection: " + checkAndroidViewInterop(semanticsNode));
-            log.debug("  Semantic detection: " + checkMapSemantics(semanticsNode));
-            log.debug("  Overall result: " + isMapView(semanticsNode));
-        }
-
-        log.debug("Detection patterns loaded:");
-        log.debug("  Exact classes: " + EXACT_MAPVIEW_CLASSES.length);
-        log.debug("  Pattern classes: " + MAPVIEW_CLASS_PATTERNS.length);
-        log.debug("  Semantic keywords: " + MAP_SEMANTIC_KEYWORDS.length);
-        log.debug("=== End Validation ===");
-    }
 }

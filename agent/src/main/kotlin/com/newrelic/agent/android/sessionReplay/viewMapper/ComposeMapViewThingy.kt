@@ -58,9 +58,6 @@ class ComposeMapViewThingy(
     private val shouldRecordSubviews = false // MapViews don't record subviews
     private val backgroundColor: String = viewDetails.backgroundColor ?: "#E5E5E5" // Light gray default
 
-    init {
-        log.debug("Created ComposeMapViewThingy for semantics node: ${semanticsNode.id}")
-    }
 
     override fun getSubviews(): List<SessionReplayViewThingyInterface> {
         // Return defensive copy to prevent external modification
