@@ -137,10 +137,17 @@ class ComposeMapViewThingy(
 
         // Check for frame changes (position/size)
         if (viewDetails.frame != otherViewDetails.frame) {
-            styleDifferences["left"] = "${otherViewDetails.frame.left}px"
-            styleDifferences["top"] = "${otherViewDetails.frame.top}px"
-            styleDifferences["width"] = "${otherViewDetails.frame.width()}px"
-            styleDifferences["height"] = "${otherViewDetails.frame.height()}px"
+            // Only add style differences if the other frame is valid
+            otherViewDetails.frame?.let { frame ->
+                styleDifferences["left"] = "${frame.left}px"
+                styleDifferences["top"] = "${frame.top}px"
+                styleDifferences["width"] = "${frame.width()}px"
+                styleDifferences["height"] = "${frame.height()}px"
+            } ?: run {
+                // Handle case where new frame is null (MapView was removed/hidden)
+                // For MapViews, null frame indicates the view should be hidden
+                styleDifferences["display"] = "none"
+            }
         }
 
         // Check for background color changes

@@ -227,7 +227,12 @@ public class SessionReplayMapViewThingy implements SessionReplayViewThingyInterf
     }
 
     /**
-     * Extracts background color from the map view
+     * Extracts background color from the map view.
+     * This method only reads the color value and does not retain any references to the View,
+     * preventing potential memory leaks with heavy MapView objects.
+     *
+     * @param view The View to extract background color from
+     * @return Hex color string or default gray if no color found
      */
     private String getBackgroundColor(View view) {
         Drawable background = view.getBackground();

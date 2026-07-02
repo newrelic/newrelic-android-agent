@@ -16,8 +16,17 @@ import java.util.List;
  * This class eliminates code duplication by providing a single source of truth
  * for MapView identification logic.
  *
- * Thread Safety: This class is thread-safe for concurrent read access. All detection
- * methods are stateless and use immutable static arrays for pattern matching.
+ * Thread Safety: This class is designed to be thread-safe for concurrent read access.
+ * All detection methods are stateless and use immutable static arrays for pattern matching.
+ * However, the reflection-based operations (especially for Compose interop) may not be
+ * fully thread-safe depending on the underlying JVM implementation. For maximum safety,
+ * consider synchronizing calls to isMapView() methods in multi-threaded environments.
+ *
+ * Performance Considerations:
+ * - Class-based detection is O(1) for exact matches, O(n) for pattern matching
+ * - Hierarchy traversal is O(h) where h is the inheritance depth (max 50)
+ * - Reflection operations have higher overhead and should be used sparingly
+ * - Results are not cached, so frequent calls with same inputs will repeat work
  */
 public class MapViewDetectionUtils {
     private static final AgentLog log = AgentLogManager.getAgentLog();
@@ -46,11 +55,12 @@ public class MapViewDetectionUtils {
         "mapfragment", "MapWidget", "GeoView", "TileView"
     };
 
-    // Keywords that might indicate map content in semantic descriptions
+    // Highly specific keywords that strongly indicate map content
+    // These are much more restrictive to avoid false positives with common UI text
     private static final String[] MAP_SEMANTIC_KEYWORDS = {
-        "map", "navigation", "location", "geographic", "gps", "route", "directions",
-        "satellite", "terrain", "street", "coordinate", "latitude", "longitude",
-        "zoom", "pan", "marker", "pin", "waypoint", "geolocation", "cartographic"
+        "mapview", "googlemap", "mapfragment", "mapwidget", "geoview",
+        "coordinate", "latitude", "longitude", "geolocation", "cartographic",
+        "satellite view", "terrain view", "map marker", "map pin", "map zoom"
     };
 
     /**
@@ -91,8 +101,15 @@ public class MapViewDetectionUtils {
             Class<?> currentClass = viewClass;
             int hierarchyDepth = 0;
             final int MAX_HIERARCHY_DEPTH = 50; // Prevent infinite loops
+            java.util.Set<Class<?>> visitedClasses = new java.util.HashSet<>(); // Prevent circular references
 
-            while (currentClass != null && !currentClass.equals(Object.class) && hierarchyDepth < MAX_HIERARCHY_DEPTH) {
+            while (currentClass != null && !currentClass.equals(Object.class)
+                   && hierarchyDepth < MAX_HIERARCHY_DEPTH
+                   && !visitedClasses.contains(currentClass)) {
+
+                // Add to visited set to prevent infinite loops with circular references
+                visitedClasses.add(currentClass);
+
                 String superClassName = currentClass.getName();
                 if (superClassName == null || superClassName.trim().isEmpty()) {
                     break; // Safety check
@@ -113,21 +130,32 @@ public class MapViewDetectionUtils {
                     }
                 }
 
-                currentClass = currentClass.getSuperclass();
+                try {
+                    Class<?> nextClass = currentClass.getSuperclass();
+                    if (nextClass == currentClass) {
+                        // Defensive check: if getSuperclass returns same class, break to prevent infinite loop
+                        break;
+                    }
+                    currentClass = nextClass;
+                } catch (Exception e) {
+                    // Handle any unexpected exceptions during class hierarchy traversal
+                    break;
+                }
+
                 hierarchyDepth++;
             }
 
 
         } catch (Exception e) {
-            log.debug("Error during MapView class analysis: " + e.getMessage());
+            // Silently handle errors - class analysis should not fail the detection
         }
 
         return false;
     }
 
     /**
-     * MapView detection for traditional Android Views with unified semantic analysis.
-     * Now provides the same comprehensive detection as Compose views.
+     * MapView detection for traditional Android Views.
+     * Prioritizes class-based detection to avoid false positives from semantic matching.
      *
      * @param view The View to check
      * @return true if the view is identified as a MapView, false otherwise
@@ -137,18 +165,19 @@ public class MapViewDetectionUtils {
             return false;
         }
 
-        // STEP 1: Class-based detection (fast path)
+        // STEP 1: Class-based detection (authoritative - trust this completely)
         if (isMapViewByClass(view.getClass())) {
             return true;
         }
 
-        // STEP 2: Semantic analysis (same as Compose views now)
-        if (checkViewSemantics(view)) {
-            return true;
+        // STEP 2: Only check semantics for non-text views to avoid false positives
+        // Skip semantic checks for TextView, EditText, ImageView to prevent common UI from being misclassified
+        if (isTextOrImageView(view)) {
+            return false;
         }
 
-        // STEP 3: Content analysis for custom implementations
-        if (checkViewContent(view)) {
+        // STEP 3: Highly constrained semantic analysis (secondary evidence only)
+        if (checkViewSemanticsConstrained(view)) {
             return true;
         }
 
@@ -157,7 +186,7 @@ public class MapViewDetectionUtils {
 
     /**
      * MapView detection for Jetpack Compose SemanticsNode.
-     * Uses the same unified detection strategy as traditional Views for consistency.
+     * Prioritizes AndroidView interop detection to avoid false positives from semantic matching.
      *
      * @param semanticsNode The SemanticsNode to check
      * @return true if the node represents a MapView, false otherwise
@@ -167,13 +196,60 @@ public class MapViewDetectionUtils {
             return false;
         }
 
-        // STEP 1: AndroidView interop detection (Compose-specific)
+        // STEP 1: AndroidView interop detection (authoritative - trust this completely)
         if (checkAndroidViewInterop(semanticsNode)) {
             return true;
         }
 
-        // STEP 2: Semantic properties analysis (unified with traditional Views)
-        if (checkMapSemantics(semanticsNode)) {
+        // STEP 2: Skip semantic checks for nodes with text content to avoid false positives
+        if (hasTextContent(semanticsNode)) {
+            return false;
+        }
+
+        // STEP 3: Highly constrained semantic analysis (secondary evidence only)
+        if (checkMapSemanticsConstrained(semanticsNode)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks if a View is a TextView, EditText, or ImageView that should be excluded from semantic analysis.
+     * These views commonly contain text like "Location", "Map", etc. that would cause false positives.
+     *
+     * @param view The View to check
+     * @return true if this is a text or image view that should skip semantic analysis
+     */
+    private static boolean isTextOrImageView(View view) {
+        return view instanceof android.widget.TextView ||
+               view instanceof android.widget.ImageView;
+    }
+
+    /**
+     * Checks if a Compose SemanticsNode has text content that would likely cause false positives.
+     *
+     * @param semanticsNode The SemanticsNode to check
+     * @return true if this node has text content and should skip semantic analysis
+     */
+    private static boolean hasTextContent(SemanticsNode semanticsNode) {
+        try {
+            // Check if it has text content
+            if (semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getText())) {
+                return true;
+            }
+
+            // Check if it has editable text content
+            if (semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getEditableText())) {
+                return true;
+            }
+
+            // Check if it has content description that might contain common words
+            if (semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getContentDescription())) {
+                return true;
+            }
+        } catch (Exception e) {
+            // If we can't determine, err on the side of caution and skip semantic analysis
             return true;
         }
 
@@ -205,103 +281,80 @@ public class MapViewDetectionUtils {
                 }
             }
         } catch (Exception e) {
-            log.debug("Error checking AndroidView interop for MapView: " + e.getMessage());
+            // Silently handle interop errors - should not prevent other detection methods
         }
 
         return false;
     }
 
     /**
-     * Analyzes semantic properties to detect map-related content.
-     * Uses the same unified keyword detection as traditional Views.
+     * Highly constrained semantic analysis for Compose nodes.
+     * Only applies to non-text nodes and requires very specific keywords to avoid false positives.
      *
      * @param semanticsNode The SemanticsNode to analyze
-     * @return true if semantic properties suggest this is map content, false otherwise
+     * @return true if semantic properties strongly suggest this is map content, false otherwise
      */
-    private static boolean checkMapSemantics(SemanticsNode semanticsNode) {
+    private static boolean checkMapSemanticsConstrained(SemanticsNode semanticsNode) {
         try {
-            // Check content description for map-related keywords
-            if (semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getContentDescription())) {
-                List<String> contentDescriptions = semanticsNode.getConfig()
-                    .get(SemanticsProperties.INSTANCE.getContentDescription());
+            // Only check very specific semantic properties that are unlikely to cause false positives
+            // This method should only be called for non-text nodes
 
-                if (contentDescriptions != null) {
-                    for (String description : contentDescriptions) {
-                        if (containsMapKeywords(description)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            // Check text content if available
-            if (semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getText())) {
-                List<androidx.compose.ui.text.AnnotatedString> textList = semanticsNode.getConfig()
-                    .get(SemanticsProperties.INSTANCE.getText());
-
-                if (textList != null) {
-                    for (androidx.compose.ui.text.AnnotatedString annotatedString : textList) {
-                        String text = annotatedString.getText();
-                        if (containsMapKeywords(text)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            // Check editable text content if available
-            if (semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getEditableText())) {
-                androidx.compose.ui.text.AnnotatedString editableText = semanticsNode.getConfig()
-                    .get(SemanticsProperties.INSTANCE.getEditableText());
-
-                if (editableText != null) {
-                    String text = editableText.getText();
-                    if (containsMapKeywords(text)) {
-                        return true;
-                    }
-                }
+            // Check for test tags or resource IDs that might indicate maps
+            // This is more reliable than content descriptions or text content
+            String testTag = getTestTag(semanticsNode);
+            if (testTag != null && containsMapKeywordsStrict(testTag)) {
+                return true;
             }
 
             // Future enhancements could include:
-            // - Role-based detection
-            // - Custom semantic properties
-            // - Test tags or other identifiers
-            // - State descriptions
+            // - Role-based detection for specific map roles
+            // - Custom semantic properties set by mapping libraries
+            // - Other non-textual semantic hints
 
         } catch (Exception e) {
-            log.debug("Error checking semantic properties for MapView: " + e.getMessage());
+            // Silently handle semantic analysis errors
         }
 
         return false;
     }
 
     /**
-     * Performs semantic analysis on traditional Android Views.
-     * This brings traditional views up to parity with Compose semantic detection.
+     * Attempts to get a test tag from a SemanticsNode using reflection.
+     * Test tags are more reliable indicators than content descriptions.
+     *
+     * @param semanticsNode The SemanticsNode to check
+     * @return The test tag string if available, null otherwise
+     */
+    private static String getTestTag(SemanticsNode semanticsNode) {
+        try {
+            // Try to get test tag using SemanticsProperties
+            if (semanticsNode.getConfig().contains(SemanticsProperties.INSTANCE.getTestTag())) {
+                return semanticsNode.getConfig().get(SemanticsProperties.INSTANCE.getTestTag());
+            }
+        } catch (Exception e) {
+            // Ignore errors accessing test tags
+        }
+        return null;
+    }
+
+    /**
+     * Highly constrained semantic analysis for traditional Android Views.
+     * Only applies to non-text/image views and requires very specific indicators to avoid false positives.
      *
      * @param view The View to analyze semantically
-     * @return true if semantic properties suggest this is map content, false otherwise
+     * @return true if semantic properties strongly suggest this is map content, false otherwise
      */
-    private static boolean checkViewSemantics(View view) {
+    private static boolean checkViewSemanticsConstrained(View view) {
         try {
-            // Check content description (accessibility)
-            CharSequence contentDescription = view.getContentDescription();
-            if (contentDescription != null && containsMapKeywords(contentDescription.toString())) {
-                return true;
-            }
+            // Only check very specific semantic properties that are unlikely to cause false positives
+            // This method should only be called for non-text/image views
 
-            // Check tag for semantic hints
-            Object tag = view.getTag();
-            if (tag instanceof String && containsMapKeywords((String) tag)) {
-                return true;
-            }
-
-            // Check for resource name hints (if available)
+            // Check resource name hints (more reliable than content descriptions)
             try {
                 int id = view.getId();
                 if (id != View.NO_ID) {
                     String resourceName = view.getResources().getResourceEntryName(id);
-                    if (resourceName != null && containsMapKeywords(resourceName)) {
+                    if (resourceName != null && containsMapKeywordsStrict(resourceName)) {
                         return true;
                     }
                 }
@@ -311,60 +364,27 @@ public class MapViewDetectionUtils {
                 // Other unexpected exceptions during resource access
             }
 
+            // Check tag for very specific map-related hints (not general keywords)
+            Object tag = view.getTag();
+            if (tag instanceof String && containsMapKeywordsStrict((String) tag)) {
+                return true;
+            }
+
         } catch (Exception e) {
-            log.debug("Error during traditional View semantic analysis: " + e.getMessage());
+            // Silently handle semantic analysis errors
         }
 
         return false;
     }
 
     /**
-     * Performs content analysis on Views that might contain map-related content.
-     * This checks for textual hints that might indicate map functionality.
-     *
-     * @param view The View to analyze
-     * @return true if content suggests this is map-related, false otherwise
-     */
-    private static boolean checkViewContent(View view) {
-        try {
-            // For TextViews, check the actual text content
-            if (view instanceof android.widget.TextView) {
-                android.widget.TextView textView = (android.widget.TextView) view;
-                CharSequence text = textView.getText();
-                if (text != null && containsMapKeywords(text.toString())) {
-                    return true;
-                }
-
-                // Check hint text as well
-                CharSequence hint = textView.getHint();
-                if (hint != null && containsMapKeywords(hint.toString())) {
-                    return true;
-                }
-            }
-
-            // For ImageViews, check content description for map-related descriptions
-            if (view instanceof android.widget.ImageView) {
-                CharSequence contentDesc = view.getContentDescription();
-                if (contentDesc != null && containsMapKeywords(contentDesc.toString())) {
-                    return true;
-                }
-            }
-
-        } catch (Exception e) {
-            log.debug("Error during View content analysis: " + e.getMessage());
-        }
-
-        return false;
-    }
-
-    /**
-     * Checks if a text string contains map-related keywords.
-     * Uses case-insensitive matching for robust detection.
+     * Checks if a text string contains highly specific map-related keywords.
+     * Uses strict matching to avoid false positives with common UI text.
      *
      * @param text The text to analyze
-     * @return true if the text contains map-related keywords, false otherwise
+     * @return true if the text contains very specific map-related keywords, false otherwise
      */
-    private static boolean containsMapKeywords(String text) {
+    private static boolean containsMapKeywordsStrict(String text) {
         if (text == null || text.trim().isEmpty()) {
             return false;
         }
