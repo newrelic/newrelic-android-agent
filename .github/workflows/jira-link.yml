@@ -1,0 +1,21 @@
+name: Add JIRA Links
+on:
+  pull_request_target:
+    types: [opened, edited, reopened]
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  add-jira-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: codenamegrant/jira-pr-link-action@6151a1959fff01a7c73d8bab7081624eb9c4c7ef # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          jira-base-url: 'https://newrelic.atlassian.net'
+          jira-link-mode: 'body-start'
+          issue-pattern: '(NR-\d+)'

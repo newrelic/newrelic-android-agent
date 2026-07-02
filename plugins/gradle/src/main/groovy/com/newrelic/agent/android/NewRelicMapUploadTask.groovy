@@ -18,6 +18,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 
 abstract class NewRelicMapUploadTask extends DefaultTask {
@@ -37,6 +38,21 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
 
     @Internal
     abstract DirectoryProperty getProjectRoot()
+
+    @Internal
+    abstract DirectoryProperty getBuildDirectory()
+
+    /**
+     * FIX: Use an @OutputFile to prevent mutating the @InputFile.
+     *
+     * Resolved from the wired-in buildDirectory property rather than
+     * Task.project, so the task stays configuration-cache compatible
+     * (Task.project access is forbidden at execution time).
+     */
+    @OutputFile
+    File getTaggedMappingFile() {
+        return buildDirectory.file("outputs/newrelic/" + variantName.get() + "/mapping.txt").get().asFile
+    }
 
     @Internal
     abstract Property<ConfigurableFileCollection> getTaggedMappingFiles()
@@ -63,39 +79,40 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
             }
 
             if (mappingFile.isPresent()) {
-                // we know where map should be (Gradle tells us)
-                def mapFilePath = mappingFile.asFile.get()
+                def infile = mappingFile.asFile.get()
+                def taggedFile = getTaggedMappingFile()
 
-                if (taggedMappingFiles.isPresent() && !taggedMappingFiles.get().empty) {
-                    def infile = mappingFile.asFile.get()
-                    taggedMappingFiles.get().files.add(project.file(mappingFile))
-                    mapFilePath = taggedMappingFiles.get().files.first().asFile
-                }
+                if (infile.exists()) {
+                    logger.debug("Map file for variant [${variantName.get()}] detected: [${infile.absolutePath}]")
 
-                if (mapFilePath?.exists()) {
-                    logger.debug("Map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
+                    taggedFile.parentFile.mkdirs()
 
-                    agentOptions.put(Proguard.MAPPING_FILE_KEY, mapFilePath.absolutePath)
+                    taggedFile.withOutputStream { os ->
+                        def originalContent = infile.text
+                        os.write(originalContent.getBytes("UTF-8"))
+
+                        // Restore duplicate prevention logic for backwards compatibility
+                        if (!originalContent.contains(Proguard.NR_MAP_PREFIX)) {
+                            String tag = BuildHelper.NEWLN + Proguard.NR_MAP_PREFIX + buildId.get() + BuildHelper.NEWLN
+                            os.write(tag.getBytes("UTF-8"))
+                            logger.info("Tagging map [${taggedFile.getAbsolutePath()}] with buildID [${buildId.get()}]")
+                        } else {
+                            logger.debug("Map already tagged, skipping duplicate tag for [${taggedFile.getAbsolutePath()}]")
+                        }
+                    }
+
+                    agentOptions.put(Proguard.MAPPING_FILE_KEY, taggedFile.absolutePath)
                     agentOptions.put(Proguard.MAPPING_PROVIDER_KEY, mapProvider.get())
                     agentOptions.put(Proguard.VARIANT_KEY, variantName.get())
                     agentOptions.put(BuildId.BUILD_ID_KEY, buildId.get())
 
-                    // tag the map now to avoid Gradle race conditions
-                    mapFilePath.with {
-                        if (!text.contains(Proguard.NR_MAP_PREFIX)) {
-                            text = text + BuildHelper.NEWLN +
-                                    Proguard.NR_MAP_PREFIX + buildId.get() + BuildHelper.NEWLN
-                            logger.info("Tagging map [" + it.getAbsolutePath() + "] with buildID [" + buildId.get() + "]");
-                        }
-                    }
-
                     new Proguard(NewRelicGradlePlugin.LOGGER, agentOptions).findAndSendMapFile()
                 } else {
-                    logger.debug("No map file for variant [${variantName.get()}] detected: [${mapFilePath.absolutePath}]")
+                    logger.debug("No map file for variant [${variantName.get()}] detected at [${infile.absolutePath}]")
                 }
 
             } else {
-                logger.warn("variant[${variantName.get()}] taggedMappingFile is null")
+                logger.warn("variant[${variantName.get()}] mappingFile is not present")
             }
 
         } catch (Exception e) {

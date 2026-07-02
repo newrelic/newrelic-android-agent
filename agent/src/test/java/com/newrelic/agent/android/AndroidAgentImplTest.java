@@ -453,6 +453,69 @@ public class AndroidAgentImplTest {
     }
 
 
+    @Test
+    public void testShutdownHarvestIncludesFullSessionAttributes() throws Exception {
+        agentStart();
+
+        final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+        final int systemAttrCountBeforeShutdown = analyticsController.getSystemAttributes().size();
+        Assert.assertTrue("Agent should have system attributes after start", systemAttrCountBeforeShutdown > 1);
+
+        final int[] systemAttrCountDuringHarvest = {-1};
+        Harvest.addHarvestListener(new HarvestAdapter() {
+            @Override
+            public void onHarvestBefore() {
+                systemAttrCountDuringHarvest[0] = analyticsController.getSystemAttributes().size();
+            }
+        });
+
+        NewRelic.isShutdown = true;
+        agentImpl.stop(true);
+        NewRelic.isShutdown = false;
+
+        Assert.assertTrue(
+                "Shutdown harvest must include full session attributes, not just sessionDuration. Got: " + systemAttrCountDuringHarvest[0],
+                systemAttrCountDuringHarvest[0] > 1);
+    }
+
+    @Test
+    public void testShutdownHarvestFlushesBufferedEvents() throws Exception {
+        agentStart();
+
+        final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+        final EventManager eventManager = analyticsController.getEventManager();
+
+        // Buffer a custom event in the EventManager
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put("custom", "value");
+        Assert.assertTrue("Custom event should be recorded",
+                analyticsController.recordCustomEvent("CustomCategory", attrs));
+
+        final int bufferedBeforeShutdown = eventManager.getQueuedEvents().size();
+        Assert.assertTrue("EventManager should hold buffered events before shutdown",
+                bufferedBeforeShutdown > 0);
+
+        // Capture how many events remain in the buffer when the shutdown harvest begins.
+        // clearExistingData() must NOT empty the buffer before harvestNow flushes it; otherwise
+        // only session attributes are sent and the recorded events are silently dropped.
+        final int[] bufferedDuringHarvest = {-1};
+        Harvest.addHarvestListener(new HarvestAdapter() {
+            @Override
+            public void onHarvestBefore() {
+                bufferedDuringHarvest[0] = eventManager.getQueuedEvents().size();
+            }
+        });
+
+        NewRelic.isShutdown = true;
+        agentImpl.stop(true);
+        NewRelic.isShutdown = false;
+
+        Assert.assertTrue(
+                "Shutdown harvest must retain buffered events for flush, not drop them in clearExistingData(). Got: "
+                        + bufferedDuringHarvest[0],
+                bufferedDuringHarvest[0] >= bufferedBeforeShutdown);
+    }
+
     private void agentStart() throws InterruptedException {
         Agent.start();
         Thread.sleep(1 * 500);

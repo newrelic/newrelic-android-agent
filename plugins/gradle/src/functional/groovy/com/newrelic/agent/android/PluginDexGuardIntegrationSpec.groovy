@@ -114,12 +114,17 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         filteredOutput.contains("Maps will be tagged and uploaded for variants [")
         mapUploadVariants.each { var ->
             buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
-            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+            // Check the tagged output file instead of original mapping file
+            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
+            }
+            // Check that original mapping file detection still works
+            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+                exists()
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") ||
-                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
+                filteredOutput.contains("Tagging map [") && filteredOutput.contains("] with buildID [") ||
+                        filteredOutput.contains("Map already tagged, skipping duplicate tag for [")
             }
         }
     }
@@ -194,11 +199,50 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         }
         mapUploadVariants.each { var ->
             buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            // Bundle mapping should not be tagged (only APK mapping is tagged)
             with(new File(buildDir, "outputs/dexguard/mapping/bundle/release/mapping.txt")) {
                 exists()
                 !text.contains(Proguard.NR_MAP_PREFIX)
             }
-            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+            // Check tagged output file for APK variant
+            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
+                exists()
+                text.contains(Proguard.NR_MAP_PREFIX)
+            }
+        }
+    }
+
+    def "verify dexguard apk map upload when invoking dexguardApk directly"() {
+        // Regression for NR-564988: invoking the DexGuard APK packaging task directly
+        // (e.g. dexguardApkRelease/dexguardApkQa) must trigger the New Relic map upload.
+        // Previously the upload was only wired to the AAB task for application modules,
+        // so APK-only builds never uploaded a mapping.
+        given: "Build the app's DexGuard APK directly"
+        def runner = provideRunner()
+                .withGradleVersion(gradleVersion)
+                .withArguments(
+                        "-Pnewrelic.agent.version=${agentVersion}",
+                        "-Pnewrelic.agp.version=${agpVersion}",
+                        "-PagentRepo=${localEnv["M2_REPO"]}",
+                        "-Pcompiler=dexguard",
+                        "-Ddexguard.license=${dexguardLicenseFile}",
+                        "-PdexguardMavenToken=${dexguardMavenToken}",
+                        "-Pdexguard.plugin.version=${dexguardPluginVersion}",
+                        "clean",
+                        DexGuardHelper.DEXGUARD_APK_TASK)
+
+        when: "run the build and cache the results"
+        buildResult = runner.build()
+        filteredOutput = printFilter
+
+        then: "the DexGuard APK task ran and finalized the New Relic map upload"
+        instrumentationVariants.each { var ->
+            buildResult.task(":${DexGuardHelper.DEXGUARD_APK_TASK}${var.capitalize()}").outcome == SUCCESS
+        }
+        mapUploadVariants.each { var ->
+            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            // APK mapping is tagged with the NR build ID and copied to the tagged output
+            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
             }

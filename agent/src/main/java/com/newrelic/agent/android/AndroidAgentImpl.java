@@ -77,6 +77,7 @@ import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidEncoder;
 import com.newrelic.agent.android.util.ComposeChecker;
+import com.newrelic.agent.android.util.KmpChecker;
 import com.newrelic.agent.android.util.Connectivity;
 import com.newrelic.agent.android.util.Encoder;
 import com.newrelic.agent.android.util.OfflineStorage;
@@ -254,6 +255,12 @@ public class AndroidAgentImpl implements
                 log.error("NativeReporting feature is enabled, but agent-ndk was not found (probably missing as a dependency).");
                 log.error("Native reporting will not be enabled");
             }
+        }
+
+        //check if KMP is used for app
+        if(KmpChecker.isKmpUsed()) {
+            log.debug("KMP detected.");
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_HYBRID_PLATFORM_KMP);
         }
 
     }
@@ -1062,11 +1069,10 @@ public class AndroidAgentImpl implements
             //clear activity traces
             TraceMachine.clearActivityHistory();
 
-            //clear analytics
-            AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-            if (analyticsController != null) {
-                analyticsController.clear();
-            }
+            // NOTE: do NOT empty the EventManager here. Its buffered events must be included
+            // in the final shutdown harvest; harvestNow(true, true) flushes them via
+            // setTransmitRequired() -> onHarvest() -> getQueuedEventsSnapshot(). Emptying the
+            // buffer here drops those events so only session attributes get sent.
 
             //clear measurementEngine
             MeasurementEngine measurementEngine = new MeasurementEngine();
