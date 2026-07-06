@@ -17,7 +17,6 @@ jobs:
     outputs:
       skip:            ${{ steps.skip-check.outputs.skip }}
       date:            ${{ steps.vars.outputs.date }}
-      nightly_version: ${{ steps.vars.outputs.nightly_version }}
       tag:             ${{ steps.vars.outputs.tag }}
       head_sha:        ${{ steps.vars.outputs.head_sha }}
     steps:
@@ -29,19 +28,19 @@ jobs:
       - name: Skip if no new commits since last nightly
         id: skip-check
         run: |
-          LAST_NIGHTLY=$(git tag -l 'nightly-*' --sort=-version:refname | head -1)
-          if [ -z "$LAST_NIGHTLY" ]; then
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          LAST_NIGHTLY_SHA=$(git rev-list -n 1 "$LAST_NIGHTLY")
-          HEAD_SHA=$(git rev-parse HEAD)
-          if [ "$LAST_NIGHTLY_SHA" = "$HEAD_SHA" ]; then
-            echo "No new commits since $LAST_NIGHTLY — skipping nightly."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+          # LAST_NIGHTLY=$(git tag -l 'nightly-*' --sort=-version:refname | head -1)
+          # if [ -z "$LAST_NIGHTLY" ]; then
+          #   echo "skip=false" >> "$GITHUB_OUTPUT"
+          #   exit 0
+          # fi
+          # LAST_NIGHTLY_SHA=$(git rev-list -n 1 "$LAST_NIGHTLY")
+          # HEAD_SHA=$(git rev-parse HEAD)
+          # if [ "$LAST_NIGHTLY_SHA" = "$HEAD_SHA" ]; then
+          #   echo "No new commits since $LAST_NIGHTLY — skipping nightly."
+          #   echo "skip=true" >> "$GITHUB_OUTPUT"
+          # else
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          # fi
 
       - name: Resolve version and date
         if: steps.skip-check.outputs.skip != 'true'
@@ -51,8 +50,9 @@ jobs:
           DATE_COMPACT=$(date -u +%Y%m%d)
           BASE_VERSION=$(grep '^newrelic\.agent\.version' gradle.properties \
             | sed 's/.*=\s*\([0-9][0-9.]*\).*/\1/')
+          echo "base_version=${BASE_VERSION}"                             >> "$GITHUB_OUTPUT"
           echo "date=${DATE}"                                             >> "$GITHUB_OUTPUT"
-          echo "nightly_version=${BASE_VERSION}-nightly-${DATE_COMPACT}" >> "$GITHUB_OUTPUT"
+          echo "snapshot_version=${BASE_VERSION}-SNAPSHOT"                >> "$GITHUB_OUTPUT"
           echo "tag=nightly-${DATE}"                                      >> "$GITHUB_OUTPUT"
           echo "head_sha=$(git rev-parse HEAD)"                           >> "$GITHUB_OUTPUT"
 
@@ -70,7 +70,7 @@ jobs:
     uses: ./.github/workflows/sonatypeDeployment.yml
     with:
       ref: develop
-      version: ${{ needs.prepare.outputs.nightly_version }}
+      version: ${{ needs.prepare.outputs.snapshot_version }}
     secrets: inherit
 
   release:
@@ -96,15 +96,16 @@ jobs:
           TAG:             ${{ needs.prepare.outputs.tag }}
           DATE:            ${{ needs.prepare.outputs.date }}
           HEAD_SHA:        ${{ needs.prepare.outputs.head_sha }}
-          NIGHTLY_VERSION: ${{ needs.prepare.outputs.nightly_version }}
+          BASE_VERSION:    ${{ needs.prepare.outputs.base_version }}
+          SNAPSHOT_VERSION:    ${{ needs.prepare.outputs.snapshot_version }}
         run: |
           {
             echo "Nightly pre-release from \`develop\` at commit \`${HEAD_SHA}\`."
             echo ""
-            echo "**Maven artifact version:** \`${NIGHTLY_VERSION}\`"
+            echo "**Maven artifact version:** \`${SNAPSHOT_VERSION}\`"
             echo ""
             echo '```groovy'
-            echo "implementation 'com.newrelic.agent.android:android-agent:${NIGHTLY_VERSION}'"
+            echo "implementation 'com.newrelic.agent.android:android-agent:${SNAPSHOT_VERSION}'"
             echo '```'
             echo ""
             echo "> Pre-release build — not intended for production use."
