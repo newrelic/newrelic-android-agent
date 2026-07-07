@@ -15,10 +15,11 @@ jobs:
     name: Skip check and version resolution
     runs-on: ubuntu-latest
     outputs:
-      skip:            ${{ steps.skip-check.outputs.skip }}
-      date:            ${{ steps.vars.outputs.date }}
-      tag:             ${{ steps.vars.outputs.tag }}
-      head_sha:        ${{ steps.vars.outputs.head_sha }}
+      skip:             ${{ steps.skip-check.outputs.skip }}
+      date:             ${{ steps.vars.outputs.date }}
+      tag:              ${{ steps.vars.outputs.tag }}
+      head_sha:         ${{ steps.vars.outputs.head_sha }}
+      snapshot_version: ${{ steps.vars.outputs.snapshot_version }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -28,29 +29,32 @@ jobs:
       - name: Skip if no new commits since last nightly
         id: skip-check
         run: |
-          # LAST_NIGHTLY=$(git tag -l 'nightly-*' --sort=-version:refname | head -1)
-          # if [ -z "$LAST_NIGHTLY" ]; then
-          #   echo "skip=false" >> "$GITHUB_OUTPUT"
-          #   exit 0
-          # fi
-          # LAST_NIGHTLY_SHA=$(git rev-list -n 1 "$LAST_NIGHTLY")
-          # HEAD_SHA=$(git rev-parse HEAD)
-          # if [ "$LAST_NIGHTLY_SHA" = "$HEAD_SHA" ]; then
-          #   echo "No new commits since $LAST_NIGHTLY — skipping nightly."
-          #   echo "skip=true" >> "$GITHUB_OUTPUT"
-          # else
-          echo "skip=false" >> "$GITHUB_OUTPUT"
-          # fi
+          # should we tag another commit as a nightly build candidate?
+
+          LAST_NIGHTLY=$(git tag -l 'nightly-*' --sort=-version:refname | head -1)
+
+          if [ -z "$LAST_NIGHTLY" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LAST_NIGHTLY_SHA=$(git rev-list -n 1 "$LAST_NIGHTLY")
+          HEAD_SHA=$(git rev-parse HEAD)
+
+          if [ "$LAST_NIGHTLY_SHA" = "$HEAD_SHA" ]; then
+            echo "No new commits since $LAST_NIGHTLY — skipping nightly."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Resolve version and date
         if: steps.skip-check.outputs.skip != 'true'
         id: vars
         run: |
           DATE=$(date -u +%Y-%m-%d)
-          DATE_COMPACT=$(date -u +%Y%m%d)
           BASE_VERSION=$(grep '^newrelic\.agent\.version' gradle.properties \
             | sed 's/.*=\s*\([0-9][0-9.]*\).*/\1/')
-          echo "base_version=${BASE_VERSION}"                             >> "$GITHUB_OUTPUT"
           echo "date=${DATE}"                                             >> "$GITHUB_OUTPUT"
           echo "snapshot_version=${BASE_VERSION}-SNAPSHOT"                >> "$GITHUB_OUTPUT"
           echo "tag=nightly-${DATE}"                                      >> "$GITHUB_OUTPUT"
@@ -95,9 +99,8 @@ jobs:
           GH_TOKEN:        ${{ github.token }}
           TAG:             ${{ needs.prepare.outputs.tag }}
           DATE:            ${{ needs.prepare.outputs.date }}
-          HEAD_SHA:        ${{ needs.prepare.outputs.head_sha }}
-          BASE_VERSION:    ${{ needs.prepare.outputs.base_version }}
-          SNAPSHOT_VERSION:    ${{ needs.prepare.outputs.snapshot_version }}
+          HEAD_SHA:         ${{ needs.prepare.outputs.head_sha }}
+          SNAPSHOT_VERSION: ${{ needs.prepare.outputs.snapshot_version }}
         run: |
           {
             echo "Nightly pre-release from \`develop\` at commit \`${HEAD_SHA}\`."
