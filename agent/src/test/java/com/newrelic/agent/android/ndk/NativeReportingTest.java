@@ -184,26 +184,6 @@ public class NativeReportingTest {
     }
 
     @Test
-    @Ignore("FIXME: AgentNDK.stop() is final; mockito-inline conflicts with Robolectric. See NativeReportingKotlinTest")
-    public void stopSurvivesNdkAbiMismatch() {
-        // Reproduces the runtime crash where AgentNDK.stop() raises a LinkageError at
-        // the call site. In production this is a NoSuchMethodError: the agent is compiled
-        // against an AgentNDK.stop() whose return-type descriptor (void <-> boolean)
-        // differs from the agent-ndk class the host app resolves at runtime (often via a
-        // dynamic "1.+" range). Here in unit tests the native library is absent, so the
-        // real AgentNDK.stop() -> nativeStop() raises UnsatisfiedLinkError instead -- both
-        // are LinkageErrors. stop() must swallow either, otherwise backgrounding the app
-        // crashes the process. (AgentNDK.stop() is a final Kotlin method, so it cannot be
-        // Mockito-stubbed; the real instance's native call reproduces the error faithfully.)
-        Assert.assertNotNull(NativeReporting.agentNdk.get());
-
-        nativeReporter.stop();
-
-        Assert.assertTrue(statsEngineContains(MetricNames.SUPPORTABILITY_NDK_STOP));
-        Assert.assertNull(NativeReporting.agentNdk.get());
-    }
-
-    @Test
     public void onNativeCrash() {
         agentNDK.flushPendingReports();
         Assert.assertTrue(statsEngineContains(MetricNames.SUPPORTABILITY_NDK_REPORTS_CRASH));

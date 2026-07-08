@@ -14,8 +14,6 @@ import com.newrelic.agent.android.logging.AgentLogManager
 import com.newrelic.agent.android.logging.ConsoleAgentLog
 import com.newrelic.agent.android.metric.MetricNames
 import com.newrelic.agent.android.stats.StatsEngine
-import io.mockk.every
-import io.mockk.mockk
 import org.junit.After
 import org.junit.Assert
 import org.junit.Before
@@ -24,9 +22,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Kotlin companion to NativeReportingTest for tests that require mocking final
- * AgentNDK methods. mockito-inline conflicts with Robolectric's class loader;
- * MockK handles final Kotlin methods correctly in this environment.
+ * Kotlin companion to NativeReportingTest for tests that exercise LinkageError handling
+ * in NativeReporting.stop(). AgentNDK.stop() is a final Kotlin method that calls the
+ * native nativeStop(); in the test environment the native library is unavailable, so
+ * UnsatisfiedLinkError (a LinkageError) is thrown naturally — no mocking required.
  */
 @RunWith(RobolectricTestRunner::class)
 class NativeReportingKotlinTest {
@@ -52,16 +51,12 @@ class NativeReportingKotlinTest {
 
     @Test
     fun stopSurvivesNdkAbiMismatch() {
-        // AgentNDK.stop() is a final Kotlin method; use MockK to stub it.
-        // Reproduces the runtime crash where the agent was compiled against an
-        // AgentNDK.stop() with a different return-type descriptor than the agent-ndk
-        // class loaded at runtime (void <-> boolean across releases). The JVM raises a
-        // NoSuchMethodError (a LinkageError) at the call site. stop() must not propagate
-        // it, otherwise backgrounding the app crashes the process.
-        val mismatched = mockk<AgentNDK>(relaxed = true)
-        every { mismatched.stop() } throws NoSuchMethodError("No virtual method stop()V in class AgentNDK")
-        NativeReporting.agentNdk.set(mismatched)
-
+        // agentNdk.get().stop() calls the native nativeStop(), which throws
+        // UnsatisfiedLinkError (a LinkageError) because the native library is
+        // unavailable in the test environment. NativeReporting.stop() must catch
+        // the LinkageError and not propagate it — otherwise backgrounding the app
+        // crashes the process when the agent-ndk version at runtime differs from
+        // the one compiled against.
         nativeReporter.stop()
 
         Assert.assertTrue(StatsEngine.SUPPORTABILITY.statsMap.containsKey(MetricNames.SUPPORTABILITY_NDK_STOP))
