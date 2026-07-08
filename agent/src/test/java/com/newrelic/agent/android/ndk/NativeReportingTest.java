@@ -184,6 +184,7 @@ public class NativeReportingTest {
     }
 
     @Test
+    @Ignore("FIXME: AgentNDK.stop() is final; mockito-inline conflicts with Robolectric. See NativeReportingKotlinTest")
     public void stopSurvivesNdkAbiMismatch() {
         // Reproduces the runtime crash where AgentNDK.stop() raises a LinkageError at
         // the call site. In production this is a NoSuchMethodError: the agent is compiled
