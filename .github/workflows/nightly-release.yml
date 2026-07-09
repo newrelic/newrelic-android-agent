@@ -6,6 +6,12 @@ on:
   # schedule:
   #   - cron: '0 2 * * *'  # 2:00 AM UTC daily
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or SHA to build (default: develop)'
+        default: 'develop'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -23,13 +29,21 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: develop
+          ref: ${{ inputs.ref || 'develop' }}
           fetch-depth: 0
 
       - name: Skip if no new commits since last nightly
         id: skip-check
         run: |
           # should we tag another commit as a nightly build candidate?
+
+          # Bail early if today's tag already exists (guards against same-day re-runs)
+          TODAY_TAG="nightly-$(date -u +%Y-%m-%d)"
+          if git tag -l "$TODAY_TAG" | grep -q .; then
+            echo "Tag $TODAY_TAG already exists — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           LAST_NIGHTLY=$(git tag -l 'nightly-*' --sort=-version:refname | head -1)
 
@@ -66,25 +80,27 @@ jobs:
     if: needs.prepare.outputs.skip != 'true'
     uses: ./.github/workflows/android.yml
     with:
-      ref: develop
+      ref: ${{ inputs.ref || 'develop' }}
 
   publish:
     name: Publish nightly artifacts to Sonatype
     needs: [prepare, build]
+    if: needs.prepare.outputs.skip != 'true'
     uses: ./.github/workflows/sonatypeDeployment.yml
     with:
-      ref: develop
+      ref: ${{ inputs.ref || 'develop' }}
       version: ${{ needs.prepare.outputs.snapshot_version }}
     secrets: inherit
 
   release:
     name: Tag and create GitHub pre-release
     needs: [prepare, publish]
+    if: needs.prepare.outputs.skip != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: develop
+          ref: ${{ inputs.ref || 'develop' }}
           fetch-depth: 0
 
       - name: Create and push nightly tag

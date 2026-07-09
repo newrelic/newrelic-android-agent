@@ -42,10 +42,13 @@ jobs:
             ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
             VERSION_OVERRIDE: ${{ inputs.version }}
           run: |
-            EXTRA=""
-            [ -n "$VERSION_OVERRIDE" ] && EXTRA="-Pnewrelic.agent.version=$VERSION_OVERRIDE"
-            ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1 $EXTRA
-          
+            if [ -n "$VERSION_OVERRIDE" ]; then
+              ./gradlew clean publishToSonatype closeSonatypeStagingRepository \
+                --max-workers 1 "-Pnewrelic.agent.version=$VERSION_OVERRIDE"
+            else
+              ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1
+            fi
+
         # - name: Upload staged artifacts to Central Sonatype
         #   env:
         #     SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
@@ -93,6 +96,9 @@ jobs:
            ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
            VERSION_OVERRIDE: ${{ inputs.version }}
          run: |
-           EXTRA=""
-           [ -n "$VERSION_OVERRIDE" ] && EXTRA="-Pnewrelic.agent.version=$VERSION_OVERRIDE"
-           ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1 -PmonoEnabled=true $EXTRA
+           if [ -n "$VERSION_OVERRIDE" ]; then
+             ./gradlew clean publishToSonatype closeSonatypeStagingRepository \
+               --max-workers 1 -PmonoEnabled=true "-Pnewrelic.agent.version=$VERSION_OVERRIDE"
+           else
+             ./gradlew clean publishToSonatype closeSonatypeStagingRepository --max-workers 1 -PmonoEnabled=true
+           fi
