@@ -6,12 +6,6 @@ on:
   # schedule:
   #   - cron: '0 2 * * *'  # 2:00 AM UTC daily
   workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Branch or SHA to build (default: develop)'
-        default: 'develop'
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -29,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ inputs.ref || 'develop' }}
+          ref: develop
           fetch-depth: 0
 
       - name: Skip if no new commits since last nightly
@@ -80,7 +74,7 @@ jobs:
     if: needs.prepare.outputs.skip != 'true'
     uses: ./.github/workflows/android.yml
     with:
-      ref: ${{ inputs.ref || 'develop' }}
+      ref: develop
 
   publish:
     name: Publish nightly artifacts to Sonatype
@@ -88,7 +82,7 @@ jobs:
     if: needs.prepare.outputs.skip != 'true'
     uses: ./.github/workflows/sonatypeDeployment.yml
     with:
-      ref: ${{ inputs.ref || 'develop' }}
+      ref: develop
       version: ${{ needs.prepare.outputs.snapshot_version }}
     secrets: inherit
 
@@ -100,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ inputs.ref || 'develop' }}
+          ref: develop
           fetch-depth: 0
 
       - name: Create and push nightly tag
