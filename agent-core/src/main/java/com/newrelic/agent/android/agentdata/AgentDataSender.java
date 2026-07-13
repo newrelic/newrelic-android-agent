@@ -70,7 +70,7 @@ public class AgentDataSender extends PayloadSender {
 
             case HttpsURLConnection.HTTP_INTERNAL_ERROR:
                 onFailedUpload("The data payload [" + payload.getUuid() + "] was rejected and will be deleted - Response code [" + responseCode + "]");
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_HEX_FAILED_UPLOAD, timer.peek());
+                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_HEX_UPLOAD_TIME, timer.peek());
                 break;
 
             case HttpURLConnection.HTTP_BAD_REQUEST:
