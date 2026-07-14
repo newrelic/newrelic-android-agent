@@ -315,9 +315,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         if (eventsJSON == null || eventsJSON.isEmpty()) {
             return false;
         }
-        // Full-mode only: external frames have no error-mode buffer.
-        if (modeManager == null || modeManager.getCurrentMode() != SessionReplayMode.FULL) {
-            log.debug("recordSessionReplayEvents: not in FULL recording mode; dropping events.");
+        // Accept FULL and ERROR: in error mode the external source (Flutter)
+        // buffers the rolling window on its side and forwards it only when an
+        // error occurs, so arriving events should upload. Only OFF is dropped.
+        if (modeManager == null || modeManager.getCurrentMode() == SessionReplayMode.OFF) {
+            log.debug("recordSessionReplayEvents: recording mode is off; dropping events.");
             return false;
         }
 
