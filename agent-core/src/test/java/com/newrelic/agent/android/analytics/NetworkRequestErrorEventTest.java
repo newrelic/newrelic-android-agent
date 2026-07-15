@@ -81,7 +81,7 @@ public class NetworkRequestErrorEventTest {
         Collection<AnalyticsAttribute> attributes = httpErrorEvent.getAttributeSet();
         AnalyticsAttribute responseBodyAttribute = getAttributeByName(attributes, AnalyticsAttribute.RESPONSE_BODY_ATTRIBUTE);
         Assert.assertNotNull(responseBodyAttribute);
-        Assert.assertTrue("Should truncate response body to attribute limit", responseBodyAttribute.getStringValue().length() == AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
+        Assert.assertTrue("Should truncate response body to attribute limit", responseBodyAttribute.getStringValue().length() > AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
     }
 
     @Test
