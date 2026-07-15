@@ -34,8 +34,8 @@ public class FileJSErrorStore extends AbstractFileStore<Map.Entry<String, String
 
     public FileJSErrorStore(Context context, AgentConfiguration config) {
         super(context, DIR_NAME, resolveCap(config),
-                MetricNames.SUPPORTABILITY_JS_ERROR_EVICTED,
-                MetricNames.SUPPORTABILITY_JS_ERROR_CORRUPTED,
+                MetricNames.SUPPORTABILITY_MOBILE_ERROR_EVICTED,
+                MetricNames.SUPPORTABILITY_MOBILE_ERROR_CORRUPTED,
                 "FileJSErrorStore");
     }
 

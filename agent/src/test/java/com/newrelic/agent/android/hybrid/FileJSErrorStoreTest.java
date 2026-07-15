@@ -160,7 +160,7 @@ public class FileJSErrorStoreTest {
         Assert.assertTrue(entries.containsKey(newest));
 
         Assert.assertTrue("eviction metric should fire",
-                StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_JS_ERROR_EVICTED));
+                StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_MOBILE_ERROR_EVICTED));
     }
 
     @Test
@@ -272,7 +272,7 @@ public class FileJSErrorStoreTest {
         Assert.assertEquals(SAMPLE_JSON_A, entries.get(id));
         Assert.assertFalse("Corrupt file should be deleted", corrupt.exists());
         Assert.assertTrue("corruption metric should fire",
-                StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_JS_ERROR_CORRUPTED));
+                StatsEngine.get().getStatsMap().containsKey(MetricNames.SUPPORTABILITY_MOBILE_ERROR_CORRUPTED));
     }
 
     @Test

@@ -47,8 +47,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_PAYLOAD_REJECTED_DEVICE_OFFLINE = SUPPORTABILITY_AGENT + "Payload/Offline/Rejected";
 
     public static final String SUPPORTABILITY_PAYLOAD_CORRUPTED = SUPPORTABILITY_AGENT + "Payload/Corrupted";
-    public static final String SUPPORTABILITY_JS_ERROR_EVICTED = SUPPORTABILITY_AGENT + "JSError/Removed/Evicted";
-    public static final String SUPPORTABILITY_JS_ERROR_CORRUPTED = SUPPORTABILITY_AGENT + "JSError/Corrupted";
+    public static final String SUPPORTABILITY_MOBILE_ERROR_EVICTED = SUPPORTABILITY_AGENT + "MobileError/Removed/Evicted";
+    public static final String SUPPORTABILITY_MOBILE_ERROR_CORRUPTED = SUPPORTABILITY_AGENT + "MobileError/Corrupted";
     public static final String SUPPORTABILITY_SESSION_CONTEXT_EVICTED = SUPPORTABILITY_AGENT + "SessionContext/Removed/Evicted";
     public static final String SUPPORTABILITY_SESSION_CONTEXT_CORRUPTED = SUPPORTABILITY_AGENT + "SessionContext/Corrupted";
     public static final String SUPPORTABILITY_SESSION_CONTEXT_MISSING = SUPPORTABILITY_AGENT + "SessionContext/Missing";
@@ -198,12 +198,12 @@ public class MetricNames {
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET_FAILED_CONNECTION = SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET + "FailedConnection";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET_CLOSING = SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET + "Closing";
 
-    //JSError
-    public static final String SUPPORTABILITY_JSERROR = SUPPORTABILITY_AGENT + "JSError/";
-    public static final String SUPPORTABILITY_JSERROR_UPLOAD_TIME = SUPPORTABILITY_JSERROR + "UploadTime";
-    public static final String SUPPORTABILITY_JSERROR_UPLOAD_TIMEOUT = SUPPORTABILITY_JSERROR + "UploadTimeOut";
-    public static final String SUPPORTABILITY_JSERROR_UPLOAD_THROTTLED = SUPPORTABILITY_JSERROR + "UploadThrottled";
-    public static final String SUPPORTABILITY_JSERROR_FAILED_UPLOAD = SUPPORTABILITY_JSERROR + "FailedUpload";
+    //MobileError
+    public static final String SUPPORTABILITY_MOBILE_ERROR = SUPPORTABILITY_AGENT + "MobileError/";
+    public static final String SUPPORTABILITY_MOBILE_ERROR_UPLOAD_TIME = SUPPORTABILITY_MOBILE_ERROR + "UploadTime";
+    public static final String SUPPORTABILITY_MOBILE_ERROR_UPLOAD_TIMEOUT = SUPPORTABILITY_MOBILE_ERROR + "UploadTimeOut";
+    public static final String SUPPORTABILITY_MOBILE_ERROR_UPLOAD_THROTTLED = SUPPORTABILITY_MOBILE_ERROR + "UploadThrottled";
+    public static final String SUPPORTABILITY_MOBILE_ERROR_FAILED_UPLOAD = SUPPORTABILITY_MOBILE_ERROR + "FailedUpload";
     //Session Replay
     public static final String SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY = SUPPORTABILITY_MOBILE_ANDROID + "/Config/SessionReplay";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ENABLED = SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY + "/Enabled";

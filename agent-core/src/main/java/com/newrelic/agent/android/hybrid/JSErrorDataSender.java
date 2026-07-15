@@ -93,23 +93,23 @@ public class JSErrorDataSender extends PayloadSender {
         switch (responseCode) {
             case HttpsURLConnection.HTTP_OK:
             case HttpsURLConnection.HTTP_ACCEPTED:
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_JSERROR_UPLOAD_TIME, timer.peek());
+                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_MOBILE_ERROR_UPLOAD_TIME, timer.peek());
                 break;
 
             case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] has timed out (will try again later) - Response code [" + responseCode + "]");
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_JSERROR_UPLOAD_TIMEOUT);
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_MOBILE_ERROR_UPLOAD_TIMEOUT);
                 break;
 
             case 429: // 'Too Many Requests' not defined by HttpURLConnection
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] was throttled (will try again later) - Response code [" + responseCode + "]");
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_JSERROR_UPLOAD_THROTTLED);
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_MOBILE_ERROR_UPLOAD_THROTTLED);
                 break;
 
             case HttpsURLConnection.HTTP_INTERNAL_ERROR:
             case HttpURLConnection.HTTP_FORBIDDEN:
                 onFailedUpload("The data payload [" + payload.getUuid() + "] was rejected and will be deleted - Response code [" + responseCode + "]");
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_JSERROR_FAILED_UPLOAD, timer.peek());
+                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_MOBILE_ERROR_FAILED_UPLOAD, timer.peek());
                 break;
 
             default:
@@ -122,7 +122,7 @@ public class JSErrorDataSender extends PayloadSender {
 
     protected void onFailedUpload(String errorMsg) {
         log.error(errorMsg);
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_JSERROR_FAILED_UPLOAD);
+        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_MOBILE_ERROR_FAILED_UPLOAD);
     }
 
     public String getErrorCollectorPath() {
