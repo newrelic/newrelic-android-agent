@@ -29,7 +29,7 @@ import java.util.Map;
  * sanitized/hashed form of the caller's ID; the original ID always lives inside the
  * file so {@code fetchAllEntries()} can recover it regardless of sanitization.
  */
-public class FileJSErrorStore extends AbstractFileStore<Map.Entry<String, String>> implements JSErrorStore {
+public class FileJSErrorStore extends AbstractFileStore<Map.Entry<String, String>> implements MobileErrorStore {
     public static final String DIR_NAME = "nr_jserror_cache";
 
     public FileJSErrorStore(Context context, AgentConfiguration config) {
@@ -40,8 +40,8 @@ public class FileJSErrorStore extends AbstractFileStore<Map.Entry<String, String
     }
 
     private static int resolveCap(AgentConfiguration config) {
-        final int configured = config.getMaxCachedJsErrorCount();
-        return configured > 0 ? configured : AgentConfiguration.DEFAULT_MAX_CACHED_JS_ERROR_COUNT;
+        final int configured = config.getMaxCachedMobileErrorCount();
+        return configured > 0 ? configured : AgentConfiguration.DEFAULT_MAX_CACHED_MOBILE_ERROR_COUNT;
     }
 
     @Override

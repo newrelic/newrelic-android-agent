@@ -32,7 +32,7 @@ public class JSErrorDataReporter extends PayloadReporter {
     protected static final AtomicReference<JSErrorDataReporter> instance = new AtomicReference<>(null);
     private static final AtomicBoolean reportExceptions = new AtomicBoolean(false);
 
-    protected final JSErrorStore jsErrorStore;
+    protected final MobileErrorStore jsErrorStore;
 
     private final AtomicBoolean startupSendInProgress = new AtomicBoolean(false);
     /**
@@ -83,7 +83,7 @@ public class JSErrorDataReporter extends PayloadReporter {
 
     protected JSErrorDataReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
-        this.jsErrorStore = agentConfiguration.getJsErrorStore();
+        this.jsErrorStore = agentConfiguration.getMobileErrorStore();
         this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.JSError));
     }
 

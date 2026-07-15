@@ -8,7 +8,7 @@ package com.newrelic.agent.android.hybrid;
 import java.util.List;
 import java.util.Map;
 
-public interface JSErrorStore {
+public interface MobileErrorStore {
     boolean store(String id, String data);
 
     List<String> fetchAll();

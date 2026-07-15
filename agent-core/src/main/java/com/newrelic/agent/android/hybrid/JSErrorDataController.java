@@ -39,7 +39,7 @@ public class JSErrorDataController {
 
 
     private final AgentConfiguration agentConfiguration;
-    private final JSErrorStore jsErrorStore;
+    private final MobileErrorStore jsErrorStore;
     private final ReentrantReadWriteLock lock;
     private final AnalyticsValidator validator;
 
@@ -49,7 +49,7 @@ public class JSErrorDataController {
 
     private JSErrorDataController() {
         this.agentConfiguration = AgentConfiguration.getInstance();
-        this.jsErrorStore = agentConfiguration.getJsErrorStore();
+        this.jsErrorStore = agentConfiguration.getMobileErrorStore();
         this.lock = new ReentrantReadWriteLock();
         this.validator = new AnalyticsValidator();
     }

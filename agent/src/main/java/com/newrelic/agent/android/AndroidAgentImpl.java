@@ -174,7 +174,10 @@ public class AndroidAgentImpl implements
 
         agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
 
-        agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
+        agentConfiguration.setMobileErrorStore(new FileJSErrorStore(context, agentConfiguration));
+        // The filename below is the real on-disk SharedPreferences name used by the
+        // pre-file-store implementation (see commit bf111391) — must NOT be renamed,
+        // or the cleanup below stops purging real legacy data on upgrading installs.
         context.deleteSharedPreferences("NRJSErrorStore");
 
         agentConfiguration.setSessionContextStore(new FileSessionContextStore(context, agentConfiguration));

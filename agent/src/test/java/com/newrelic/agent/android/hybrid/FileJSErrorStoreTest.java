@@ -132,7 +132,7 @@ public class FileJSErrorStoreTest {
 
     @Test
     public void store_atCap_evictsOldestFirst() {
-        config.setMaxCachedJsErrorCount(3);
+        config.setMaxCachedMobileErrorCount(3);
         store = new FileJSErrorStore(context, config);
 
         String oldest = UUID.randomUUID().toString();

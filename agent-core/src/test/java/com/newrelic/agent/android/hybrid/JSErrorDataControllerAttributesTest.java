@@ -51,7 +51,7 @@ public class JSErrorDataControllerAttributesTest {
         FeatureFlag.resetFeatures();
         store = new LatchingJSErrorStore();
         AgentConfiguration config = AgentConfiguration.getInstance();
-        config.setJsErrorStore(store);
+        config.setMobileErrorStore(store);
         config.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
         PayloadController.initialize(config);
         AnalyticsControllerImpl.initialize(config, new StubAgentImpl());
@@ -68,7 +68,7 @@ public class JSErrorDataControllerAttributesTest {
         JSErrorDataController.reset();
         AnalyticsControllerImpl.shutdown();
         PayloadController.shutdown();
-        AgentConfiguration.getInstance().setJsErrorStore(null);
+        AgentConfiguration.getInstance().setMobileErrorStore(null);
         Agent.setImpl(null);
     }
 
@@ -503,7 +503,7 @@ public class JSErrorDataControllerAttributesTest {
         }
     }
 
-    private static final class LatchingJSErrorStore implements JSErrorStore {
+    private static final class LatchingJSErrorStore implements MobileErrorStore {
         final CountDownLatch latch = new CountDownLatch(1);
         final Map<String, String> data = new HashMap<>();
         volatile String lastId;

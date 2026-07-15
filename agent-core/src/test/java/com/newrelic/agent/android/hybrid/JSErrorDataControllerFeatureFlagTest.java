@@ -29,7 +29,7 @@ public class JSErrorDataControllerFeatureFlagTest {
     public void setUp() {
         FeatureFlag.resetFeatures();
         store = new CountingJSErrorStore();
-        AgentConfiguration.getInstance().setJsErrorStore(store);
+        AgentConfiguration.getInstance().setMobileErrorStore(store);
         // PayloadController must be initialized for sendJSErrorData's submitCallable
         // to actually run the store callable on a worker thread.
         PayloadController.initialize(AgentConfiguration.getInstance());
@@ -41,7 +41,7 @@ public class JSErrorDataControllerFeatureFlagTest {
         FeatureFlag.resetFeatures();
         JSErrorDataController.reset();
         PayloadController.shutdown();
-        AgentConfiguration.getInstance().setJsErrorStore(null);
+        AgentConfiguration.getInstance().setMobileErrorStore(null);
     }
 
     @Test
@@ -96,7 +96,7 @@ public class JSErrorDataControllerFeatureFlagTest {
         Assert.assertEquals("The store should hold the persisted entry", 1, store.data.size());
     }
 
-    private static final class CountingJSErrorStore implements JSErrorStore {
+    private static final class CountingJSErrorStore implements MobileErrorStore {
         final AtomicInteger storeCalls = new AtomicInteger(0);
         final Map<String, String> data = new HashMap<>();
         /** Released after the first {@link #store} call so tests can join the worker thread. */
