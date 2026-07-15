@@ -13,6 +13,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Base64;
 import java.util.HashMap;
 
 public class TracePayloadTest {
@@ -37,11 +38,12 @@ public class TracePayloadTest {
 
     @Test
     public void testAsJson() {
-        Assert.assertTrue(isValidTraceHeaderValue(tracePayload.asBase64Json()));
+        Assert.assertTrue(isValidTraceHeaderValue(tracePayload.asJson().toString()));
     }
 
     @Test
     public void testAsBase64Json() {
+        Assert.assertTrue(isValidTraceHeaderValue(decodeBase64Json(tracePayload.asBase64Json())));
     }
 
     @Test
@@ -56,7 +58,11 @@ public class TracePayloadTest {
 
     @Test
     public void testGetHeaderValue() {
-        Assert.assertTrue(isValidTraceHeaderValue(tracePayload.getHeaderValue()));
+        Assert.assertTrue(isValidTraceHeaderValue(decodeBase64Json(tracePayload.getHeaderValue())));
+    }
+
+    private String decodeBase64Json(String base64Json) {
+        return new String(Base64.getDecoder().decode(base64Json));
     }
 
     public boolean isValidTraceHeaderValue(String headerValue) {
