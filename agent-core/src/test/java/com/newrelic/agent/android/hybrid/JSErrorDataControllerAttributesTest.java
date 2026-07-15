@@ -84,9 +84,9 @@ public class JSErrorDataControllerAttributesTest {
         JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
 
         // Phase 1 core attributes — all camelCase per NR-563075
-        Assert.assertEquals("errorId",      "errorId",      AnalyticsAttribute.JSERROR_ERRORID);
-        Assert.assertEquals("errorName",    "errorName",    AnalyticsAttribute.JSERROR_ERRORNAME);
-        Assert.assertEquals("errorMessage", "errorMessage", AnalyticsAttribute.JSERROR_ERRORMESSAGE);
+        Assert.assertEquals("errorId",      "errorId",      AnalyticsAttribute.MOBILE_ERROR_ERRORID);
+        Assert.assertEquals("errorName",    "errorName",    AnalyticsAttribute.MOBILE_ERROR_ERRORNAME);
+        Assert.assertEquals("errorMessage", "errorMessage", AnalyticsAttribute.MOBILE_ERROR_ERRORMESSAGE);
 
         // Keys present on the wire
         Assert.assertTrue("errorId must be present",      event.has("errorId"));
@@ -106,7 +106,7 @@ public class JSErrorDataControllerAttributesTest {
 
         JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
         Assert.assertEquals("ReferenceError",
-                event.get(AnalyticsAttribute.JSERROR_ERRORNAME).getAsString());
+                event.get(AnalyticsAttribute.MOBILE_ERROR_ERRORNAME).getAsString());
     }
 
     @Test
@@ -117,7 +117,7 @@ public class JSErrorDataControllerAttributesTest {
 
         JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
         Assert.assertEquals("Unexpected token",
-                event.get(AnalyticsAttribute.JSERROR_ERRORMESSAGE).getAsString());
+                event.get(AnalyticsAttribute.MOBILE_ERROR_ERRORMESSAGE).getAsString());
     }
 
     @Test
@@ -139,20 +139,20 @@ public class JSErrorDataControllerAttributesTest {
 
         JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
         Assert.assertEquals("stack-frames",
-                event.get(AnalyticsAttribute.JSERROR_THREADS).getAsString());
-        Assert.assertTrue(event.get(AnalyticsAttribute.JSERROR_ISFATAL).getAsBoolean());
+                event.get(AnalyticsAttribute.MOBILE_ERROR_THREADS).getAsString());
+        Assert.assertTrue(event.get(AnalyticsAttribute.MOBILE_ERROR_ISFATAL).getAsBoolean());
         Assert.assertEquals(AnalyticsEvent.EVENT_TYPE_MOBILE_ERROR,
                 event.get(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE).getAsString());
         Assert.assertTrue("timestamp must be present",
-                event.has(AnalyticsAttribute.JSERROR_TIMESTAMP));
+                event.has(AnalyticsAttribute.MOBILE_ERROR_TIMESTAMP));
     }
 
     @Test
     public void additionalAttributes_doNotOverrideReservedWireKeys() throws Exception {
         Map<String, Object> extras = new HashMap<>();
-        extras.put(AnalyticsAttribute.JSERROR_ERRORNAME, "HijackedName");
-        extras.put(AnalyticsAttribute.JSERROR_ERRORMESSAGE, "HijackedMessage");
-        extras.put(AnalyticsAttribute.JSERROR_ERRORID, "HijackedId");
+        extras.put(AnalyticsAttribute.MOBILE_ERROR_ERRORNAME, "HijackedName");
+        extras.put(AnalyticsAttribute.MOBILE_ERROR_ERRORMESSAGE, "HijackedMessage");
+        extras.put(AnalyticsAttribute.MOBILE_ERROR_ERRORID, "HijackedId");
         extras.put("customKey", "customValue");
 
         JSErrorDataController.getInstance().sendJSErrorData(
@@ -161,12 +161,12 @@ public class JSErrorDataControllerAttributesTest {
 
         JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
         Assert.assertEquals("TypeError",
-                event.get(AnalyticsAttribute.JSERROR_ERRORNAME).getAsString());
+                event.get(AnalyticsAttribute.MOBILE_ERROR_ERRORNAME).getAsString());
 
         Assert.assertEquals("legit message",
-                event.get(AnalyticsAttribute.JSERROR_ERRORMESSAGE).getAsString());
+                event.get(AnalyticsAttribute.MOBILE_ERROR_ERRORMESSAGE).getAsString());
         Assert.assertNotEquals("HijackedId",
-                event.get(AnalyticsAttribute.JSERROR_ERRORID).getAsString());
+                event.get(AnalyticsAttribute.MOBILE_ERROR_ERRORID).getAsString());
         // Non-reserved additional attributes are preserved
         Assert.assertEquals("customValue", event.get("customKey").getAsString());
     }
@@ -179,7 +179,7 @@ public class JSErrorDataControllerAttributesTest {
 
         JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
         Assert.assertEquals("",
-                event.get(AnalyticsAttribute.JSERROR_ERRORMESSAGE).getAsString());
+                event.get(AnalyticsAttribute.MOBILE_ERROR_ERRORMESSAGE).getAsString());
     }
 
     @Test
@@ -205,7 +205,7 @@ public class JSErrorDataControllerAttributesTest {
         // attribute can be set under that name — but the JSError reserved key
         // must still win when persisted.
         AnalyticsControllerImpl.getInstance().setAttribute(
-                AnalyticsAttribute.JSERROR_ERRORNAME, "session-bogus", false);
+                AnalyticsAttribute.MOBILE_ERROR_ERRORNAME, "session-bogus", false);
 
         JSErrorDataController.getInstance().sendJSErrorData(
                 "RealErrorName", "boom", "stack", false, null);
@@ -213,7 +213,7 @@ public class JSErrorDataControllerAttributesTest {
 
         JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
         Assert.assertEquals("RealErrorName",
-                event.get(AnalyticsAttribute.JSERROR_ERRORNAME).getAsString());
+                event.get(AnalyticsAttribute.MOBILE_ERROR_ERRORNAME).getAsString());
     }
 
     @Test
@@ -404,7 +404,7 @@ public class JSErrorDataControllerAttributesTest {
         for (int i = 0; i < events.size(); i++) {
             JsonObject e = events.get(i).getAsJsonObject();
             Assert.assertTrue("event[" + i + "] must contain errorName (rules out empty placeholder)",
-                    e.has(AnalyticsAttribute.JSERROR_ERRORNAME));
+                    e.has(AnalyticsAttribute.MOBILE_ERROR_ERRORNAME));
         }
     }
 

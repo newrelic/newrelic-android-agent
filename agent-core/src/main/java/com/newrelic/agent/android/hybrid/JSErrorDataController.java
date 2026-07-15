@@ -117,12 +117,12 @@ public class JSErrorDataController {
                 }
             }
             final String errorId = UUID.randomUUID().toString();
-            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORID, errorId);
-            eventAttributes.put(AnalyticsAttribute.JSERROR_THREADS, stackTrace);
-            eventAttributes.put(AnalyticsAttribute.JSERROR_ISFATAL, isFatal);
-            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORNAME, name);
-            eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORMESSAGE, message);
-            eventAttributes.put(AnalyticsAttribute.JSERROR_TIMESTAMP, System.currentTimeMillis());
+            eventAttributes.put(AnalyticsAttribute.MOBILE_ERROR_ERRORID, errorId);
+            eventAttributes.put(AnalyticsAttribute.MOBILE_ERROR_THREADS, stackTrace);
+            eventAttributes.put(AnalyticsAttribute.MOBILE_ERROR_ISFATAL, isFatal);
+            eventAttributes.put(AnalyticsAttribute.MOBILE_ERROR_ERRORNAME, name);
+            eventAttributes.put(AnalyticsAttribute.MOBILE_ERROR_ERRORMESSAGE, message);
+            eventAttributes.put(AnalyticsAttribute.MOBILE_ERROR_TIMESTAMP, System.currentTimeMillis());
             eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_ERROR);
 
             final JsonObject eventObject = new JsonObject();
