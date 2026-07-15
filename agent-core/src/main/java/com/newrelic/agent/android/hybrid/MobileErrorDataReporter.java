@@ -135,7 +135,7 @@ public class MobileErrorDataReporter extends PayloadReporter {
                     log.error("MobileErrorDataReporter: Failed to report cached mobile errors: " + e.getMessage());
                 }
             } else {
-                log.warn("JSErrorStore is not initialized");
+                log.warn("MobileErrorStore is not initialized");
             }
         }
     }
