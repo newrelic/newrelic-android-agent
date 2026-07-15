@@ -85,6 +85,7 @@ class PluginJDK11SmokeSpec extends PluginSpec {
                     "/generated/res/newrelicConfig${var.capitalize()}/values/com_newrelic_android_agent_config.xml")
             buildIdResource.exists() && buildIdResource.canRead()
             buildIdResource.text.contains('name="com.newrelic.android.buildId"')
+            buildIdResource.text.contains('name="com.newrelic.android.metrics"')
         }
     }
 

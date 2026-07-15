@@ -87,6 +87,29 @@ class NewRelicConfigTaskTest extends PluginTest {
     }
 
     @Test
+    void verifyMetricsResource() {
+        provider.newRelicConfigTask()
+
+        def resourceFile = provider.getResourceOutputDir().file(NewRelicConfigTask.CONFIG_RESOURCE_FILE).get().asFile
+        def metrics = provider.getBuildMetrics().get()
+
+        Assert.assertTrue(resourceFile.exists())
+        Assert.assertTrue(resourceFile.text.contains(metrics))
+        Assert.assertTrue(resourceFile.text.contains(NewRelicConfigTask.METRICS_RESOURCE_NAME))
+    }
+
+    @Test
+    void verifyMetricsNotInCompiledSource() {
+        provider.newRelicConfigTask()
+
+        def sourceFile = provider.getSourceOutputDir().file(provider.CONFIG_CLASS).get().asFile
+        def metrics = provider.getBuildMetrics().get()
+
+        Assert.assertFalse(sourceFile.text.contains(metrics))
+        Assert.assertTrue(sourceFile.text.contains("METRICS = \"${NewRelicConfigTask.METRICS_PLACEHOLDER}\""))
+    }
+
+    @Test
     void newRelicConfigTask() {
         // @TaskAction
         provider.newRelicConfigTask()

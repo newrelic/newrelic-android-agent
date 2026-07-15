@@ -31,6 +31,12 @@ abstract class NewRelicConfigTask extends DefaultTask {
     final static String CONFIG_RESOURCE_FILE = "values/com_newrelic_android_agent_config.xml"
     final static String BUILD_ID_RESOURCE_NAME = "com.newrelic.android.buildId"
 
+    // METRICS (toolchain/environment info) can differ across CI machines even when no source
+    // changed, so it's kept out of the compiled source for the same reason as BUILD_ID above -
+    // otherwise it would bust remote build caching across a fleet of build agents.
+    final static String METRICS_PLACEHOLDER = ""
+    final static String METRICS_RESOURCE_NAME = "com.newrelic.android.metrics"
+
     @Input
     abstract Property<String> getBuildId()      // variant buildId
 
@@ -69,7 +75,7 @@ abstract class NewRelicConfigTask extends DefaultTask {
                             static final String BUILD_ID = "${BUILD_ID_PLACEHOLDER}";
                             static final Boolean OBFUSCATED = ${minifyEnabled.getOrElse(false)};
                             static final String MAP_PROVIDER = "${mapProvider.get()}";
-                            static final String METRICS = "${buildMetrics.getOrElse("")}";
+                            static final String METRICS = "${METRICS_PLACEHOLDER}";
                             public static String getBuildId() {
                                 return BUILD_ID;
                             }
@@ -85,6 +91,7 @@ abstract class NewRelicConfigTask extends DefaultTask {
                 text = """<?xml version="1.0" encoding="utf-8"?>
                         <resources>
                             <string name="${BUILD_ID_RESOURCE_NAME}" translatable="false">${buildId.get()}</string>
+                            <string name="${METRICS_RESOURCE_NAME}" translatable="false">${escapeXml(buildMetrics.getOrElse(""))}</string>
                         </resources>
                         """.stripIndent()
             }
@@ -92,6 +99,10 @@ abstract class NewRelicConfigTask extends DefaultTask {
         } catch (Exception e) {
             logger.error("Error encountered while configuring the New Relic plugin: ", e)
         }
+    }
+
+    private static String escapeXml(String value) {
+        value.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     }
 
     @Internal

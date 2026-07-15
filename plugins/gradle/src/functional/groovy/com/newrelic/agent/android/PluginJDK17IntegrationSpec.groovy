@@ -154,6 +154,9 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         preBuildId.find(~/name="com.newrelic.android.buildId"[^>]*>(.*)<\/string>/) ==
                 postBuildId.find(~/name="com.newrelic.android.buildId"[^>]*>(.*)<\/string>/)
 
+        preBuildId.find(~/name="com.newrelic.android.metrics"[^>]*>(.*)<\/string>/) ==
+                postBuildId.find(~/name="com.newrelic.android.metrics"[^>]*>(.*)<\/string>/)
+
         preResult.output.contains("Calculating task graph as no configuration cache is available for tasks:")
         preResult.output.contains("Configuration cache entry stored")
 
