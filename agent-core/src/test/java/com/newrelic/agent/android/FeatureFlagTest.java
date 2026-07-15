@@ -17,7 +17,7 @@ import static com.newrelic.agent.android.FeatureFlag.FedRampEnabled;
 import static com.newrelic.agent.android.FeatureFlag.HandledExceptions;
 import static com.newrelic.agent.android.FeatureFlag.HttpResponseBodyCapture;
 import static com.newrelic.agent.android.FeatureFlag.InteractionTracing;
-import static com.newrelic.agent.android.FeatureFlag.JSError;
+import static com.newrelic.agent.android.FeatureFlag.MobileError;
 import static com.newrelic.agent.android.FeatureFlag.LogReporting;
 import static com.newrelic.agent.android.FeatureFlag.NetworkErrorRequests;
 import static com.newrelic.agent.android.FeatureFlag.NetworkRequests;
@@ -63,7 +63,7 @@ public class FeatureFlagTest {
         Assert.assertTrue("DefaultInteractions is enabled by default", FeatureFlag.featureEnabled(DefaultInteractions));
         Assert.assertTrue("NetworkErrorRequests is enabled by default", FeatureFlag.featureEnabled(NetworkErrorRequests));
         Assert.assertTrue("HandledExceptions is enabled by default", FeatureFlag.featureEnabled(HandledExceptions));
-        Assert.assertTrue("JSError is enabled by default", FeatureFlag.featureEnabled(JSError));
+        Assert.assertTrue("MobileError is enabled by default", FeatureFlag.featureEnabled(MobileError));
         Assert.assertTrue("NetworkRequests is enabled by default", FeatureFlag.featureEnabled(NetworkRequests));
         Assert.assertTrue("Distributed tracing is enabled by default", FeatureFlag.featureEnabled(DistributedTracing));
         Assert.assertTrue("AppStartMetrics is enabled by default", FeatureFlag.featureEnabled(AppStartMetrics));
@@ -113,9 +113,9 @@ public class FeatureFlagTest {
         FeatureFlag.disableFeature(ApplicationExitReporting);
         Assert.assertFalse("ApplicationExitReporting is now disabled", FeatureFlag.featureEnabled(ApplicationExitReporting));
 
-        Assert.assertTrue("JSError is enabled by default", FeatureFlag.featureEnabled(JSError));
-        FeatureFlag.disableFeature(JSError);
-        Assert.assertFalse("JSError is now disabled", FeatureFlag.featureEnabled(JSError));
+        Assert.assertTrue("MobileError is enabled by default", FeatureFlag.featureEnabled(MobileError));
+        FeatureFlag.disableFeature(MobileError);
+        Assert.assertFalse("MobileError is now disabled", FeatureFlag.featureEnabled(MobileError));
 
         FeatureFlag.resetFeatures();
         Assert.assertTrue("CrashReporting is now enabled", FeatureFlag.featureEnabled(CrashReporting));
@@ -125,7 +125,7 @@ public class FeatureFlagTest {
         Assert.assertTrue("AppStartMetrics is now enabled", FeatureFlag.featureEnabled(AppStartMetrics));
         Assert.assertTrue("ApplicationExitReporting is now enabled", FeatureFlag.featureEnabled(ApplicationExitReporting));
         Assert.assertTrue("LogReporting is now enabled", FeatureFlag.featureEnabled(LogReporting));
-        Assert.assertTrue("JSError is now enabled", FeatureFlag.featureEnabled(JSError));
+        Assert.assertTrue("MobileError is now enabled", FeatureFlag.featureEnabled(MobileError));
 
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));

@@ -87,7 +87,7 @@ public class MobileErrorDataController {
 
     public boolean sendMobileErrorData(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
         try {
-            if (!FeatureFlag.featureEnabled(FeatureFlag.JSError)) {
+            if (!FeatureFlag.featureEnabled(FeatureFlag.MobileError)) {
                 log.debug("MobileError: feature disabled, dropping error");
                 return false;
             }
@@ -141,7 +141,7 @@ public class MobileErrorDataController {
             }
 
             // Snapshot session attributes synchronously on the calling thread so the event
-            // freezes the session active at recordJavaScriptError time, not whichever session
+            // freezes the session active at recordError time, not whichever session
             // is active when the cache is later flushed (which may be a different session
             // entirely after a crash, ANR, or force-stop).
             AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();

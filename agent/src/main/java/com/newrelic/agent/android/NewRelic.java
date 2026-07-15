@@ -1126,21 +1126,21 @@ public final class NewRelic {
     }
 
     /**
-     * Records a JSError exception.
+     * Records a handled error.
      * <p>
-     * Gated by {@link FeatureFlag#JSError} (enabled by default). Call
-     * {@link NewRelic#disableFeature(FeatureFlag)} with {@link FeatureFlag#JSError}
+     * Gated by {@link FeatureFlag#MobileError} (enabled by default). Call
+     * {@link NewRelic#disableFeature(FeatureFlag)} with {@link FeatureFlag#MobileError}
      * before {@link NewRelic#start(Context)} to opt out — when disabled this is a
      * no-op and no MobileError data is stored, harvested, or sent.
      *
      * @param stackTrace Stack trace of the exception
      * @return {@code true} if the error was queued for delivery; {@code false} if
-     * the JSError feature is disabled or the input is invalid.
+     * the MobileError feature is disabled or the input is invalid.
      */
-    public static boolean recordJavaScriptError(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
+    public static boolean recordError(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
         boolean accepted = MobileErrorDataController.getInstance().sendMobileErrorData(name, message, stackTrace, isFatal, additionalAttributes);
 
-        // Only notify SessionReplay once the JS error has been accepted — gating on
+        // Only notify SessionReplay once the error has been accepted — gating on
         // sendMobileErrorData() ensures rejected errors (feature disabled, invalid name)
         // do not switch SR mode or activate logging.
         if (accepted && agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {

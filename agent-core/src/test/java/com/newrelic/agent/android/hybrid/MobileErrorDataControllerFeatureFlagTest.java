@@ -46,20 +46,20 @@ public class MobileErrorDataControllerFeatureFlagTest {
 
     @Test
     public void sendMobileErrorData_returnsFalse_whenFeatureDisabled() {
-        FeatureFlag.disableFeature(FeatureFlag.JSError);
+        FeatureFlag.disableFeature(FeatureFlag.MobileError);
 
         boolean queued = MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, null);
 
-        Assert.assertFalse("sendMobileErrorData must be a no-op when JSError is disabled", queued);
-        Assert.assertEquals("No errors should be stored when JSError is disabled",
+        Assert.assertFalse("sendMobileErrorData must be a no-op when MobileError is disabled", queued);
+        Assert.assertEquals("No errors should be stored when MobileError is disabled",
                 0, store.storeCalls.get());
     }
 
     @Test
     public void sendMobileErrorData_stillRejectsInvalidInput_whenEnabled() {
-        Assert.assertTrue("JSError must be enabled by default",
-                FeatureFlag.featureEnabled(FeatureFlag.JSError));
+        Assert.assertTrue("MobileError must be enabled by default",
+                FeatureFlag.featureEnabled(FeatureFlag.MobileError));
 
         boolean queued = MobileErrorDataController.getInstance().sendMobileErrorData(
                 null, "boom", "stack", false, null);
@@ -69,11 +69,11 @@ public class MobileErrorDataControllerFeatureFlagTest {
 
     @Test
     public void sendMobileErrorData_toggleBackToEnabled_noLingeringNoOp() {
-        FeatureFlag.disableFeature(FeatureFlag.JSError);
-        Assert.assertFalse(FeatureFlag.featureEnabled(FeatureFlag.JSError));
+        FeatureFlag.disableFeature(FeatureFlag.MobileError);
+        Assert.assertFalse(FeatureFlag.featureEnabled(FeatureFlag.MobileError));
 
-        FeatureFlag.enableFeature(FeatureFlag.JSError);
-        Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.JSError));
+        FeatureFlag.enableFeature(FeatureFlag.MobileError);
+        Assert.assertTrue(FeatureFlag.featureEnabled(FeatureFlag.MobileError));
     }
 
     @Test
@@ -83,8 +83,8 @@ public class MobileErrorDataControllerFeatureFlagTest {
         // actually run and reach the configured MobileErrorStore. The latch is the
         // synchronization point because the work runs on the PayloadController worker
         // thread, not the calling thread.
-        Assert.assertTrue("JSError must be enabled by default",
-                FeatureFlag.featureEnabled(FeatureFlag.JSError));
+        Assert.assertTrue("MobileError must be enabled by default",
+                FeatureFlag.featureEnabled(FeatureFlag.MobileError));
 
         boolean queued = MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, null);

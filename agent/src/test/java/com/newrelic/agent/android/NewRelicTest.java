@@ -1057,60 +1057,60 @@ public class NewRelicTest {
     }
 
     @Test
-    public void testRecordJavaScriptError() {
-        Assert.assertTrue("JSError feature should be enabled by default",
-                FeatureFlag.featureEnabled(FeatureFlag.JSError));
+    public void testRecordError() {
+        Assert.assertTrue("MobileError feature should be enabled by default",
+                FeatureFlag.featureEnabled(FeatureFlag.MobileError));
 
-        Assert.assertTrue("Should queue JS error for delivery",
-                NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+        Assert.assertTrue("Should queue error for delivery",
+                NewRelic.recordError("TypeError", "boom", "stack", false, null));
     }
 
     @Test
-    public void testRecordJavaScriptErrorWithAttributes() {
+    public void testRecordErrorWithAttributes() {
         HashMap<String, Object> attributes = new HashMap<>();
         attributes.put("module", "junit");
         attributes.put("fakedError", true);
 
-        Assert.assertTrue("Should queue JS error with attributes for delivery",
-                NewRelic.recordJavaScriptError("TypeError", "boom", "stack", true, attributes));
+        Assert.assertTrue("Should queue error with attributes for delivery",
+                NewRelic.recordError("TypeError", "boom", "stack", true, attributes));
 
         // verify null attribute set also
-        Assert.assertTrue("Should queue JS error with null attributes for delivery",
-                NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+        Assert.assertTrue("Should queue error with null attributes for delivery",
+                NewRelic.recordError("TypeError", "boom", "stack", false, null));
     }
 
     @Test
-    public void testRecordJavaScriptErrorFeatureDisabled() {
+    public void testRecordErrorFeatureDisabled() {
         boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
         try {
             primeSessionReplayObservability(true);
-            NewRelic.disableFeature(FeatureFlag.JSError);
+            NewRelic.disableFeature(FeatureFlag.MobileError);
 
-            Assert.assertFalse("recordJavaScriptError should be a no-op when JSError feature is disabled",
-                    NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
-            Assert.assertFalse("Rejected JS error must NOT activate SR error path when feature is disabled",
+            Assert.assertFalse("recordError should be a no-op when MobileError feature is disabled",
+                    NewRelic.recordError("TypeError", "boom", "stack", false, null));
+            Assert.assertFalse("Rejected error must NOT activate SR error path when feature is disabled",
                     agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
         } finally {
-            NewRelic.enableFeature(FeatureFlag.JSError);
+            NewRelic.enableFeature(FeatureFlag.MobileError);
             agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
             agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
         }
     }
 
     @Test
-    public void testRecordJavaScriptErrorRejectsInvalidName() {
+    public void testRecordErrorRejectsInvalidName() {
         boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
         try {
             primeSessionReplayObservability(true);
 
             Assert.assertFalse("Null error name must be rejected",
-                    NewRelic.recordJavaScriptError(null, "boom", "stack", false, null));
-            Assert.assertFalse("Rejected null-name JS error must NOT activate SR error path",
+                    NewRelic.recordError(null, "boom", "stack", false, null));
+            Assert.assertFalse("Rejected null-name error must NOT activate SR error path",
                     agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
 
             Assert.assertFalse("Empty error name must be rejected",
-                    NewRelic.recordJavaScriptError("", "boom", "stack", false, null));
-            Assert.assertFalse("Rejected empty-name JS error must NOT activate SR error path",
+                    NewRelic.recordError("", "boom", "stack", false, null));
+            Assert.assertFalse("Rejected empty-name error must NOT activate SR error path",
                     agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
         } finally {
             agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
@@ -1119,9 +1119,9 @@ public class NewRelicTest {
     }
 
     @Test
-    public void testRecordJavaScriptErrorTriggersSessionReplayWhenEnabled() {
+    public void testRecordErrorTriggersSessionReplayWhenEnabled() {
         // Mirrors the recordHandledException SessionReplay trigger pattern (NR-547254):
-        // when SR is enabled, a JS error must invoke the SR error path so error-mode
+        // when SR is enabled, an error must invoke the SR error path so error-mode
         // sessions flush their buffer and sampled-start sessions evaluate the error
         // sampling rate. The SR path must be safe to invoke even when SR runtime
         // components are not initialized in this unit-test environment.
@@ -1132,9 +1132,9 @@ public class NewRelicTest {
         try {
             primeSessionReplayObservability(true);
 
-            Assert.assertTrue("Should queue JS error for delivery when SR is enabled",
-                    NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
-            Assert.assertTrue("Accepted JS error must activate SR error path when SR is enabled",
+            Assert.assertTrue("Should queue error for delivery when SR is enabled",
+                    NewRelic.recordError("TypeError", "boom", "stack", false, null));
+            Assert.assertTrue("Accepted error must activate SR error path when SR is enabled",
                     agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
         } finally {
             agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
@@ -1143,14 +1143,14 @@ public class NewRelicTest {
     }
 
     @Test
-    public void testRecordJavaScriptErrorDoesNotTriggerSessionReplayWhenDisabled() {
+    public void testRecordErrorDoesNotTriggerSessionReplayWhenDisabled() {
         boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
         try {
             primeSessionReplayObservability(false);
 
-            Assert.assertTrue("Should queue JS error for delivery when SR is disabled",
-                    NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
-            Assert.assertFalse("Accepted JS error must NOT activate SR error path when SR is disabled",
+            Assert.assertTrue("Should queue error for delivery when SR is disabled",
+                    NewRelic.recordError("TypeError", "boom", "stack", false, null));
+            Assert.assertFalse("Accepted error must NOT activate SR error path when SR is disabled",
                     agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
         } finally {
             agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);

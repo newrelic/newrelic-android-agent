@@ -84,7 +84,7 @@ public class MobileErrorDataReporter extends PayloadReporter {
     protected MobileErrorDataReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
         this.mobileErrorStore = agentConfiguration.getMobileErrorStore();
-        this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.JSError));
+        this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.MobileError));
     }
 
     @Override
