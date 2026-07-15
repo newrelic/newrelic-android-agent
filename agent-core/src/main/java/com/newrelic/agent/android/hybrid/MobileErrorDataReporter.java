@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static com.newrelic.agent.android.hybrid.MobileErrorDataController.HarvestSnapshot;
 
-public class JSErrorDataReporter extends PayloadReporter {
-    protected static final AtomicReference<JSErrorDataReporter> instance = new AtomicReference<>(null);
+public class MobileErrorDataReporter extends PayloadReporter {
+    protected static final AtomicReference<MobileErrorDataReporter> instance = new AtomicReference<>(null);
     private static final AtomicBoolean reportExceptions = new AtomicBoolean(false);
 
     protected final MobileErrorStore jsErrorStore;
@@ -43,24 +43,24 @@ public class JSErrorDataReporter extends PayloadReporter {
      */
     private final AtomicInteger inFlightStartupSends = new AtomicInteger(0);
 
-    protected final Callable reportCachedJSErrorDataCallable = new Callable() {
+    protected final Callable reportCachedMobileErrorDataCallable = new Callable() {
         @Override
         public Object call() throws Exception {
-            reportCachedJSErrorData();
+            reportCachedMobileErrorData();
             return null;
         }
     };
 
-    public static JSErrorDataReporter getInstance() {
-        JSErrorDataReporter reporter = instance.get();
+    public static MobileErrorDataReporter getInstance() {
+        MobileErrorDataReporter reporter = instance.get();
         if (reporter == null) {
-            log.warn("JSErrorDataReporter.getInstance(): Reporter not initialized");
+            log.warn("MobileErrorDataReporter.getInstance(): Reporter not initialized");
         }
         return reporter;
     }
 
-    public static JSErrorDataReporter initialize(AgentConfiguration agentConfiguration) {
-        instance.compareAndSet(null, new JSErrorDataReporter(agentConfiguration));
+    public static MobileErrorDataReporter initialize(AgentConfiguration agentConfiguration) {
+        instance.compareAndSet(null, new MobileErrorDataReporter(agentConfiguration));
         reportExceptions.set(agentConfiguration.getReportHandledExceptions());
 
         return instance.get();
@@ -81,7 +81,7 @@ public class JSErrorDataReporter extends PayloadReporter {
         return instance.get() != null;
     }
 
-    protected JSErrorDataReporter(AgentConfiguration agentConfiguration) {
+    protected MobileErrorDataReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
         this.jsErrorStore = agentConfiguration.getMobileErrorStore();
         this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.JSError));
@@ -96,7 +96,7 @@ public class JSErrorDataReporter extends PayloadReporter {
                 }
             }
         } else {
-            log.error("JSErrorDataReporter.start(): Must initialize PayloadController first.");
+            log.error("MobileErrorDataReporter.start(): Must initialize PayloadController first.");
         }
     }
 
@@ -105,7 +105,7 @@ public class JSErrorDataReporter extends PayloadReporter {
         Harvest.removeHarvestListener(this);
     }
 
-    protected void reportCachedJSErrorData() {
+    protected void reportCachedMobileErrorData() {
         if (Agent.hasReachableNetworkConnection(null)) {
             if (jsErrorStore != null) {
                 startupSendInProgress.set(true);
@@ -120,7 +120,7 @@ public class JSErrorDataReporter extends PayloadReporter {
                     inFlightStartupSends.set(snapshots.size());
                     for (HarvestSnapshot snapshot : snapshots) {
                         Payload payload = new Payload(snapshot.payloadJson.getBytes(StandardCharsets.UTF_8));
-                        Future future = reportJSErrorData(payload, snapshot.snapshotIds, true, snapshot.appVersion);
+                        Future future = reportMobileErrorData(payload, snapshot.snapshotIds, true, snapshot.appVersion);
                         if (future == null) {
                             // submit was rejected (e.g. oversized payload) — that group will
                             // never complete, so decrement here. Clear the flag if we hit zero.
@@ -132,7 +132,7 @@ public class JSErrorDataReporter extends PayloadReporter {
                 } catch (Exception e) {
                     inFlightStartupSends.set(0);
                     startupSendInProgress.set(false);
-                    log.error("JSErrorDataReporter: Failed to report cached JS errors: " + e.getMessage());
+                    log.error("MobileErrorDataReporter: Failed to report cached mobile errors: " + e.getMessage());
                 }
             } else {
                 log.warn("JSErrorStore is not initialized");
@@ -156,7 +156,7 @@ public class JSErrorDataReporter extends PayloadReporter {
      *                          {@code null}/empty to use the current runtime
      *                          app version.
      */
-    public Future reportJSErrorData(Payload payload, List<String> sentIds, boolean isStartupSend, String appVersionOverride) {
+    public Future reportMobileErrorData(Payload payload, List<String> sentIds, boolean isStartupSend, String appVersionOverride) {
         PayloadSender payloadSender = new JSErrorDataSender(payload, getAgentConfiguration(), appVersionOverride);
 
         if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
@@ -197,10 +197,10 @@ public class JSErrorDataReporter extends PayloadReporter {
                     // HTTP 403: permanent auth/token rejection — collector will never accept
                     // this payload regardless of retries. Delete to prevent infinite retry.
                     MobileErrorDataController.getInstance().deleteErrors(sentIds);
-                    log.error("JSErrorDataReporter: payload permanently rejected (403), errors discarded.");
+                    log.error("MobileErrorDataReporter: payload permanently rejected (403), errors discarded.");
                 } else {
                     // Transient failure (408, 429, network error, etc.) — retain for retry.
-                    log.warn("JSErrorDataReporter: payload send failed, errors retained for retry");
+                    log.warn("MobileErrorDataReporter: payload send failed, errors retained for retry");
                 }
             }
 
@@ -211,19 +211,19 @@ public class JSErrorDataReporter extends PayloadReporter {
                         startupSendInProgress.set(false);
                     }
                 }
-                log.error("JSErrorDataReporter.reportJSErrorData(Payload): " + e);
+                log.error("MobileErrorDataReporter.reportMobileErrorData(Payload): " + e);
             }
         });
 
         return future;
     }
 
-    public Future storeAndReportJSErrorData(Payload payload, List<String> sentIds, String appVersionOverride) {
-        return reportJSErrorData(payload, sentIds, false, appVersionOverride);
+    public Future storeAndReportMobileErrorData(Payload payload, List<String> sentIds, String appVersionOverride) {
+        return reportMobileErrorData(payload, sentIds, false, appVersionOverride);
     }
 
     @Override
     public void onHarvest() {
-        PayloadController.submitCallable(reportCachedJSErrorDataCallable);
+        PayloadController.submitCallable(reportCachedMobileErrorDataCallable);
     }
 }

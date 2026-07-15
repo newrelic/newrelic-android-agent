@@ -65,7 +65,7 @@ public class MobileErrorDataController {
         return instance;
     }
 
-    /** Resets the singleton — call from {@link JSErrorDataReporter#shutdown()} only. */
+    /** Resets the singleton — call from {@link MobileErrorDataReporter#shutdown()} only. */
     static void reset() {
         synchronized (MobileErrorDataController.class) {
             instance = null;
