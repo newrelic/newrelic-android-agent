@@ -263,6 +263,11 @@ public class AgentDataReporterTest {
         public void delete(Payload payload) {
             store.remove(payload.getUuid());
         }
+
+        @Override
+        public String getRootPath() {
+            return "";
+        }
     }
 
 }
