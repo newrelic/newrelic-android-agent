@@ -131,7 +131,7 @@ public class MobileErrorDataSender extends PayloadSender {
 
     @Override
     protected boolean shouldUploadOpportunistically() {
-        // Send JS errors immediately when there's network. Falling back to
+        // Send mobile errors immediately when there's network. Falling back to
         // PayloadController.shouldUploadOpportunistically() (which checks the
         // global opportunisticUploads flag, hardcoded to false) would queue the
         // reaper on payloadReaperQueue and delay the actual POST until the
