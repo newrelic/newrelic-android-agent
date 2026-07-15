@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.newrelic.agent.android.hybrid.JSErrorDataController.HarvestSnapshot;
+import static com.newrelic.agent.android.hybrid.MobileErrorDataController.HarvestSnapshot;
 
 public class JSErrorDataReporter extends PayloadReporter {
     protected static final AtomicReference<JSErrorDataReporter> instance = new AtomicReference<>(null);
@@ -72,7 +72,7 @@ public class JSErrorDataReporter extends PayloadReporter {
                 instance.get().stop();
             } finally {
                 instance.set(null);
-                JSErrorDataController.reset();
+                MobileErrorDataController.reset();
             }
         }
     }
@@ -110,7 +110,7 @@ public class JSErrorDataReporter extends PayloadReporter {
             if (jsErrorStore != null) {
                 startupSendInProgress.set(true);
                 try {
-                    List<HarvestSnapshot> snapshots = JSErrorDataController.getInstance().getStoredJSErrorData();
+                    List<HarvestSnapshot> snapshots = MobileErrorDataController.getInstance().getStoredMobileErrorData();
                     if (snapshots == null || snapshots.isEmpty()) {
                         startupSendInProgress.set(false);
                         return;
@@ -184,7 +184,7 @@ public class JSErrorDataReporter extends PayloadReporter {
                 if (payloadSender.isSuccessfulResponse()) {
                     // HTTP 200/202/500: collector confirmed receipt (or permanently rejected).
                     // Delete the snapshotted IDs so they are not re-sent.
-                    JSErrorDataController.getInstance().deleteErrors(sentIds);
+                    MobileErrorDataController.getInstance().deleteErrors(sentIds);
 
                     //add supportability metrics
                     DeviceInformation deviceInformation = Agent.getDeviceInformation();
@@ -196,7 +196,7 @@ public class JSErrorDataReporter extends PayloadReporter {
                 } else if (payloadSender.getResponseCode() == java.net.HttpURLConnection.HTTP_FORBIDDEN) {
                     // HTTP 403: permanent auth/token rejection — collector will never accept
                     // this payload regardless of retries. Delete to prevent infinite retry.
-                    JSErrorDataController.getInstance().deleteErrors(sentIds);
+                    MobileErrorDataController.getInstance().deleteErrors(sentIds);
                     log.error("JSErrorDataReporter: payload permanently rejected (403), errors discarded.");
                 } else {
                     // Transient failure (408, 429, network error, etc.) — retain for retry.

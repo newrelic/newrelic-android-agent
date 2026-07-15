@@ -21,54 +21,54 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class JSErrorDataControllerFeatureFlagTest {
+public class MobileErrorDataControllerFeatureFlagTest {
 
-    private CountingJSErrorStore store;
+    private CountingMobileErrorStore store;
 
     @Before
     public void setUp() {
         FeatureFlag.resetFeatures();
-        store = new CountingJSErrorStore();
+        store = new CountingMobileErrorStore();
         AgentConfiguration.getInstance().setMobileErrorStore(store);
-        // PayloadController must be initialized for sendJSErrorData's submitCallable
+        // PayloadController must be initialized for sendMobileErrorData's submitCallable
         // to actually run the store callable on a worker thread.
         PayloadController.initialize(AgentConfiguration.getInstance());
-        JSErrorDataController.reset();
+        MobileErrorDataController.reset();
     }
 
     @After
     public void tearDown() {
         FeatureFlag.resetFeatures();
-        JSErrorDataController.reset();
+        MobileErrorDataController.reset();
         PayloadController.shutdown();
         AgentConfiguration.getInstance().setMobileErrorStore(null);
     }
 
     @Test
-    public void sendJSErrorData_returnsFalse_whenFeatureDisabled() {
+    public void sendMobileErrorData_returnsFalse_whenFeatureDisabled() {
         FeatureFlag.disableFeature(FeatureFlag.JSError);
 
-        boolean queued = JSErrorDataController.getInstance().sendJSErrorData(
+        boolean queued = MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, null);
 
-        Assert.assertFalse("sendJSErrorData must be a no-op when JSError is disabled", queued);
+        Assert.assertFalse("sendMobileErrorData must be a no-op when JSError is disabled", queued);
         Assert.assertEquals("No errors should be stored when JSError is disabled",
                 0, store.storeCalls.get());
     }
 
     @Test
-    public void sendJSErrorData_stillRejectsInvalidInput_whenEnabled() {
+    public void sendMobileErrorData_stillRejectsInvalidInput_whenEnabled() {
         Assert.assertTrue("JSError must be enabled by default",
                 FeatureFlag.featureEnabled(FeatureFlag.JSError));
 
-        boolean queued = JSErrorDataController.getInstance().sendJSErrorData(
+        boolean queued = MobileErrorDataController.getInstance().sendMobileErrorData(
                 null, "boom", "stack", false, null);
 
         Assert.assertFalse("Null/empty error name must still be rejected when enabled", queued);
     }
 
     @Test
-    public void sendJSErrorData_toggleBackToEnabled_noLingeringNoOp() {
+    public void sendMobileErrorData_toggleBackToEnabled_noLingeringNoOp() {
         FeatureFlag.disableFeature(FeatureFlag.JSError);
         Assert.assertFalse(FeatureFlag.featureEnabled(FeatureFlag.JSError));
 
@@ -77,8 +77,8 @@ public class JSErrorDataControllerFeatureFlagTest {
     }
 
     @Test
-    public void sendJSErrorData_enabledPath_routesThroughPayloadController() throws InterruptedException {
-        // Closes the symmetric gap to sendJSErrorData_returnsFalse_whenFeatureDisabled:
+    public void sendMobileErrorData_enabledPath_routesThroughPayloadController() throws InterruptedException {
+        // Closes the symmetric gap to sendMobileErrorData_returnsFalse_whenFeatureDisabled:
         // when the feature is enabled, the callable submitted to PayloadController must
         // actually run and reach the configured JSErrorStore. The latch is the
         // synchronization point because the work runs on the PayloadController worker
@@ -86,17 +86,17 @@ public class JSErrorDataControllerFeatureFlagTest {
         Assert.assertTrue("JSError must be enabled by default",
                 FeatureFlag.featureEnabled(FeatureFlag.JSError));
 
-        boolean queued = JSErrorDataController.getInstance().sendJSErrorData(
+        boolean queued = MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, null);
 
-        Assert.assertTrue("sendJSErrorData must accept valid input when enabled", queued);
+        Assert.assertTrue("sendMobileErrorData must accept valid input when enabled", queued);
         Assert.assertTrue("Submitted callable must reach the store within the timeout",
                 store.stored.await(5, TimeUnit.SECONDS));
         Assert.assertEquals("Exactly one entry must be persisted", 1, store.storeCalls.get());
         Assert.assertEquals("The store should hold the persisted entry", 1, store.data.size());
     }
 
-    private static final class CountingJSErrorStore implements MobileErrorStore {
+    private static final class CountingMobileErrorStore implements MobileErrorStore {
         final AtomicInteger storeCalls = new AtomicInteger(0);
         final Map<String, String> data = new HashMap<>();
         /** Released after the first {@link #store} call so tests can join the worker thread. */

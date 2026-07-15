@@ -33,23 +33,23 @@ import java.util.concurrent.TimeUnit;
 /**
  * NR-563075 Phase 1 core-attribute wire keys for MobileError events.
  *
- * Verifies that {@link JSErrorDataController#sendJSErrorData} emits the
+ * Verifies that {@link MobileErrorDataController#sendMobileErrorData} emits the
  * required camelCase wire keys — {@code errorId}, {@code errorName},
  * {@code errorType}, {@code errorMessage} — and that the legacy
  * {@code description} key is no longer produced.
  */
-public class JSErrorDataControllerAttributesTest {
+public class MobileErrorDataControllerAttributesTest {
 
     private static final long STORE_WAIT_SECONDS = 5;
 
-    private LatchingJSErrorStore store;
+    private LatchingMobileErrorStore store;
 
     private MutableVersionAgentImpl mutableAgent;
 
     @Before
     public void setUp() {
         FeatureFlag.resetFeatures();
-        store = new LatchingJSErrorStore();
+        store = new LatchingMobileErrorStore();
         AgentConfiguration config = AgentConfiguration.getInstance();
         config.setMobileErrorStore(store);
         config.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
@@ -59,13 +59,13 @@ public class JSErrorDataControllerAttributesTest {
         // simulate an upgrade between recordings.
         mutableAgent = new MutableVersionAgentImpl();
         Agent.setImpl(mutableAgent);
-        JSErrorDataController.reset();
+        MobileErrorDataController.reset();
     }
 
     @After
     public void tearDown() {
         FeatureFlag.resetFeatures();
-        JSErrorDataController.reset();
+        MobileErrorDataController.reset();
         AnalyticsControllerImpl.shutdown();
         PayloadController.shutdown();
         AgentConfiguration.getInstance().setMobileErrorStore(null);
@@ -74,10 +74,10 @@ public class JSErrorDataControllerAttributesTest {
 
     @Test
     public void wireKeys_arePresentAndCamelCase() throws Exception {
-        boolean queued = JSErrorDataController.getInstance().sendJSErrorData(
+        boolean queued = MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "undefined is not an object", "stack-frames", false, null);
 
-        Assert.assertTrue("sendJSErrorData should queue successfully", queued);
+        Assert.assertTrue("sendMobileErrorData should queue successfully", queued);
         Assert.assertTrue("store was not called within timeout",
                 store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -100,7 +100,7 @@ public class JSErrorDataControllerAttributesTest {
 
     @Test
     public void errorName_reflectsNameArgument() throws Exception {
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "ReferenceError", "x is not defined", "stack", false, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -111,7 +111,7 @@ public class JSErrorDataControllerAttributesTest {
 
     @Test
     public void errorMessage_reflectsMessageArgument() throws Exception {
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "SyntaxError", "Unexpected token", "stack", false, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -122,7 +122,7 @@ public class JSErrorDataControllerAttributesTest {
 
     @Test
     public void descriptionKey_isNoLongerWritten() throws Exception {
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", true, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -133,7 +133,7 @@ public class JSErrorDataControllerAttributesTest {
 
     @Test
     public void companionAttributesStillPopulated() throws Exception {
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack-frames", true, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -155,7 +155,7 @@ public class JSErrorDataControllerAttributesTest {
         extras.put(AnalyticsAttribute.MOBILE_ERROR_ERRORID, "HijackedId");
         extras.put("customKey", "customValue");
 
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "legit message", "stack", false, extras);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -173,7 +173,7 @@ public class JSErrorDataControllerAttributesTest {
 
     @Test
     public void nullMessage_isNormalizedToEmptyString() throws Exception {
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", null, "stack", false, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -186,7 +186,7 @@ public class JSErrorDataControllerAttributesTest {
     public void sessionAttributes_areEmbeddedInPersistedEvent() throws Exception {
         AnalyticsControllerImpl.getInstance().setAttribute("customKey", "customValue", false);
 
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -207,7 +207,7 @@ public class JSErrorDataControllerAttributesTest {
         AnalyticsControllerImpl.getInstance().setAttribute(
                 AnalyticsAttribute.MOBILE_ERROR_ERRORNAME, "session-bogus", false);
 
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "RealErrorName", "boom", "stack", false, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -223,7 +223,7 @@ public class JSErrorDataControllerAttributesTest {
         Map<String, Object> extras = new HashMap<>();
         extras.put("conflictKey", "from-additional");
 
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, extras);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -236,7 +236,7 @@ public class JSErrorDataControllerAttributesTest {
         AnalyticsControllerImpl ctrl = AnalyticsControllerImpl.getInstance();
         ctrl.setAttribute("snapshotKey", "OLD", false);
 
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -253,7 +253,7 @@ public class JSErrorDataControllerAttributesTest {
     public void snapshot_includesBothSystemAndUserSessionAttributes() throws Exception {
         AnalyticsControllerImpl.getInstance().setAttribute("userTag", "user-value", false);
 
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -270,7 +270,7 @@ public class JSErrorDataControllerAttributesTest {
     public void appVersionAtRecord_isEmbeddedInPersistedEvent() throws Exception {
         mutableAgent.setAppVersion("1.2.3");
 
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, null);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -284,14 +284,14 @@ public class JSErrorDataControllerAttributesTest {
         // appVersionAtRecord is the internal grouping/header key — the agent owns it.
         // A caller passing it (intentionally or by accident) must NOT be able to
         // misroute symbolication to the wrong ProGuard mapping. AnalyticsValidator
-        // marks the key as reserved, and sendJSErrorData drops reserved keys from
+        // marks the key as reserved, and sendMobileErrorData drops reserved keys from
         // additionalAttributes before merging, so the agent's snapshot always wins.
         mutableAgent.setAppVersion("1.2.3");
 
         Map<String, Object> extras = new HashMap<>();
         extras.put(AnalyticsAttribute.APP_VERSION_AT_RECORD_ATTRIBUTE, "user-override");
 
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, extras);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -303,7 +303,7 @@ public class JSErrorDataControllerAttributesTest {
     @Test
     public void additionalAttributes_reservedPrefixedKeysAreDropped() throws Exception {
         // AnalyticsValidator rejects names beginning with newRelic / nr. / Public_
-        // (in addition to the explicit reserved set). sendJSErrorData must drop
+        // (in addition to the explicit reserved set). sendMobileErrorData must drop
         // these from additionalAttributes so caller input cannot inject anything
         // shaped like an agent-internal field.
         Map<String, Object> extras = new HashMap<>();
@@ -312,7 +312,7 @@ public class JSErrorDataControllerAttributesTest {
         extras.put("Public_bar", "should-drop");
         extras.put("safeKey", "should-keep");
 
-        JSErrorDataController.getInstance().sendJSErrorData(
+        MobileErrorDataController.getInstance().sendMobileErrorData(
                 "TypeError", "boom", "stack", false, extras);
         Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
 
@@ -326,19 +326,19 @@ public class JSErrorDataControllerAttributesTest {
     }
 
     @Test
-    public void getStoredJSErrorData_singleVersion_returnsOneSnapshot() throws Exception {
+    public void getStoredMobileErrorData_singleVersion_returnsOneSnapshot() throws Exception {
         mutableAgent.setAppVersion("1.0.0");
 
         recordAndAwait("TypeError", "msg-1");
         recordAndAwait("TypeError", "msg-2");
         recordAndAwait("TypeError", "msg-3");
 
-        List<JSErrorDataController.HarvestSnapshot> snapshots =
-                JSErrorDataController.getInstance().getStoredJSErrorData();
+        List<MobileErrorDataController.HarvestSnapshot> snapshots =
+                MobileErrorDataController.getInstance().getStoredMobileErrorData();
 
         Assert.assertEquals("single-version cache must produce one snapshot",
                 1, snapshots.size());
-        JSErrorDataController.HarvestSnapshot snap = snapshots.get(0);
+        MobileErrorDataController.HarvestSnapshot snap = snapshots.get(0);
         Assert.assertEquals("snapshot.appVersion must match the recorded version",
                 "1.0.0", snap.appVersion);
         Assert.assertEquals("snapshot must include all three persisted IDs",
@@ -346,7 +346,7 @@ public class JSErrorDataControllerAttributesTest {
     }
 
     @Test
-    public void getStoredJSErrorData_multiVersion_returnsSnapshotsPerVersion() throws Exception {
+    public void getStoredMobileErrorData_multiVersion_returnsSnapshotsPerVersion() throws Exception {
         mutableAgent.setAppVersion("1.0.0");
         recordAndAwait("TypeError", "v1-msg-1");
         recordAndAwait("TypeError", "v1-msg-2");
@@ -357,15 +357,15 @@ public class JSErrorDataControllerAttributesTest {
         recordAndAwait("TypeError", "v11-msg-1");
         recordAndAwait("TypeError", "v11-msg-2");
 
-        List<JSErrorDataController.HarvestSnapshot> snapshots =
-                JSErrorDataController.getInstance().getStoredJSErrorData();
+        List<MobileErrorDataController.HarvestSnapshot> snapshots =
+                MobileErrorDataController.getInstance().getStoredMobileErrorData();
 
         Assert.assertEquals("multi-version cache must produce one snapshot per version",
                 2, snapshots.size());
 
         // Map snapshots by appVersion for stable assertion regardless of group order
-        Map<String, JSErrorDataController.HarvestSnapshot> byVersion = new HashMap<>();
-        for (JSErrorDataController.HarvestSnapshot s : snapshots) {
+        Map<String, MobileErrorDataController.HarvestSnapshot> byVersion = new HashMap<>();
+        for (MobileErrorDataController.HarvestSnapshot s : snapshots) {
             byVersion.put(s.appVersion, s);
         }
         Assert.assertTrue("group for 1.0.0 must exist", byVersion.containsKey("1.0.0"));
@@ -392,8 +392,8 @@ public class JSErrorDataControllerAttributesTest {
         recordAndAwait("TypeError", "real-msg-1");
         recordAndAwait("TypeError", "real-msg-2");
 
-        List<JSErrorDataController.HarvestSnapshot> snapshots =
-                JSErrorDataController.getInstance().getStoredJSErrorData();
+        List<MobileErrorDataController.HarvestSnapshot> snapshots =
+                MobileErrorDataController.getInstance().getStoredMobileErrorData();
         Assert.assertEquals(1, snapshots.size());
 
         JsonObject envelope = JsonParser.parseString(snapshots.get(0).payloadJson).getAsJsonObject();
@@ -421,8 +421,8 @@ public class JSErrorDataControllerAttributesTest {
                 persisted.get(AnalyticsAttribute.APP_VERSION_AT_RECORD_ATTRIBUTE).getAsString());
 
         // The wire envelope must NOT carry it on any analyticsEvents entry.
-        List<JSErrorDataController.HarvestSnapshot> snapshots =
-                JSErrorDataController.getInstance().getStoredJSErrorData();
+        List<MobileErrorDataController.HarvestSnapshot> snapshots =
+                MobileErrorDataController.getInstance().getStoredMobileErrorData();
         Assert.assertEquals(1, snapshots.size());
         JsonObject envelope = JsonParser.parseString(snapshots.get(0).payloadJson).getAsJsonObject();
         for (com.google.gson.JsonElement event : envelope.getAsJsonArray("analyticsEvents")) {
@@ -443,8 +443,8 @@ public class JSErrorDataControllerAttributesTest {
         // Simulate an upgrade BEFORE the cached error gets flushed.
         mutableAgent.setAppVersion("2.0.0");
 
-        List<JSErrorDataController.HarvestSnapshot> snapshots =
-                JSErrorDataController.getInstance().getStoredJSErrorData();
+        List<MobileErrorDataController.HarvestSnapshot> snapshots =
+                MobileErrorDataController.getInstance().getStoredMobileErrorData();
         Assert.assertEquals(1, snapshots.size());
 
         JsonObject envelope = JsonParser.parseString(snapshots.get(0).payloadJson).getAsJsonObject();
@@ -457,7 +457,7 @@ public class JSErrorDataControllerAttributesTest {
     }
 
     @Test
-    public void getStoredJSErrorData_missingVersion_fallsBackToCurrent() throws Exception {
+    public void getStoredMobileErrorData_missingVersion_fallsBackToCurrent() throws Exception {
         mutableAgent.setAppVersion("9.9.9");
 
         // Inject an entry shaped like a pre-snapshot legacy event (no
@@ -465,8 +465,8 @@ public class JSErrorDataControllerAttributesTest {
         // version rather than under null/empty.
         store.store("legacy-id", "{\"errorName\":\"OldError\",\"errorMessage\":\"legacy\"}");
 
-        List<JSErrorDataController.HarvestSnapshot> snapshots =
-                JSErrorDataController.getInstance().getStoredJSErrorData();
+        List<MobileErrorDataController.HarvestSnapshot> snapshots =
+                MobileErrorDataController.getInstance().getStoredMobileErrorData();
 
         Assert.assertEquals(1, snapshots.size());
         Assert.assertEquals("missing version must fall back to current runtime version",
@@ -476,7 +476,7 @@ public class JSErrorDataControllerAttributesTest {
 
     private void recordAndAwait(String errorName, String message) throws Exception {
         final int before = store.count();
-        JSErrorDataController.getInstance().sendJSErrorData(errorName, message, "stack", false, null);
+        MobileErrorDataController.getInstance().sendMobileErrorData(errorName, message, "stack", false, null);
         long deadline = System.currentTimeMillis() + STORE_WAIT_SECONDS * 1000;
         while (store.count() <= before && System.currentTimeMillis() < deadline) {
             Thread.sleep(10);
@@ -503,7 +503,7 @@ public class JSErrorDataControllerAttributesTest {
         }
     }
 
-    private static final class LatchingJSErrorStore implements MobileErrorStore {
+    private static final class LatchingMobileErrorStore implements MobileErrorStore {
         final CountDownLatch latch = new CountDownLatch(1);
         final Map<String, String> data = new HashMap<>();
         volatile String lastId;

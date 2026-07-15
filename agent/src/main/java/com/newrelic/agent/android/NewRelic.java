@@ -20,7 +20,7 @@ import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
 import com.newrelic.agent.android.harvest.Harvest;
-import com.newrelic.agent.android.hybrid.JSErrorDataController;
+import com.newrelic.agent.android.hybrid.MobileErrorDataController;
 import com.newrelic.agent.android.harvest.HarvestTimer;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -1138,10 +1138,10 @@ public final class NewRelic {
      * the JSError feature is disabled or the input is invalid.
      */
     public static boolean recordJavaScriptError(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
-        boolean accepted = JSErrorDataController.getInstance().sendJSErrorData(name, message, stackTrace, isFatal, additionalAttributes);
+        boolean accepted = MobileErrorDataController.getInstance().sendMobileErrorData(name, message, stackTrace, isFatal, additionalAttributes);
 
         // Only notify SessionReplay once the JS error has been accepted — gating on
-        // sendJSErrorData() ensures rejected errors (feature disabled, invalid name)
+        // sendMobileErrorData() ensures rejected errors (feature disabled, invalid name)
         // do not switch SR mode or activate logging.
         if (accepted && agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
             AndroidAgentImpl.activateLoggingForSessionReplay();

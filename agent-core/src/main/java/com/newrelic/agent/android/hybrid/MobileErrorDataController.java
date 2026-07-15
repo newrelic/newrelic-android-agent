@@ -35,7 +35,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class JSErrorDataController {
+public class MobileErrorDataController {
 
 
     private final AgentConfiguration agentConfiguration;
@@ -45,20 +45,20 @@ public class JSErrorDataController {
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final Gson gson = new GsonBuilder().create();
-    private static volatile JSErrorDataController instance;
+    private static volatile MobileErrorDataController instance;
 
-    private JSErrorDataController() {
+    private MobileErrorDataController() {
         this.agentConfiguration = AgentConfiguration.getInstance();
         this.jsErrorStore = agentConfiguration.getMobileErrorStore();
         this.lock = new ReentrantReadWriteLock();
         this.validator = new AnalyticsValidator();
     }
 
-    public static JSErrorDataController getInstance() {
+    public static MobileErrorDataController getInstance() {
         if (instance == null) {
-            synchronized (JSErrorDataController.class) {
+            synchronized (MobileErrorDataController.class) {
                 if (instance == null) {
-                    instance = new JSErrorDataController();
+                    instance = new MobileErrorDataController();
                 }
             }
         }
@@ -67,7 +67,7 @@ public class JSErrorDataController {
 
     /** Resets the singleton — call from {@link JSErrorDataReporter#shutdown()} only. */
     static void reset() {
-        synchronized (JSErrorDataController.class) {
+        synchronized (MobileErrorDataController.class) {
             instance = null;
         }
     }
@@ -85,14 +85,14 @@ public class JSErrorDataController {
         }
     }
 
-    public boolean sendJSErrorData(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
+    public boolean sendMobileErrorData(String name, String message, String stackTrace, boolean isFatal, Map<String, Object> additionalAttributes) {
         try {
             if (!FeatureFlag.featureEnabled(FeatureFlag.JSError)) {
-                log.debug("JSError: feature disabled, dropping error");
+                log.debug("MobileError: feature disabled, dropping error");
                 return false;
             }
             if (name == null || name.trim().isEmpty()) {
-                log.warn("JSError: error name cannot be null or empty");
+                log.warn("MobileError: error name cannot be null or empty");
                 return false;
             }
             if (message == null) {
@@ -157,7 +157,7 @@ public class JSErrorDataController {
                 @Override
                 public Boolean call() throws Exception {
                     if (jsErrorStore == null) {
-                        log.error("JSErrorStore is not initialized");
+                        log.error("MobileErrorStore is not initialized");
                         return false;
                     }
 
@@ -165,10 +165,10 @@ public class JSErrorDataController {
                     try {
                         boolean stored = jsErrorStore.store(errorId, eventObject.toString());
                         if (stored) {
-                            log.debug("JSError stored successfully with ID: " + errorId);
+                            log.debug("MobileError stored successfully with ID: " + errorId);
                             return true;
                         } else {
-                            log.error("Failed to store JSError with ID: " + errorId);
+                            log.error("Failed to store MobileError with ID: " + errorId);
                             return false;
                         }
                     } finally {
@@ -179,7 +179,7 @@ public class JSErrorDataController {
 
             return true;
         } catch (Exception ex) {
-            log.error("JSError: Failed to send error data - " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+            log.error("MobileError: Failed to send error data - " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
             return false;
         }
     }
@@ -187,7 +187,7 @@ public class JSErrorDataController {
     String buildErrorEnvelope(List<String> eventJsonList, String appVersionOverride) {
         AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
         if (analyticsController == null) {
-            log.error("JSError: AnalyticsController is not initialized");
+            log.error("MobileError: AnalyticsController is not initialized");
             return null;
         }
 
@@ -208,7 +208,7 @@ public class JSErrorDataController {
                     }
                     eventsArray.add(parsed);
                 } catch (Exception e) {
-                    log.warn("JSError: Failed to parse stored event JSON: " + e.getMessage());
+                    log.warn("MobileError: Failed to parse stored event JSON: " + e.getMessage());
                 }
             }
         }
@@ -216,7 +216,7 @@ public class JSErrorDataController {
         JsonObject rootObject = jsError.asJsonObject();
         // Overwrite, don't append: Error.asJsonObject() seeded analyticsEvents
         // with the constructor's `event` field (designed for the one-event-per-crash
-        // case). Setting the array explicitly here keeps JSError envelopes free
+        // case). Setting the array explicitly here keeps MobileError envelopes free
         // of any leading placeholder regardless of how Error evolves.
         rootObject.add(Error.ANALYTICS_EVENTS_KEY, eventsArray);
 
@@ -267,9 +267,9 @@ public class JSErrorDataController {
      * <p>Uses a single atomic store read so the snapshot IDs and payload values
      * across all groups are always derived from the same on-disk view.
      */
-    public List<HarvestSnapshot> getStoredJSErrorData() {
+    public List<HarvestSnapshot> getStoredMobileErrorData() {
         if (jsErrorStore == null) {
-            log.warn("JSErrorStore is not initialized");
+            log.warn("MobileErrorStore is not initialized");
             return Collections.emptyList();
         }
 
@@ -278,11 +278,11 @@ public class JSErrorDataController {
         try {
             entries = jsErrorStore.fetchAllEntries();
             if (entries == null || entries.isEmpty()) {
-                log.debug("No JS errors found in store");
+                log.debug("No mobile errors found in store");
                 return Collections.emptyList();
             }
         } catch (Exception e) {
-            log.error("Failed to retrieve stored JS error data: " + e.getMessage());
+            log.error("Failed to retrieve stored mobile error data: " + e.getMessage());
             return Collections.emptyList();
         } finally {
             lock.readLock().unlock();
@@ -360,19 +360,19 @@ public class JSErrorDataController {
         lock.writeLock().lock();
         try {
             if (jsErrorStore == null) {
-                log.warn("JSErrorStore is not initialized");
+                log.warn("MobileErrorStore is not initialized");
                 return;
             }
             for (String id : ids) {
                 try {
                     jsErrorStore.delete(id);
                 } catch (Exception e) {
-                    log.warn("JSError: Failed to delete error ID " + id + ": " + e.getMessage());
+                    log.warn("MobileError: Failed to delete error ID " + id + ": " + e.getMessage());
                 }
             }
-            log.info("JSError: Deleted " + ids.size() + " sent errors");
+            log.info("MobileError: Deleted " + ids.size() + " sent errors");
         } catch (Exception e) {
-            log.error("Failed to delete sent JS errors: " + e.getMessage());
+            log.error("Failed to delete sent mobile errors: " + e.getMessage());
         } finally {
             lock.writeLock().unlock();
         }
@@ -383,13 +383,13 @@ public class JSErrorDataController {
         lock.writeLock().lock();
         try {
             if (jsErrorStore == null) {
-                log.warn("JSErrorStore is not initialized");
+                log.warn("MobileErrorStore is not initialized");
                 return;
             }
             jsErrorStore.clear();
-            log.info("JSError: Cleared all stored errors");
+            log.info("MobileError: Cleared all stored errors");
         } catch (Exception e) {
-            log.error("Failed to clear stored JS errors: " + e.getMessage());
+            log.error("Failed to clear stored mobile errors: " + e.getMessage());
         } finally {
             lock.writeLock().unlock();
         }
