@@ -200,9 +200,9 @@ public class MobileErrorDataControllerAttributesTest {
     }
 
     @Test
-    public void reservedJSErrorKeys_winOverSessionAttributesOnCollision() throws Exception {
+    public void reservedMobileErrorKeys_winOverSessionAttributesOnCollision() throws Exception {
         // 'errorName' is not on the AnalyticsValidator reserved list, so a user
-        // attribute can be set under that name — but the JSError reserved key
+        // attribute can be set under that name — but the MobileError reserved key
         // must still win when persisted.
         AnalyticsControllerImpl.getInstance().setAttribute(
                 AnalyticsAttribute.MOBILE_ERROR_ERRORNAME, "session-bogus", false);
@@ -386,7 +386,7 @@ public class MobileErrorDataControllerAttributesTest {
     public void buildErrorEnvelope_doesNotEmitEmptyLeadingEvent() throws Exception {
         // Regression: Error.asJsonObject() unconditionally seeds analyticsEvents
         // with the constructor's `event` HashMap (designed for the one-event-per-crash
-        // case). For JSError that map is always empty, so prior behavior was to
+        // case). For MobileError that map is always empty, so prior behavior was to
         // append real events after a leading {} placeholder. The envelope must now
         // contain ONLY the recorded events, with no leading empty entry.
         recordAndAwait("TypeError", "real-msg-1");

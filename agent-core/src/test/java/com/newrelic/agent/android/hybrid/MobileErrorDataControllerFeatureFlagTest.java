@@ -80,7 +80,7 @@ public class MobileErrorDataControllerFeatureFlagTest {
     public void sendMobileErrorData_enabledPath_routesThroughPayloadController() throws InterruptedException {
         // Closes the symmetric gap to sendMobileErrorData_returnsFalse_whenFeatureDisabled:
         // when the feature is enabled, the callable submitted to PayloadController must
-        // actually run and reach the configured JSErrorStore. The latch is the
+        // actually run and reach the configured MobileErrorStore. The latch is the
         // synchronization point because the work runs on the PayloadController worker
         // thread, not the calling thread.
         Assert.assertTrue("JSError must be enabled by default",
