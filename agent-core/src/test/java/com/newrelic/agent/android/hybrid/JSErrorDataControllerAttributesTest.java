@@ -31,7 +31,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * NR-563075 Phase 1 core-attribute wire keys for MobileJSError events.
+ * NR-563075 Phase 1 core-attribute wire keys for MobileError events.
  *
  * Verifies that {@link JSErrorDataController#sendJSErrorData} emits the
  * required camelCase wire keys — {@code errorId}, {@code errorName},
@@ -141,7 +141,7 @@ public class JSErrorDataControllerAttributesTest {
         Assert.assertEquals("stack-frames",
                 event.get(AnalyticsAttribute.JSERROR_THREADS).getAsString());
         Assert.assertTrue(event.get(AnalyticsAttribute.JSERROR_ISFATAL).getAsBoolean());
-        Assert.assertEquals(AnalyticsEvent.EVENT_TYPE_MOBILE_JSERROR,
+        Assert.assertEquals(AnalyticsEvent.EVENT_TYPE_MOBILE_ERROR,
                 event.get(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE).getAsString());
         Assert.assertTrue("timestamp must be present",
                 event.has(AnalyticsAttribute.JSERROR_TIMESTAMP));

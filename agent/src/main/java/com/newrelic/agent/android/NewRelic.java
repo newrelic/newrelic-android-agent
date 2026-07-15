@@ -1131,7 +1131,7 @@ public final class NewRelic {
      * Gated by {@link FeatureFlag#JSError} (enabled by default). Call
      * {@link NewRelic#disableFeature(FeatureFlag)} with {@link FeatureFlag#JSError}
      * before {@link NewRelic#start(Context)} to opt out — when disabled this is a
-     * no-op and no MobileJSError data is stored, harvested, or sent.
+     * no-op and no MobileError data is stored, harvested, or sent.
      *
      * @param stackTrace Stack trace of the exception
      * @return {@code true} if the error was queued for delivery; {@code false} if

@@ -123,7 +123,7 @@ public class JSErrorDataController {
             eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORNAME, name);
             eventAttributes.put(AnalyticsAttribute.JSERROR_ERRORMESSAGE, message);
             eventAttributes.put(AnalyticsAttribute.JSERROR_TIMESTAMP, System.currentTimeMillis());
-            eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_JSERROR);
+            eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_ERROR);
 
             final JsonObject eventObject = new JsonObject();
             for (Map.Entry<String, Object> entry : eventAttributes.entrySet()) {
