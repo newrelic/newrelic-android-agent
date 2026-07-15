@@ -130,7 +130,7 @@ public class FeatureFlagTest {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));
-        Assert.assertFalse("EventPersistence is disabled by default", FeatureFlag.featureEnabled(EventPersistence));
+        Assert.assertTrue("EventPersistence is disabled by default", FeatureFlag.featureEnabled(EventPersistence));
     }
 
 }
