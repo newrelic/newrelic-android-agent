@@ -157,7 +157,7 @@ public class MobileErrorDataReporter extends PayloadReporter {
      *                          app version.
      */
     public Future reportMobileErrorData(Payload payload, List<String> sentIds, boolean isStartupSend, String appVersionOverride) {
-        PayloadSender payloadSender = new JSErrorDataSender(payload, getAgentConfiguration(), appVersionOverride);
+        PayloadSender payloadSender = new MobileErrorDataSender(payload, getAgentConfiguration(), appVersionOverride);
 
         if (payload.getBytes().length > Constants.Network.MAX_PAYLOAD_SIZE) {
             DeviceInformation deviceInformation = Agent.getDeviceInformation();

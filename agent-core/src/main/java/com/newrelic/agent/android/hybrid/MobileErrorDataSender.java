@@ -23,8 +23,8 @@ import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class JSErrorDataSender extends PayloadSender {
-    static final String JSERROR_COLLECTOR_PATH = "/mobile/errors?protocol_version=1&platform=";
+public class MobileErrorDataSender extends PayloadSender {
+    static final String ERROR_COLLECTOR_PATH = "/mobile/errors?protocol_version=1&platform=";
 
     /**
      * App version override used for the {@code X-NewRelic-App-Version} header.
@@ -35,20 +35,20 @@ public class JSErrorDataSender extends PayloadSender {
      */
     private final String appVersionOverride;
 
-    public JSErrorDataSender(byte[] bytes, AgentConfiguration agentConfiguration) {
+    public MobileErrorDataSender(byte[] bytes, AgentConfiguration agentConfiguration) {
         this(bytes, agentConfiguration, null);
     }
 
-    public JSErrorDataSender(byte[] bytes, AgentConfiguration agentConfiguration, String appVersionOverride) {
+    public MobileErrorDataSender(byte[] bytes, AgentConfiguration agentConfiguration, String appVersionOverride) {
         super(bytes, agentConfiguration);
         this.appVersionOverride = appVersionOverride;
     }
 
-    public JSErrorDataSender(Payload payload, AgentConfiguration agentConfiguration) {
+    public MobileErrorDataSender(Payload payload, AgentConfiguration agentConfiguration) {
         this(payload, agentConfiguration, null);
     }
 
-    public JSErrorDataSender(Payload payload, AgentConfiguration agentConfiguration, String appVersionOverride) {
+    public MobileErrorDataSender(Payload payload, AgentConfiguration agentConfiguration, String appVersionOverride) {
         super(payload, agentConfiguration);
         this.appVersionOverride = appVersionOverride;
     }
@@ -126,7 +126,7 @@ public class JSErrorDataSender extends PayloadSender {
     }
 
     public String getErrorCollectorPath() {
-        return JSERROR_COLLECTOR_PATH + agentConfiguration.getApplicationFramework().toString();
+        return ERROR_COLLECTOR_PATH + agentConfiguration.getApplicationFramework().toString();
     }
 
     @Override

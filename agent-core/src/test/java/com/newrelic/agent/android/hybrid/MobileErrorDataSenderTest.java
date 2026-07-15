@@ -26,12 +26,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Verifies that {@link JSErrorDataSender} threads an
+ * Verifies that {@link MobileErrorDataSender} threads an
  * {@code appVersionOverride} into the {@code X-NewRelic-App-Version} upload
  * header so the collector can pick the matching ProGuard mapping when
  * uploading errors recorded under an older app version.
  */
-public class JSErrorDataSenderTest {
+public class MobileErrorDataSenderTest {
 
     private static final byte[] PAYLOAD_BYTES = "{}".getBytes(StandardCharsets.UTF_8);
 
@@ -53,7 +53,7 @@ public class JSErrorDataSenderTest {
 
     @Test
     public void getConnection_usesOverride_whenProvided() throws IOException {
-        JSErrorDataSender sender = new JSErrorDataSender(
+        MobileErrorDataSender sender = new MobileErrorDataSender(
                 new Payload(PAYLOAD_BYTES), AgentConfiguration.getInstance(), "9.9.9");
 
         HttpURLConnection conn = sender.getConnection();
@@ -66,7 +66,7 @@ public class JSErrorDataSenderTest {
 
     @Test
     public void getConnection_fallsBackToCurrent_whenOverrideIsNull() throws IOException {
-        JSErrorDataSender sender = new JSErrorDataSender(
+        MobileErrorDataSender sender = new MobileErrorDataSender(
                 new Payload(PAYLOAD_BYTES), AgentConfiguration.getInstance(), null);
 
         HttpURLConnection conn = sender.getConnection();
@@ -78,7 +78,7 @@ public class JSErrorDataSenderTest {
 
     @Test
     public void getConnection_fallsBackToCurrent_whenOverrideIsEmpty() throws IOException {
-        JSErrorDataSender sender = new JSErrorDataSender(
+        MobileErrorDataSender sender = new MobileErrorDataSender(
                 new Payload(PAYLOAD_BYTES), AgentConfiguration.getInstance(), "");
 
         HttpURLConnection conn = sender.getConnection();
@@ -90,7 +90,7 @@ public class JSErrorDataSenderTest {
 
     @Test
     public void getConnection_legacyTwoArgConstructor_fallsBackToCurrent() throws IOException {
-        JSErrorDataSender sender = new JSErrorDataSender(
+        MobileErrorDataSender sender = new MobileErrorDataSender(
                 new Payload(PAYLOAD_BYTES), AgentConfiguration.getInstance());
 
         HttpURLConnection conn = sender.getConnection();
