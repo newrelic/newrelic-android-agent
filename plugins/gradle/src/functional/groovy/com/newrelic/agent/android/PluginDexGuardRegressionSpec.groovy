@@ -80,6 +80,11 @@ class PluginDexGuardRegressionSpec extends PluginSpec {
 
             def configClass = new File(buildDir, "intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
             configClass.exists() && configClass.canRead()
+
+            def buildIdResource = new File(buildDir,
+                    "generated/res/newrelicConfig${var.capitalize()}/values/com_newrelic_android_agent_config.xml")
+            buildIdResource.exists() && buildIdResource.canRead()
+            buildIdResource.text.contains('name="com.newrelic.android.buildId"')
         }
 
         mapUploadVariants.each { var ->

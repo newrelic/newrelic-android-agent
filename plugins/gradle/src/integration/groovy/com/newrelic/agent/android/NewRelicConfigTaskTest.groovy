@@ -55,6 +55,38 @@ class NewRelicConfigTaskTest extends PluginTest {
     }
 
     @Test
+    void getResourceOutputDir() {
+        def f = provider.getResourceOutputDir().file(NewRelicConfigTask.CONFIG_RESOURCE_FILE).get().asFile
+        Assert.assertTrue(f.absolutePath.endsWith(NewRelicConfigTask.CONFIG_RESOURCE_FILE))
+
+        provider.newRelicConfigTask()
+        Assert.assertTrue(f.exists())
+    }
+
+    @Test
+    void verifyBuildIdResource() {
+        provider.newRelicConfigTask()
+
+        def resourceFile = provider.getResourceOutputDir().file(NewRelicConfigTask.CONFIG_RESOURCE_FILE).get().asFile
+        def buildId = provider.getBuildId().get()
+
+        Assert.assertTrue(resourceFile.exists())
+        Assert.assertTrue(resourceFile.text.contains(buildId))
+        Assert.assertTrue(resourceFile.text.contains(NewRelicConfigTask.BUILD_ID_RESOURCE_NAME))
+    }
+
+    @Test
+    void verifyBuildIdNotInCompiledSource() {
+        provider.newRelicConfigTask()
+
+        def sourceFile = provider.getSourceOutputDir().file(provider.CONFIG_CLASS).get().asFile
+        def buildId = provider.getBuildId().get()
+
+        Assert.assertFalse(sourceFile.text.contains(buildId))
+        Assert.assertTrue(sourceFile.text.contains("BUILD_ID = \"${NewRelicConfigTask.BUILD_ID_PLACEHOLDER}\""))
+    }
+
+    @Test
     void newRelicConfigTask() {
         // @TaskAction
         provider.newRelicConfigTask()

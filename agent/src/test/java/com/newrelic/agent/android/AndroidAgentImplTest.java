@@ -7,8 +7,12 @@ package com.newrelic.agent.android;
 
 import static com.newrelic.agent.android.analytics.AnalyticsAttribute.ACTION_TYPE_ATTRIBUTE;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+
+import android.content.Context;
+import android.content.res.Resources;
 
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
@@ -97,6 +101,7 @@ public class AndroidAgentImplTest {
     @After
     public void tearDown() throws Exception {
         Agent.stop();
+        Agent.setBuildId(null);
     }
 
     @Test
@@ -127,6 +132,36 @@ public class AndroidAgentImplTest {
         Assert.assertFalse("New device info should not be equal",
                 agentImpl.getSavedState().getConnectInformation().getDeviceInformation().equals(agentImpl.getDeviceInformation()));
         Assert.assertTrue("Should update connection info on device info change", agentImpl.updateSavedConnectInformation());
+    }
+
+    @Test
+    public void testBuildIdResolvedFromGeneratedResource() throws Exception {
+        Context contextSpy = spyContext.getContext();
+        Resources resourcesSpy = spy(contextSpy.getResources());
+        // Evaluate this ahead of the stubbing calls below - calling a method on the contextSpy
+        // mock as an inline argument while resourcesSpy's stub is mid-setup confuses Mockito's
+        // stubbing tracker (UnfinishedStubbingException, hint #3: "stubbing the behaviour of
+        // another mock inside before 'thenReturn' instruction is completed").
+        String packageName = contextSpy.getPackageName();
+
+        doReturn(resourcesSpy).when(contextSpy).getResources();
+        doReturn(4242).when(resourcesSpy).getIdentifier("com.newrelic.android.buildId", "string", packageName);
+        doReturn("resource-provided-build-id").when(resourcesSpy).getString(4242);
+
+        new AndroidAgentImpl(contextSpy, agentConfig);
+
+        Assert.assertEquals("resource-provided-build-id", Agent.getBuildId());
+    }
+
+    @Test
+    public void testBuildIdFallsBackWhenResourceMissing() throws Exception {
+        // spyContext's real Robolectric resources have no matching entry, so getIdentifier()
+        // returns 0 and Agent.setBuildId() is never called - Agent.getBuildId() falls back to
+        // its existing NewRelicConfig reflection path (which finds nothing on this module's
+        // test classpath and returns "").
+        new AndroidAgentImpl(spyContext.getContext(), agentConfig);
+
+        Assert.assertEquals("", Agent.getBuildId());
     }
 
     @Test
