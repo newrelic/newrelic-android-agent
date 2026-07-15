@@ -33,24 +33,24 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @RunWith(RobolectricTestRunner.class)
-public class FileJSErrorStoreTest {
+public class FileMobileErrorStoreTest {
 
     private static final String SAMPLE_JSON_A =
-            "{\"eventType\":\"MobileJSError\",\"errorType\":\"TypeError\",\"description\":\"boom\"}";
+            "{\"eventType\":\"MobileError\",\"errorType\":\"TypeError\",\"description\":\"boom\"}";
     private static final String SAMPLE_JSON_B =
-            "{\"eventType\":\"MobileJSError\",\"errorType\":\"SyntaxError\",\"description\":\"nope\"}";
+            "{\"eventType\":\"MobileError\",\"errorType\":\"SyntaxError\",\"description\":\"nope\"}";
 
     private Context context;
     private AgentConfiguration config;
-    private FileJSErrorStore store;
+    private FileMobileErrorStore store;
     private File cacheDir;
 
     @Before
     public void setUp() {
         context = new SpyContext().getContext();
         config = new AgentConfiguration();
-        store = new FileJSErrorStore(context, config);
-        cacheDir = new File(context.getFilesDir(), FileJSErrorStore.DIR_NAME);
+        store = new FileMobileErrorStore(context, config);
+        cacheDir = new File(context.getFilesDir(), FileMobileErrorStore.DIR_NAME);
         StatsEngine.get().getStatsMap().clear();
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
     }
@@ -106,7 +106,7 @@ public class FileJSErrorStoreTest {
         String unsafeId = "../../etc/passwd";
         Assert.assertTrue(store.store(unsafeId, SAMPLE_JSON_A));
 
-        File[] files = cacheDir.listFiles((d, n) -> n.endsWith(FileJSErrorStore.FILE_SUFFIX));
+        File[] files = cacheDir.listFiles((d, n) -> n.endsWith(FileMobileErrorStore.FILE_SUFFIX));
         Assert.assertNotNull(files);
         Assert.assertEquals(1, files.length);
         Assert.assertFalse("filename must not contain path separators",
@@ -133,7 +133,7 @@ public class FileJSErrorStoreTest {
     @Test
     public void store_atCap_evictsOldestFirst() {
         config.setMaxCachedMobileErrorCount(3);
-        store = new FileJSErrorStore(context, config);
+        store = new FileMobileErrorStore(context, config);
 
         String oldest = UUID.randomUUID().toString();
         String second = UUID.randomUUID().toString();
@@ -168,12 +168,12 @@ public class FileJSErrorStoreTest {
         String id = UUID.randomUUID().toString();
         Assert.assertTrue(store.store(id, SAMPLE_JSON_A));
 
-        File[] jsonFiles = cacheDir.listFiles((d, n) -> n.endsWith(FileJSErrorStore.FILE_SUFFIX));
-        File[] tmpFiles = cacheDir.listFiles((d, n) -> n.endsWith(FileJSErrorStore.TMP_SUFFIX));
+        File[] jsonFiles = cacheDir.listFiles((d, n) -> n.endsWith(FileMobileErrorStore.FILE_SUFFIX));
+        File[] tmpFiles = cacheDir.listFiles((d, n) -> n.endsWith(FileMobileErrorStore.TMP_SUFFIX));
 
         Assert.assertNotNull(jsonFiles);
         Assert.assertEquals(1, jsonFiles.length);
-        Assert.assertEquals(id + FileJSErrorStore.FILE_SUFFIX, jsonFiles[0].getName());
+        Assert.assertEquals(id + FileMobileErrorStore.FILE_SUFFIX, jsonFiles[0].getName());
         Assert.assertNotNull(tmpFiles);
         Assert.assertEquals(0, tmpFiles.length);
     }
@@ -181,13 +181,13 @@ public class FileJSErrorStoreTest {
     @Test
     public void init_sweepsOrphanedTempFiles() throws IOException {
         store.clear();
-        File orphan = new File(cacheDir, "orphan" + FileJSErrorStore.TMP_SUFFIX);
+        File orphan = new File(cacheDir, "orphan" + FileMobileErrorStore.TMP_SUFFIX);
         try (OutputStream os = new FileOutputStream(orphan)) {
             os.write("half-written".getBytes(StandardCharsets.UTF_8));
         }
         Assert.assertTrue(orphan.exists());
 
-        new FileJSErrorStore(context, config);
+        new FileMobileErrorStore(context, config);
 
         Assert.assertFalse("Orphan tmp should be swept on init", orphan.exists());
     }
@@ -200,8 +200,8 @@ public class FileJSErrorStoreTest {
         Assert.assertTrue(store.store(id, SAMPLE_JSON_A));
         Assert.assertTrue(store.store(id, SAMPLE_JSON_B));
 
-        File[] baks = cacheDir.listFiles((d, n) -> n.endsWith(FileJSErrorStore.BAK_SUFFIX));
-        File[] tmps = cacheDir.listFiles((d, n) -> n.endsWith(FileJSErrorStore.TMP_SUFFIX));
+        File[] baks = cacheDir.listFiles((d, n) -> n.endsWith(FileMobileErrorStore.BAK_SUFFIX));
+        File[] tmps = cacheDir.listFiles((d, n) -> n.endsWith(FileMobileErrorStore.TMP_SUFFIX));
         Assert.assertNotNull(baks);
         Assert.assertEquals("overwrite must leave no .bak sidecar", 0, baks.length);
         Assert.assertNotNull(tmps);
@@ -216,17 +216,17 @@ public class FileJSErrorStoreTest {
         // not lost.
         store.clear();
         String id = UUID.randomUUID().toString();
-        File bak = new File(cacheDir, id + FileJSErrorStore.BAK_SUFFIX);
+        File bak = new File(cacheDir, id + FileMobileErrorStore.BAK_SUFFIX);
         String onDisk = "{\"id\":\"" + id + "\",\"data\":\"" + SAMPLE_JSON_A.replace("\"", "\\\"") + "\"}";
         try (OutputStream os = new FileOutputStream(bak)) {
             os.write(onDisk.getBytes(StandardCharsets.UTF_8));
         }
         Assert.assertTrue(bak.exists());
 
-        FileJSErrorStore recovered = new FileJSErrorStore(context, config);
+        FileMobileErrorStore recovered = new FileMobileErrorStore(context, config);
 
         Assert.assertFalse(".bak must be consumed by sweep", bak.exists());
-        File restored = new File(cacheDir, id + FileJSErrorStore.FILE_SUFFIX);
+        File restored = new File(cacheDir, id + FileMobileErrorStore.FILE_SUFFIX);
         Assert.assertTrue(".bak must be renamed to .json on recovery", restored.exists());
         Assert.assertEquals(SAMPLE_JSON_A, recovered.fetchAllEntries().get(id));
     }
@@ -240,15 +240,15 @@ public class FileJSErrorStoreTest {
         store.clear();
         String id = UUID.randomUUID().toString();
         Assert.assertTrue(store.store(id, SAMPLE_JSON_B));
-        File target = new File(cacheDir, id + FileJSErrorStore.FILE_SUFFIX);
-        File staleBak = new File(cacheDir, id + FileJSErrorStore.BAK_SUFFIX);
+        File target = new File(cacheDir, id + FileMobileErrorStore.FILE_SUFFIX);
+        File staleBak = new File(cacheDir, id + FileMobileErrorStore.BAK_SUFFIX);
         try (OutputStream os = new FileOutputStream(staleBak)) {
             os.write("stale-old-value".getBytes(StandardCharsets.UTF_8));
         }
         Assert.assertTrue(staleBak.exists());
         Assert.assertTrue(target.exists());
 
-        FileJSErrorStore reopened = new FileJSErrorStore(context, config);
+        FileMobileErrorStore reopened = new FileMobileErrorStore(context, config);
 
         Assert.assertFalse("stale .bak must be deleted by sweep", staleBak.exists());
         Assert.assertTrue(".json sibling must be untouched", target.exists());
@@ -261,7 +261,7 @@ public class FileJSErrorStoreTest {
         String id = UUID.randomUUID().toString();
         Assert.assertTrue(store.store(id, SAMPLE_JSON_A));
 
-        File corrupt = new File(cacheDir, "garbage" + FileJSErrorStore.FILE_SUFFIX);
+        File corrupt = new File(cacheDir, "garbage" + FileMobileErrorStore.FILE_SUFFIX);
         try (OutputStream os = new FileOutputStream(corrupt)) {
             os.write("not-json-at-all".getBytes(StandardCharsets.UTF_8));
         }
@@ -297,11 +297,11 @@ public class FileJSErrorStoreTest {
     @Test
     public void clear_removesEverything() throws IOException {
         Assert.assertTrue(store.store(UUID.randomUUID().toString(), SAMPLE_JSON_A));
-        File strayTmp = new File(cacheDir, "stray" + FileJSErrorStore.TMP_SUFFIX);
+        File strayTmp = new File(cacheDir, "stray" + FileMobileErrorStore.TMP_SUFFIX);
         try (OutputStream os = new FileOutputStream(strayTmp)) {
             os.write("tmp".getBytes(StandardCharsets.UTF_8));
         }
-        File strayBak = new File(cacheDir, "stray" + FileJSErrorStore.BAK_SUFFIX);
+        File strayBak = new File(cacheDir, "stray" + FileMobileErrorStore.BAK_SUFFIX);
         try (OutputStream os = new FileOutputStream(strayBak)) {
             os.write("bak".getBytes(StandardCharsets.UTF_8));
         }
@@ -381,7 +381,7 @@ public class FileJSErrorStoreTest {
                 .commit();
         Assert.assertFalse("seed should be present", legacy.getAll().isEmpty());
 
-        new FileJSErrorStore(context, config);
+        new FileMobileErrorStore(context, config);
         context.deleteSharedPreferences("NRJSErrorStore");
 
         SharedPreferences after = context.getSharedPreferences("NRJSErrorStore", Context.MODE_PRIVATE);
@@ -403,7 +403,7 @@ public class FileJSErrorStoreTest {
     }
 
     private void setFileMtime(String id, long mtime) {
-        File f = new File(cacheDir, com.newrelic.agent.android.payload.AbstractFileStore.safeFilename(id) + FileJSErrorStore.FILE_SUFFIX);
+        File f = new File(cacheDir, com.newrelic.agent.android.payload.AbstractFileStore.safeFilename(id) + FileMobileErrorStore.FILE_SUFFIX);
         Assert.assertTrue("Expected file to exist for " + id, f.exists());
         Assert.assertTrue("Setting mtime should succeed", f.setLastModified(mtime));
     }

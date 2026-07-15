@@ -32,7 +32,7 @@ public class MobileErrorDataReporter extends PayloadReporter {
     protected static final AtomicReference<MobileErrorDataReporter> instance = new AtomicReference<>(null);
     private static final AtomicBoolean reportExceptions = new AtomicBoolean(false);
 
-    protected final MobileErrorStore jsErrorStore;
+    protected final MobileErrorStore mobileErrorStore;
 
     private final AtomicBoolean startupSendInProgress = new AtomicBoolean(false);
     /**
@@ -83,7 +83,7 @@ public class MobileErrorDataReporter extends PayloadReporter {
 
     protected MobileErrorDataReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
-        this.jsErrorStore = agentConfiguration.getMobileErrorStore();
+        this.mobileErrorStore = agentConfiguration.getMobileErrorStore();
         this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.JSError));
     }
 
@@ -107,7 +107,7 @@ public class MobileErrorDataReporter extends PayloadReporter {
 
     protected void reportCachedMobileErrorData() {
         if (Agent.hasReachableNetworkConnection(null)) {
-            if (jsErrorStore != null) {
+            if (mobileErrorStore != null) {
                 startupSendInProgress.set(true);
                 try {
                     List<HarvestSnapshot> snapshots = MobileErrorDataController.getInstance().getStoredMobileErrorData();

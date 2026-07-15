@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * {@link #deserialize(String, String)}, then forward their public interface methods to the
  * {@code *Internal} template methods below. This class does not implement any public
  * store interface itself so callers with different signatures (e.g.
- * {@code JSErrorStore.store(String, String)}) can adapt as needed.
+ * {@code MobileErrorStore.store(String, String)}) can adapt as needed.
  */
 public abstract class AbstractFileStore<T> {
     protected static final AgentLog log = AgentLogManager.getAgentLog();

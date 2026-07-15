@@ -59,7 +59,7 @@ import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
-import com.newrelic.agent.android.hybrid.FileJSErrorStore;
+import com.newrelic.agent.android.hybrid.FileMobileErrorStore;
 import com.newrelic.agent.android.sessioncontext.FileSessionContextStore;
 import com.newrelic.agent.android.sessioncontext.SessionContextManager;
 import com.newrelic.agent.android.payload.FilePayloadStore;
@@ -174,7 +174,7 @@ public class AndroidAgentImpl implements
 
         agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
 
-        agentConfiguration.setMobileErrorStore(new FileJSErrorStore(context, agentConfiguration));
+        agentConfiguration.setMobileErrorStore(new FileMobileErrorStore(context, agentConfiguration));
         // The filename below is the real on-disk SharedPreferences name used by the
         // pre-file-store implementation (see commit bf111391) — must NOT be renamed,
         // or the cleanup below stops purging real legacy data on upgrading installs.

@@ -21,22 +21,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * File-backed JS-error store. Stores one JSON file per JS error under
- * {@code filesDir/nr_jserror_cache/}.
+ * File-backed mobile-error store. Stores one JSON file per error under
+ * {@code filesDir/nr_mobileerror_cache/}.
  *
  * On-disk format: JSON object with {@code id} (original caller-supplied ID) and
  * {@code data} (the JSON payload string — stored verbatim). Filenames are the
  * sanitized/hashed form of the caller's ID; the original ID always lives inside the
  * file so {@code fetchAllEntries()} can recover it regardless of sanitization.
  */
-public class FileJSErrorStore extends AbstractFileStore<Map.Entry<String, String>> implements MobileErrorStore {
-    public static final String DIR_NAME = "nr_jserror_cache";
+public class FileMobileErrorStore extends AbstractFileStore<Map.Entry<String, String>> implements MobileErrorStore {
+    public static final String DIR_NAME = "nr_mobileerror_cache";
 
-    public FileJSErrorStore(Context context, AgentConfiguration config) {
+    public FileMobileErrorStore(Context context, AgentConfiguration config) {
         super(context, DIR_NAME, resolveCap(config),
                 MetricNames.SUPPORTABILITY_MOBILE_ERROR_EVICTED,
                 MetricNames.SUPPORTABILITY_MOBILE_ERROR_CORRUPTED,
-                "FileJSErrorStore");
+                "FileMobileErrorStore");
     }
 
     private static int resolveCap(AgentConfiguration config) {
@@ -47,11 +47,11 @@ public class FileJSErrorStore extends AbstractFileStore<Map.Entry<String, String
     @Override
     public boolean store(String id, String data) {
         if (id == null || id.isEmpty()) {
-            log.warn("FileJSErrorStore.store: id is null or empty");
+            log.warn("FileMobileErrorStore.store: id is null or empty");
             return false;
         }
         if (data == null || data.trim().isEmpty()) {
-            log.warn("FileJSErrorStore.store: data is null or empty");
+            log.warn("FileMobileErrorStore.store: data is null or empty");
             return false;
         }
         return storeInternal(new AbstractMap.SimpleImmutableEntry<>(id, data));

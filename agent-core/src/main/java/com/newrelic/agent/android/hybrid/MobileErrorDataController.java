@@ -39,7 +39,7 @@ public class MobileErrorDataController {
 
 
     private final AgentConfiguration agentConfiguration;
-    private final MobileErrorStore jsErrorStore;
+    private final MobileErrorStore mobileErrorStore;
     private final ReentrantReadWriteLock lock;
     private final AnalyticsValidator validator;
 
@@ -49,7 +49,7 @@ public class MobileErrorDataController {
 
     private MobileErrorDataController() {
         this.agentConfiguration = AgentConfiguration.getInstance();
-        this.jsErrorStore = agentConfiguration.getMobileErrorStore();
+        this.mobileErrorStore = agentConfiguration.getMobileErrorStore();
         this.lock = new ReentrantReadWriteLock();
         this.validator = new AnalyticsValidator();
     }
@@ -156,14 +156,14 @@ public class MobileErrorDataController {
             PayloadController.submitCallable(new Callable<Boolean>() {
                 @Override
                 public Boolean call() throws Exception {
-                    if (jsErrorStore == null) {
+                    if (mobileErrorStore == null) {
                         log.error("MobileErrorStore is not initialized");
                         return false;
                     }
 
                     lock.writeLock().lock();
                     try {
-                        boolean stored = jsErrorStore.store(errorId, eventObject.toString());
+                        boolean stored = mobileErrorStore.store(errorId, eventObject.toString());
                         if (stored) {
                             log.debug("MobileError stored successfully with ID: " + errorId);
                             return true;
@@ -191,7 +191,7 @@ public class MobileErrorDataController {
             return null;
         }
 
-        Error jsError = new Error(null, new HashMap<>());
+        Error errorEnvelope = new Error(null, new HashMap<>());
         JsonArray eventsArray = new JsonArray();
 
         for (String eventJson : eventJsonList) {
@@ -213,7 +213,7 @@ public class MobileErrorDataController {
             }
         }
 
-        JsonObject rootObject = jsError.asJsonObject();
+        JsonObject rootObject = errorEnvelope.asJsonObject();
         // Overwrite, don't append: Error.asJsonObject() seeded analyticsEvents
         // with the constructor's `event` field (designed for the one-event-per-crash
         // case). Setting the array explicitly here keeps MobileError envelopes free
@@ -268,7 +268,7 @@ public class MobileErrorDataController {
      * across all groups are always derived from the same on-disk view.
      */
     public List<HarvestSnapshot> getStoredMobileErrorData() {
-        if (jsErrorStore == null) {
+        if (mobileErrorStore == null) {
             log.warn("MobileErrorStore is not initialized");
             return Collections.emptyList();
         }
@@ -276,7 +276,7 @@ public class MobileErrorDataController {
         Map<String, String> entries;
         lock.readLock().lock();
         try {
-            entries = jsErrorStore.fetchAllEntries();
+            entries = mobileErrorStore.fetchAllEntries();
             if (entries == null || entries.isEmpty()) {
                 log.debug("No mobile errors found in store");
                 return Collections.emptyList();
@@ -359,13 +359,13 @@ public class MobileErrorDataController {
         }
         lock.writeLock().lock();
         try {
-            if (jsErrorStore == null) {
+            if (mobileErrorStore == null) {
                 log.warn("MobileErrorStore is not initialized");
                 return;
             }
             for (String id : ids) {
                 try {
-                    jsErrorStore.delete(id);
+                    mobileErrorStore.delete(id);
                 } catch (Exception e) {
                     log.warn("MobileError: Failed to delete error ID " + id + ": " + e.getMessage());
                 }
@@ -382,11 +382,11 @@ public class MobileErrorDataController {
     public void clearStoredErrors() {
         lock.writeLock().lock();
         try {
-            if (jsErrorStore == null) {
+            if (mobileErrorStore == null) {
                 log.warn("MobileErrorStore is not initialized");
                 return;
             }
-            jsErrorStore.clear();
+            mobileErrorStore.clear();
             log.info("MobileError: Cleared all stored errors");
         } catch (Exception e) {
             log.error("Failed to clear stored mobile errors: " + e.getMessage());
@@ -397,9 +397,9 @@ public class MobileErrorDataController {
 
     /** Returns the number of errors currently in the store. */
     public int getStoredErrorCount() {
-        if (jsErrorStore == null) {
+        if (mobileErrorStore == null) {
             return 0;
         }
-        return jsErrorStore.count();
+        return mobileErrorStore.count();
     }
 }
