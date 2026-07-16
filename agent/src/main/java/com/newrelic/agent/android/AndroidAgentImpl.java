@@ -114,7 +114,8 @@ public class AndroidAgentImpl implements
 
     // Must match NewRelicConfigTask.BUILD_ID_RESOURCE_NAME in the Gradle plugin
     // (plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicConfigTask.groovy).
-    private static final String BUILD_ID_RESOURCE_NAME = "com.newrelic.android.buildId";
+    // Underscores, not periods - see newrelic_keep.xml for why.
+    private static final String BUILD_ID_RESOURCE_NAME = "com_newrelic_android_buildId";
 
     // Stored for use by static API methods (recordReplay → log activation)
     private static Context savedContext;

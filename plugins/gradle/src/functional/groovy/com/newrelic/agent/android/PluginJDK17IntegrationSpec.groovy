@@ -151,11 +151,11 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         def postBuildId = new File(buildDir, "/generated/res/newrelicConfigRelease/values/com_newrelic_android_agent_config.xml").text
 
         then:
-        preBuildId.find(~/name="com.newrelic.android.buildId"[^>]*>(.*)<\/string>/) ==
-                postBuildId.find(~/name="com.newrelic.android.buildId"[^>]*>(.*)<\/string>/)
+        preBuildId.find(~/name="com_newrelic_android_buildId"[^>]*>(.*)<\/string>/) ==
+                postBuildId.find(~/name="com_newrelic_android_buildId"[^>]*>(.*)<\/string>/)
 
-        preBuildId.find(~/name="com.newrelic.android.metrics"[^>]*>(.*)<\/string>/) ==
-                postBuildId.find(~/name="com.newrelic.android.metrics"[^>]*>(.*)<\/string>/)
+        preBuildId.find(~/name="com_newrelic_android_metrics"[^>]*>(.*)<\/string>/) ==
+                postBuildId.find(~/name="com_newrelic_android_metrics"[^>]*>(.*)<\/string>/)
 
         preResult.output.contains("Calculating task graph as no configuration cache is available for tasks:")
         preResult.output.contains("Configuration cache entry stored")

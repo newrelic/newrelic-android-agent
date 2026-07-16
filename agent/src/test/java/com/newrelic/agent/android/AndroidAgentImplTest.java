@@ -145,7 +145,7 @@ public class AndroidAgentImplTest {
         String packageName = contextSpy.getPackageName();
 
         doReturn(resourcesSpy).when(contextSpy).getResources();
-        doReturn(4242).when(resourcesSpy).getIdentifier("com.newrelic.android.buildId", "string", packageName);
+        doReturn(4242).when(resourcesSpy).getIdentifier("com_newrelic_android_buildId", "string", packageName);
         doReturn("resource-provided-build-id").when(resourcesSpy).getString(4242);
 
         new AndroidAgentImpl(contextSpy, agentConfig);

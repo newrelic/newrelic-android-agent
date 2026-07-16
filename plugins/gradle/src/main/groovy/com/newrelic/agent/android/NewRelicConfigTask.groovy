@@ -29,13 +29,18 @@ abstract class NewRelicConfigTask extends DefaultTask {
     // merges through aapt2 and never reaches javac/kotlinc/R8. Named generically (not "buildid")
     // so this same file can carry other dynamic, per-build values later without another rename.
     final static String CONFIG_RESOURCE_FILE = "values/com_newrelic_android_agent_config.xml"
-    final static String BUILD_ID_RESOURCE_NAME = "com.newrelic.android.buildId"
+
+    // Underscores, not periods: AAPT2's resource-shrinker keep/discard matching (tools:keep)
+    // works against the Java-safe symbol table, which canonicalizes periods to underscores.
+    // Using the same underscored name for the declaration avoids relying on two different
+    // spellings of the same resource across the codebase.
+    final static String BUILD_ID_RESOURCE_NAME = "com_newrelic_android_buildId"
 
     // METRICS (toolchain/environment info) can differ across CI machines even when no source
     // changed, so it's kept out of the compiled source for the same reason as BUILD_ID above -
     // otherwise it would bust remote build caching across a fleet of build agents.
     final static String METRICS_PLACEHOLDER = ""
-    final static String METRICS_RESOURCE_NAME = "com.newrelic.android.metrics"
+    final static String METRICS_RESOURCE_NAME = "com_newrelic_android_metrics"
 
     @Input
     abstract Property<String> getBuildId()      // variant buildId
