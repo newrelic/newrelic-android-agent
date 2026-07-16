@@ -106,7 +106,7 @@ abstract class NewRelicConfigTask extends DefaultTask {
         }
     }
 
-    private static String escapeXml(String value) {
+    static String escapeXml(String value) {
         value.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     }
 
