@@ -99,6 +99,10 @@ public class SavedState extends HarvestAdapter {
     public SavedState(Context context) {
         prefs = context.getSharedPreferences(getPreferenceFileName(context.getPackageName()), 0);
         editor = prefs.edit();
+
+        // Single disk read optimization - preloads all preferences into SharedPreferences cache
+        prefs.getAll();
+
         loadHarvestConfiguration();
         loadConnectInformation();
     }

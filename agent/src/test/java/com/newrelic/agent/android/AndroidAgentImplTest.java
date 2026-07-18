@@ -289,7 +289,6 @@ public class AndroidAgentImplTest {
 
     @Test
     public void testCombinedAgentLifecycleGestures() throws Exception {
-        eventStore = agentConfig.getEventStore();
         ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
 
         final ApplicationStateEvent e = new ApplicationStateEvent(ApplicationStateMonitor.getInstance());
@@ -315,6 +314,10 @@ public class AndroidAgentImplTest {
 
 
         agentImpl.start();
+
+        // Get eventStore after start() is called since stores are now lazily initialized
+        eventStore = agentConfig.getEventStore();
+
         assertEquals("Should contain app launch user action event", eventManager.getEventsRecorded(), 1);
         queuedEvents = analyticsController.getEventManager().getQueuedEvents();
         Assert.assertNotNull("Should contain app launch event", getEventByActionType(queuedEvents, UserActionType.AppLaunch));

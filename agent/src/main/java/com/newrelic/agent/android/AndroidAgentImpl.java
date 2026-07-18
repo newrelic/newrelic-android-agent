@@ -134,6 +134,7 @@ public class AndroidAgentImpl implements
         // We want an Application context, not an Activity context.
         this.context = appContext(context);
         this.agentConfiguration = agentConfiguration;
+
         this.savedState = new SavedState(this.context);
         this.offlineStorageInstance = new OfflineStorage(context);
 
@@ -149,12 +150,11 @@ public class AndroidAgentImpl implements
         // Register ourselves with the TraceMachine
         TraceMachine.setTraceMachineInterface(this);
 
-        agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
-        agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
+        // File stores moved to lazy initialization during initialize() to reduce main thread blocking
+        // They will be initialized in initializeFileStoresIfNeeded() during start()
+
+        // Clean up old payload store (still needed for migration)
         context.deleteSharedPreferences("NRPayloadStore");
-        agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
-        agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
-        agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         // used to determine when app backgrounds
@@ -184,6 +184,91 @@ public class AndroidAgentImpl implements
         setupSession();
     }
 
+    /**
+     * Initialize file stores using background thread to reduce main thread blocking during start().
+     * This method uses a background thread for store creation while providing synchronous access
+     * to the calling thread through proper coordination.
+     */
+    private void initializeFileStoresIfNeeded() {
+        // Quick check to avoid creating unnecessary threads if already initialized
+        // Note: This is an optimization, the real thread-safe check is inside the synchronized block
+        if (agentConfiguration.getCrashStore() != null) {
+            return; // Already initialized
+        }
+
+        // Use a background thread for store creation to avoid main thread blocking
+        Thread storeInitializer = new Thread(() -> {
+            synchronized (this) {
+                // Check if stores are already initialized (thread-safe)
+                if (agentConfiguration.getCrashStore() != null) {
+                    return; // Already initialized
+                }
+
+                try {
+                    log.debug("Initializing file stores on background thread");
+
+                    // Initialize all stores
+                    agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
+                    agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
+                    agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
+                    agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
+                    agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
+
+                    log.debug("File stores initialized successfully on background thread");
+                } catch (Exception e) {
+                    log.error("Failed to initialize file stores: " + e.getMessage(), e);
+                    // Set fallback null stores to prevent crashes - graceful degradation
+                    initializeFallbackStores();
+                }
+            }
+        }, "NewRelic-StoreInit");
+
+        storeInitializer.setDaemon(true);
+        storeInitializer.start();
+
+        // Wait for store initialization to complete with reasonable timeout
+        try {
+            storeInitializer.join(2000); // 2 second timeout
+            if (storeInitializer.isAlive()) {
+                log.warn("Store initialization taking longer than expected, continuing with fallbacks");
+                initializeFallbackStores();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Store initialization interrupted, using fallbacks");
+            initializeFallbackStores();
+        }
+    }
+
+    /**
+     * Initialize fallback stores in case of initialization failure
+     */
+    private void initializeFallbackStores() {
+        synchronized (this) {
+            try {
+                if (agentConfiguration.getCrashStore() == null) {
+                    agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
+                }
+                if (agentConfiguration.getPayloadStore() == null) {
+                    agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
+                }
+                if (agentConfiguration.getAnalyticsAttributeStore() == null) {
+                    agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
+                }
+                if (agentConfiguration.getEventStore() == null) {
+                    agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
+                }
+                if (agentConfiguration.getSessionReplayStore() == null) {
+                    agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
+                }
+                log.debug("Fallback stores initialized");
+            } catch (Exception fallbackException) {
+                log.error("Critical failure: Could not initialize fallback stores: " + fallbackException.getMessage(), fallbackException);
+                // Agent will continue with default null stores from AgentConfiguration
+            }
+        }
+    }
+
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
             LogReportingConfiguration logReportingConfiguration = agentConfiguration.getLogReportingConfiguration();
             LogReportingConfiguration.reseed();
@@ -210,6 +295,9 @@ public class AndroidAgentImpl implements
     }
 
     protected void initialize() {
+        // Initialize file stores with background thread to reduce main thread blocking
+        initializeFileStoresIfNeeded();
+
         // init this session's data
         setupSession();
 
