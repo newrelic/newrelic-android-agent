@@ -138,6 +138,11 @@ class AGP4Adapter extends VariantAdapter {
         return registerOrNamed("${NewRelicMapUploadTask.NAME}${variantName.capitalize()}", NewRelicMapUploadTask.class, action)
     }
 
+    @Override
+    TaskProvider getReactNativeSourceMapUploadProvider(String variantName, Action action = null) {
+        return registerOrNamed("${NewRelicReactNativeSourceMapUploadTask.NAME}${variantName.capitalize()}", NewRelicReactNativeSourceMapUploadTask.class, action)
+    }
+
     /**
      * Returns a RegularFileProperty representing the variant's mapping file
      * This can be null for Dexguard 8.5.+
