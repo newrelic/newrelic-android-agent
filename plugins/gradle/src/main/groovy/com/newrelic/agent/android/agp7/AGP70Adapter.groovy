@@ -97,6 +97,11 @@ class AGP70Adapter extends VariantAdapter {
     }
 
     @Override
+    TaskProvider getReactNativeSourceMapUploadProvider(String variantName, Action action = null) {
+        return registerOrNamed("${NewRelicReactNativeSourceMapUploadTask.NAME}${variantName.capitalize()}", NewRelicReactNativeSourceMapUploadTask.class, action)
+    }
+
+    @Override
     RegularFileProperty getMappingFileProvider(String variantName, Action action = null) {
         def variant = withVariant(variantName)
         def variantConfiguration = buildHelper.extension.variantConfigurations.findByName(variantName)
