@@ -220,6 +220,7 @@ class DexGuardHelperTest extends PluginTest {
 
         Assert.assertEquals("newrelicMapUploadApkRelease", apkProvider.get().name)
         Assert.assertEquals("newrelicMapUploadBundleRelease", bundleProvider.get().name)
+        Assert.assertNotSame(apkProvider.get(), bundleProvider.get())
 
         def apkMappingPath = apkProvider.get().mappingFile.get().asFile.absolutePath
         def bundleMappingPath = bundleProvider.get().mappingFile.get().asFile.absolutePath
@@ -228,9 +229,29 @@ class DexGuardHelperTest extends PluginTest {
         Assert.assertTrue(bundleMappingPath.contains("/bundle/"))
         Assert.assertNotEquals(apkMappingPath, bundleMappingPath)
 
-        // re-fetching the apk provider must not have been mutated by configuring the bundle one
+        // re-registering the apk provider is idempotent: it returns the same task
+        // (registerOrNamed falls back to tasks.named() the second time) still configured
+        // with its own apk mapping file, not the bundle one
         Assert.assertTrue(buildHelper.variantAdapter.wiredWithMapUploadProvider("release", "apk")
                 .get().mappingFile.get().asFile.absolutePath.contains("/apk/"))
+    }
+
+    @Test
+    void wiredWithMapUploadProvider_perTarget_honorsVariantConfigurationOverride() {
+        def customMappingFile = new File(tmpProjectDir.root, "custom/release/mapping.txt")
+        def conf = buildHelper.project.objects.newInstance(VariantConfiguration.class, "release").tap {
+            uploadMappingFile = true
+            mappingFile = customMappingFile
+        }
+        buildHelper.extension.variantConfigurations.add(conf)
+
+        def apkProvider = buildHelper.variantAdapter.wiredWithMapUploadProvider("release", "apk")
+        def resolvedPath = apkProvider.get().mappingFile.get().asFile.absolutePath
+
+        // a user-supplied variantConfigurations.mappingFile override must win over the
+        // DexGuard-resolved, per-target path
+        Assert.assertEquals(customMappingFile.absolutePath, resolvedPath)
+        Assert.assertFalse(resolvedPath.contains("/dexguard/"))
     }
 
 }
