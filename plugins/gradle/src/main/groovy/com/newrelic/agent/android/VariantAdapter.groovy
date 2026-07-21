@@ -196,9 +196,15 @@ abstract class VariantAdapter {
         return configProvider
     }
 
-    def wiredWithMapUploadProvider(String variantName) {
-        def mapUploadProvider = getMapUploadProvider(variantName) { mapUploadTask ->
-            def variantMap = getMappingFileProvider(variantName)
+    def wiredWithMapUploadProvider(String variantName, String target = "") {
+        def taskName = target ?
+                "${NewRelicMapUploadTask.NAME}${target.capitalize()}${variantName.capitalize()}" :
+                "${NewRelicMapUploadTask.NAME}${variantName.capitalize()}"
+
+        def mapUploadProvider = registerOrNamed(taskName, NewRelicMapUploadTask.class) { mapUploadTask ->
+            def variantMap = target ?
+                    buildHelper.dexguardHelper.getMappingFileProvider(variantName, target) :
+                    getMappingFileProvider(variantName)
             def uuid = objectFactory.property(String).value(BuildId.getBuildId(variantName))
 
             mapUploadTask.mappingFile.set(variantMap)
@@ -305,8 +311,9 @@ abstract class VariantAdapter {
             wiredWithConfigProvider(variantName)
         }
 
-        if (shouldUploadVariantMap(variantName)) {
-            // register map upload task(s)
+        if (shouldUploadVariantMap(variantName) && !(buildHelper.dexguardHelper?.enabled)) {
+            // register map upload task(s). DexGuard builds are wired separately,
+            // per packaging target, by DexGuardHelper.wireDexGuardMapProviders().
             wiredWithMapUploadProvider(variantName)
         }
     }

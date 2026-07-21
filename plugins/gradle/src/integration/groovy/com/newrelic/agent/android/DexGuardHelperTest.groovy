@@ -30,6 +30,11 @@ class DexGuardHelperTest extends PluginTest {
         dexGuardHelper = Mockito.spy(DexGuardHelper.register(buildHelper))
         Mockito.when(dexGuardHelper.getEnabled()).thenReturn(true)
         Mockito.when(dexGuardHelper.getCurrentVersion()). thenReturn(DexGuardHelper.minSupportedVersion)
+
+        // VariantAdapter holds a reference to the original (un-spied) BuildHelper instance
+        // created when the "newrelic" plugin was applied, so it never sees the enabled/DexGuard-9
+        // dexGuardHelper spy above unless it's wired onto that original instance too.
+        plugin.buildHelper.withDexGuardHelper(dexGuardHelper)
     }
 
     @Test
@@ -206,6 +211,26 @@ class DexGuardHelperTest extends PluginTest {
                 Assert.assertTrue("Configuration should complete without conflicts", true)
             }
         }
+    }
+
+    @Test
+    void wiredWithMapUploadProvider_perTarget_usesDistinctTasksAndMappingFiles() {
+        def apkProvider = buildHelper.variantAdapter.wiredWithMapUploadProvider("release", "apk")
+        def bundleProvider = buildHelper.variantAdapter.wiredWithMapUploadProvider("release", "bundle")
+
+        Assert.assertEquals("newrelicMapUploadApkRelease", apkProvider.get().name)
+        Assert.assertEquals("newrelicMapUploadBundleRelease", bundleProvider.get().name)
+
+        def apkMappingPath = apkProvider.get().mappingFile.get().asFile.absolutePath
+        def bundleMappingPath = bundleProvider.get().mappingFile.get().asFile.absolutePath
+
+        Assert.assertTrue(apkMappingPath.contains("/apk/"))
+        Assert.assertTrue(bundleMappingPath.contains("/bundle/"))
+        Assert.assertNotEquals(apkMappingPath, bundleMappingPath)
+
+        // re-fetching the apk provider must not have been mutated by configuring the bundle one
+        Assert.assertTrue(buildHelper.variantAdapter.wiredWithMapUploadProvider("release", "apk")
+                .get().mappingFile.get().asFile.absolutePath.contains("/apk/"))
     }
 
 }
