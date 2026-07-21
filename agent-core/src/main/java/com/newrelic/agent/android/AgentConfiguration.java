@@ -11,6 +11,8 @@ import com.newrelic.agent.android.analytics.AnalyticsEventStore;
 import com.newrelic.agent.android.crash.CrashStore;
 import com.newrelic.agent.android.harvest.HarvestConfigurable;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
+import com.newrelic.agent.android.hybrid.JSErrorStore;
+import com.newrelic.agent.android.sessioncontext.SessionContextStore;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.LogLevel;
@@ -19,6 +21,7 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadStore;
+import com.newrelic.agent.android.sessionReplay.OfflineSessionReplayStore;
 import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayStore;
@@ -45,9 +48,23 @@ public class AgentConfiguration implements HarvestConfigurable {
     private static final String HEX_COLLECTOR_PATH = "/mobile/f";
     private static final int HEX_COLLECTOR_TIMEOUT = 5000; // 5 seconds
 
+    private static final String ERROR_COLLECTOR_PATH = "/mobile/errors";
+    private static final int ERROR_COLLECTOR_TIMEOUT = 5000;
+
     private static final int NUM_IO_THREADS = 3;    // Harvest + Crash + Flatbuffer
     private static final int PAYLOAD_TTL = 2 * 24 * 60 * 60 * 1000;    // 2 days in ms
-    public static final int DEFAULT_MAX_CACHED_PAYLOAD_COUNT = 500;
+    // Handled exceptions, crashes, and JS errors are uncapped by default — the agent
+    // should never silently drop this data. Callers can still opt into a cap via the
+    // setters below (useful for tests or constrained environments). Events remain
+    // capped because they're higher-volume and lower-criticality.
+    public static final int DEFAULT_MAX_CACHED_PAYLOAD_COUNT = Integer.MAX_VALUE;
+
+    public static final int DEFAULT_MAX_CACHED_JS_ERROR_COUNT = Integer.MAX_VALUE;
+    public static final int DEFAULT_MAX_CACHED_SESSION_CONTEXT_COUNT = 32;
+
+    public static final int DEFAULT_MAX_CACHED_CRASH_COUNT = Integer.MAX_VALUE;
+
+    public static final int DEFAULT_MAX_CACHED_EVENT_COUNT = 1000;
 
     static final String DEFAULT_DEVICE_UUID = "0";
     static final int DEVICE_UUID_MAX_LEN = 40;
@@ -70,8 +87,15 @@ public class AgentConfiguration implements HarvestConfigurable {
     private AnalyticsAttributeStore analyticsAttributeStore;
     private PayloadStore<Payload> payloadStore = new NullPayloadStore<Payload>();
     private int maxCachedPayloadCount = DEFAULT_MAX_CACHED_PAYLOAD_COUNT;
+    private int maxCachedJsErrorCount = DEFAULT_MAX_CACHED_JS_ERROR_COUNT;
+    private int maxCachedSessionContextCount = DEFAULT_MAX_CACHED_SESSION_CONTEXT_COUNT;
+    private int maxCachedCrashCount = DEFAULT_MAX_CACHED_CRASH_COUNT;
+    private int maxCachedEventCount = DEFAULT_MAX_CACHED_EVENT_COUNT;
     private AnalyticsEventStore eventStore;
     private SessionReplayStore sessionReplayStore;
+    private OfflineSessionReplayStore offlineSessionReplayStore;
+    private JSErrorStore jsErrorStore;
+    private SessionContextStore sessionContextStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
@@ -163,6 +187,30 @@ public class AgentConfiguration implements HarvestConfigurable {
         this.sessionReplayStore = sessionReplayStore;
     }
 
+    public OfflineSessionReplayStore getOfflineSessionReplayStore() {
+        return offlineSessionReplayStore;
+    }
+
+    public void setOfflineSessionReplayStore(OfflineSessionReplayStore offlineSessionReplayStore) {
+        this.offlineSessionReplayStore = offlineSessionReplayStore;
+    }
+
+    public JSErrorStore getJsErrorStore() {
+        return jsErrorStore;
+    }
+
+    public void setJsErrorStore(JSErrorStore jsErrorStore) {
+        this.jsErrorStore = jsErrorStore;
+    }
+
+    public SessionContextStore getSessionContextStore() {
+        return sessionContextStore;
+    }
+
+    public void setSessionContextStore(SessionContextStore sessionContextStore) {
+        this.sessionContextStore = sessionContextStore;
+    }
+
     public boolean getReportHandledExceptions() {
         return reportHandledExceptions;
     }
@@ -239,12 +287,24 @@ public class AgentConfiguration implements HarvestConfigurable {
         return HEX_COLLECTOR_PATH;
     }
 
+    public String getErrorCollectorPath() {
+        return ERROR_COLLECTOR_PATH;
+    }
+
     public String getHexCollectorHost() {
         return getCollectorHost();
     }
 
     public int getHexCollectorTimeout() {
         return HEX_COLLECTOR_TIMEOUT;
+    }
+
+    public String getErrorCollectorHost() {
+        return getCollectorHost();
+    }
+
+    public int getErrorCollectorTimeout() {
+        return ERROR_COLLECTOR_TIMEOUT;
     }
 
     public String getAppTokenHeader() {
@@ -281,6 +341,38 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setMaxCachedPayloadCount(int n) {
         this.maxCachedPayloadCount = n > 0 ? n : DEFAULT_MAX_CACHED_PAYLOAD_COUNT;
+    }
+
+    public int getMaxCachedJsErrorCount() {
+        return maxCachedJsErrorCount;
+    }
+
+    public void setMaxCachedJsErrorCount(int n) {
+        this.maxCachedJsErrorCount = n > 0 ? n : DEFAULT_MAX_CACHED_JS_ERROR_COUNT;
+    }
+
+    public int getMaxCachedSessionContextCount() {
+        return maxCachedSessionContextCount;
+    }
+
+    public void setMaxCachedSessionContextCount(int n) {
+        this.maxCachedSessionContextCount = n > 0 ? n : DEFAULT_MAX_CACHED_SESSION_CONTEXT_COUNT;
+    }
+
+    public int getMaxCachedCrashCount() {
+        return maxCachedCrashCount;
+    }
+
+    public void setMaxCachedCrashCount(int n) {
+        this.maxCachedCrashCount = n > 0 ? n : DEFAULT_MAX_CACHED_CRASH_COUNT;
+    }
+
+    public int getMaxCachedEventCount() {
+        return maxCachedEventCount;
+    }
+
+    public void setMaxCachedEventCount(int n) {
+        this.maxCachedEventCount = n > 0 ? n : DEFAULT_MAX_CACHED_EVENT_COUNT;
     }
 
     String getDefaultCollectorHost() {

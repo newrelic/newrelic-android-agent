@@ -38,6 +38,7 @@ public class AnalyticsEvent extends HarvestableObject {
     public static final String EVENT_TYPE_MOBILE_CRASH = "MobileCrash";
     public static final String EVENT_TYPE_MOBILE_USER_ACTION = "MobileUserAction";
     public static final String EVENT_TYPE_MOBILE_APPLICATION_EXIT = "MobileApplicationExit";
+    public static final String EVENT_TYPE_MOBILE_JSERROR = "MobileJSError";
 
     // Same as AnalyticsAttribute.ATTRIBUTE_NAME_MAX_LENGTH
     public static final int EVENT_NAME_MAX_LENGTH = 255;
@@ -127,6 +128,21 @@ public class AnalyticsEvent extends HarvestableObject {
                     log.error("Failed to add attribute " + attribute.getName() + " to event " + getName() +
                             ": the attribute is invalid or the event already contains that attribute.");
                 }
+            }
+        }
+    }
+
+    /**
+     * Trusted internal merge used by the event-persistence session-attribution path. Bypasses
+     * {@link AnalyticsValidator} (so reserved names such as {@code sessionId} are allowed) and
+     * replaces any same-named attribute already present ({@link AnalyticsAttribute} equality is by
+     * name), so the supplied (origin-session) attributes win. Not for public/event-author use.
+     */
+    void putAttributesUnchecked(Set<AnalyticsAttribute> attrs) {
+        if (attrs != null) {
+            for (AnalyticsAttribute attribute : attrs) {
+                attributeSet.remove(attribute); // drop any same-named attr first
+                attributeSet.add(attribute);
             }
         }
     }
