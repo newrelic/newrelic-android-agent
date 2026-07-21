@@ -115,13 +115,63 @@ class DexGuardHelperTest extends PluginTest {
     }
 
     @Test
-    void wireDexGuardMapProviders() {
-        Assert.assertEquals(3, buildHelper.variantAdapter.getVariantValues().size())
-        buildHelper.variantAdapter.getVariantValues().each { variant ->
-            if (buildHelper.extension.shouldIncludeMapUpload(variant.name)) {
-                Assert.assertNotNull(buildHelper.project.tasks.named("${NewRelicMapUploadTask.NAME}${variant.name.capitalize()}", NewRelicMapUploadTask.class))
-            }
+    void wireDexGuardMapProviders_apkOnly_wiresApkTaskOnly() {
+        project.tasks.register("dexguardApkRelease")
+
+        dexGuardHelper.wireDexGuardMapProviders("release")
+
+        def apkUpload = buildHelper.project.tasks.named("newrelicMapUploadApkRelease", NewRelicMapUploadTask.class)
+        Assert.assertNotNull(apkUpload)
+        Assert.assertTrue(apkUpload.get().mappingFile.get().asFile.absolutePath.contains("/apk/"))
+
+        try {
+            buildHelper.project.tasks.named("newrelicMapUploadBundleRelease")
+            Assert.fail("bundle upload task should not have been created when no dexguardAab/dexguardBundle task exists")
+        } catch (org.gradle.api.UnknownTaskException ignored) {
+            // expected
         }
+    }
+
+    @Test
+    void wireDexGuardMapProviders_bundleOnly_wiresBundleTaskOnly() {
+        project.tasks.register("dexguardAabRelease")
+
+        dexGuardHelper.wireDexGuardMapProviders("release")
+
+        def bundleUpload = buildHelper.project.tasks.named("newrelicMapUploadBundleRelease", NewRelicMapUploadTask.class)
+        Assert.assertNotNull(bundleUpload)
+        Assert.assertTrue(bundleUpload.get().mappingFile.get().asFile.absolutePath.contains("/bundle/"))
+
+        try {
+            buildHelper.project.tasks.named("newrelicMapUploadApkRelease")
+            Assert.fail("apk upload task should not have been created when no dexguardApk task exists")
+        } catch (org.gradle.api.UnknownTaskException ignored) {
+            // expected
+        }
+    }
+
+    @Test
+    void wireDexGuardMapProviders_bothApkAndBundle_wiresBothIndependently() {
+        def apkTask = project.tasks.register("dexguardApkRelease")
+        def bundleTask = project.tasks.register("dexguardAabRelease")
+
+        dexGuardHelper.wireDexGuardMapProviders("release")
+
+        def apkUpload = buildHelper.project.tasks.named("newrelicMapUploadApkRelease", NewRelicMapUploadTask.class).get()
+        def bundleUpload = buildHelper.project.tasks.named("newrelicMapUploadBundleRelease", NewRelicMapUploadTask.class).get()
+
+        // each upload task has its own, distinct, correctly-targeted mapping file
+        def apkMappingPath = apkUpload.mappingFile.get().asFile.absolutePath
+        def bundleMappingPath = bundleUpload.mappingFile.get().asFile.absolutePath
+        Assert.assertTrue(apkMappingPath.contains("/apk/"))
+        Assert.assertTrue(bundleMappingPath.contains("/bundle/"))
+        Assert.assertNotEquals(apkMappingPath, bundleMappingPath)
+
+        // each upload task depends on its own packaging task, not the other one's
+        Assert.assertTrue(apkUpload.taskDependencies.getDependencies(apkUpload).contains(apkTask.get()))
+        Assert.assertFalse(apkUpload.taskDependencies.getDependencies(apkUpload).contains(bundleTask.get()))
+        Assert.assertTrue(bundleUpload.taskDependencies.getDependencies(bundleUpload).contains(bundleTask.get()))
+        Assert.assertFalse(bundleUpload.taskDependencies.getDependencies(bundleUpload).contains(apkTask.get()))
     }
 
     @Test
