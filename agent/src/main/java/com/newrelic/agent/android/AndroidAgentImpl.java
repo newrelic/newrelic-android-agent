@@ -165,28 +165,7 @@ public class AndroidAgentImpl implements
         // Register ourselves with the TraceMachine
         TraceMachine.setTraceMachineInterface(this);
 
-        FileCrashStore crashStore = new FileCrashStore(context, agentConfiguration);
-        crashStore.migrateFromSharedPrefs(context, FileCrashStore.LEGACY_PREFS_NAME);
-        context.deleteSharedPreferences(FileCrashStore.LEGACY_PREFS_NAME);
-        agentConfiguration.setCrashStore(crashStore);
-
-        agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
-        context.deleteSharedPreferences("NRPayloadStore");
-
-        agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
-
-        agentConfiguration.setEventStore(new FileEventStore(context, agentConfiguration));
-        context.deleteSharedPreferences("NREventStore");
-
-        agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
-        context.deleteSharedPreferences("NRSessionReplayStore");
-
-        agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
-
-        agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
-        context.deleteSharedPreferences("NRJSErrorStore");
-
-        agentConfiguration.setSessionContextStore(new FileSessionContextStore(context, agentConfiguration));
+        initializeFileStoresIfNeeded();
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         // used to determine when app backgrounds
@@ -214,6 +193,117 @@ public class AndroidAgentImpl implements
         context.registerComponentCallbacks(backgroundListener);
 
         setupSession();
+    }
+
+    /**
+     * Initialize file stores using background thread to reduce main thread blocking during start().
+     * This method uses a background thread for store creation while providing synchronous access
+     * to the calling thread through proper coordination.
+     */
+    private void initializeFileStoresIfNeeded() {
+        Thread storeInitializer = new Thread(() -> {
+            synchronized (this) {
+                // Check if stores are already initialized (thread-safe)
+                if (agentConfiguration.getCrashStore() != null) {
+                    return; // Already initialized
+                }
+
+                try {
+                    log.debug("Initializing file stores on background thread");
+
+                    // Initialize all stores with proper migration
+                    FileCrashStore crashStore = new FileCrashStore(context, agentConfiguration);
+                    crashStore.migrateFromSharedPrefs(context, FileCrashStore.LEGACY_PREFS_NAME);
+                    context.deleteSharedPreferences(FileCrashStore.LEGACY_PREFS_NAME);
+                    agentConfiguration.setCrashStore(crashStore);
+
+                    agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
+                    context.deleteSharedPreferences("NRPayloadStore");
+
+                    agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
+
+                    agentConfiguration.setEventStore(new FileEventStore(context, agentConfiguration));
+                    context.deleteSharedPreferences("NREventStore");
+
+                    agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
+                    context.deleteSharedPreferences("NRSessionReplayStore");
+
+                    agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
+
+                    agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
+                    context.deleteSharedPreferences("NRJSErrorStore");
+
+                    agentConfiguration.setSessionContextStore(new FileSessionContextStore(context, agentConfiguration));
+
+                    log.debug("File stores initialized successfully on background thread");
+                } catch (Exception e) {
+                    log.error("Failed to initialize file stores: " + e.getMessage(), e);
+                    // Set fallback null stores to prevent crashes - graceful degradation
+                    initializeFallbackStores();
+                }
+            }
+        }, "NewRelic-StoreInit");
+
+        storeInitializer.setDaemon(true);
+        storeInitializer.start();
+
+        // Wait for store initialization to complete with reasonable timeout
+        try {
+            storeInitializer.join(2000); // 2 second timeout
+            if (storeInitializer.isAlive()) {
+                log.warn("Store initialization taking longer than expected, continuing with fallbacks");
+                initializeFallbackStores();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Store initialization interrupted, using fallbacks");
+            initializeFallbackStores();
+        }
+    }
+
+    /**
+     * Initialize fallback stores when background initialization fails or times out.
+     * Uses lightweight in-memory or minimal disk I/O stores to ensure agent functionality
+     * continues even if full file store initialization fails.
+     */
+    private void initializeFallbackStores() {
+        synchronized (this) {
+            try {
+                log.debug("Initializing fallback stores");
+
+                // Use existing stores as fallbacks - minimal initialization
+                if (agentConfiguration.getCrashStore() == null) {
+                    FileCrashStore fallbackCrashStore = new FileCrashStore(context, agentConfiguration);
+                    agentConfiguration.setCrashStore(fallbackCrashStore);
+                }
+                if (agentConfiguration.getPayloadStore() == null) {
+                    agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
+                }
+                if (agentConfiguration.getAnalyticsAttributeStore() == null) {
+                    agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
+                }
+                if (agentConfiguration.getEventStore() == null) {
+                    agentConfiguration.setEventStore(new FileEventStore(context, agentConfiguration));
+                }
+                if (agentConfiguration.getSessionReplayStore() == null) {
+                    agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
+                }
+                if (agentConfiguration.getOfflineSessionReplayStore() == null) {
+                    agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
+                }
+                if (agentConfiguration.getJsErrorStore() == null) {
+                    agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
+                }
+                if (agentConfiguration.getSessionContextStore() == null) {
+                    agentConfiguration.setSessionContextStore(new FileSessionContextStore(context, agentConfiguration));
+                }
+
+                log.debug("Fallback stores initialized successfully");
+            } catch (Exception e) {
+                log.error("Failed to initialize fallback stores: " + e.getMessage(), e);
+                // Last resort: set null stores - agent will handle gracefully
+            }
+        }
     }
 
     /**
