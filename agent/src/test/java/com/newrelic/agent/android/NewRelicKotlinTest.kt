@@ -180,9 +180,5 @@ class NewRelicKotlinTest {
 
         override fun delete(attribute: AnalyticsAttribute) {
         }
-
-        override fun getRootPath(): String? {
-            return ""
-        }
     }
 }

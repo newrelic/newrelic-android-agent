@@ -10,10 +10,6 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.AgentImpl;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.api.v1.Defaults;
-import com.newrelic.agent.android.metric.MetricNames;
-import com.newrelic.agent.android.sessioncontext.SessionContextStore;
-import com.newrelic.agent.android.sessioncontext.SessionManifest;
-import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.EnvironmentInformation;
 import com.newrelic.agent.android.harvest.Harvest;
@@ -38,9 +34,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class AnalyticsControllerImpl extends HarvestAdapter implements AnalyticsController {
     // Insights allows 254 attributes per event: the delta is allocated to events we create
     protected static final int MAX_ATTRIBUTES = 128;
-
-    // Matches PayloadController.PAYLOAD_COLLECTOR_TIMEOUT's convention for a bounded shutdown-path wait.
-    static final long EVENT_STORE_FLUSH_TIMEOUT_MS = 3000;
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final AnalyticsControllerImpl instance = new AnalyticsControllerImpl();
@@ -1036,11 +1029,15 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
                     // hand-off current event set atomically
                     Collection<AnalyticsEvent> pendingEvents = eventManager.getQueuedEventsSnapshot();
                     if (pendingEvents.size() > 0) {
-                        reattributeRecoveredEvents(pendingEvents);
                         harvestData.getAnalyticsEvents().addAll(pendingEvents);
                         log.debug("EventManager: [" + pendingEvents.size() + "] events moved from buffer to HarvestData");
 
-                        removePersistedEvents(pendingEvents);
+                        //remove events from pref
+                        if (eventStore != null) {
+                            for (AnalyticsEvent event : pendingEvents) {
+                                eventStore.delete(event);
+                            }
+                        }
                     }
 
                     // event buffer _should_ be empty, but...
@@ -1051,58 +1048,5 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
                 }
             }
         }
-    }
-
-    /**
-     * Delete events from the persistent event store by UUID, then block until those deletes
-     * have flushed to disk. Used both at normal harvest time and from the crash path, where the
-     * process may die immediately after this call returns, so the deletes must be durable
-     * before then (see {@link AnalyticsEventStore#flush}).
-     */
-    public void removePersistedEvents(Collection<AnalyticsEvent> events) {
-        if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence) && eventStore != null) {
-            for (AnalyticsEvent event : events) {
-                eventStore.delete(event);
-            }
-            eventStore.flush(EVENT_STORE_FLUSH_TIMEOUT_MS);
-        }
-    }
-
-    /**
-     * Re-attribute persisted events that were recorded in a prior (now-ended) session and
-     * reloaded on this launch. Each persisted event carries its originating {@code sessionId}
-     * (stamped in {@link EventManagerImpl#addEvent}); for any whose origin differs from the
-     * current session, overlay that session's attribute set from the {@link SessionContextStore}
-     * so the event is emitted under the session that actually produced it rather than the current
-     * one. Live (current-session) events are left untouched and use the harvest attribute block.
-     */
-    void reattributeRecoveredEvents(Collection<AnalyticsEvent> events) {
-        final String currentSessionId = AgentConfiguration.getInstance().getSessionID();
-        final SessionContextStore ctxStore = AgentConfiguration.getInstance().getSessionContextStore();
-        for (AnalyticsEvent event : events) {
-            final String origin = sessionIdOf(event);
-            if (origin == null || origin.equals(currentSessionId)) {
-                continue; // live event — the current-session harvest block is correct
-            }
-            final SessionManifest manifest = (ctxStore != null) ? ctxStore.get(origin) : null;
-            if (manifest != null) {
-                event.putAttributesUnchecked(manifest.getAttributes());
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_EVENT_PERSISTENCE_REATTRIBUTED);
-            } else {
-                // No manifest (e.g. the session died before its first harvest). Keep the origin
-                // sessionId so correlation is at least right; other attrs fall to the current block.
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_EVENT_PERSISTENCE_MANIFEST_MISSING);
-            }
-        }
-    }
-
-    /** @return the value of the event's {@code sessionId} attribute, or {@code null} if absent. */
-    private static String sessionIdOf(AnalyticsEvent event) {
-        for (AnalyticsAttribute attribute : event.getAttributeSet()) {
-            if (AnalyticsAttribute.SESSION_ID_ATTRIBUTE.equals(attribute.getName())) {
-                return attribute.getStringValue();
-            }
-        }
-        return null;
     }
 }

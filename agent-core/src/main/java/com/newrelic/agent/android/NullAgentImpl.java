@@ -13,11 +13,9 @@ import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.EnvironmentInformation;
 import com.newrelic.agent.android.stats.TicToc;
-import com.newrelic.agent.android.util.Decoder;
 import com.newrelic.agent.android.util.Encoder;
 
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,26 +104,12 @@ public class NullAgentImpl implements AgentImpl {
     public Encoder getEncoder() {
         return new Encoder() {
             public String encode(byte[] bytes) {
-                return bytes == null ? "" : Base64.getEncoder().encodeToString(bytes);
+                return new String(bytes);
             }
 
             @Override
             public String encodeNoWrap(byte[] bytes) {
-                return bytes == null ? "" : Base64.getEncoder().withoutPadding().encodeToString(bytes);
-            }
-        };
-    }
-
-    @Override
-    public Decoder getDecoder() {
-        return new Decoder() {
-            public byte[] decode(String bytes) {
-                return bytes == null ? new byte[0] : Base64.getDecoder().decode(bytes);
-            }
-
-            @Override
-            public byte[] decodeNoWrap(String bytes) {
-                return decode(bytes);
+                return encode(bytes);
             }
         };
     }

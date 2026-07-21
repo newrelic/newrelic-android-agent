@@ -49,11 +49,6 @@ public class PayloadStoreTest {
                 payloadStore.remove(data);
                 Assert.assertFalse(payloadStore.contains(data));
             }
-
-            @Override
-            public String getRootPath() {
-                return "";
-            }
         };
 
     }

@@ -15,7 +15,6 @@ import com.newrelic.agent.android.api.v1.Defaults;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.EnvironmentInformation;
-import com.newrelic.agent.android.util.Decoder;
 import com.newrelic.agent.android.util.Encoder;
 
 import java.util.ArrayList;
@@ -155,22 +154,6 @@ public class StubAgentImpl implements AgentImpl {
             @Override
             public String encodeNoWrap(byte[] bytes) {
                 return new String(bytes);
-            }
-        };
-    }
-
-    @Override
-    public Decoder getDecoder() {
-        final java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
-
-        return new Decoder() {
-            public byte[] decode(String bytes) {
-                return decoder.decode(bytes);
-            }
-
-            @Override
-            public byte[] decodeNoWrap(String bytes) {
-                return bytes.getBytes();
             }
         };
     }

@@ -13,7 +13,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Base64;
 import java.util.HashMap;
 
 public class TracePayloadTest {
@@ -65,8 +64,7 @@ public class TracePayloadTest {
         Assert.assertFalse(headerValue.isEmpty());
 
         try {
-            String decodedJson = new String(Base64.getDecoder().decode(headerValue));
-            JsonObject jsonObject = JsonParser.parseString(decodedJson).getAsJsonObject();
+            JsonObject jsonObject = JsonParser.parseString(headerValue).getAsJsonObject();
             Assert.assertEquals(2, jsonObject.entrySet().size());
 
             Assert.assertTrue(jsonObject.has(TracePayload.VERSION_KEY));

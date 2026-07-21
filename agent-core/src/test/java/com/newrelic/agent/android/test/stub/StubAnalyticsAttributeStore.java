@@ -46,9 +46,4 @@ public class StubAnalyticsAttributeStore implements AnalyticsAttributeStore {
     public synchronized void delete(AnalyticsAttribute attribute) {
         store.remove(attribute);
     }
-
-    @Override
-    public String getRootPath() {
-        return "";
-    }
 }

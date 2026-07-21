@@ -9,10 +9,6 @@ import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.AgentImpl;
 import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
-import com.newrelic.agent.android.analytics.AnalyticsEvent;
-import com.newrelic.agent.android.analytics.AnalyticsEventStore;
-import com.newrelic.agent.android.analytics.TestEventStore;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
@@ -120,31 +116,6 @@ public class UncaughtExceptionHandlerTest {
         Mockito.verify(crashReporter, Mockito.times(0)).reportCrash(ArgumentMatchers.any(Crash.class));
         Assert.assertEquals(1, crashStore.count());
 
-    }
-
-    @Test
-    public void testUncaughtExceptionRemovesPersistedEvents() {
-        AnalyticsEventStore eventStore = new TestEventStore();
-        agentConfiguration.setEventStore(eventStore);
-        FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
-
-        AnalyticsControllerImpl.shutdown();
-        AnalyticsControllerImpl.initialize(agentConfiguration, new StubAgentImpl());
-        AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-        analyticsController.addEvent(new AnalyticsEvent("event1"));
-        Assert.assertEquals("Event should be persisted before the crash", 1, eventStore.count());
-
-        crashReporter = Mockito.spy(CrashReporter.initialize(agentConfiguration));
-        crashReporter.setEnabled(true);
-        uncaughtExceptionHandler = Mockito.spy(new UncaughtExceptionHandler(crashReporter));
-
-        uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), new RuntimeException("Throwable"));
-
-        Assert.assertEquals("Events captured in the crash payload should be removed from the persistent event store",
-                0, eventStore.count());
-
-        analyticsController.clear();
-        AnalyticsControllerImpl.shutdown();
     }
 
     @Test

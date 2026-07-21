@@ -68,11 +68,10 @@ public class CrashSenderTest {
     public void call() throws Exception {
         int preUploadCount = crash.getUploadCount();
 
-        HttpURLConnection connection = getMockedConnection();
-        Mockito.doReturn(connection).when(crashSender).getConnection();
-
         crashSender.call();
         Assert.assertTrue("Should increment upload count", preUploadCount < crash.getUploadCount());
+
+
     }
 
     @Test

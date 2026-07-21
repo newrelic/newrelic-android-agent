@@ -44,13 +44,4 @@ public interface AnalyticsEventStore extends PayloadStore<AnalyticsEvent> {
      * @param event the event to delete
      */
     public void delete(AnalyticsEvent event);
-
-    /**
-     * Block until any writes/deletes queued prior to this call have been applied. Stores that
-     * perform I/O synchronously can leave this as a no-op.
-     *
-     * @param timeoutMs maximum time to wait
-     */
-    default void flush(long timeoutMs) {
-    }
 }

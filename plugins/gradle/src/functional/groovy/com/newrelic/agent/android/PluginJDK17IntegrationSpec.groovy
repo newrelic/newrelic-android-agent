@@ -142,20 +142,16 @@ class PluginJDK17IntegrationSpec extends PluginSpec {
         def preResult = runner.build()
 
         and:
-        def preBuildId = new File(buildDir, "/generated/res/newrelicConfigRelease/values/com_newrelic_android_agent_config.xml").text
+        def preBuildId = new File(buildDir, "/generated/java/newrelicConfigRelease/com/newrelic/agent/android/NewRelicConfig.java").text
 
         and:
         def postResult = runner.build()
 
         and:
-        def postBuildId = new File(buildDir, "/generated/res/newrelicConfigRelease/values/com_newrelic_android_agent_config.xml").text
+        def postBuildId = new File(buildDir, "/generated/java/newrelicConfigRelease/com/newrelic/agent/android/NewRelicConfig.java").text
 
         then:
-        preBuildId.find(~/name="com_newrelic_android_buildId"[^>]*>(.*)<\/string>/) ==
-                postBuildId.find(~/name="com_newrelic_android_buildId"[^>]*>(.*)<\/string>/)
-
-        preBuildId.find(~/name="com_newrelic_android_metrics"[^>]*>(.*)<\/string>/) ==
-                postBuildId.find(~/name="com_newrelic_android_metrics"[^>]*>(.*)<\/string>/)
+        preBuildId.find(~/BUILD_ID = \"(.*)\".*/) == postBuildId.find(~/BUILD_ID = \"(.*)\".*/)
 
         preResult.output.contains("Calculating task graph as no configuration cache is available for tasks:")
         preResult.output.contains("Configuration cache entry stored")

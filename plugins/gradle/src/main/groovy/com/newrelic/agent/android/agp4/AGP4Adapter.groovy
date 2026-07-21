@@ -96,7 +96,6 @@ class AGP4Adapter extends VariantAdapter {
             def buildConfigProvider = variant.getGenerateBuildConfigProvider()
             if (buildConfigProvider?.isPresent()) {
                 def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/source/newrelicConfig/${variant.name}")
-                def genResFolder = buildHelper.project.layout.buildDirectory.dir("generated/res/newrelicConfig/${variant.name}")
 
                 try {
                     variant.registerJavaGeneratingTask(configTaskProvider, genSrcFolder.get().asFile)
@@ -108,15 +107,6 @@ class AGP4Adapter extends VariantAdapter {
                     variant.addJavaSourceFoldersToModel(genSrcFolder.get().asFile)
                 } catch (Exception e) {
                     logger.warn("getConfigProvider: $e")
-                }
-
-                try {
-                    variant.registerGeneratedResFolders(buildHelper.project.files(genResFolder))
-                    buildHelper.project.tasks.named("generate${variantName.capitalize()}Resources") { resourceTask ->
-                        resourceTask.dependsOn(configTaskProvider)
-                    }
-                } catch (Exception e) {
-                    logger.warn("getConfigProvider: unable to register build-ID resource folder: $e")
                 }
 
                 // must manually update the Kotlin compile tasks source sets (per variant)
@@ -146,11 +136,6 @@ class AGP4Adapter extends VariantAdapter {
     @Override
     TaskProvider getMapUploadProvider(String variantName, Action action = null) {
         return registerOrNamed("${NewRelicMapUploadTask.NAME}${variantName.capitalize()}", NewRelicMapUploadTask.class, action)
-    }
-
-    @Override
-    TaskProvider getReactNativeSourceMapUploadProvider(String variantName, Action action = null) {
-        return registerOrNamed("${NewRelicReactNativeSourceMapUploadTask.NAME}${variantName.capitalize()}", NewRelicReactNativeSourceMapUploadTask.class, action)
     }
 
     /**

@@ -91,14 +91,6 @@ public class SessionReplayFileManager {
     }
 
     /**
-     * @return the directory holding session replay {@code .tmp} buffers
-     * ({@code cacheDir/newrelic/sessionReplay/} once {@link #initialize(Application)} has run).
-     */
-    public static File getSessionReplayDataStore() {
-        return sessionReplayDataStore;
-    }
-
-    /**
      * Initializes the file writer for session replay data.
      * Creates a new file and sets up the BufferedWriter.
      */

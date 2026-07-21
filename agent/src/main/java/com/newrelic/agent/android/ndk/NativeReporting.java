@@ -20,11 +20,7 @@ import com.newrelic.agent.android.harvest.HarvestAdapter;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
-import com.newrelic.agent.android.sessioncontext.SessionContextStore;
-import com.newrelic.agent.android.sessioncontext.SessionManifest;
 import com.newrelic.agent.android.stats.StatsEngine;
-
-import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -158,22 +154,9 @@ public class NativeReporting extends HarvestAdapter {
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_NDK_REPORTS_CRASH);
 
             final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
-            // A native crash is captured in the crashing session but flushed on the next launch
-            // (after the process dies). Attribute it to the session that actually crashed — its
-            // sessionId is embedded in the native report ("backtrace.sessionid") — by resolving
-            // that session's frozen attributes from the SessionContextStore rather than stamping
-            // the current (relaunched) session's attributes.
-            final String originSessionId = extractNativeSessionId(crashAsString);
-            final boolean fromPriorSession = originSessionId != null
-                    && !originSessionId.equals(AgentConfiguration.getInstance().getSessionID());
-            final SessionManifest originManifest = fromPriorSession ? lookupSessionManifest(originSessionId) : null;
-            final Set<AnalyticsAttribute> sessionAttributes = new HashSet<>(
-                    originManifest != null ? originManifest.getAttributes()
-                            : analyticsController.getSessionAttributes());
-
-            // sessionDuration (NR-487823): Java crashes record it but NDK crashes did not. Attach
-            // the crashed session's elapsed time so MobileCrash carries sessionDuration for NDK too.
-            addCrashSessionDuration(sessionAttributes, crashAsString, fromPriorSession, originManifest);
+            final Set<AnalyticsAttribute> sessionAttributes = new HashSet<AnalyticsAttribute>() {{
+                addAll(analyticsController.getSessionAttributes());
+            }};
 
             NativeException exceptionToHandle = new NativeCrashException(crashAsString);
 
@@ -249,76 +232,6 @@ public class NativeReporting extends HarvestAdapter {
             }
 
             return false;
-        }
-
-        /**
-         * Look up the manifest of the prior session that produced a native crash. Returns null (and
-         * logs) when none is stored — e.g. the session crashed before its first harvest — in which
-         * case the caller falls back to the current session's attributes.
-         */
-        private SessionManifest lookupSessionManifest(String originSessionId) {
-            final SessionContextStore store = AgentConfiguration.getInstance().getSessionContextStore();
-            final SessionManifest manifest = (store != null) ? store.get(originSessionId) : null;
-            if (manifest == null) {
-                log.warn("NativeReporting: no session manifest for crash origin [" + originSessionId
-                        + "]; using current session attributes");
-            }
-            return manifest;
-        }
-
-        /**
-         * Attach {@code sessionDuration} (seconds) to a native crash. For a crash reported within the
-         * current session, the live session duration applies. For one recovered from a prior session,
-         * derive it from the native crash timestamp ({@code backtrace.timestamp}, epoch seconds) minus
-         * that session's start ({@link SessionManifest#getSessionStartMs()}, epoch ms). No-op when it
-         * cannot be determined (e.g. prior session with no manifest), so the crash still reports.
-         */
-        private void addCrashSessionDuration(Set<AnalyticsAttribute> sessionAttributes, String crashAsString,
-                                             boolean fromPriorSession, SessionManifest originManifest) {
-            float durationSec = -1f;
-            if (!fromPriorSession) {
-                final long ms = Harvest.getMillisSinceStart();
-                if (ms != Harvest.INVALID_SESSION_DURATION) {
-                    durationSec = ms / 1000.0f;
-                }
-            } else if (originManifest != null && originManifest.getSessionStartMs() > 0L) {
-                final long crashSec = extractNativeTimestampSec(crashAsString);
-                if (crashSec > 0L) {
-                    // Subtract as longs (ms) before converting to float seconds. Subtracting at
-                    // epoch scale (~1.7e9) in float arithmetic would lose precision — a 32-bit
-                    // float's resolution there is ~128, so short durations would round to 0.
-                    final long durationMs = (crashSec * 1000L) - originManifest.getSessionStartMs();
-                    if (durationMs >= 0L) {
-                        durationSec = durationMs / 1000.0f;
-                    }
-                }
-            }
-            if (durationSec >= 0f) {
-                sessionAttributes.add(new AnalyticsAttribute(
-                        AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE, durationSec));
-            }
-        }
-
-        /** @return the crash time from a native report ({@code backtrace.timestamp}, epoch seconds), or 0. */
-        private long extractNativeTimestampSec(String crashAsString) {
-            try {
-                return new JSONObject(crashAsString).getJSONObject("backtrace").optLong("timestamp", 0L);
-            } catch (Exception e) {
-                return 0L;
-            }
-        }
-
-        /** @return the originating sessionId from a native crash report ({@code backtrace.sessionid}), or null. */
-        private String extractNativeSessionId(String crashAsString) {
-            try {
-                final String sessionId = new JSONObject(crashAsString)
-                        .getJSONObject("backtrace")
-                        .optString("sessionid", null);
-                return (sessionId == null || sessionId.isEmpty()) ? null : sessionId;
-            } catch (Exception e) {
-                log.warn("NativeReporting: could not read sessionid from native report: " + e);
-                return null;
-            }
         }
 
     }

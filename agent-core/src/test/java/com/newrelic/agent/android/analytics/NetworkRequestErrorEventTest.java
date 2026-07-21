@@ -17,7 +17,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Base64;
 import java.util.Collection;
 import java.util.Set;
 
@@ -82,8 +81,7 @@ public class NetworkRequestErrorEventTest {
         Collection<AnalyticsAttribute> attributes = httpErrorEvent.getAttributeSet();
         AnalyticsAttribute responseBodyAttribute = getAttributeByName(attributes, AnalyticsAttribute.RESPONSE_BODY_ATTRIBUTE);
         Assert.assertNotNull(responseBodyAttribute);
-        String decodedResponseBody = new String(Base64.getDecoder().decode(responseBodyAttribute.getStringValue()));
-        Assert.assertTrue("Should truncate response body to attribute limit", decodedResponseBody.length() == AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
+        Assert.assertTrue("Should truncate response body to attribute limit", responseBodyAttribute.getStringValue().length() == AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH);
     }
 
     @Test

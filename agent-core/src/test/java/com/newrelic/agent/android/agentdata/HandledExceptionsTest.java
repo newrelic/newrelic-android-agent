@@ -148,11 +148,6 @@ public class HandledExceptionsTest {
             public void delete(Payload data) {
                 cache.remove(data);
             }
-
-            @Override
-            public String getRootPath() {
-                return "";
-            }
         };
 
         agentConfiguration = new AgentConfiguration();

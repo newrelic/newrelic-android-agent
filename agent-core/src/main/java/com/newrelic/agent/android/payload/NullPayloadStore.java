@@ -31,9 +31,4 @@ public class NullPayloadStore<T> implements PayloadStore<T> {
     @Override
     public void delete(T payload) {
     }
-
-    @Override
-    public String getRootPath() {
-        return "";
-    }
 }

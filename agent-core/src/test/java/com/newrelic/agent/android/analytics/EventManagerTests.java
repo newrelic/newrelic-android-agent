@@ -23,10 +23,7 @@ import org.mockito.Mockito;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -67,94 +64,6 @@ public class EventManagerTests implements EventListener {
     public void tearDown() throws Exception {
         eventStore.clear();
         manager.shutdown();
-    }
-
-    @Test
-    public void persistedEventIsStampedButLiveEventIsNot() {
-        // Capturing store records the serialized form at store() time (like FileEventStore on disk),
-        // so we can assert the persisted snapshot independently of later in-memory mutations.
-        final List<String> capturedJson = new ArrayList<String>();
-        AnalyticsEventStore capturingStore = new AnalyticsEventStore() {
-            @Override public boolean store(AnalyticsEvent e) { capturedJson.add(e.asJsonObject().toString()); return true; }
-            @Override public List<AnalyticsEvent> fetchAll() { return new ArrayList<AnalyticsEvent>(); }
-            @Override public int count() { return capturedJson.size(); }
-            @Override public void clear() { capturedJson.clear(); }
-            @Override public void delete(AnalyticsEvent e) { }
-            @Override public String getRootPath() { return ""; }
-        };
-
-        AgentConfiguration cfg = new AgentConfiguration();
-        cfg.setEnableAnalyticsEvents(true);
-        cfg.setEventStore(capturingStore);
-        cfg.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
-
-        EventManagerImpl localManager = new EventManagerImpl();
-        localManager.initialize(cfg);
-
-        FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
-        AnalyticsEvent event = new CustomEvent("persisted", null);
-        localManager.addEvent(event);
-
-        // The persisted (serialized) form carries the origin sessionId...
-        Assert.assertEquals(1, capturedJson.size());
-        Assert.assertTrue("persisted JSON must carry sessionId",
-                capturedJson.get(0).contains(AnalyticsAttribute.SESSION_ID_ATTRIBUTE));
-        // ...but the live in-memory event does not — the stamp is stripped after store().
-        boolean liveHasSessionId = false;
-        for (AnalyticsAttribute a : event.getAttributeSet()) {
-            if (AnalyticsAttribute.SESSION_ID_ATTRIBUTE.equals(a.getName())) {
-                liveHasSessionId = true;
-                break;
-            }
-        }
-        Assert.assertFalse("live event must not keep the inline sessionId", liveHasSessionId);
-
-        localManager.shutdown();
-    }
-
-    @Test
-    public void reloadedEventIsNotRepersistedAndKeepsOriginSessionId() {
-        // A persisted event reloaded on the next launch already carries its origin sessionId and is
-        // already on disk: it must NOT be re-stored (no duplicate write), and it must keep its
-        // origin sessionId on the in-memory event so the next harvest can re-attribute it.
-        final List<String> capturedJson = new ArrayList<String>();
-        AnalyticsEventStore capturingStore = new AnalyticsEventStore() {
-            @Override public boolean store(AnalyticsEvent e) { capturedJson.add(e.asJsonObject().toString()); return true; }
-            @Override public List<AnalyticsEvent> fetchAll() { return new ArrayList<AnalyticsEvent>(); }
-            @Override public int count() { return capturedJson.size(); }
-            @Override public void clear() { capturedJson.clear(); }
-            @Override public void delete(AnalyticsEvent e) { }
-            @Override public String getRootPath() { return ""; }
-        };
-
-        AgentConfiguration cfg = new AgentConfiguration();
-        cfg.setEnableAnalyticsEvents(true);
-        cfg.setEventStore(capturingStore);
-        cfg.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
-
-        EventManagerImpl localManager = new EventManagerImpl();
-        localManager.initialize(cfg);
-
-        FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
-        AnalyticsEvent reloaded = new CustomEvent("reloaded", null);
-        Set<AnalyticsAttribute> origin = new HashSet<AnalyticsAttribute>();
-        origin.add(new AnalyticsAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, "S_OLD", false));
-        reloaded.putAttributesUnchecked(origin);
-
-        localManager.addEvent(reloaded);
-
-        // Already on disk → must NOT be re-stored.
-        Assert.assertEquals("reloaded event must not be re-persisted", 0, capturedJson.size());
-        // Live event keeps its origin sessionId so the next harvest can re-attribute it.
-        String liveSessionId = null;
-        for (AnalyticsAttribute a : reloaded.getAttributeSet()) {
-            if (AnalyticsAttribute.SESSION_ID_ATTRIBUTE.equals(a.getName())) {
-                liveSessionId = a.getStringValue();
-            }
-        }
-        Assert.assertEquals("S_OLD", liveSessionId);
-
-        localManager.shutdown();
     }
 
     @Test

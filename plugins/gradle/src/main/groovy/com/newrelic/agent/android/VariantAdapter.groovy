@@ -56,8 +56,6 @@ abstract class VariantAdapter {
 
     abstract RegularFileProperty getMappingFileProvider(String variantName, Action action = null)
 
-    abstract TaskProvider getReactNativeSourceMapUploadProvider(String variantName, Action action = null)
-
     /**
      * Wire up the correct instrumentation tasks, based on Gradle environment
      * @return VariantAdapter
@@ -169,10 +167,8 @@ abstract class VariantAdapter {
         def configProvider = getConfigProvider(variantName) { configTask ->
             def buildType = withBuildType(variantName)
             def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/java/newrelicConfig${buildType.name.capitalize()}")
-            def genResFolder = buildHelper.project.layout.buildDirectory.dir("generated/res/newrelicConfig${buildType.name.capitalize()}")
 
             configTask.sourceOutputDir.set(objectFactory.directoryProperty().value(genSrcFolder))
-            configTask.resourceOutputDir.set(objectFactory.directoryProperty().value(genResFolder))
             configTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
             configTask.minifyEnabled.set(objectFactory.property(Boolean).value(buildType.minified))
             configTask.buildMetrics.set(objectFactory.property(String).value(buildHelper.getBuildMetrics().toString()))
@@ -184,14 +180,15 @@ abstract class VariantAdapter {
             configTask.buildId.set(buildIdProvider)
 
             configTask.onlyIf {
-                def resourceFile = configTask.resourceOutputDir.file(NewRelicConfigTask.CONFIG_RESOURCE_FILE).get().asFile
-                !resourceFile.exists() || !resourceFile.text.contains(configTask.buildId.get())
+                def configClass = configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile
+                !configClass.exists() || !configClass.text.contains(configTask.buildId.get())
             }
 
             configTask.outputs.upToDateWhen {
-                def resourceFile = configTask.resourceOutputDir.file(NewRelicConfigTask.CONFIG_RESOURCE_FILE).get().asFile
-                resourceFile.exists() &&
-                        resourceFile.text.contains(configTask.buildId.get())
+                def meta = configTask.configMetadata.get().asFile
+                def configClass = configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile
+                configClass.exists() &&
+                        configClass.text.contains(configTask.buildId.get())
             }
         }
 
@@ -274,114 +271,6 @@ abstract class VariantAdapter {
     }
 
     /**
-     * Wire up React Native source map upload task for the given variant.
-     */
-    def wiredWithReactNativeSourceMapUploadProvider(String variantName) {
-        def uploadProvider = getReactNativeSourceMapUploadProvider(variantName) { uploadTask ->
-            def sourceMapPath = getReactNativeSourceMapPath(variantName)
-
-            uploadTask.sourceMapFile.set(sourceMapPath)
-            uploadTask.projectRoot.set(buildHelper.project.layout.projectDirectory)
-            uploadTask.variantName.set(objectFactory.property(String).value(variantName))
-
-            // Get build ID from config task if available, otherwise generate new
-            def uuid = objectFactory.property(String).value(BuildId.getBuildId(variantName))
-            uploadTask.buildId.convention(uuid)
-
-            // Get app version from Android defaultConfig
-            def versionName = getAppVersionName()
-            uploadTask.appVersionId.set(objectFactory.property(String).value(versionName))
-
-            // Only execute if source map file exists
-            uploadTask.onlyIf {
-                def sourceMap = it.sourceMapFile.asFile.getOrNull()
-                def exists = sourceMap?.exists() ?: false
-
-                it.logger.lifecycle("NewRelicReactNativeSourceMapUploadTask.onlyIf: Checking for variant [${variantName}]")
-                it.logger.lifecycle("NewRelicReactNativeSourceMapUploadTask.onlyIf: Source map path: ${sourceMap?.absolutePath ?: 'not set'}")
-                it.logger.lifecycle("NewRelicReactNativeSourceMapUploadTask.onlyIf: Source map exists: ${exists}")
-
-                return exists
-            }
-        }
-
-        // Wire build ID from config task if this is an application module
-        if (buildHelper.checkApplication()) {
-            def configProvider = getConfigProvider(variantName)
-            def buildIdProvider = configProvider.flatMap { it.buildId }
-            uploadProvider.configure { uploadTask ->
-                uploadTask.dependsOn(configProvider)
-                uploadTask.buildId.set(buildIdProvider)
-            }
-        }
-
-        // Wire to React Native bundle tasks
-        buildHelper.project.afterEvaluate {
-            def vnc = variantName.capitalize()
-            def wiredTaskNames = NewRelicReactNativeSourceMapUploadTask.wiredTaskNames(vnc)
-
-            buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { dependencyTask ->
-                dependencyTask.configure {
-                    finalizedBy(uploadProvider)
-                }
-                uploadProvider.configure {
-                    shouldRunAfter(dependencyTask)
-                }
-            }
-        }
-
-        return uploadProvider
-    }
-
-    /**
-     * Get the path to React Native source map file for the given variant.
-     * Standard: build/generated/sourcemaps/react/release/index.android.bundle.map
-     * Flavored: build/generated/sourcemaps/react/<flavorName>/release/index.android.bundle.map
-     */
-    RegularFileProperty getReactNativeSourceMapPath(String variantName) {
-        def buildType = withBuildType(variantName)
-
-        // Build the source map path based on variant structure
-        def sourceMapsDir = buildHelper.project.layout.buildDirectory.dir("generated/sourcemaps/react")
-
-        // Check for flavor-based path first, then standard path
-        def sourceMapFile
-        if (buildType.flavor && buildType.flavor != buildType.buildType) {
-            // Flavored build: build/generated/sourcemaps/react/<flavor>/<buildType>/index.android.bundle.map
-            sourceMapFile = sourceMapsDir.map { dir ->
-                dir.file("${buildType.flavor}/${buildType.buildType}/index.android.bundle.map")
-            }
-        } else {
-            // Standard build: build/generated/sourcemaps/react/<buildType>/index.android.bundle.map
-            sourceMapFile = sourceMapsDir.map { dir ->
-                dir.file("${buildType.buildType}/index.android.bundle.map")
-            }
-        }
-
-        return objectFactory.fileProperty().fileProvider(sourceMapFile.map { it.asFile })
-    }
-
-    /**
-     * Get the app version name from Android defaultConfig.
-     */
-    String getAppVersionName() {
-        try {
-            def versionName = buildHelper.android?.defaultConfig?.versionName
-            return versionName ?: "1.0.0"
-        } catch (Exception ignored) {
-            return "1.0.0"
-        }
-    }
-
-    /**
-     * Check if React Native source map should be uploaded for this variant.
-     */
-    boolean shouldUploadReactNativeSourceMap(String variantName) {
-        return buildHelper.checkReactNative() &&
-                buildHelper.extension.shouldUploadReactNativeSourceMap(variantName)
-    }
-
-    /**
      * Register or return an existing provider instance for this name/type
      *
      * @param name Name of the variant task
@@ -418,11 +307,6 @@ abstract class VariantAdapter {
         if (shouldUploadVariantMap(variantName)) {
             // register map upload task(s)
             wiredWithMapUploadProvider(variantName)
-        }
-
-        if (shouldUploadReactNativeSourceMap(variantName)) {
-            // register React Native source map upload task(s)
-            wiredWithReactNativeSourceMapUploadProvider(variantName)
         }
     }
 

@@ -47,17 +47,6 @@ public class MetricNames {
     public static final String SUPPORTABILITY_PAYLOAD_REJECTED_DEVICE_OFFLINE = SUPPORTABILITY_AGENT + "Payload/Offline/Rejected";
 
     public static final String SUPPORTABILITY_PAYLOAD_CORRUPTED = SUPPORTABILITY_AGENT + "Payload/Corrupted";
-    public static final String SUPPORTABILITY_JS_ERROR_EVICTED = SUPPORTABILITY_AGENT + "JSError/Removed/Evicted";
-    public static final String SUPPORTABILITY_JS_ERROR_CORRUPTED = SUPPORTABILITY_AGENT + "JSError/Corrupted";
-    public static final String SUPPORTABILITY_SESSION_CONTEXT_EVICTED = SUPPORTABILITY_AGENT + "SessionContext/Removed/Evicted";
-    public static final String SUPPORTABILITY_SESSION_CONTEXT_CORRUPTED = SUPPORTABILITY_AGENT + "SessionContext/Corrupted";
-    public static final String SUPPORTABILITY_SESSION_CONTEXT_MISSING = SUPPORTABILITY_AGENT + "SessionContext/Missing";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_RECOVERED = SUPPORTABILITY_AGENT + "SessionReplay/Recovered";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_RECOVER_SKIPPED = SUPPORTABILITY_AGENT + "SessionReplay/Recover/Skipped";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_RECOVER_STALE = SUPPORTABILITY_AGENT + "SessionReplay/Recover/Stale";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_RECOVER_CORRUPT = SUPPORTABILITY_AGENT + "SessionReplay/Recover/Corrupt";
-    public static final String SUPPORTABILITY_EVENT_PERSISTENCE_REATTRIBUTED = SUPPORTABILITY_AGENT + "EventPersistence/Reattributed";
-    public static final String SUPPORTABILITY_EVENT_PERSISTENCE_MANIFEST_MISSING = SUPPORTABILITY_AGENT + "EventPersistence/ManifestMissing";
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
 
@@ -71,13 +60,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_CRASH_FAILED_UPLOAD = SUPPORTABILITY_CRASH + "FailedUpload";
     public static final String SUPPORTABILITY_CRASH_REMOVED_STALE = SUPPORTABILITY_CRASH + "Removed/Stale";
     public static final String SUPPORTABILITY_CRASH_REMOVED_REJECTED = SUPPORTABILITY_CRASH + "Removed/Rejected";
-    public static final String SUPPORTABILITY_CRASH_REMOVED_EVICTED = SUPPORTABILITY_CRASH + "Removed/Evicted";
-    public static final String SUPPORTABILITY_CRASH_CORRUPTED = SUPPORTABILITY_CRASH + "Corrupted";
     public static final String SUPPORTABILITY_CRASH_SIZE_UNCOMPRESSED = SUPPORTABILITY_CRASH + "Size/Uncompressed";
     public static final String SUPPORTABILITY_CRASH_INVALID_BUILDID = SUPPORTABILITY_CRASH + "InvalidBuildId";
-
-    public static final String SUPPORTABILITY_EVENT_STORE_EVICTED = SUPPORTABILITY_EVENTS + "Store/Removed/Evicted";
-    public static final String SUPPORTABILITY_EVENT_STORE_CORRUPTED = SUPPORTABILITY_EVENTS + "Store/Corrupted";
 
     public static final String SUPPORTABILITY_HEX = SUPPORTABILITY_AGENT + "HEx/";
     public static final String SUPPORTABILITY_HEX_UPLOAD_TIME = SUPPORTABILITY_HEX + "UploadTime";
@@ -128,7 +112,6 @@ public class MetricNames {
     public static final String OFFLINE_STORAGE_HANDLED_EXCEPTION_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "HandledException/Count";
     public static final String OFFLINE_STORAGE_CRASH_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "Crash/Count";
     public static final String OFFLINE_STORAGE_EVENT_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "Event/Count";
-    public static final String OFFLINE_STORAGE_SESSION_REPLAY_COUNT = SUPPORTABILITY_OFFLINE_STORAGE + "SessionReplay/Count";
 
     public static final String SUPPORTABILITY_BACKGROUND = SUPPORTABILITY_AGENT + "Background/";
     public static final String BACKGROUND_EVENT_COUNT = SUPPORTABILITY_BACKGROUND + "Event/Count";
@@ -177,12 +160,6 @@ public class MetricNames {
     public static final String SUPPORTABILITY_SESSION_REPLAY_COMPRESSED = SUPPORTABILITY_SESSION_REPLAY + "Size/Compressed";
     public static final String SUPPORTABILITY_SESSION_REPLAY_MODE = SUPPORTABILITY_SESSION_REPLAY + "Mode/";
     public static final String SUPPORTABILITY_SESSION_REPLAY_MODE_TRANSITION = SUPPORTABILITY_SESSION_REPLAY + "ModeTransition/";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_OFFLINE_PERSISTED = SUPPORTABILITY_SESSION_REPLAY + "Offline/Persisted";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_OFFLINE_FLUSHED = SUPPORTABILITY_SESSION_REPLAY + "Offline/Flushed";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_OFFLINE_STALE_DROPPED = SUPPORTABILITY_SESSION_REPLAY + "Offline/StaleDropped";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_OFFLINE_EVICTED = SUPPORTABILITY_SESSION_REPLAY + "Offline/Evicted";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_OFFLINE_CORRUPTED = SUPPORTABILITY_SESSION_REPLAY + "Offline/Corrupted";
-    public static final String SUPPORTABILITY_SESSION_REPLAY_OFFLINE_REJECTED = SUPPORTABILITY_SESSION_REPLAY + "Offline/Rejected";
 
     //WEBVIEW
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW = SUPPORTABILITY_MOBILE_ANDROID + "WebView/";
@@ -198,12 +175,6 @@ public class MetricNames {
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET_FAILED_CONNECTION = SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET + "FailedConnection";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET_CLOSING = SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET + "Closing";
 
-    //JSError
-    public static final String SUPPORTABILITY_JSERROR = SUPPORTABILITY_AGENT + "JSError/";
-    public static final String SUPPORTABILITY_JSERROR_UPLOAD_TIME = SUPPORTABILITY_JSERROR + "UploadTime";
-    public static final String SUPPORTABILITY_JSERROR_UPLOAD_TIMEOUT = SUPPORTABILITY_JSERROR + "UploadTimeOut";
-    public static final String SUPPORTABILITY_JSERROR_UPLOAD_THROTTLED = SUPPORTABILITY_JSERROR + "UploadThrottled";
-    public static final String SUPPORTABILITY_JSERROR_FAILED_UPLOAD = SUPPORTABILITY_JSERROR + "FailedUpload";
     //Session Replay
     public static final String SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY = SUPPORTABILITY_MOBILE_ANDROID + "/Config/SessionReplay";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY_ENABLED = SUPPORTABILITY_MOBILE_ANDROID_CONFIG_SESSIONREPLAY + "/Enabled";

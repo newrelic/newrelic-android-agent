@@ -10,7 +10,6 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
-import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -19,7 +18,6 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.stats.StatsEngine;
 
-import java.util.Collection;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
@@ -92,17 +90,10 @@ public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler
                 analyticsController.setAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE, ((float) sessionDuration / 1000.0f), false);
             }
 
-            final Collection<AnalyticsEvent> queuedEvents = analyticsController.getEventManager().getQueuedEvents();
             final Crash crash = new Crash(throwable,
                     analyticsController.getSessionAttributes(),
-                    queuedEvents,
+                    analyticsController.getEventManager().getQueuedEvents(),
                     agentConfiguration.getEnableAnalyticsEvents());
-
-            // These events are now captured in the crash payload above; delete them from the
-            // persistent event store so they aren't reloaded and re-sent as standalone events
-            // on next launch (the harvest-time cleanup in AnalyticsControllerImpl.onHarvest()
-            // never runs here since the process is about to die).
-            analyticsController.removePersistedEvents(queuedEvents);
 
             // Store the crash right away.  We'll delete it later if we're able to send it.
             crashReporter.storeAndReportCrash(crash,false);

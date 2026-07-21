@@ -9,7 +9,6 @@ import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.logging.AgentLogManager;
-import com.newrelic.agent.android.util.Decoder;
 import com.newrelic.agent.android.util.Encoder;
 
 import java.lang.reflect.Field;
@@ -50,12 +49,6 @@ public class Agent {
 
     public static String getMonoInstrumentationFlag() {
         return MONO_INSTRUMENTATION_FLAG;
-    }
-
-    public static void setBuildId(final String id) {
-        synchronized (implLock) {
-            buildId = id;
-        }
     }
 
     public static String getBuildId() {
@@ -202,13 +195,6 @@ public class Agent {
      */
     public static Encoder getEncoder() {
         return getImpl().getEncoder();
-    }
-
-    /**
-     * Return an implementation specific string decoder. Currently Base64 in Android implementation.
-     */
-    public static Decoder getDecoder() {
-        return getImpl().getDecoder();
     }
 
     public static DeviceInformation getDeviceInformation() {
