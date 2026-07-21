@@ -52,6 +52,12 @@ public class Agent {
         return MONO_INSTRUMENTATION_FLAG;
     }
 
+    public static void setBuildId(final String id) {
+        synchronized (implLock) {
+            buildId = id;
+        }
+    }
+
     public static String getBuildId() {
 
         synchronized (implLock) {
