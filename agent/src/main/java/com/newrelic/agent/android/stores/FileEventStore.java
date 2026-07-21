@@ -117,6 +117,11 @@ public class FileEventStore extends AbstractFileStore<AnalyticsEvent> implements
     }
 
     @Override
+    public void flush(long timeoutMs) {
+        awaitWrites(timeoutMs);
+    }
+
+    @Override
     protected String keyOf(AnalyticsEvent event) {
         return event.getEventUUID();
     }

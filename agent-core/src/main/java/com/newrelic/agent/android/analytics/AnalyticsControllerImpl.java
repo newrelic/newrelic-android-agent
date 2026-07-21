@@ -39,6 +39,9 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
     // Insights allows 254 attributes per event: the delta is allocated to events we create
     protected static final int MAX_ATTRIBUTES = 128;
 
+    // Matches PayloadController.PAYLOAD_COLLECTOR_TIMEOUT's convention for a bounded shutdown-path wait.
+    static final long EVENT_STORE_FLUSH_TIMEOUT_MS = 3000;
+
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final AnalyticsControllerImpl instance = new AnalyticsControllerImpl();
     private static final AtomicBoolean initialized = new AtomicBoolean(false);
@@ -1037,12 +1040,7 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
                         harvestData.getAnalyticsEvents().addAll(pendingEvents);
                         log.debug("EventManager: [" + pendingEvents.size() + "] events moved from buffer to HarvestData");
 
-                        //remove events from pref
-                        if (eventStore != null) {
-                            for (AnalyticsEvent event : pendingEvents) {
-                                eventStore.delete(event);
-                            }
-                        }
+                        removePersistedEvents(pendingEvents);
                     }
 
                     // event buffer _should_ be empty, but...
@@ -1052,6 +1050,21 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Delete events from the persistent event store by UUID, then block until those deletes
+     * have flushed to disk. Used both at normal harvest time and from the crash path, where the
+     * process may die immediately after this call returns, so the deletes must be durable
+     * before then (see {@link AnalyticsEventStore#flush}).
+     */
+    public void removePersistedEvents(Collection<AnalyticsEvent> events) {
+        if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence) && eventStore != null) {
+            for (AnalyticsEvent event : events) {
+                eventStore.delete(event);
+            }
+            eventStore.flush(EVENT_STORE_FLUSH_TIMEOUT_MS);
         }
     }
 

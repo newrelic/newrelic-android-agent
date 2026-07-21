@@ -35,6 +35,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1229,6 +1230,41 @@ public class AnalyticsControllerImplTests {
         controller.onHarvest();
         Assert.assertEquals(0, eventStore.count());
 
+    }
+
+    @Test
+    public void testRemovePersistedEvents() {
+        FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
+        AnalyticsEventStore eventStore = config.getEventStore();
+        eventStore.clear();
+
+        controller.initialize(config, new TestStubAgentImpl());
+        AnalyticsEvent event1 = new AnalyticsEvent("event1");
+        AnalyticsEvent event2 = new AnalyticsEvent("event2");
+        controller.addEvent(event1);
+        controller.addEvent(event2);
+        Assert.assertEquals(2, eventStore.count());
+
+        controller.removePersistedEvents(Arrays.asList(event1, event2));
+        Assert.assertEquals(0, eventStore.count());
+    }
+
+    @Test
+    public void testRemovePersistedEventsNoopWhenFeatureDisabled() {
+        FeatureFlag.disableFeature(FeatureFlag.EventPersistence);
+        AnalyticsEventStore eventStore = config.getEventStore();
+        eventStore.clear();
+
+        controller.initialize(config, new TestStubAgentImpl());
+        AnalyticsEvent event1 = new AnalyticsEvent("event1");
+        eventStore.store(event1);
+        Assert.assertEquals(1, eventStore.count());
+
+        controller.removePersistedEvents(Collections.singletonList(event1));
+        Assert.assertEquals("removePersistedEvents should not touch the store when the feature is disabled",
+                1, eventStore.count());
+
+        FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
     }
 
     private static class TestStubAgentImpl extends StubAgentImpl {

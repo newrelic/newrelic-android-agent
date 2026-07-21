@@ -79,6 +79,17 @@ public class FileEventStoreTest {
     }
 
     @Test
+    public void flush_blocksUntilPendingWritesLand() {
+        AnalyticsEvent e = new AnalyticsEvent("flushed");
+        Assert.assertTrue(store.store(e));
+
+        store.flush(5000);
+
+        File expected = new File(cacheDir, e.getEventUUID() + AbstractFileStore.FILE_SUFFIX);
+        Assert.assertTrue("File should be written to disk by the time flush() returns", expected.exists());
+    }
+
+    @Test
     public void store_atCap_evictsOldestFirst() {
         config.setMaxCachedEventCount(3);
         store = new FileEventStore(context, config);
