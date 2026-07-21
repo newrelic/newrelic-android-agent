@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -111,6 +112,11 @@ public class AndroidAgentImpl implements
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
+    // Must match NewRelicConfigTask.BUILD_ID_RESOURCE_NAME in the Gradle plugin
+    // (plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicConfigTask.groovy).
+    // Underscores, not periods - see newrelic_keep.xml for why.
+    private static final String BUILD_ID_RESOURCE_NAME = "com_newrelic_android_buildId";
+
     // Stored for use by static API methods (recordReplay → log activation)
     private static Context savedContext;
 
@@ -134,6 +140,9 @@ public class AndroidAgentImpl implements
         // We want an Application context, not an Activity context.
         this.context = appContext(context);
         this.agentConfiguration = agentConfiguration;
+
+        resolveBuildId(this.context);
+
         this.savedState = new SavedState(this.context);
         this.offlineStorageInstance = new OfflineStorage(context);
 
@@ -182,6 +191,29 @@ public class AndroidAgentImpl implements
         context.registerComponentCallbacks(backgroundListener);
 
         setupSession();
+    }
+
+    /**
+     * The build ID is generated at build time by NewRelicConfigTask and injected as a
+     * generated Android string resource (not compiled Java source, so it doesn't bust
+     * compile/R8 caching). Resolve it here, where a Context is available, and push it into
+     * Agent (agent-core has no Android dependency and can't read resources itself). If the
+     * resource isn't present (e.g. an older Gradle plugin version), leave Agent's build ID
+     * unset so it falls back to its existing NewRelicConfig reflection path.
+     */
+    private static void resolveBuildId(final Context context) {
+        try {
+            Resources resources = context.getResources();
+            int id = resources.getIdentifier(BUILD_ID_RESOURCE_NAME, "string", context.getPackageName());
+            if (id != 0) {
+                String buildId = resources.getString(id);
+                if (buildId != null && !buildId.isEmpty()) {
+                    Agent.setBuildId(buildId);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("AndroidAgentImpl.resolveBuildId(): unable to resolve build ID resource: " + e);
+        }
     }
 
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {

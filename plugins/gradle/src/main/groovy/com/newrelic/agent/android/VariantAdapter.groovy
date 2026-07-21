@@ -167,8 +167,10 @@ abstract class VariantAdapter {
         def configProvider = getConfigProvider(variantName) { configTask ->
             def buildType = withBuildType(variantName)
             def genSrcFolder = buildHelper.project.layout.buildDirectory.dir("generated/java/newrelicConfig${buildType.name.capitalize()}")
+            def genResFolder = buildHelper.project.layout.buildDirectory.dir("generated/res/newrelicConfig${buildType.name.capitalize()}")
 
             configTask.sourceOutputDir.set(objectFactory.directoryProperty().value(genSrcFolder))
+            configTask.resourceOutputDir.set(objectFactory.directoryProperty().value(genResFolder))
             configTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
             configTask.minifyEnabled.set(objectFactory.property(Boolean).value(buildType.minified))
             configTask.buildMetrics.set(objectFactory.property(String).value(buildHelper.getBuildMetrics().toString()))
@@ -180,15 +182,14 @@ abstract class VariantAdapter {
             configTask.buildId.set(buildIdProvider)
 
             configTask.onlyIf {
-                def configClass = configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile
-                !configClass.exists() || !configClass.text.contains(configTask.buildId.get())
+                def resourceFile = configTask.resourceOutputDir.file(NewRelicConfigTask.CONFIG_RESOURCE_FILE).get().asFile
+                !resourceFile.exists() || !resourceFile.text.contains(configTask.buildId.get())
             }
 
             configTask.outputs.upToDateWhen {
-                def meta = configTask.configMetadata.get().asFile
-                def configClass = configTask.sourceOutputDir.file(NewRelicConfigTask.CONFIG_CLASS).get().asFile
-                configClass.exists() &&
-                        configClass.text.contains(configTask.buildId.get())
+                def resourceFile = configTask.resourceOutputDir.file(NewRelicConfigTask.CONFIG_RESOURCE_FILE).get().asFile
+                resourceFile.exists() &&
+                        resourceFile.text.contains(configTask.buildId.get())
             }
         }
 
