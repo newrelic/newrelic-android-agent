@@ -95,10 +95,14 @@ class DexGuardHelper {
 
     /**
      * Returns a RegularFile property representing the correct mapping file location
-     * @param variantDirName
+     * @param variantName
+     * @param target "apk", "bundle", or "aar" — the DexGuard packaging target this
+     *               mapping file belongs to. Defaults to the literal placeholder
+     *               "<target>" for backward compatibility with callers that don't
+     *               know the target yet (legacy/generic resolution).
      * @return RegularFileProperty
      */
-    RegularFileProperty getMappingFileProvider(String variantName) {
+    RegularFileProperty getMappingFileProvider(String variantName, String target = "<target>") {
         def variant = buildHelper.variantAdapter.withVariant(variantName)
 
         logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant object name: ${variant?.name}")
@@ -106,7 +110,6 @@ class DexGuardHelper {
         logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant buildType: ${variant?.buildType}")
 
         if (isDexGuard9()) {
-            // caller must replace target with [apk, bundle]
             // Construct path based on whether variant has a flavor
             def pathSegment
             if (variant.flavorName && !variant.flavorName.isEmpty()) {
@@ -119,7 +122,7 @@ class DexGuardHelper {
                 logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant has no flavor, pathSegment: ${pathSegment}")
             }
 
-            def finalPath = "outputs/dexguard/mapping/<target>/${pathSegment}/mapping.txt"
+            def finalPath = "outputs/dexguard/mapping/${target}/${pathSegment}/mapping.txt"
             logger.lifecycle("DexGuardHelper.getMappingFileProvider: Final mapping path: ${finalPath}")
 
             return objectFactory.fileProperty().value(buildHelper.project.layout

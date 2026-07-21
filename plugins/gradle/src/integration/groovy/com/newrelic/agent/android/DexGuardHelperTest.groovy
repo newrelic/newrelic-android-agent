@@ -64,6 +64,18 @@ class DexGuardHelperTest extends PluginTest {
     }
 
     @Test
+    void getMappingFileProviderForTarget() {
+        Assert.assertTrue(dexGuardHelper.isDexGuard9())
+
+        def apkPath = dexGuardHelper.getMappingFileProvider("release", "apk").getAsFile().get().getAbsolutePath()
+        def bundlePath = dexGuardHelper.getMappingFileProvider("release", "bundle").getAsFile().get().getAbsolutePath()
+
+        Assert.assertTrue(apkPath.contains("/dexguard/mapping/apk/"))
+        Assert.assertTrue(bundlePath.contains("/dexguard/mapping/bundle/"))
+        Assert.assertNotEquals(apkPath, bundlePath)
+    }
+
+    @Test
     void configureDexGuard() {
         dexGuardHelper.configureDexGuard()
         Assert.assertEquals(3, buildHelper.variantAdapter.getVariantValues().size())
