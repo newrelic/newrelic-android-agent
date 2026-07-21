@@ -42,5 +42,10 @@ class TestCrashStore implements CrashStore {
     public void delete(Crash crash) {
         crashes.remove(crash);
     }
+
+    @Override
+    public String getRootPath() {
+        return "";
+    }
 }
 

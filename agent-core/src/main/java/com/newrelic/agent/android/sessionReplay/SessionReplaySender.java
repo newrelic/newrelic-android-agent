@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -33,8 +34,17 @@ public class SessionReplaySender extends PayloadSender {
     private HarvestConfiguration harvestConfiguration;
     private Map<String, Object> replayDataMap;
 
+    // Frozen-from-disk fields. When non-null we skip rebuilding the live attribute map
+    // and use these snapshots instead, so a retried payload reproduces the original request.
+    private final Map<String, String> frozenAttributes;
+    private final long frozenUrlTimestamp;
+    private final boolean isFromOfflineStore;
+
     public SessionReplaySender(byte[] bytes, AgentConfiguration agentConfiguration) {
         super(bytes, agentConfiguration);
+        this.frozenAttributes = null;
+        this.frozenUrlTimestamp = 0L;
+        this.isFromOfflineStore = false;
     }
 
     public SessionReplaySender(Payload payload, AgentConfiguration agentConfiguration, HarvestConfiguration harvestConfiguration, Map<String, Object> replayDataMap) throws IOException {
@@ -42,37 +52,69 @@ public class SessionReplaySender extends PayloadSender {
         this.payload = payload;
         this.harvestConfiguration = harvestConfiguration;
         this.replayDataMap = replayDataMap;
+        this.frozenAttributes = null;
+        this.frozenUrlTimestamp = 0L;
+        this.isFromOfflineStore = false;
+        setPayload(this.payload.getBytes());
+    }
+
+    /**
+     * Construct a sender for a payload restored from the offline cache. The caller-supplied
+     * {@code cached} entry contains the gzipped body, frozen URL timestamp, and frozen
+     * attribute map. The live {@link AnalyticsControllerImpl#getSessionAttributes()} are
+     * NOT consulted for this sender so the retry reproduces the original request.
+     */
+    public SessionReplaySender(OfflineSessionReplayPayload cached,
+                               AgentConfiguration agentConfiguration,
+                               HarvestConfiguration harvestConfiguration) {
+        super(new Payload(cached.getBody()), agentConfiguration);
+        this.payload = new Payload(cached.getBody());
+        this.harvestConfiguration = harvestConfiguration;
+        this.replayDataMap = null;
+        this.frozenAttributes = new LinkedHashMap<>(cached.getAttributes());
+        this.frozenUrlTimestamp = cached.getUrlTimestamp();
+        this.isFromOfflineStore = true;
         setPayload(this.payload.getBytes());
     }
 
     @Override
     protected HttpURLConnection getConnection() throws IOException {
 
-        final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+        Map<String, String> attributes;
+        long urlTimestamp;
 
-        Map<String, String> attributes = new HashMap<>();
-        attributes.put(Constants.SessionReplay.ENTITY_GUID, AgentConfiguration.getInstance().getEntityGuid());
-        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, replayDataMap.get(Constants.SessionReplay.IS_FIRST_CHUNK) + "");
-        attributes.put(Constants.SessionReplay.RRWEB_VERSION, Constants.SessionReplay.RRWEB_VERSION_VALUE);
-        attributes.put(Constants.SessionReplay.DECOMPRESSED_BYTES, replayDataMap.get(Constants.SessionReplay.DECOMPRESSED_BYTES) + "");
-        attributes.put(Constants.SessionReplay.PAYLOAD_TYPE, Constants.SessionReplay.PAYLOAD_TYPE_STANDARD);
-        attributes.put(Constants.SessionReplay.REPLAY_FIRST_TIMESTAMP, replayDataMap.get("firstTimestamp") + "");
-        attributes.put(Constants.SessionReplay.REPLAY_LAST_TIMESTAMP, replayDataMap.get("lastTimestamp") + "");
-        attributes.put(Constants.SessionReplay.CONTENT_ENCODING, Constants.SessionReplay.CONTENT_ENCODING_GZIP);
-        attributes.put(Constants.SessionReplay.APP_VERSION, Agent.getApplicationInformation().getAppVersion());
-        attributes.put(Constants.INSTRUMENTATION_PROVIDER, Constants.INSTRUMENTATION_PROVIDER_ATTRIBUTE);
-        attributes.put(Constants.INSTRUMENTATION_NAME, AgentConfiguration.getInstance().getApplicationFramework().equals(ApplicationFramework.Native) ? Constants.INSTRUMENTATION_ANDROID_NAME : AgentConfiguration.getInstance().getApplicationFramework().name());
-        attributes.put(Constants.INSTRUMENTATION_VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
-        attributes.put(Constants.INSTRUMENTATION_COLLECTOR_NAME, Constants.INSTRUMENTATION_ANDROID_NAME);
+        if (isFromOfflineStore) {
+            attributes = frozenAttributes != null ? frozenAttributes : new HashMap<>();
+            urlTimestamp = frozenUrlTimestamp;
+        } else {
+            final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
 
-        for (AnalyticsAttribute analyticsAttribute : controller.getSessionAttributes()) {
-            attributes.put(analyticsAttribute.getName(), analyticsAttribute.asJsonElement().getAsString());
-        }
-        attributes.put(Constants.SessionReplay.HAS_META, replayDataMap.get(Constants.SessionReplay.HAS_META) + "");
+            attributes = new HashMap<>();
+            attributes.put(Constants.SessionReplay.ENTITY_GUID, AgentConfiguration.getInstance().getEntityGuid());
+            attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, replayDataMap.get(Constants.SessionReplay.IS_FIRST_CHUNK) + "");
+            attributes.put(Constants.SessionReplay.RRWEB_VERSION, Constants.SessionReplay.RRWEB_VERSION_VALUE);
+            attributes.put(Constants.SessionReplay.DECOMPRESSED_BYTES, replayDataMap.get(Constants.SessionReplay.DECOMPRESSED_BYTES) + "");
+            attributes.put(Constants.SessionReplay.PAYLOAD_TYPE, Constants.SessionReplay.PAYLOAD_TYPE_STANDARD);
+            attributes.put(Constants.SessionReplay.REPLAY_FIRST_TIMESTAMP, replayDataMap.get("firstTimestamp") + "");
+            attributes.put(Constants.SessionReplay.REPLAY_LAST_TIMESTAMP, replayDataMap.get("lastTimestamp") + "");
+            attributes.put(Constants.SessionReplay.CONTENT_ENCODING, Constants.SessionReplay.CONTENT_ENCODING_GZIP);
+            attributes.put(Constants.SessionReplay.APP_VERSION, Agent.getApplicationInformation().getAppVersion());
+            attributes.put(Constants.INSTRUMENTATION_PROVIDER, Constants.INSTRUMENTATION_PROVIDER_ATTRIBUTE);
+            attributes.put(Constants.INSTRUMENTATION_NAME, AgentConfiguration.getInstance().getApplicationFramework().equals(ApplicationFramework.Native) ? Constants.INSTRUMENTATION_ANDROID_NAME : AgentConfiguration.getInstance().getApplicationFramework().name());
+            attributes.put(Constants.INSTRUMENTATION_VERSION, AgentConfiguration.getInstance().getApplicationFrameworkVersion());
+            attributes.put(Constants.INSTRUMENTATION_COLLECTOR_NAME, Constants.INSTRUMENTATION_ANDROID_NAME);
 
-        // overwrite sessionId from Attribute
-        if (replayDataMap.get(Constants.SessionReplay.SESSION_ID) != null) {
-            attributes.put(Constants.SessionReplay.SESSION_ID, replayDataMap.get(Constants.SessionReplay.SESSION_ID) + "");
+            for (AnalyticsAttribute analyticsAttribute : controller.getSessionAttributes()) {
+                attributes.put(analyticsAttribute.getName(), analyticsAttribute.asJsonElement().getAsString());
+            }
+            attributes.put(Constants.SessionReplay.HAS_META, replayDataMap.get(Constants.SessionReplay.HAS_META) + "");
+
+            // overwrite sessionId from Attribute
+            if (replayDataMap.get(Constants.SessionReplay.SESSION_ID) != null) {
+                attributes.put(Constants.SessionReplay.SESSION_ID, replayDataMap.get(Constants.SessionReplay.SESSION_ID) + "");
+            }
+
+            urlTimestamp = System.currentTimeMillis();
         }
 
         StringBuilder attributesString = new StringBuilder();
@@ -93,7 +135,7 @@ public class SessionReplaySender extends PayloadSender {
                 Constants.SessionReplay.URL_TYPE_PARAM +
                 "&" + Constants.SessionReplay.URL_APP_ID_PARAM + harvestConfiguration.getApplication_id() +
                 "&" + Constants.SessionReplay.URL_PROTOCOL_VERSION_PARAM +
-                "&" + Constants.SessionReplay.URL_TIMESTAMP_PARAM + System.currentTimeMillis() +
+                "&" + Constants.SessionReplay.URL_TIMESTAMP_PARAM + urlTimestamp +
                 "&" + Constants.SessionReplay.URL_ATTRIBUTES_PARAM + attributesString;
 
         final HttpURLConnection connection = getHttpURLConnection(urlString);
@@ -130,7 +172,10 @@ public class SessionReplaySender extends PayloadSender {
                 StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIME, timer.duration());
                 int payloadSize = getPayloadSize();
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_SESSION_REPLAY_COMPRESSED, payloadSize);
-                StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED, ((Integer)this.replayDataMap.get("decompressedBytes")).intValue());
+                if (replayDataMap != null && replayDataMap.get("decompressedBytes") instanceof Integer) {
+                    StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED,
+                            ((Integer) this.replayDataMap.get("decompressedBytes")).intValue());
+                }
                 log.info("Session Replay Blob: [" + payloadSize + "] bytes successfully submitted.");
                 break;
 
@@ -181,6 +226,23 @@ public class SessionReplaySender extends PayloadSender {
         log.warn("Session Replay: endpoint is not reachable. Will try later...");
 
         return this;
+    }
+
+    public boolean isFromOfflineStore() {
+        return isFromOfflineStore;
+    }
+
+    @Override
+    public boolean isSuccessfulResponse() {
+        // 200/202 only — anything else (including 500/503/403) should NOT be treated as success
+        // for offline-storage purposes. The reporter inspects getResponseCode() to decide whether
+        // to persist for retry vs. drop on hard-reject.
+        switch (responseCode) {
+            case HttpsURLConnection.HTTP_OK:
+            case HttpsURLConnection.HTTP_ACCEPTED:
+                return true;
+        }
+        return false;
     }
 
     protected URI getCollectorURI() {
