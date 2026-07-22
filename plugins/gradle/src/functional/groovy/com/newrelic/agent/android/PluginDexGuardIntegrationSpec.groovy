@@ -119,7 +119,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         expect:
         filteredOutput.contains("Maps will be tagged and uploaded for variants [")
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
             // Check the tagged output file instead of original mapping file
             with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
                 exists()
@@ -153,18 +153,18 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             buildResult.task(":dexguardApk${var.capitalize()}").outcome == SUCCESS
         }
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
         }
     }
 
     def "verify dexguard mapping configuration"() {
         expect:
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
         }
 
         ["release", "debug"].each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}") == null
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}") == null
         }
     }
 
@@ -172,7 +172,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         expect:
         ["release"].each { var ->
             buildResult.task(":dexguardApk${var.capitalize()}").outcome == SUCCESS
-            buildResult.task(":newrelicMapUpload${var.capitalize()}") == null
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}") == null
             with(new File(buildDir, "outputs/dexguard/mapping/apk/${var}/mapping.txt")) {
                 !text.contains(Proguard.NR_MAP_PREFIX)
             }
@@ -204,7 +204,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             buildResult.task(":dexguardAab${var.capitalize()}").outcome == SUCCESS
         }
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadBundle${var.capitalize()}").outcome == SUCCESS
             // Bundle mapping should not be tagged (only APK mapping is tagged)
             with(new File(buildDir, "outputs/dexguard/mapping/bundle/release/mapping.txt")) {
                 exists()
@@ -246,7 +246,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             buildResult.task(":${DexGuardHelper.DEXGUARD_APK_TASK}${var.capitalize()}").outcome == SUCCESS
         }
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
             // APK mapping is tagged with the NR build ID and copied to the tagged output
             with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
                 exists()
