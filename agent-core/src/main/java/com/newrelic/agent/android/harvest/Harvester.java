@@ -155,7 +155,7 @@ public class Harvester implements HarvestConfigurable {
             boolean configurationChanged = !this.harvestConfiguration.equals(configuration);
 
             configureHarvester(configuration);
-            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest", response.getResponseTime());
+            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR_HARVEST, response.getResponseTime());
             fireOnHarvestConnected();
 
             // Successfully connected!
@@ -170,7 +170,7 @@ public class Harvester implements HarvestConfigurable {
 
         log.debug("Harvest connect response: " + response.getResponseCode());
 
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Connect/Error/" + response.getResponseCode());
+        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR_HARVEST_CONNECT_ERROR + response.getResponseCode());
 
         switch (response.getResponseCode()) {
             case UNAUTHORIZED:
@@ -243,7 +243,7 @@ public class Harvester implements HarvestConfigurable {
             // The data POST body was sent but no response could be read (e.g. read timeout). The
             // collector may already have ingested the payload, yet the retained buffer is resent
             // next cycle, risking duplicate events. Track frequency to correlate with collector latency.
-            StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/UNKNOWN");
+            StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR_HARVEST_ERROR_UNKNOWN);
             checkOfflineAndPersist();
             fireOnHarvestSendFailed();
             return;
@@ -251,9 +251,9 @@ public class Harvester implements HarvestConfigurable {
 
         //Background reporting
         if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
-            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Background/", response.getResponseTime());
+            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR_HARVEST_BACKGROUND, response.getResponseTime());
         } else {
-            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/", response.getResponseTime());
+            StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR_HARVEST, response.getResponseTime());
         }
 
         log.debug("Harvest data response: " + response.getResponseCode());
@@ -265,9 +265,9 @@ public class Harvester implements HarvestConfigurable {
 
             //Background reporting
             if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
-                StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/Background/" + response.getResponseCode());
+                StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR_HARVEST_ERROR_BACKGROUND + response.getResponseCode());
             } else {
-                StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/" + response.getResponseCode());
+                StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR_HARVEST_ERROR + response.getResponseCode());
             }
 
             switch (response.getResponseCode()) {
@@ -333,7 +333,7 @@ public class Harvester implements HarvestConfigurable {
                             File file = new File(entry.getKey());
                             file.delete();
                         }
-                        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/OfflineStorage" + eachResponse.getResponseCode());
+                        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR_HARVEST_OFFLINE_STORAGE + eachResponse.getResponseCode());
                     }
                 }
             } catch (Exception ex) {
