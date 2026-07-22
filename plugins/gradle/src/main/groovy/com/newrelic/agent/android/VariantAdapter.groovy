@@ -196,9 +196,35 @@ abstract class VariantAdapter {
         return configProvider
     }
 
-    def wiredWithMapUploadProvider(String variantName) {
-        def mapUploadProvider = getMapUploadProvider(variantName) { mapUploadTask ->
-            def variantMap = getMappingFileProvider(variantName)
+    def wiredWithMapUploadProvider(String variantName, String target = "") {
+        def taskName = target ?
+                "${NewRelicMapUploadTask.NAME}${target.capitalize()}${variantName.capitalize()}" :
+                "${NewRelicMapUploadTask.NAME}${variantName.capitalize()}"
+
+        // bypasses the abstract getMapUploadProvider — all three adapter implementations are
+        // identical one-liners; keeping name construction here avoids threading `target` through
+        // every adapter subclass
+        def mapUploadProvider = registerOrNamed(taskName, NewRelicMapUploadTask.class) { mapUploadTask ->
+            def variantMap
+            if (target) {
+                // honor a user-supplied variantConfigurations.mappingFile override before
+                // falling back to the DexGuard-resolved, per-target path — same precedence as
+                // AGP70Adapter.getMappingFileProvider / AGP9BaseAdapter.getMappingFileProvider
+                def variant = withVariant(variantName)
+                def variantConfiguration = buildHelper.extension.variantConfigurations.findByName(variantName)
+
+                if (variantConfiguration && variantConfiguration.mappingFile) {
+                    def variantMappingFilePath = variantConfiguration.mappingFile.getAbsolutePath()
+                            .replace("<name>", variant.name)
+                            .replace("<dirName>", variant.name)
+
+                    variantMap = objectFactory.fileProperty().fileValue(buildHelper.project.file(variantMappingFilePath))
+                } else {
+                    variantMap = buildHelper.dexguardHelper?.getMappingFileProvider(variantName, target)
+                }
+            } else {
+                variantMap = getMappingFileProvider(variantName)
+            }
             def uuid = objectFactory.property(String).value(BuildId.getBuildId(variantName))
 
             mapUploadTask.mappingFile.set(variantMap)
@@ -208,6 +234,7 @@ abstract class VariantAdapter {
             mapUploadTask.buildId.convention(uuid)
             mapUploadTask.variantName.set(objectFactory.property(String).value(variantName))
             mapUploadTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
+            mapUploadTask.target.set(target)
 
             mapUploadTask.onlyIf {
                 // Execute the task only if the given spec is satisfied. The spec will
@@ -305,8 +332,9 @@ abstract class VariantAdapter {
             wiredWithConfigProvider(variantName)
         }
 
-        if (shouldUploadVariantMap(variantName)) {
-            // register map upload task(s)
+        if (shouldUploadVariantMap(variantName) && !(buildHelper.dexguardHelper?.enabled)) {
+            // register map upload task(s). DexGuard builds are wired separately,
+            // per packaging target, by DexGuardHelper.wireDexGuardMapProviders().
             wiredWithMapUploadProvider(variantName)
         }
     }

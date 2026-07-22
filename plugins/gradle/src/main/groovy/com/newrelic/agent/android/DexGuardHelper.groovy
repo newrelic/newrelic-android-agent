@@ -95,10 +95,14 @@ class DexGuardHelper {
 
     /**
      * Returns a RegularFile property representing the correct mapping file location
-     * @param variantDirName
+     * @param variantName
+     * @param target "apk", "bundle", or "aar" — the DexGuard packaging target this
+     *               mapping file belongs to. Defaults to the literal placeholder
+     *               "<target>" for backward compatibility with callers that don't
+     *               know the target yet (legacy/generic resolution).
      * @return RegularFileProperty
      */
-    RegularFileProperty getMappingFileProvider(String variantName) {
+    RegularFileProperty getMappingFileProvider(String variantName, String target = "<target>") {
         def variant = buildHelper.variantAdapter.withVariant(variantName)
 
         logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant object name: ${variant?.name}")
@@ -106,7 +110,6 @@ class DexGuardHelper {
         logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant buildType: ${variant?.buildType}")
 
         if (isDexGuard9()) {
-            // caller must replace target with [apk, bundle]
             // Construct path based on whether variant has a flavor
             def pathSegment
             if (variant.flavorName && !variant.flavorName.isEmpty()) {
@@ -119,7 +122,7 @@ class DexGuardHelper {
                 logger.lifecycle("DexGuardHelper.getMappingFileProvider: Variant has no flavor, pathSegment: ${pathSegment}")
             }
 
-            def finalPath = "outputs/dexguard/mapping/<target>/${pathSegment}/mapping.txt"
+            def finalPath = "outputs/dexguard/mapping/${target}/${pathSegment}/mapping.txt"
             logger.lifecycle("DexGuardHelper.getMappingFileProvider: Final mapping path: ${finalPath}")
 
             return objectFactory.fileProperty().value(buildHelper.project.layout
@@ -135,40 +138,35 @@ class DexGuardHelper {
 
     protected wireDexGuardMapProviders(String variantName) {
         try {
-            // create a map upload task for this variant
-            buildHelper.variantAdapter.wiredWithMapUploadProvider(variantName)
+            def vnc = variantName.capitalize()
+
+            // Applications may produce both an APK and an AAB/bundle output in the
+            // same build, so every applicable DexGuard packaging task type is wired
+            // to its own dedicated map-upload task — never a shared one. Libraries
+            // only ever produce an AAR. Both "dexguardAab" and "dexguardBundle" task
+            // prefixes map to the same "bundle" target: different DexGuard plugin
+            // versions name the bundle-packaging task differently.
+            def taskTypeTargets = buildHelper.checkLibrary() ?
+                    [(DEXGUARD_AAR_TASK): "aar"] :
+                    [(DEXGUARD_APK_TASK): "apk", (DEXGUARD_AAB_TASK): "bundle", (DEXGUARD_BUNDLE_TASK): "bundle"]
+
+            def wiredTaskNames = taskTypeTargets.keySet().collect { it + vnc }.toSet()
 
             buildHelper.project.afterEvaluate {
-                // Use priority-based selection to prevent dual execution of APK and AAB tasks
-                def primaryTaskType = determinePrimaryDexGuardTaskType()
-                def wiredTaskNames = [primaryTaskType].collect { it + variantName.capitalize() }
-
-                logger.debug("DexGuard: Selected primary task type '${primaryTaskType}' for variant '${variantName}'")
-
-                buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames.toSet()) { taskProvider ->
-                    if (taskProvider.name.startsWith(DEXGUARD_APK_TASK)) {
-                        finalizeMapUploadProvider(taskProvider, variantName) {
-                            it.replace("<target>", "apk")
-                        }
-                    } else if (taskProvider.name.startsWith(DEXGUARD_BUNDLE_TASK)) {
-                        finalizeMapUploadProvider(taskProvider, variantName) {
-                            it.replace("<target>", "bundle")
-                        }
-                    } else if (taskProvider.name.startsWith(DEXGUARD_AAB_TASK)) {
-                        finalizeMapUploadProvider(taskProvider, variantName) {
-                            it.replace("<target>", "bundle")
-                        }
-                    } else if (taskProvider.name.startsWith(DEXGUARD_AAR_TASK)) {
-                        // AAR tasks don't need target replacement as they use different path structure
-                        finalizeMapUploadProvider(taskProvider, variantName)
-                    }
-                }
+                wireDexGuardPackagingTasks(variantName, taskTypeTargets, wiredTaskNames)
             }
 
         } catch (Exception e) {
             // DexGuard task hasn't been created
             logger.error("configureDexGuard: " + e)
             logger.error(DEXGUARD_PLUGIN_ORDER_ERROR_MSG)
+        }
+    }
+
+    protected wireDexGuardPackagingTasks(String variantName, Map taskTypeTargets, Set<String> wiredTaskNames) {
+        buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { taskProvider ->
+            def taskType = taskTypeTargets.keySet().find { taskProvider.name.startsWith(it) }
+            finalizeMapUploadProvider(taskProvider, variantName, taskTypeTargets[taskType])
         }
     }
 
@@ -227,27 +225,19 @@ class DexGuardHelper {
         }
     }
 
-    void finalizeMapUploadProvider(TaskProvider dependencyTaskProvider, String variantName, Closure closure = null) {
+    void finalizeMapUploadProvider(TaskProvider dependencyTaskProvider, String variantName, String target = "") {
         try {
-            def mapUploadTaskProvider = buildHelper.variantAdapter.getMapUploadProvider(variantName)
+            def mapUploadTaskProvider = buildHelper.variantAdapter.wiredWithMapUploadProvider(variantName, target)
 
             mapUploadTaskProvider.configure { mapUploadTask ->
                 mapUploadTask.dependsOn(dependencyTaskProvider)
                 try {
-                    // update the map file path if needed
-                    if (closure) {
-                        def mapPath = closure(mapUploadTask.mappingFile.get().asFile.absolutePath)
-                        mapUploadTask.mappingFile.set(buildHelper.project.file(mapPath))
-                    }
-
                     if (!mapUploadTask.buildId.isPresent()) {
                         mapUploadTask.buildId.set(BuildId.getBuildId(variantName))
                     }
-
                 } catch (Exception e) {
                     logger.error("finalizeMapUploadProvider: $e")
                 }
-
             }
 
             dependencyTaskProvider.configure {
@@ -258,41 +248,6 @@ class DexGuardHelper {
             // task for this variant not available or other configuration error
             logger.error("finalizeMapUploadProvider: $e")
         }
-    }
-
-    /**
-     * Determines the primary DexGuard task type to wire.
-     *
-     * Libraries always produce AARs. For applications we select APK vs AAB based on the
-     * tasks the user actually requested, so the map upload is wired to whatever packaging
-     * output is being built. (Previously this always chose AAB for applications, which meant
-     * APK-only builds such as {@code dexguardApkRelease} never triggered the map upload.)
-     *
-     * A single task type is returned (rather than wiring both APK and AAB) to avoid the
-     * shared map-upload task having its mapping-file path reconfigured by two packaging
-     * branches in the same build. AAB is only chosen when a bundle/AAB build is requested
-     * without an accompanying APK build; otherwise we default to APK, which matches the
-     * output of {@code assemble}/{@code build}.
-     *
-     * @return The primary DexGuard task type constant
-     */
-    private String determinePrimaryDexGuardTaskType() {
-        // Libraries need AAR tasks for proper artifact generation
-        if (buildHelper.checkLibrary()) {
-            return DEXGUARD_AAR_TASK
-        }
-
-        if (buildHelper.checkApplication()) {
-            def requestedTasks = buildHelper.project.gradle.startParameter.taskNames*.toLowerCase()
-            def wantsBundle = requestedTasks.any { it.contains("bundle") || it.contains("aab") }
-            def wantsApk = requestedTasks.any { it.contains("assemble") || it.contains("apk") }
-
-            // Prefer AAB only for a bundle-only build; otherwise default to APK.
-            return (wantsBundle && !wantsApk) ? DEXGUARD_AAB_TASK : DEXGUARD_APK_TASK
-        }
-
-        // Safe fallback to APK for unknown project types
-        return DEXGUARD_APK_TASK
     }
 
     static Set<String> wiredTaskNames(String vnc) {
