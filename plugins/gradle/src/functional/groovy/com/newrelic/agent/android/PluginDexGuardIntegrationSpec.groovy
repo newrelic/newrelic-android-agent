@@ -121,7 +121,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         mapUploadVariants.each { var ->
             buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
             // Check the tagged output file instead of original mapping file
-            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
+            with(new File(buildDir, "outputs/newrelic/apk/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
             }
@@ -211,7 +211,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
                 !text.contains(Proguard.NR_MAP_PREFIX)
             }
             // Check tagged output file for APK variant
-            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
+            with(new File(buildDir, "outputs/newrelic/apk/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
             }
@@ -248,7 +248,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         mapUploadVariants.each { var ->
             buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
             // APK mapping is tagged with the NR build ID and copied to the tagged output
-            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
+            with(new File(buildDir, "outputs/newrelic/apk/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
             }

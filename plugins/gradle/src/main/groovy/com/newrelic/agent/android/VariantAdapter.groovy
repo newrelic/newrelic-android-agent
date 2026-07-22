@@ -234,6 +234,7 @@ abstract class VariantAdapter {
             mapUploadTask.buildId.convention(uuid)
             mapUploadTask.variantName.set(objectFactory.property(String).value(variantName))
             mapUploadTask.mapProvider.set(objectFactory.property(String).value(buildHelper.getMapCompilerName()))
+            mapUploadTask.target.set(target)
 
             mapUploadTask.onlyIf {
                 // Execute the task only if the given spec is satisfied. The spec will

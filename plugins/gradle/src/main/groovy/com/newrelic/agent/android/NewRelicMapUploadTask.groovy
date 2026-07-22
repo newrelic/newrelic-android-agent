@@ -36,6 +36,18 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
     @Input
     abstract Property<String> getMapProvider()      // [proguard, r8, dexguard]
 
+    /**
+     * DexGuard packaging target ("apk", "bundle", "aar") this task's tagged
+     * output belongs to. Empty for the generic (non-DexGuard) map upload,
+     * which keeps its original, unqualified output path. Distinguishing the
+     * tagged output by target — not just variant — prevents the APK and
+     * Bundle/AAB map-upload tasks for the same variant from overwriting each
+     * other's tagged mapping.txt (NR-583555).
+     */
+    @Input
+    @org.gradle.api.tasks.Optional
+    abstract Property<String> getTarget()
+
     @Internal
     abstract DirectoryProperty getProjectRoot()
 
@@ -51,7 +63,11 @@ abstract class NewRelicMapUploadTask extends DefaultTask {
      */
     @OutputFile
     File getTaggedMappingFile() {
-        return buildDirectory.file("outputs/newrelic/" + variantName.get() + "/mapping.txt").get().asFile
+        def targetSegment = target.getOrElse("")
+        def path = targetSegment ?
+                "outputs/newrelic/${targetSegment}/${variantName.get()}/mapping.txt" :
+                "outputs/newrelic/${variantName.get()}/mapping.txt"
+        return buildDirectory.file(path).get().asFile
     }
 
     @Internal

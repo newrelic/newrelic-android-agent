@@ -306,6 +306,15 @@ class DexGuardHelperTest extends PluginTest {
         // with its own apk mapping file, not the bundle one
         Assert.assertTrue(buildHelper.variantAdapter.wiredWithMapUploadProvider("release", "apk")
                 .get().mappingFile.get().asFile.absolutePath.contains("/apk/"))
+
+        // each target's *tagged output* copy must also be distinct, or the APK and
+        // Bundle tasks overwrite each other's tagged mapping.txt on disk (NR-583555)
+        def apkTaggedPath = apkProvider.get().getTaggedMappingFile().absolutePath
+        def bundleTaggedPath = bundleProvider.get().getTaggedMappingFile().absolutePath
+
+        Assert.assertTrue(apkTaggedPath.contains("/apk/"))
+        Assert.assertTrue(bundleTaggedPath.contains("/bundle/"))
+        Assert.assertNotEquals(apkTaggedPath, bundleTaggedPath)
     }
 
     @Test
