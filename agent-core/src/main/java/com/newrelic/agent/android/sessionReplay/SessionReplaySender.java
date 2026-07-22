@@ -127,7 +127,7 @@ public class SessionReplaySender extends PayloadSender {
         switch (responseCode) {
             case HttpsURLConnection.HTTP_OK:
             case HttpsURLConnection.HTTP_ACCEPTED:
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIME, timer.duration());
+                StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIME, timer.duration());
                 int payloadSize = getPayloadSize();
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_SESSION_REPLAY_COMPRESSED, payloadSize);
                 StatsEngine.SUPPORTABILITY.sample(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UNCOMPRESSED, ((Integer)this.replayDataMap.get("decompressedBytes")).intValue());
@@ -136,17 +136,17 @@ public class SessionReplaySender extends PayloadSender {
 
             case HttpURLConnection.HTTP_CLIENT_TIMEOUT:
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] has timed out (will try again later) - Response code [" + responseCode + "]");
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIMEOUT,timer.duration());
+                StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_TIMEOUT, timer.duration());
                 break;
 
             case HttpURLConnection.HTTP_REQ_TOO_LONG:
                 onFailedUpload("The request URL to submit the payload [" + payload.getUuid() + "] is to large (will try again later) - Response code [" + responseCode + "]");
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_URL_SIZE_LIMIT_EXCEEDED);
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_URL_SIZE_LIMIT_EXCEEDED);
                 break;
 
             case 429: // 'Too Many Requests' not defined by HttpURLConnection
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] was throttled (will try again later) - Response code [" + responseCode + "]");
-                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_THROTTLED);
+                StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_UPLOAD_THROTTLED);
                 break;
 
             case HttpsURLConnection.HTTP_INTERNAL_ERROR:
@@ -156,7 +156,7 @@ public class SessionReplaySender extends PayloadSender {
 
             case HttpURLConnection.HTTP_FORBIDDEN:
                 onFailedUpload("The data payload [" + payload.getUuid() + "] was rejected and will be deleted - Response code [" + responseCode + "]");
-                StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD, timer.duration());
+                StatsEngine.SUPPORTABILITY.sampleTimeMs(MetricNames.SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD, timer.duration());
                 break;
 
             default:
@@ -169,7 +169,7 @@ public class SessionReplaySender extends PayloadSender {
 
     protected void onFailedUpload(String errorMsg) {
         log.error(errorMsg);
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD);
+        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_FAILED_UPLOAD);
     }
 
     @Override
