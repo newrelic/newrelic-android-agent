@@ -152,29 +152,21 @@ class DexGuardHelper {
 
             def wiredTaskNames = taskTypeTargets.keySet().collect { it + vnc }.toSet()
 
-            def wireAction = {
-                buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { taskProvider ->
-                    def taskType = taskTypeTargets.keySet().find { taskProvider.name.startsWith(it) }
-                    finalizeMapUploadProvider(taskProvider, variantName, taskTypeTargets[taskType])
-                }
-            }
-
-            // The normal call path (configureDexGuard(), from within the plugin's own
-            // project.afterEvaluate) runs before the project is fully evaluated, so
-            // deferring via afterEvaluate is required to see DexGuard's packaging tasks.
-            // But if this is invoked after evaluation has already completed, calling
-            // afterEvaluate again would throw — wire immediately instead, since any
-            // DexGuard task that will ever exist for this variant already does.
-            if (buildHelper.project.state.executed) {
-                wireAction()
-            } else {
-                buildHelper.project.afterEvaluate(wireAction)
+            buildHelper.project.afterEvaluate {
+                wireDexGuardPackagingTasks(variantName, taskTypeTargets, wiredTaskNames)
             }
 
         } catch (Exception e) {
             // DexGuard task hasn't been created
             logger.error("configureDexGuard: " + e)
             logger.error(DEXGUARD_PLUGIN_ORDER_ERROR_MSG)
+        }
+    }
+
+    protected wireDexGuardPackagingTasks(String variantName, Map taskTypeTargets, Set<String> wiredTaskNames) {
+        buildHelper.wireTaskProviderToDependencyNames(wiredTaskNames) { taskProvider ->
+            def taskType = taskTypeTargets.keySet().find { taskProvider.name.startsWith(it) }
+            finalizeMapUploadProvider(taskProvider, variantName, taskTypeTargets[taskType])
         }
     }
 

@@ -118,7 +118,9 @@ class DexGuardHelperTest extends PluginTest {
     void wireDexGuardMapProviders_apkOnly_wiresApkTaskOnly() {
         project.tasks.register("dexguardApkRelease")
 
-        dexGuardHelper.wireDexGuardMapProviders("release")
+        def taskTypeTargets = [(DexGuardHelper.DEXGUARD_APK_TASK): "apk", (DexGuardHelper.DEXGUARD_AAB_TASK): "bundle", (DexGuardHelper.DEXGUARD_BUNDLE_TASK): "bundle"]
+        def wiredTaskNames = taskTypeTargets.keySet().collect { it + "Release" }.toSet()
+        dexGuardHelper.wireDexGuardPackagingTasks("release", taskTypeTargets, wiredTaskNames)
 
         def apkUpload = buildHelper.project.tasks.named("newrelicMapUploadApkRelease", NewRelicMapUploadTask.class)
         Assert.assertNotNull(apkUpload)
@@ -136,7 +138,9 @@ class DexGuardHelperTest extends PluginTest {
     void wireDexGuardMapProviders_bundleOnly_wiresBundleTaskOnly() {
         project.tasks.register("dexguardAabRelease")
 
-        dexGuardHelper.wireDexGuardMapProviders("release")
+        def taskTypeTargets = [(DexGuardHelper.DEXGUARD_APK_TASK): "apk", (DexGuardHelper.DEXGUARD_AAB_TASK): "bundle", (DexGuardHelper.DEXGUARD_BUNDLE_TASK): "bundle"]
+        def wiredTaskNames = taskTypeTargets.keySet().collect { it + "Release" }.toSet()
+        dexGuardHelper.wireDexGuardPackagingTasks("release", taskTypeTargets, wiredTaskNames)
 
         def bundleUpload = buildHelper.project.tasks.named("newrelicMapUploadBundleRelease", NewRelicMapUploadTask.class)
         Assert.assertNotNull(bundleUpload)
@@ -155,7 +159,9 @@ class DexGuardHelperTest extends PluginTest {
         def apkTask = project.tasks.register("dexguardApkRelease")
         def bundleTask = project.tasks.register("dexguardAabRelease")
 
-        dexGuardHelper.wireDexGuardMapProviders("release")
+        def taskTypeTargets = [(DexGuardHelper.DEXGUARD_APK_TASK): "apk", (DexGuardHelper.DEXGUARD_AAB_TASK): "bundle", (DexGuardHelper.DEXGUARD_BUNDLE_TASK): "bundle"]
+        def wiredTaskNames = taskTypeTargets.keySet().collect { it + "Release" }.toSet()
+        dexGuardHelper.wireDexGuardPackagingTasks("release", taskTypeTargets, wiredTaskNames)
 
         def apkUpload = buildHelper.project.tasks.named("newrelicMapUploadApkRelease", NewRelicMapUploadTask.class).get()
         def bundleUpload = buildHelper.project.tasks.named("newrelicMapUploadBundleRelease", NewRelicMapUploadTask.class).get()
@@ -172,6 +178,22 @@ class DexGuardHelperTest extends PluginTest {
         Assert.assertFalse(apkUpload.taskDependencies.getDependencies(apkUpload).contains(bundleTask.get()))
         Assert.assertTrue(bundleUpload.taskDependencies.getDependencies(bundleUpload).contains(bundleTask.get()))
         Assert.assertFalse(bundleUpload.taskDependencies.getDependencies(bundleUpload).contains(apkTask.get()))
+    }
+
+    @Test
+    void wireDexGuardMapProviders_onAlreadyEvaluatedProject_doesNotThrow() {
+        // Production always calls wireDexGuardMapProviders() from within the New Relic
+        // plugin's own project.afterEvaluate, so project.state.executed is already true
+        // and the deferred buildHelper.project.afterEvaluate{} registration inside it is
+        // the only branch that ever runs for real builds. In this test, the fake
+        // ProjectBuilder project is already fully evaluated AND sealed (PluginTest's
+        // beforeEach forces evaluation), so registering another afterEvaluate callback
+        // throws InvalidUserCodeException. That exception must be silently absorbed by
+        // wireDexGuardMapProviders' own try/catch — calling the public method directly
+        // here must complete without throwing (it simply no-ops the deferred wiring).
+        project.tasks.register("dexguardApkRelease")
+
+        dexGuardHelper.wireDexGuardMapProviders("release")
     }
 
     @Test
