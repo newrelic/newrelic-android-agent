@@ -73,7 +73,11 @@ public class AgentDataReporter extends PayloadReporter {
                     PayloadController.submitCallable(new Callable<Void>() {
                         @Override
                         public Void call() {
-                            reporter.storeAndReportAgentData(payload);
+                            try {
+                                reporter.storeAndReportAgentData(payload);
+                            } catch (Exception e) {
+                                log.error("AgentDataReporter.reportAgentData: failed to store/report handled exception off-thread: " + e);
+                            }
                             return null;
                         }
                     });
