@@ -253,6 +253,29 @@ public class AgentDataReporterTest {
                 store.storeThreadName != null && store.storeThreadName.startsWith("NR_PayloadWorker"));
     }
 
+    @Test
+    public void reportAgentDataStoresInlineWhenPayloadControllerUnavailable() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+
+        // Reporter initialized but PayloadController shut down -> fallback path.
+        AgentDataReporter.shutdown();
+        PayloadController.shutdown();
+        ThreadCapturingPayloadStore store = new ThreadCapturingPayloadStore();
+        agentConfiguration.setPayloadStore(store);
+        AgentDataReporter.initialize(agentConfiguration);
+        Assert.assertFalse("PayloadController must be down for this test",
+                PayloadController.isInitialized());
+
+        final String callerThread = Thread.currentThread().getName();
+        boolean reported = AgentDataReporter.reportAgentData(new Payload(flat.dataBuffer().array()).getBytes());
+
+        Assert.assertTrue("reportAgentData should accept the payload", reported);
+        // Inline store completes before reportAgentData returns — no await needed.
+        Assert.assertEquals("payload should be persisted inline", 1, store.count());
+        Assert.assertEquals("fallback store should run on the calling thread",
+                callerThread, store.storeThreadName);
+    }
+
     private static class TestAgentDataReporter extends AgentDataReporter {
         public TestAgentDataReporter(AgentConfiguration agentConfiguration) {
             super(agentConfiguration);
