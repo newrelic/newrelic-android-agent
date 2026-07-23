@@ -9,6 +9,7 @@ import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.DeviceInformation;
 import com.newrelic.agent.android.harvest.EnvironmentInformation;
+import com.newrelic.agent.android.util.Decoder;
 import com.newrelic.agent.android.util.Encoder;
 
 import java.util.List;
@@ -36,6 +37,8 @@ public interface AgentImpl {
     void setLocation(String countryCode, String adminRegion);
 
     Encoder getEncoder();
+
+    Decoder getDecoder();
 
     DeviceInformation getDeviceInformation();
 

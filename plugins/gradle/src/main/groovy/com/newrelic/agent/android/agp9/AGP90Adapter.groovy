@@ -58,6 +58,12 @@ class AGP90Adapter extends AGP9BaseAdapter {
             } catch (Exception ignored) {
                 logger.debug("${GradleVersion.current()} does not provide addGeneratedSourceDirectory() on the Java sources instance.")
             }
+
+            try {
+                variant.sources.res?.addGeneratedSourceDirectory(configProvider, { it.getResourceOutputDir() })
+            } catch (Exception ignored) {
+                logger.debug("${GradleVersion.current()} does not provide addGeneratedSourceDirectory() on the resource sources instance.")
+            }
         }
 
         buildHelper.project.afterEvaluate {
