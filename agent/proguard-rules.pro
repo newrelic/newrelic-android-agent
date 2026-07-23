@@ -1,5 +1,13 @@
--keep class com.newrelic.agent.android.** { *; }
+# Keep all agent classes EXCEPT the sessionReplay package, which is made strippable
+# when SessionReplay is disabled at build time (NR-587343 tree-shaking).
+-keep class !com.newrelic.agent.android.sessionReplay.**,!com.newrelic.agent.android.logging.LogReporter,!com.newrelic.agent.android.logging.LogReporter$**,!com.newrelic.agent.android.logging.RemoteLogger,!com.newrelic.agent.android.logging.LogForwarder,!com.newrelic.agent.android.logging.ForwardingAgentLog,!com.newrelic.agent.android.logging.LoggingConfiguration, com.newrelic.agent.android.** { *; }
 -dontwarn com.newrelic.agent.android.**
+
+# SessionReplay config classes are always deserialized from backend config (referenced
+# from always-on AgentConfiguration), so keep them even when SR code is stripped.
+-keep class com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration { *; }
+-keep class com.newrelic.agent.android.sessionReplay.MobileSessionReplayConfiguration { *; }
+-keep class com.newrelic.agent.android.sessionReplay.SessionReplayStore { *; }
 -keepattributes Exceptions, Signature, InnerClasses, LineNumberTable, SourceFile, EnclosingMethod
 
 ##
