@@ -1097,6 +1097,12 @@ public final class NewRelic {
         EventManager eventManager = AnalyticsControllerImpl.getInstance().getEventManager();
         EventListener currentListener = ((EventManagerImpl) eventManager).getListener();
 
+        if (!agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            // SessionReplay disabled/stripped: set the user listener directly
+            eventManager.setEventListener(eventListener);
+            return;
+        }
+
         // If current listener is a CompositeEventListener, update its user listener
         if (currentListener instanceof CompositeEventListener) {
             ((CompositeEventListener) currentListener).setUserListener(eventListener);
