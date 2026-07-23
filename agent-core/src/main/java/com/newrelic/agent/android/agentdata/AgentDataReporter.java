@@ -64,8 +64,28 @@ public class AgentDataReporter extends PayloadReporter {
 
         if (isInitialized()) {
             if (reportExceptions) {
-                Payload payload = new Payload(bytes);
-                instance.get().storeAndReportAgentData(payload);
+                final Payload payload = new Payload(bytes);
+                final AgentDataReporter reporter = instance.get();
+                if (PayloadController.isInitialized()) {
+                    // Persist + queue upload off the calling thread so the public API does not
+                    // block on disk I/O (NR-589852). store-then-queue runs sequentially inside
+                    // this one task, so there is no store/upload ordering race.
+                    PayloadController.submitCallable(new Callable<Void>() {
+                        @Override
+                        public Void call() {
+                            try {
+                                reporter.storeAndReportAgentData(payload);
+                            } catch (Exception e) {
+                                log.error("AgentDataReporter.reportAgentData: failed to store/report handled exception off-thread: " + e);
+                            }
+                            return null;
+                        }
+                    });
+                } else {
+                    // PayloadController unavailable (pre-init / post-shutdown): store on the
+                    // caller thread rather than drop the payload, preserving durability.
+                    reporter.storeAndReportAgentData(payload);
+                }
                 reported = true;
             }
         } else {
