@@ -225,6 +225,57 @@ public class AgentDataReporterTest {
         Assert.assertTrue(agentConfiguration.getPayloadStore().store(payload));
     }
 
+    @Test
+    public void reportAgentDataStoresOffCallingThreadWhenPayloadControllerInitialized() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+
+        // Swap in a thread-capturing store: shut down the reporter (setUp already
+        // constructed it with the default TestPayloadStore) and re-initialize so the
+        // new store is picked up. PayloadController stays initialized -> async path.
+        AgentDataReporter.shutdown();
+        ThreadCapturingPayloadStore store = new ThreadCapturingPayloadStore();
+        agentConfiguration.setPayloadStore(store);
+        AgentDataReporter.initialize(agentConfiguration);
+        Assert.assertTrue(PayloadController.isInitialized());
+
+        final String callerThread = Thread.currentThread().getName();
+        boolean reported = AgentDataReporter.reportAgentData(new Payload(flat.dataBuffer().array()).getBytes());
+        Assert.assertTrue("reportAgentData should accept the payload", reported);
+
+        Assert.assertTrue("store should execute within the executor window",
+                store.storeLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+        Assert.assertEquals("payload should be persisted", 1, store.count());
+        Assert.assertNotEquals("store must not run on the calling thread",
+                callerThread, store.storeThreadName);
+        // NamedThreadFactory prefixes worker threads with "NR_", so PayloadController's
+        // executor threads are named "NR_PayloadWorker-<n>".
+        Assert.assertTrue("store should run on an NR_PayloadWorker thread but ran on: " + store.storeThreadName,
+                store.storeThreadName != null && store.storeThreadName.startsWith("NR_PayloadWorker"));
+    }
+
+    @Test
+    public void reportAgentDataStoresInlineWhenPayloadControllerUnavailable() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+
+        // Reporter initialized but PayloadController shut down -> fallback path.
+        AgentDataReporter.shutdown();
+        PayloadController.shutdown();
+        ThreadCapturingPayloadStore store = new ThreadCapturingPayloadStore();
+        agentConfiguration.setPayloadStore(store);
+        AgentDataReporter.initialize(agentConfiguration);
+        Assert.assertFalse("PayloadController must be down for this test",
+                PayloadController.isInitialized());
+
+        final String callerThread = Thread.currentThread().getName();
+        boolean reported = AgentDataReporter.reportAgentData(new Payload(flat.dataBuffer().array()).getBytes());
+
+        Assert.assertTrue("reportAgentData should accept the payload", reported);
+        // Inline store completes before reportAgentData returns — no await needed.
+        Assert.assertEquals("payload should be persisted inline", 1, store.count());
+        Assert.assertEquals("fallback store should run on the calling thread",
+                callerThread, store.storeThreadName);
+    }
+
     private static class TestAgentDataReporter extends AgentDataReporter {
         public TestAgentDataReporter(AgentConfiguration agentConfiguration) {
             super(agentConfiguration);
@@ -241,6 +292,50 @@ public class AgentDataReporterTest {
         @Override
         public boolean store(Payload payload) {
             store.put(payload.getUuid(), payload);
+            return true;
+        }
+
+        @Override
+        public List<Payload> fetchAll() {
+            return new ArrayList<>(store.values());
+        }
+
+        @Override
+        public int count() {
+            return store.size();
+        }
+
+        @Override
+        public void clear() {
+            store.clear();
+        }
+
+        @Override
+        public void delete(Payload payload) {
+            store.remove(payload.getUuid());
+        }
+
+        @Override
+        public String getRootPath() {
+            return "";
+        }
+    }
+
+    /**
+     * PayloadStore double that records the thread its store() ran on and signals a latch,
+     * so tests can assert whether the store executed on the calling thread (inline fallback)
+     * or on a background PayloadController worker (async path).
+     */
+    private static class ThreadCapturingPayloadStore implements PayloadStore<Payload> {
+        final java.util.concurrent.CountDownLatch storeLatch = new java.util.concurrent.CountDownLatch(1);
+        volatile String storeThreadName;
+        private final Map<String, Payload> store = new HashMap<>();
+
+        @Override
+        public boolean store(Payload payload) {
+            storeThreadName = Thread.currentThread().getName();
+            store.put(payload.getUuid(), payload);
+            storeLatch.countDown();
             return true;
         }
 
