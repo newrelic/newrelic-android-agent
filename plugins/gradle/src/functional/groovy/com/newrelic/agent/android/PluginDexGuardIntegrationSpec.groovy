@@ -99,6 +99,12 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
 
             def configClass = new File(buildDir, "intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
             configClass.exists() && configClass.canRead()
+
+            def buildIdResource = new File(buildDir,
+                    "generated/res/newrelicConfig${var.capitalize()}/values/com_newrelic_android_agent_config.xml")
+            buildIdResource.exists() && buildIdResource.canRead()
+            buildIdResource.text.contains('name="com_newrelic_android_buildId"')
+            buildIdResource.text.contains('name="com_newrelic_android_metrics"')
         }
     }
 
@@ -113,9 +119,9 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         expect:
         filteredOutput.contains("Maps will be tagged and uploaded for variants [")
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
             // Check the tagged output file instead of original mapping file
-            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
+            with(new File(buildDir, "outputs/newrelic/apk/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
             }
@@ -147,18 +153,18 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             buildResult.task(":dexguardApk${var.capitalize()}").outcome == SUCCESS
         }
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
         }
     }
 
     def "verify dexguard mapping configuration"() {
         expect:
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
         }
 
         ["release", "debug"].each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}") == null
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}") == null
         }
     }
 
@@ -166,7 +172,7 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
         expect:
         ["release"].each { var ->
             buildResult.task(":dexguardApk${var.capitalize()}").outcome == SUCCESS
-            buildResult.task(":newrelicMapUpload${var.capitalize()}") == null
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}") == null
             with(new File(buildDir, "outputs/dexguard/mapping/apk/${var}/mapping.txt")) {
                 !text.contains(Proguard.NR_MAP_PREFIX)
             }
@@ -198,14 +204,14 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             buildResult.task(":dexguardAab${var.capitalize()}").outcome == SUCCESS
         }
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadBundle${var.capitalize()}").outcome == SUCCESS
             // Bundle mapping should not be tagged (only APK mapping is tagged)
             with(new File(buildDir, "outputs/dexguard/mapping/bundle/release/mapping.txt")) {
                 exists()
                 !text.contains(Proguard.NR_MAP_PREFIX)
             }
             // Check tagged output file for APK variant
-            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
+            with(new File(buildDir, "outputs/newrelic/apk/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
             }
@@ -240,9 +246,9 @@ class PluginDexGuardIntegrationSpec extends PluginSpec {
             buildResult.task(":${DexGuardHelper.DEXGUARD_APK_TASK}${var.capitalize()}").outcome == SUCCESS
         }
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}").outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}").outcome == SUCCESS
             // APK mapping is tagged with the NR build ID and copied to the tagged output
-            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
+            with(new File(buildDir, "outputs/newrelic/apk/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
             }
