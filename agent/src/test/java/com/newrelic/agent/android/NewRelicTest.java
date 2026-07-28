@@ -97,6 +97,7 @@ public class NewRelicTest {
     private static final String APP_URL = "http://swear.net";
     private static final ApplicationFramework APP_FRAMEWORK = ApplicationFramework.ReactNative;
     private static final String APP_FRAMEWORK_VERSION = "9.8.7";
+    private static final long ASYNC_VERIFY_TIMEOUT_MS = 2000L;
 
     private SpyContext spyContext;
     private AnalyticsControllerImpl analyticsController;
@@ -971,7 +972,8 @@ public class NewRelicTest {
     public void testHandledException() {
         AgentDataReporter agentDataReporter = AgentDataReporterSpy.initialize(agentConfiguration);
         Assert.assertTrue("Should queue exception for delivery", NewRelic.recordHandledException(new Exception("testException")));
-        verify(agentDataReporter).storeAndReportAgentData(any(Payload.class));
+        // storeAndReportAgentData now runs on PayloadController's IO executor (NR-589852), not the calling thread.
+        verify(agentDataReporter, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS)).storeAndReportAgentData(any(Payload.class));
     }
 
     @Test
@@ -983,11 +985,12 @@ public class NewRelicTest {
         exceptionAttributes.put("fakedException", true);
         exceptionAttributes.put("numberOfDaysSinceNewJSFramework", 0);
         Assert.assertTrue("Should queue exception with attributes for delivery", NewRelic.recordHandledException(new Exception("testException"), exceptionAttributes));
-        verify(agentDataReporter, times(1)).storeAndReportAgentData(any(Payload.class));
+        // storeAndReportAgentData now runs on PayloadController's IO executor (NR-589852), not the calling thread.
+        verify(agentDataReporter, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(1)).storeAndReportAgentData(any(Payload.class));
 
         // verify null attribute set also
         Assert.assertTrue("Should queue exception with null attributes for delivery", NewRelic.recordHandledException(new Exception("testException"), null));
-        verify(agentDataReporter, times(2)).storeAndReportAgentData(any(Payload.class));
+        verify(agentDataReporter, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(2)).storeAndReportAgentData(any(Payload.class));
     }
 
     @Test
