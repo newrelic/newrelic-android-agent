@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android
 
+import com.newrelic.agent.util.BuildId
 import org.junit.Assert
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -18,7 +19,21 @@ class NewRelicReactNativeSourceMapUploadTaskTest extends PluginTest {
 
     @BeforeEach
     void setup() {
-        provider = plugin.buildHelper.variantAdapter.getReactNativeSourceMapUploadProvider("release").get()
+        // The plain test app has no React Native, so the plugin's assembleDataModel()
+        // never wires this task for it (guarded by shouldUploadReactNativeSourceMap).
+        // The full wiredWithReactNativeSourceMapUploadProvider() also can't run here:
+        // PluginTest fully evaluates the project, so its afterEvaluate {} bundle-task
+        // hook would throw. Configure the task's properties directly via the provider
+        // action — mirroring the values the real wiring sets — so the property getters
+        // can be asserted.
+        def variantAdapter = plugin.buildHelper.variantAdapter
+        provider = variantAdapter.getReactNativeSourceMapUploadProvider("release") { task ->
+            task.projectRoot.set(project.layout.projectDirectory)
+            task.variantName.set("release")
+            task.buildId.convention(BuildId.getBuildId("release"))
+            task.appVersionId.set(variantAdapter.getAppVersionName())
+            task.sourceMapFile.set(variantAdapter.getReactNativeSourceMapPath("release"))
+        }.get()
     }
 
     @Test
