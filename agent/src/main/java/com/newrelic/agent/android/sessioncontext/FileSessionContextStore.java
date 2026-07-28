@@ -80,13 +80,15 @@ public class FileSessionContextStore extends AbstractFileStore<SessionManifest> 
             return;
         }
         SessionManifest existing = get(sessionId);
-        if (existing == null) {
-            return; // No record to attach an exit reason to.
-        }
         storeInternal(new SessionManifest(
-                SessionManifest.CURRENT_SCHEMA_VERSION, sessionId, existing.getRealAgentId(),
-                existing.getSessionStartMs(), existing.getLastUpdateMs(), existing.getAttributes(),
-                existing.getReachedFullMode(), existing.getIsFirstChunk(), Integer.valueOf(exitReason)));
+                SessionManifest.CURRENT_SCHEMA_VERSION, sessionId,
+                existing != null ? existing.getRealAgentId() : 0,
+                existing != null ? existing.getSessionStartMs() : 0L,
+                existing != null ? existing.getLastUpdateMs() : 0L,
+                existing != null ? existing.getAttributes() : null,
+                existing != null ? existing.getReachedFullMode() : null,
+                existing != null ? existing.getIsFirstChunk() : null,
+                Integer.valueOf(exitReason)));
     }
 
     @Override
