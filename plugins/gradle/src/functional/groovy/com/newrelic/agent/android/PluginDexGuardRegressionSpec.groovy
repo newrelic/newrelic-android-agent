@@ -89,10 +89,9 @@ class PluginDexGuardRegressionSpec extends PluginSpec {
         }
 
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task(":newrelicMapUploadDexguard${var.capitalize()}")?.outcome == SUCCESS
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}")?.outcome == SUCCESS
             // Check the tagged output file instead of original mapping file
-            with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
+            with(new File(buildDir, "outputs/newrelic/apk/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
             }
