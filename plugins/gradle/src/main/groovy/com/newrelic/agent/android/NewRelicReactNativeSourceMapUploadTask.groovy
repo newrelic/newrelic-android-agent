@@ -94,8 +94,8 @@ abstract class NewRelicReactNativeSourceMapUploadTask extends DefaultTask {
      */
     static Set<String> wiredTaskNames(String vnc) {
         return Set.of(
-                "bundle${vnc}JsAndAssets",
-                "createBundle${vnc}JsAndAssets",
+                "bundle${vnc}JsAndAssets".toString(),
+                "createBundle${vnc}JsAndAssets".toString(),
         )
     }
 }
