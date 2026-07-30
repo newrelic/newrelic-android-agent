@@ -50,6 +50,7 @@ public class AnalyticsValidator {
         add(AnalyticsAttribute.RUNTIME_ATTRIBUTE);
         add(AnalyticsAttribute.ARCHITECTURE_ATTRIBUTE);
         add(AnalyticsAttribute.APP_BUILD_ATTRIBUTE);
+        add(AnalyticsAttribute.APP_VERSION_AT_RECORD_ATTRIBUTE);
     }};
 
     protected static Set<String> excludedAttributeNames = new HashSet<String>() {{

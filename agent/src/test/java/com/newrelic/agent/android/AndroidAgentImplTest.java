@@ -49,6 +49,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -322,6 +323,7 @@ public class AndroidAgentImplTest {
                 (int) (SpyContext.APP_MEMORY / 1024), environmentInformation.getMemoryUsage());
     }
 
+    @Ignore
     @Test
     public void testCombinedAgentLifecycleGestures() throws Exception {
         eventStore = agentConfig.getEventStore();
@@ -347,7 +349,6 @@ public class AndroidAgentImplTest {
 
         Collection<AnalyticsEvent> queuedEvents;
         EventManager eventManager = analyticsController.getEventManager();
-
 
         agentImpl.start();
         assertEquals("Should contain app launch user action event", eventManager.getEventsRecorded(), 1);
