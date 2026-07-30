@@ -41,7 +41,7 @@ public class SessionReplayModeManager {
         this.currentMode = new AtomicReference<>(initialMode);
 
         log.debug("SessionReplayModeManager initialized with mode: " + initialMode);
-        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_MODE + "/" + initialMode.getValue());
+        StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_MODE + initialMode.getValue());
     }
 
     /**
@@ -139,7 +139,7 @@ public class SessionReplayModeManager {
         // Perform the transition
         if (currentMode.compareAndSet(oldMode, newMode)) {
             log.info("SessionReplay: Mode transition: " + oldMode + " → " + newMode + ". Trigger: " + trigger);
-            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_MODE_TRANSITION + "/" + oldMode.getValue() + "_to_" + newMode.getValue());
+            StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_MODE_TRANSITION + oldMode.getValue() + "_to_" + newMode.getValue());
             return true;
         }
 

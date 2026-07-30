@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_nr_atlassian__jira_get_issue",
+      "mcp__plugin_nr_google-search__web_fetch"
+    ]
+  }
+}
