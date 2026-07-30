@@ -13,6 +13,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.sessioncontext.SessionContextStore;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.EventListener;
@@ -26,6 +27,9 @@ import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFileManager;
+import com.newrelic.agent.android.sessionReplay.recovery.SessionReplayOrphanRecoverer;
+
+import java.io.File;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFrame;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayProcessor;
 import com.newrelic.agent.android.sessionReplay.capture.ViewDrawInterceptor;
@@ -64,6 +68,13 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private static boolean isFirstChunk = true;
     private static final AtomicBoolean takeFullSnapshot = new AtomicBoolean(true);
     private static SessionReplayModeManager modeManager;
+
+    // Guards against double-init. initSessionReplay is invoked from both agent boot and
+    // onHarvestConnected; without this flag the second call would recreate the processor,
+    // file manager, and re-register the Harvest listener (causing onHarvest() to fire twice
+    // per cycle). Cleared in deInitialize() so onSessionRestarted can re-init normally.
+    private static final AtomicBoolean isInitialized = new AtomicBoolean(false);
+    private static final AtomicBoolean orphanRecoveryDone = new AtomicBoolean(false);
 
     // Buffer for queuing frames and touch data that arrive during harvest
     private static final AtomicBoolean isHarvesting = new AtomicBoolean(false);
@@ -153,11 +164,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Shutdown file manager
         SessionReplayFileManager.shutdown();
 
+        isInitialized.set(false);
         log.debug("Session replay deinitialized");
     }
 
     @Override
-    public void onHarvestStart() {
+    public void onHarvestBefore() {
         // Only prepare for harvest when in FULL mode
         if (modeManager != null && modeManager.getCurrentMode() == SessionReplayMode.FULL) {
             // Mark that harvest is starting - pause frame writes to prevent race condition
@@ -233,6 +245,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Clear file after successful harvest
         fileManager.clearWorkingFileWhileRunningSession();
         isFirstChunk = false;
+        persistSrState(true, false);
         takeFullSnapshot.set(true);
 
     }
@@ -247,6 +260,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     public static void initSessionReplay(SessionReplayMode mode) {
+        if (!isInitialized.compareAndSet(false, true)) {
+            log.debug("Session replay already initialized; skipping duplicate init for mode: " + mode);
+            return;
+        }
         viewDrawInterceptor = new ViewDrawInterceptor(instance,agentConfiguration);
         processor = new SessionReplayProcessor();
         // Initialize file manager
@@ -293,6 +310,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Start sliding window timer if in ERROR mode
         if (mode == SessionReplayMode.ERROR) {
             startSlidingWindowTimer();
+        } else if (mode == SessionReplayMode.FULL) {
+            persistSrState(true, true);
         }
 
         uiThreadHandler.post(() -> {
@@ -432,10 +451,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     @Override
-    public void onHarvestComplete() {
-        // Resume frame/touch writes - allow buffered data to be written to file
+    public void onHarvestFinalize() {
+        // Resume frame/touch writes - allow buffered data to be written to file.
+        // Runs after onHarvest() reads the file and before the network upload, so the
+        // lock is released regardless of whether the upload later succeeds or fails.
         isHarvesting.set(false);
-        log.debug("SessionReplay: Harvest completed, resuming frame and touch writes");
+        log.debug("SessionReplay: Harvest finalized, resuming frame and touch writes");
 
         // Flush any frames that were buffered during harvest
         if (!frameBufferDuringHarvest.isEmpty()) {
@@ -528,6 +549,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
                 stopSlidingWindowTimer();
                 // Force a full snapshot to ensure we have complete data from this point forward
                 setTakeFullSnapshot(true);
+                persistSrState(true, true);
                 return true;
             }
         }
@@ -546,6 +568,45 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             log.debug("SessionReplay: Error detected but session replay not initialized");
         }
         switchModeOnError();
+    }
+
+    /**
+     * Persists the Session Replay state for the current session into the session manifest so a
+     * next-launch recoverer can decide whether an orphaned {@code .tmp} buffer is worth uploading.
+     */
+    /**
+     * Recover Session Replay buffers orphaned by a prior abnormal termination (force-close, ANR,
+     * crash, OOM) and re-report eligible ones for upload. Runs once per launch. Must be invoked
+     * after both {@code SessionReplayReporter} is initialized and the prior session's exit reasons
+     * have been recorded into the manifests (i.e. after the AEI harvest on harvest-connect).
+     */
+    public static void recoverOrphans() {
+        if (!orphanRecoveryDone.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            File srDir = SessionReplayFileManager.getSessionReplayDataStore();
+            AgentConfiguration cfg = AgentConfiguration.getInstance();
+            new SessionReplayOrphanRecoverer(
+                    srDir, cfg.getSessionContextStore(),
+                    SessionReplayReporter::reportSessionReplayData, cfg.getSessionID(),
+                    cfg.getPayloadTTL())
+                    .recover();
+        } catch (Exception e) {
+            log.error("SessionReplay: orphan recovery failed: " + e);
+        }
+    }
+
+    private static void persistSrState(boolean reachedFullMode, boolean isFirstChunkValue) {
+        try {
+            SessionContextStore store = AgentConfiguration.getInstance().getSessionContextStore();
+            if (store != null) {
+                store.updateSessionReplayState(
+                        AgentConfiguration.getInstance().getSessionID(), reachedFullMode, isFirstChunkValue);
+            }
+        } catch (Exception e) {
+            log.error("SessionReplay: failed to persist SR state: " + e);
+        }
     }
 
     /**

@@ -115,6 +115,15 @@ public class AnalyticsAttribute {
     public static final String HARVEST_ACCOUNT_ID_ATTRIBUTE = "HarvestAccountId";
     public static final String SESSION_REPLAY_ENABLED = "hasReplay";
 
+    //JSError
+    public static final String JSERROR_ERRORID = "errorId";
+    public static final String JSERROR_THREADS = "threads";
+    public static final String JSERROR_ISFATAL = "isFatalError";
+    public static final String JSERROR_ERRORNAME = "errorName";
+    public static final String JSERROR_ERRORMESSAGE = "errorMessage";
+    public static final String JSERROR_CAUSE = "cause";
+    public static final String JSERROR_TIMESTAMP = "timestamp";
+    public static final String APP_VERSION_AT_RECORD_ATTRIBUTE = "appVersionAtRecord";
 
     public static final int ATTRIBUTE_NAME_MAX_LENGTH = 255;
 

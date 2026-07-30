@@ -54,6 +54,12 @@ public class Reachability {
                     hasReachableNetwork.set(false);
                 }
             });
+
+            // Seed initial state: callbacks don't fire if no network exists at registration time,
+            // which would leave the fail-open default reporting "reachable" while actually offline.
+            Network active = cm.getActiveNetwork();
+            NetworkCapabilities caps = (active != null) ? cm.getNetworkCapabilities(active) : null;
+            hasReachableNetwork.set(hasRelevantTransport(caps));
         } catch (NoSuchMethodError e) {
             // Network callback APIs unavailable on this device; stay fail-open.
             callbackRegistered.set(false);

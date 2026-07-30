@@ -204,8 +204,24 @@ public class EventManagerImpl implements EventManager, EventListener {
 
             if (events.get().add(event)) {
                 // log.audit("Event added: [" + event.asJson() + "]");
-                if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence) && eventStore != null) {
-                    eventStore.store(event);
+                // Persist only freshly-recorded events. A reloaded event from a prior session
+                // already carries its origin sessionId and is already on disk (it came from
+                // eventStore.fetchAll() at init), so re-storing it would be a redundant write of an
+                // event we just read. Skip it; it stays queued with its origin sessionId so the
+                // next harvest can re-attribute it (see AnalyticsControllerImpl.onHarvest).
+                if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence) && eventStore != null
+                        && !hasSessionId(event)) {
+                    // Persist a clone stamped with the origin sessionId (for next-launch
+                    // re-attribution), leaving the in-memory event clean so the live harvest is
+                    // unaffected. The clone keeps the same UUID so the harvest-time delete-by-UUID
+                    // still removes it. The store serializes and writes the clone off the calling
+                    // (often main) thread, so this hot path never blocks on disk I/O.
+                    AnalyticsEvent persisted = new AnalyticsEvent(event);
+                    persisted.setEventUUID(event.getEventUUID());
+                    persisted.putAttributesUnchecked(Collections.singleton(new AnalyticsAttribute(
+                            AnalyticsAttribute.SESSION_ID_ATTRIBUTE,
+                            AgentConfiguration.getInstance().getSessionID(), false)));
+                    eventStore.store(persisted);
                 }
                 eventsRecorded.incrementAndGet();
                 return true;
@@ -213,6 +229,16 @@ public class EventManagerImpl implements EventManager, EventListener {
 
             return false;
         }
+    }
+
+    /** @return true if the event already carries an origin sessionId (i.e. a reloaded persisted event). */
+    private static boolean hasSessionId(AnalyticsEvent event) {
+        for (AnalyticsAttribute attribute : event.getAttributeSet()) {
+            if (AnalyticsAttribute.SESSION_ID_ATTRIBUTE.equals(attribute.getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

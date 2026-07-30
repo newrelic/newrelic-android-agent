@@ -18,4 +18,5 @@ public interface PayloadStore<T> {
 
     public void delete(T data);
 
+    public String getRootPath();
 }

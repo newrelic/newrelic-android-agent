@@ -7,8 +7,12 @@ package com.newrelic.agent.android.sessionReplay;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.ApplicationFramework;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.analytics.AnalyticsAttribute;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.harvest.DeviceInformation;
+import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestConfiguration;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.Payload;
@@ -20,12 +24,15 @@ import com.newrelic.agent.android.util.Constants;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.GZIPOutputStream;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class SessionReplayReporter extends PayloadReporter {
     protected static final AtomicReference<SessionReplayReporter> instance = new AtomicReference<>(null);
@@ -90,7 +97,7 @@ public class SessionReplayReporter extends PayloadReporter {
     protected SessionReplayReporter(AgentConfiguration agentConfiguration) {
         super(agentConfiguration);
         this.sessionReplayStore = agentConfiguration.getSessionReplayStore();
-        this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.HandledExceptions));
+        this.isEnabled.set(agentConfiguration.getSessionReplayConfiguration().isEnabled());
     }
 
     @Override
@@ -98,8 +105,9 @@ public class SessionReplayReporter extends PayloadReporter {
         if (PayloadController.isInitialized()) {
             if (isEnabled()) {
                 if (isStarted.compareAndSet(false, true)) {
-                    //PayloadController.submitCallable(reportCachedSessionReplayDataCallable);
-//                    Harvest.addHarvestListener(this);
+                    if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                        Harvest.addHarvestListener(this);
+                    }
                 }
             }
         } else {
@@ -109,19 +117,139 @@ public class SessionReplayReporter extends PayloadReporter {
 
     @Override
     public void stop() {
-//        Harvest.removeHarvestListener(this);
+        Harvest.removeHarvestListener(this);
     }
 
-    // upload any cached agent data posts
+    /**
+     * Drain the offline cache serially in FIFO order. Halt only on a transient failure
+     * so the next harvest cycle can retry. Permanently-rejected payloads (400/403) are
+     * deleted in-place so they don't poison the head of the queue and block newer
+     * cached payloads behind them.
+     */
     protected void reportCachedSessionReplayData() {
-        if (isInitialized()) {
-            SessionReplayStore sessionStore = agentConfiguration.getSessionReplayStore();
-            List data = sessionStore.fetchAll();
-            String sessionReplayData = data.get(0).toString();
-            reportSessionReplayData(sessionReplayData.getBytes(), null);
-        } else {
-            log.error("SessionReplayDataReporter not initialized");
+        if (!FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+            return;
         }
+        if (!isInitialized()) {
+            return;
+        }
+        OfflineSessionReplayStore store = agentConfiguration.getOfflineSessionReplayStore();
+        if (store == null || store.count() == 0) {
+            return;
+        }
+        if (!Agent.hasReachableNetworkConnection(null)) {
+            return;
+        }
+
+        long ttl = agentConfiguration.getPayloadTTL();
+        for (OfflineSessionReplayPayload cached : store.fetchAll()) {
+            if (cached.isStale(ttl)) {
+                store.delete(cached);
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_OFFLINE_STALE_DROPPED);
+                continue;
+            }
+
+            PayloadSender sender = sendCachedPayload(cached);
+            if (sender != null && sender.isSuccessfulResponse()) {
+                store.delete(cached);
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_OFFLINE_FLUSHED);
+                continue;
+            }
+            if (sender != null && !shouldPersistForRetry(sender.getResponseCode())) {
+                store.delete(cached);
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_OFFLINE_REJECTED);
+                log.warn("SessionReplayReporter: cached payload [" + cached.getUuid()
+                        + "] permanently rejected (response " + sender.getResponseCode() + "), dropped");
+                continue;
+            }
+            // transient failure — halt and retry on next harvest
+            break;
+        }
+    }
+
+    private PayloadSender sendCachedPayload(OfflineSessionReplayPayload cached) {
+        try {
+            SessionReplaySender sender = new SessionReplaySender(cached, getAgentConfiguration(),
+                    HarvestConfiguration.getDefaultHarvestConfiguration());
+            Future future = PayloadController.submitPayload(sender, null);
+            if (future == null) {
+                return null;
+            }
+            Object result = future.get();
+            if (result instanceof PayloadSender) {
+                return (PayloadSender) result;
+            }
+            return null;
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (ExecutionException ee) {
+            log.error("SessionReplayReporter.sendCachedPayload: " + ee);
+            return null;
+        } catch (Exception e) {
+            log.error("SessionReplayReporter.sendCachedPayload: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Build the exact attribute map that {@link SessionReplaySender#getConnection()} would
+     * have built at this moment. Frozen at capture time so a retry reproduces the original
+     * request rather than mixing in a different session's attributes.
+     */
+    private Map<String, String> buildFrozenAttributes(Map<String, Object> replayDataMap) {
+        final AnalyticsControllerImpl controller = AnalyticsControllerImpl.getInstance();
+        final AgentConfiguration cfg = AgentConfiguration.getInstance();
+        final Map<String, String> attributes = new LinkedHashMap<>();
+
+        attributes.put(Constants.SessionReplay.ENTITY_GUID, cfg.getEntityGuid());
+        attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, replayDataMap.get(Constants.SessionReplay.IS_FIRST_CHUNK) + "");
+        attributes.put(Constants.SessionReplay.RRWEB_VERSION, Constants.SessionReplay.RRWEB_VERSION_VALUE);
+        attributes.put(Constants.SessionReplay.DECOMPRESSED_BYTES, replayDataMap.get(Constants.SessionReplay.DECOMPRESSED_BYTES) + "");
+        attributes.put(Constants.SessionReplay.PAYLOAD_TYPE, Constants.SessionReplay.PAYLOAD_TYPE_STANDARD);
+        attributes.put(Constants.SessionReplay.REPLAY_FIRST_TIMESTAMP, replayDataMap.get("firstTimestamp") + "");
+        attributes.put(Constants.SessionReplay.REPLAY_LAST_TIMESTAMP, replayDataMap.get("lastTimestamp") + "");
+        attributes.put(Constants.SessionReplay.CONTENT_ENCODING, Constants.SessionReplay.CONTENT_ENCODING_GZIP);
+        attributes.put(Constants.SessionReplay.APP_VERSION, Agent.getApplicationInformation().getAppVersion());
+        attributes.put(Constants.INSTRUMENTATION_PROVIDER, Constants.INSTRUMENTATION_PROVIDER_ATTRIBUTE);
+        attributes.put(Constants.INSTRUMENTATION_NAME,
+                cfg.getApplicationFramework().equals(ApplicationFramework.Native)
+                        ? Constants.INSTRUMENTATION_ANDROID_NAME
+                        : cfg.getApplicationFramework().name());
+        attributes.put(Constants.INSTRUMENTATION_VERSION, cfg.getApplicationFrameworkVersion());
+        attributes.put(Constants.INSTRUMENTATION_COLLECTOR_NAME, Constants.INSTRUMENTATION_ANDROID_NAME);
+
+        for (AnalyticsAttribute analyticsAttribute : controller.getSessionAttributes()) {
+            attributes.put(analyticsAttribute.getName(), analyticsAttribute.asJsonElement().getAsString());
+        }
+        attributes.put(Constants.SessionReplay.HAS_META, replayDataMap.get(Constants.SessionReplay.HAS_META) + "");
+
+        if (replayDataMap.get(Constants.SessionReplay.SESSION_ID) != null) {
+            attributes.put(Constants.SessionReplay.SESSION_ID, replayDataMap.get(Constants.SessionReplay.SESSION_ID) + "");
+        }
+        return attributes;
+    }
+
+    /**
+     * 408, 429, and any 5xx are transient — keep the payload for retry. 400 and 403 are
+     * server-rejected — drop. responseCode 0 means we never got an HTTP roundtrip
+     * (the sender bailed offline before connecting), so persist as a network failure.
+     */
+    private static boolean shouldPersistForRetry(int responseCode) {
+        if (responseCode == 0) {
+            return true;
+        }
+        if (responseCode == HttpsURLConnection.HTTP_BAD_REQUEST
+                || responseCode == HttpsURLConnection.HTTP_FORBIDDEN) {
+            return false;
+        }
+        if (responseCode == HttpsURLConnection.HTTP_CLIENT_TIMEOUT
+                || responseCode == 429
+                || responseCode >= 500) {
+            return true;
+        }
+        // unknown code — be conservative and persist
+        return true;
     }
 
     public Future reportSessionReplayData(Payload payload, Map<String, Object> attributes) throws IOException {
@@ -140,27 +268,67 @@ public class SessionReplayReporter extends PayloadReporter {
             log.warn("SessionReplayReporter.reportSessionReplayData(Payload): Payload size (" + compressedBytes.length + " bytes) exceeds maximum allowed size (" + Constants.Network.MAX_PAYLOAD_SIZE + " bytes). Payload not sent.");
             return null;
         }
+
+        // Build the frozen snapshot once. Used both for proactive offline persist and for
+        // failure-time persist via the completion handler.
+        final OfflineSessionReplayStore offlineStore = agentConfiguration.getOfflineSessionReplayStore();
+        final boolean offlineEnabled = FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)
+                && offlineStore != null;
+
+        OfflineSessionReplayPayload snapshot = null;
+        if (offlineEnabled) {
+            // Proactive persist: network unreachable at capture. Tag offline=true to match
+            // Crash/Error/Event/AgentData. Snapshot built only on this branch so the tag
+            // doesn't leak onto failure-persisted (5xx/timeout) payloads.
+            if (!Agent.hasReachableNetworkConnection(null)) {
+                final Map<String, String> frozenAttrs = buildFrozenAttributes(attributes);
+                frozenAttrs.put(AnalyticsAttribute.OFFLINE_NAME_ATTRIBUTE, "true");
+                final long ts = System.currentTimeMillis();
+                offlineStore.store(new OfflineSessionReplayPayload(
+                        payload.getUuid(), ts, ts, frozenAttrs, compressedBytes));
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_OFFLINE_PERSISTED);
+                StatsEngine.notice().inc(MetricNames.OFFLINE_STORAGE_SESSION_REPLAY_COUNT);
+                log.debug("SessionReplayReporter: network unreachable; payload [" + payload.getUuid() + "] persisted to offline cache");
+                return null;
+            }
+
+            // Failure-persist snapshot (no offline tag — network was reachable at capture).
+            final long ts = System.currentTimeMillis();
+            snapshot = new OfflineSessionReplayPayload(
+                    payload.getUuid(), ts, ts, buildFrozenAttributes(attributes), compressedBytes);
+        }
+
         Payload compressedPayload = new Payload(compressedBytes);
         PayloadSender payloadSender = new SessionReplaySender(compressedPayload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(), attributes);
 
+        final OfflineSessionReplayPayload snapshotForCallback = snapshot;
+        final OfflineSessionReplayStore storeForCallback = offlineStore;
         Future future = PayloadController.submitPayload(payloadSender, new PayloadSender.CompletionHandler() {
             @Override
             public void onResponse(PayloadSender payloadSender) {
                 if (payloadSender.isSuccessfulResponse()) {
-                    //add supportability metrics
-
-                } else {
-                    // sender will remain in store and retry every harvest cycle
-                    //Offline storage: No network at all, don't send back data
-                    if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
-                        log.warn("SessionReplayReporter didn't send due to lack of network connection");
-                    }
+                    return;
+                }
+                if (!offlineEnabled || snapshotForCallback == null || storeForCallback == null) {
+                    return;
+                }
+                int code = payloadSender.getResponseCode();
+                if (shouldPersistForRetry(code)) {
+                    storeForCallback.store(snapshotForCallback);
+                    StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_OFFLINE_PERSISTED);
+                    log.debug("SessionReplayReporter: payload [" + snapshotForCallback.getUuid()
+                            + "] persisted for retry (response " + code + ")");
                 }
             }
 
             @Override
             public void onException(PayloadSender payloadSender, Exception e) {
                 log.error("SessionReplayReporter.reportSessionReplayData(Payload): " + e);
+                if (!offlineEnabled || snapshotForCallback == null || storeForCallback == null) {
+                    return;
+                }
+                storeForCallback.store(snapshotForCallback);
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_OFFLINE_PERSISTED);
             }
         });
 
@@ -178,7 +346,7 @@ public class SessionReplayReporter extends PayloadReporter {
 
     @Override
     public void onHarvest() {
-
+        PayloadController.submitCallable(reportCachedSessionReplayDataCallable);
     }
 
 }
