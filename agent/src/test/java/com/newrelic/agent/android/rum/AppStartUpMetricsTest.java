@@ -22,6 +22,7 @@ public class AppStartUpMetricsTest {
         Assert.assertNotNull(tracerInstance);
 
         tracerInstance.setContentProviderStartedTime(100L);
+        tracerInstance.setProcessStartTime(0L);
         tracerInstance.setAppOnCreateTime(200L);
         tracerInstance.setAppOnCreateEndTime(300L);
         tracerInstance.setFirstDrawTime(400L);
@@ -38,7 +39,9 @@ public class AppStartUpMetricsTest {
         Assert.assertEquals(100L, (long) metrics.getApplicationOnCreateTime());
         Assert.assertEquals(200L, (long) metrics.getAppOnCreateEndToFirstActivityCreate());
         Assert.assertEquals(200L, (long) metrics.getFirstActivityCreateToResume());
-        Assert.assertEquals(600L, (long) metrics.getColdStartTime());
+        // Cold start (TTID) = firstDrawTime(400) - processStartTime; processStartTime is unset here
+        // so it falls back to contentProviderStartedTime(100) => 300.
+        Assert.assertEquals(300L, (long) metrics.getColdStartTime());
         Assert.assertEquals(100L, (long) metrics.getHotStartTime());
     }
 
@@ -53,6 +56,26 @@ public class AppStartUpMetricsTest {
 
         Assert.assertEquals(0L, (long) metrics.getApplicationOnCreateTime());
         Assert.assertEquals(0L, (long) metrics.getAppOnCreateEndToFirstActivityCreate());
+    }
+
+    @Test
+    public void coldStartUsesProcessStartTimeWhenSet() {
+        tracerInstance.setProcessStartTime(50L);
+        tracerInstance.setFirstDrawTime(400L);
+
+        AppStartUpMetrics metrics = new AppStartUpMetrics();
+
+        // firstDrawTime(400) - processStartTime(50) = 350
+        Assert.assertEquals(350L, (long) metrics.getColdStartTime());
+    }
+
+    @Test
+    public void firstDrawTimeUnset_returnsZeroColdStart() {
+        tracerInstance.setFirstDrawTime(0L);
+
+        AppStartUpMetrics metrics = new AppStartUpMetrics();
+
+        Assert.assertEquals(0L, (long) metrics.getColdStartTime());
     }
 
     @Test

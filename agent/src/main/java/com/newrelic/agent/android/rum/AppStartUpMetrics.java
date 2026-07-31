@@ -28,8 +28,12 @@ public class AppStartUpMetrics {
                 : 0L;
         this.firstActivityCreateToResume =
                 tracer.getFirstActivityResumeTime() - tracer.getFirstActivityCreatedTime();
-        this.coldStartTime =
-                tracer.getFirstActivityResumeTime() - tracer.getContentProviderStartedTime();
+        // Cold start = Time To Initial Display (TTID): process creation → first frame drawn.
+        // Guarded so an unset firstDrawTime yields 0 rather than a negative value.
+        long firstDraw = tracer.getFirstDrawTime();
+        this.coldStartTime = firstDraw > 0
+                ? firstDraw - tracer.getProcessStartTime()
+                : 0L;
         this.hotStartTime = firstActivityStart > 0
                 ? tracer.getFirstActivityResumeTime() - firstActivityStart
                 : 0L;
