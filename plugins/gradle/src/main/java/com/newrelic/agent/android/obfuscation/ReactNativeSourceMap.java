@@ -58,7 +58,7 @@ public class ReactNativeSourceMap {
     static final String DEFAULT_SOURCEMAP_API_PATH = "/v1/react-native/sourcemaps";
 
     static final int USEFUL_BUFFER_SIZE = 0x10000;  // 64k
-    static final long MAX_COMPRESSED_SIZE = 200L * 1024 * 1024;  // 200MB
+    static final long MAX_SOURCE_MAP_SIZE = 200L * 1024 * 1024;  // 200MB (uncompressed)
 
     static final class Network {
         public static final String APPLICATION_LICENSE_HEADER = "X-APP-LICENSE-KEY";
@@ -194,10 +194,21 @@ public class ReactNativeSourceMap {
     }
 
     protected void sendSourceMap(File sourceMapFile) throws IOException {
+        long originalSize = sourceMapFile.length();
+
+        // Check the uncompressed size against the 200MB limit before zipping.
+        // If the raw file already exceeds the limit there is no point compressing
+        // a file we are going to reject, so skip straight to telemetry.
+        if (originalSize > MAX_SOURCE_MAP_SIZE) {
+            log.warn("Source map size is " + originalSize + " bytes, " +
+                    "which exceeds the 200 MB limit supported by New Relic.");
+            sendTelemetryOnly(sourceMapFile.getName(), sourceMapFile.getName(), originalSize);
+            return;
+        }
+
         // Prepare file data - optionally compress
         byte[] fileData;
         String fileName;
-        long originalSize = sourceMapFile.length();
 
         try (FileInputStream fis = new FileInputStream(sourceMapFile)) {
             if (compressedUploads) {
@@ -218,14 +229,6 @@ public class ReactNativeSourceMap {
                 fileData = baos.toByteArray();
                 fileName = sourceMapFile.getName();
             }
-        }
-
-        // Check compressed size against the 200MB server limit
-        if (fileData.length > MAX_COMPRESSED_SIZE) {
-            log.warn("Compressed source map size is " + fileData.length + " bytes, " +
-                    "which exceeds the 200 MB limit supported by New Relic.");
-            sendTelemetryOnly(sourceMapFile.getName(), fileName, fileData.length);
-            return;
         }
 
         HttpURLConnection connection = getHttpURLConnection();
@@ -267,10 +270,10 @@ public class ReactNativeSourceMap {
     }
 
     /**
-     * Send telemetry-only request when the compressed source map exceeds the 200MB server limit.
+     * Send telemetry-only request when the source map exceeds the 200MB limit.
      * Sends a POST with the x-telemetry-data header containing Base64-encoded JSON and no file body.
      */
-    protected void sendTelemetryOnly(String originalFileName, String zippedFileName, long zippedSize) throws IOException {
+    protected void sendTelemetryOnly(String originalFileName, String sourceMapName, long sourceMapSize) throws IOException {
         // Resolve the JS bundle file size from the build output
         long bundleSize = 0;
         File bundleFile = new File(getProjectRoot() + File.separator + BUNDLE_RELATIVE_PATH);
@@ -281,11 +284,11 @@ public class ReactNativeSourceMap {
             log.warn("JS bundle not found at " + bundleFile.getAbsolutePath() + ", reporting bundle size as 0");
         }
 
-        String telemetryJson = buildTelemetryJson(originalFileName, zippedFileName, zippedSize, bundleSize);
+        String telemetryJson = buildTelemetryJson(originalFileName, sourceMapName, sourceMapSize, bundleSize);
         String encodedTelemetry = BaseEncoding.base64().encode(telemetryJson.getBytes("UTF-8"));
 
         log.info("Sending telemetry data for oversized source map: " + originalFileName +
-                " (compressed size: " + zippedSize + " bytes)");
+                " (size: " + sourceMapSize + " bytes)");
 
         HttpURLConnection connection = getHttpURLConnection();
 
@@ -320,7 +323,7 @@ public class ReactNativeSourceMap {
             connection.disconnect();
         }
 
-        log.warn("New Relic currently supports source map files up to 200 MB (compressed). " +
+        log.warn("New Relic currently supports source map files up to 200 MB. " +
                 "The source map for this build exceeds that limit. " +
                 "Source map and bundle telemetry has been collected for future enhancement.");
         log.warn("JavaScript errors for this build will not be symbolicated.");
@@ -329,7 +332,7 @@ public class ReactNativeSourceMap {
     /**
      * Build the telemetry JSON payload for oversized source maps.
      */
-    String buildTelemetryJson(String originalFileName, String zippedFileName, long zippedSize, long bundleSize) {
+    String buildTelemetryJson(String originalFileName, String sourceMapName, long sourceMapSize, long bundleSize) {
         // Build JSON manually to avoid adding a dependency for a simple structure
         return "{" +
                 "\"bundler\":\"metro\"," +
@@ -338,8 +341,8 @@ public class ReactNativeSourceMap {
                 "\"size\":" + bundleSize +
                 "}]," +
                 "\"sourcemaps\":[{" +
-                "\"name\":\"" + escapeJsonString(zippedFileName) + "\"," +
-                "\"size\":" + zippedSize +
+                "\"name\":\"" + escapeJsonString(sourceMapName) + "\"," +
+                "\"size\":" + sourceMapSize +
                 "}]" +
                 "}";
     }
