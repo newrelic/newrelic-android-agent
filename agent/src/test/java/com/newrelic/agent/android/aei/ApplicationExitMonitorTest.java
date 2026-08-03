@@ -493,7 +493,7 @@ public class ApplicationExitMonitorTest {
             frozen.add(new AnalyticsAttribute("checkout_step", "review"));
             store.upsert(new SessionManifest("S_PRIOR", 1234, 0L, 1L, frozen));
 
-            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_PRIOR", 1234);
+            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_PRIOR", 1234, false);
             Set<AnalyticsAttribute> resolved = applicationExitMonitor.resolveSessionAttributes(meta);
 
             Assert.assertEquals(1, resolved.size());
@@ -512,7 +512,7 @@ public class ApplicationExitMonitorTest {
         AgentConfiguration.getInstance().setSessionContextStore(store);
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
         try {
-            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_UNKNOWN", 1234);
+            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_UNKNOWN", 1234, false);
             Set<AnalyticsAttribute> resolved = applicationExitMonitor.resolveSessionAttributes(meta);
 
             // No manifest (e.g. prior session ran under a pre-upgrade agent) → transitional
@@ -594,7 +594,7 @@ public class ApplicationExitMonitorTest {
     public void testGetEventAttributesForANR() throws IOException {
 
 
-        AEISessionMapper.AEISessionMeta sessionMeta = new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234);
+        AEISessionMapper.AEISessionMeta sessionMeta = new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234, false);
         ApplicationExitInfo exitInfo = provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR);
 
         HashMap<String, Object> eventAttributes = applicationExitMonitor.getEventAttributesForAEI(exitInfo,sessionMeta, Objects.requireNonNull(exitInfo.getTraceInputStream()).toString());
@@ -618,7 +618,7 @@ public class ApplicationExitMonitorTest {
     public void testGetEventAttributesForNonANRAEI() throws IOException {
 
 
-        AEISessionMapper.AEISessionMeta sessionMeta = new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234);
+        AEISessionMapper.AEISessionMeta sessionMeta = new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234, false);
         ApplicationExitInfo exitInfo = provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH);
 
         HashMap<String, Object> eventAttributes = applicationExitMonitor.getEventAttributesForAEI(exitInfo,sessionMeta, Objects.requireNonNull(exitInfo.getTraceInputStream()).toString());
@@ -648,7 +648,7 @@ public class ApplicationExitMonitorTest {
         // seed the session mapper
         applicationExitInfoList.forEach(aei ->
                 applicationExitMonitor.sessionMapper.mapper.putIfAbsent(aei.getPid(),
-                        new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234))
+                        new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234, false))
         );
         applicationExitMonitor.sessionMapper.flush();
     }

@@ -4,29 +4,34 @@ package com.newrelic.agent.android.aei;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.NewRelicConfig;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.SessionEvent;
-
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.crash.CrashTests;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
+import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 import com.newrelic.agent.android.error.Error;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.*;
 
@@ -167,6 +172,93 @@ public class ErrorTests {
         assertFalse(safeBuildId.isEmpty());
     }
 
+    @After
+    public void tearDown() {
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+        setAppInBackground(false);
+    }
+
+    @Test
+    public void backgroundedTrueAddsAttributeWhenFeatureEnabled() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("session-bg", 42, true);
+
+        Error error = new Error(AnalyticsControllerImpl.getInstance().getSessionAttributes(), getApplicationExitInfoEvent(), meta);
+
+        assertTrue("background attribute should reflect persisted backgrounded=true",
+                error.getSessionAttributes().stream()
+                        .anyMatch(a -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(a.getName()) && a.getBooleanValue()));
+    }
+
+    @Test
+    public void backgroundedFalseOmitsAttributeWhenFeatureEnabled() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("session-fg", 42, false);
+
+        Error error = new Error(AnalyticsControllerImpl.getInstance().getSessionAttributes(), getApplicationExitInfoEvent(), meta);
+
+        assertFalse("background attribute should not be present when persisted backgrounded=false",
+                error.getSessionAttributes().stream()
+                        .anyMatch(a -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(a.getName())));
+    }
+
+    @Test
+    public void backgroundedTrueWithFeatureDisabledOmitsAttribute() {
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+        AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("session-bg", 42, true);
+
+        Error error = new Error(AnalyticsControllerImpl.getInstance().getSessionAttributes(), getApplicationExitInfoEvent(), meta);
+
+        assertFalse("background attribute should not be set when BackgroundReporting is disabled",
+                error.getSessionAttributes().stream()
+                        .anyMatch(a -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(a.getName())));
+    }
+
+    @Test
+    public void backgroundedTrueIncrementsMetric() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        StatsEngine.notice().getStatsMap().clear();
+        AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("session-bg", 42, true);
+
+        new Error(AnalyticsControllerImpl.getInstance().getSessionAttributes(), getApplicationExitInfoEvent(), meta);
+
+        assertTrue("BACKGROUND_CRASH_COUNT metric should be incremented",
+                StatsEngine.notice().getStatsMap().containsKey(MetricNames.BACKGROUND_CRASH_COUNT));
+    }
+
+    @Test
+    public void backgroundedFalseOverridesLiveBackgroundState() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        setAppInBackground(true); // live state says background, but persisted session was foreground
+        AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("session-fg", 42, false);
+
+        Error error = new Error(AnalyticsControllerImpl.getInstance().getSessionAttributes(), getApplicationExitInfoEvent(), meta);
+
+        assertFalse("persisted backgrounded=false should override live background state",
+                error.getSessionAttributes().stream()
+                        .anyMatch(a -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(a.getName())));
+    }
+
+    @Test
+    public void nullSessionMetaLeavesBackgroundAttributeUnchanged() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        // With null sessionMeta and app in foreground (default), no background attr expected
+        Error error = new Error(AnalyticsControllerImpl.getInstance().getSessionAttributes(), getApplicationExitInfoEvent(), null);
+
+        assertFalse("no background attribute when app is in foreground and sessionMeta is null",
+                error.getSessionAttributes().stream()
+                        .anyMatch(a -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(a.getName())));
+    }
+
+    private static void setAppInBackground(boolean background) {
+        try {
+            Field foregrounded = ApplicationStateMonitor.class.getDeclaredField("foregrounded");
+            foregrounded.setAccessible(true);
+            ((AtomicBoolean) foregrounded.get(ApplicationStateMonitor.getInstance())).set(!background);
+        } catch (Exception e) {
+            throw new RuntimeException("Could not set ApplicationStateMonitor background state", e);
+        }
+    }
 
     private static class TestStubAgentImpl extends StubAgentImpl {
         public static StubAgentImpl install() {

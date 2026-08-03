@@ -43,9 +43,9 @@ public class AEISessionMapperTest {
         sessionMapperFile = new File(reportsDir, "sessionMapper");
         mapper = new AEISessionMapper(sessionMapperFile);
 
-        mapper.put(123, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 321));
-        mapper.put(234, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 432));
-        mapper.put(345, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 543));
+        mapper.put(123, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 321, false));
+        mapper.put(234, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 432, true));
+        mapper.put(345, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 543, false));
     }
 
     @After
@@ -60,7 +60,7 @@ public class AEISessionMapperTest {
 
     @Test
     public void put() {
-        mapper.put(6661, new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), 1666));
+        mapper.put(6661, new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), 1666, false));
         Assert.assertEquals(AgentConfiguration.getInstance().getSessionID(), mapper.getSessionId(6661));
         Assert.assertEquals(1666, mapper.getRealAgentID(6661));
     }
@@ -123,7 +123,7 @@ public class AEISessionMapperTest {
         Assert.assertNotNull(mapper.get(234));
         Assert.assertNull(mapper.get(345));
 
-        mapper.put(456, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 654));
+        mapper.put(456, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 654, false));
         mapper.erase(pidSet);
         Assert.assertNotNull(mapper.get(456));
     }

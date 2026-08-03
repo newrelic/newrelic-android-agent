@@ -245,7 +245,7 @@ public class ApplicationExitMonitor {
             }
             log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited.get() + "] existing [" + recordsSkipped.get() + "] dropped[" + recordsDropped.get() + "]");
 
-            AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId());
+            AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId(), false);
             sessionMapper.put(getCurrentProcessId(), model);
             sessionMapper.flush();
 

@@ -67,7 +67,7 @@ public class AEISessionMapper {
     }
 
     @SuppressWarnings("unchecked")
-    public AEISessionMapper load() {
+    public void load() {
         if (mapStore.exists() && mapStore.canRead()) {
             try {
                 String storeData = Streams.slurpString(mapStore, StandardCharsets.UTF_8.toString());
@@ -82,8 +82,6 @@ public class AEISessionMapper {
         } else {
             AgentLogManager.getAgentLog().debug("Cannot read session ID mapper: file does not exist or is unreadable");
         }
-
-        return this;
     }
 
     public boolean flush() {
@@ -133,11 +131,14 @@ public class AEISessionMapper {
     public static class AEISessionMeta {
         final String sessionId;
         public final int realAgentId;
+        public boolean backgrounded;
 
-        public AEISessionMeta(String sessionId, int realAgentId) {
+        public AEISessionMeta(String sessionId, int realAgentId, boolean backgrounded) {
             this.sessionId = sessionId == null ? "" : sessionId;
             this.realAgentId = realAgentId;
+            this.backgrounded = backgrounded;
         }
+
 
         public boolean isValid() {
             return !(sessionId.isEmpty() || realAgentId == 0);
