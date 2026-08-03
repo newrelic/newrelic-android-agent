@@ -40,6 +40,10 @@ class BuildHelper {
      * 8.2              8.2
      * 8.3              8.4
      * 8.4              8.6
+     * 9.0              9.1.0
+     * 9.1              9.3.1
+     * 9.2              9.4.1
+     * 9.3              9.5.0
      *
      **/
 
@@ -50,7 +54,7 @@ class BuildHelper {
 
     public final String gradleVersion = GradleVersion.current().version
     static final String minSupportedAGPVersion = '7.0.0'
-    static final String maxSupportedAGPVersion = "9.0.0"
+    static final String maxSupportedAGPVersion = "9.3.0"
     static final String minSupportedGradleVersion = '7.1'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
     static final String minSupportedAGPConfigCacheVersion = '7.0.0'
