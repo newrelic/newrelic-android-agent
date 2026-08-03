@@ -299,6 +299,7 @@ class BuildHelperTest extends PluginTest {
         // shipping a node_modules/react-native/react.gradle file, and their
         // bundle tasks are flavor-qualified (e.g. createBundleDemoReleaseJsAndAssets),
         // so neither of the legacy file/task-name checks can detect them.
+        Assert.assertFalse(buildHelper.checkReactNative())
         Mockito.when(project.plugins.hasPlugin("com.facebook.react")).thenReturn(true)
         Assert.assertTrue(buildHelper.checkReactNative())
     }
