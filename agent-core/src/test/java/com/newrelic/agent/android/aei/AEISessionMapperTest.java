@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.aei;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
@@ -70,6 +69,11 @@ public class AEISessionMapperTest {
         Assert.assertNotNull(mapper.get(234));
         Assert.assertNull(mapper.get(456));
     }
+    @Test
+    public void getAppBackgrounded() {
+        Assert.assertTrue(mapper.getAppBackgrounded(432));
+        Assert.assertFalse(mapper.getAppBackgrounded(456));
+    }
 
     @Test
     public void getOrDefault() {
@@ -77,13 +81,13 @@ public class AEISessionMapperTest {
     }
 
     @Test
-    public void load() {
+    public void restore() {
         Assert.assertEquals(0, sessionMapperFile.length());
         mapper.flush();
         Assert.assertNotEquals(0, sessionMapperFile.length());
         mapper.clear();
         Assert.assertTrue(mapper.mapper.isEmpty());
-        mapper.load();
+        mapper.restore();
         Assert.assertFalse(mapper.mapper.isEmpty());
     }
 

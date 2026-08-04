@@ -19,6 +19,7 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -134,7 +135,7 @@ public class ApplicationExitMonitor {
     @SuppressLint("SwitchIntDef")
     @SuppressWarnings("deprecation")
     public void harvestApplicationExitInfo() {
-        sessionMapper.load();
+        sessionMapper.restore();
 
         // Only supported in Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -142,7 +143,7 @@ public class ApplicationExitMonitor {
             AtomicInteger recordsSkipped = new AtomicInteger(0);
             AtomicInteger recordsDropped = new AtomicInteger(0);
 
-            if (null == am) {
+            if (am == null) {
                 log.error("harvestApplicationExitInfo: ActivityManager is null! Cannot record ApplicationExitInfo data.");
                 return;
             }
@@ -152,6 +153,7 @@ public class ApplicationExitMonitor {
                     am.getHistoricalProcessExitReasons(packageName, 0, 0);
 
             // the set may contain more than one report for this package name
+            AEISessionMapper.AEISessionMeta sessionMeta = null;
             for (ApplicationExitInfo exitInfo : applicationExitInfoList) {
                 File artifact = new File(reportsDir, String.format(Locale.getDefault(), ARTIFACT_NAME,
                         exitInfo.getPid()));
@@ -166,6 +168,7 @@ public class ApplicationExitMonitor {
 
                 // try to map the AEI with the session it occurred in
                 String aeiSessionId = sessionMapper.getSessionId(exitInfo.getPid());
+
                 if (!(aeiSessionId == null || aeiSessionId.isEmpty() || aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID()))) {
                     // found a prior session ID
                     log.debug("ApplicationExitMonitor: Found session id [" + aeiSessionId + "] for AEI pid[" + exitInfo.getPid() + "]");
@@ -201,7 +204,7 @@ public class ApplicationExitMonitor {
                 }
 
                 // try to map the AEI with the session it occurred in
-                AEISessionMapper.AEISessionMeta sessionMeta = sessionMapper.get(exitInfo.getPid());
+                sessionMeta = sessionMapper.get(exitInfo.getPid());
 
                 // we are not dropping it if the session is not found, we will still report it
 //                if (sessionMeta == null || !sessionMeta.isValid() || sessionMeta.sessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
@@ -243,11 +246,14 @@ public class ApplicationExitMonitor {
 
                 traceReporter.reportAEITrace(error.asJsonObject().toString(), exitInfo.getPid());
             }
+
             log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited.get() + "] existing [" + recordsSkipped.get() + "] dropped[" + recordsDropped.get() + "]");
 
-            AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId(), false);
-            sessionMapper.put(getCurrentProcessId(), model);
-            sessionMapper.flush();
+            if (sessionMeta != null) {
+                AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId(), sessionMeta.backgrounded);
+                sessionMapper.put(getCurrentProcessId(), model);
+                sessionMapper.flush();
+            }
 
             // sync the cache dir and session mapper
             reconcileMetadata(applicationExitInfoList);
