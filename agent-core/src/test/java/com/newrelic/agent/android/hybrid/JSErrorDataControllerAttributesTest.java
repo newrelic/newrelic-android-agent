@@ -172,6 +172,23 @@ public class JSErrorDataControllerAttributesTest {
     }
 
     @Test
+    public void additionalAttributes_doNotOverrideIsFatal() throws Exception {
+        // isFatalError is set after the additionalAttributes merge, same as the
+        // other reserved wire keys, so a caller-supplied value under that key
+        // must be discarded in favor of the method's own isFatal argument.
+        Map<String, Object> extras = new HashMap<>();
+        extras.put(AnalyticsAttribute.JSERROR_ISFATAL, true);
+
+        JSErrorDataController.getInstance().sendJSErrorData(
+                "TypeError", "boom", "stack", false, extras);
+        Assert.assertTrue(store.latch.await(STORE_WAIT_SECONDS, TimeUnit.SECONDS));
+
+        JsonObject event = JsonParser.parseString(store.lastValue).getAsJsonObject();
+        Assert.assertFalse("method's isFatal argument must win over additionalAttributes",
+                event.get(AnalyticsAttribute.JSERROR_ISFATAL).getAsBoolean());
+    }
+
+    @Test
     public void nullMessage_isNormalizedToEmptyString() throws Exception {
         JSErrorDataController.getInstance().sendJSErrorData(
                 "TypeError", null, "stack", false, null);
