@@ -104,6 +104,53 @@ public class ReflectionUtils {
     }
 
     /**
+     * Gets the interop view from a LayoutNode using reflection
+     * This is used for AndroidView components in Compose that wrap traditional Android Views
+     * @param layoutNode The LayoutNode to extract the interop view from
+     * @return The interop View object or null if reflection fails or no interop view exists
+     */
+    @androidx.compose.ui.InternalComposeUiApi
+    public static Object getInteropView(Object layoutNode) {
+        if (layoutNode == null) {
+            log.debug(TAG + ": Cannot get interop view from null LayoutNode");
+            return null;
+        }
+
+        try {
+            Class<?> layoutNodeClass = layoutNode.getClass();
+            if (layoutNodeClass == null) {
+                log.debug(TAG + ": LayoutNode class is null");
+                return null;
+            }
+
+            Method getInteropViewMethod = layoutNodeClass.getMethod("getInteropView");
+            if (getInteropViewMethod == null) {
+                log.debug(TAG + ": getInteropView method is null");
+                return null;
+            }
+
+            Object result = getInteropViewMethod.invoke(layoutNode);
+            if (result == null) {
+                log.debug(TAG + ": getInteropView returned null (no AndroidView interop)");
+            }
+            return result;
+
+        } catch (NoSuchMethodException e) {
+            log.debug(TAG + ": getInteropView method not found in LayoutNode: " + e.getMessage());
+            return null;
+        } catch (IllegalAccessException e) {
+            log.debug(TAG + ": Cannot access getInteropView method: " + e.getMessage());
+            return null;
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            log.debug(TAG + ": Error invoking getInteropView method: " + e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.debug(TAG + ": Unexpected error getting interop view from LayoutNode: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Generic helper method to extract a padding field from a Compose PaddingElement Modifier
      * @param modifier The Modifier to extract padding from
      * @param fieldName The name of the padding field ("top", "bottom", "start", "end")

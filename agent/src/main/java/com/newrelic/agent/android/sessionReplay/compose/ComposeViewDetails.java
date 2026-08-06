@@ -13,6 +13,7 @@ import androidx.compose.ui.semantics.SemanticsNode;
 import androidx.compose.ui.semantics.SemanticsProperties;
 
 import com.newrelic.agent.android.sessionReplay.internal.ReflectionUtils;
+import com.newrelic.agent.android.sessionReplay.util.MapViewDetectionUtils;
 
 import java.util.Objects;
 
@@ -25,6 +26,7 @@ public class ComposeViewDetails {
     public final String viewName;
     public final float density;
     public final SemanticsNode semanticsNode;
+    public final boolean isMapView;
     public float paddingTop;
     public float paddingBottom;
     public float paddingLeft;
@@ -102,6 +104,9 @@ public class ComposeViewDetails {
         // Generate stable IDs
         this.viewId = semanticsNode.getId();
         this.parentId = generateParentId(semanticsNode);
+
+        // Determine if this is a MapView by checking semantic properties
+        this.isMapView = MapViewDetectionUtils.isMapView(semanticsNode);
     }
 
     private String extractBackgroundColor(SemanticsNode node) {
@@ -162,6 +167,7 @@ public class ComposeViewDetails {
         return 0;
     }
 
+
     // Getters
     public int getViewId() {
         return viewId;
@@ -181,6 +187,10 @@ public class ComposeViewDetails {
 
     public String getViewName() {
         return viewName;
+    }
+
+    public boolean isMapView() {
+        return isMapView;
     }
 
     public String generateCssDescription() {
@@ -266,6 +276,7 @@ public class ComposeViewDetails {
         ComposeViewDetails that = (ComposeViewDetails) o;
         return viewId == that.viewId &&
                 isHidden == that.isHidden &&
+                isMapView == that.isMapView &&
                 Objects.equals(frame, that.frame) &&
                 Objects.equals(backgroundColor, that.backgroundColor) &&
                 Objects.equals(viewName, that.viewName);
@@ -273,7 +284,7 @@ public class ComposeViewDetails {
 
     @Override
     public int hashCode() {
-        return Objects.hash(viewId, frame, backgroundColor, isHidden, viewName);
+        return Objects.hash(viewId, frame, backgroundColor, isHidden, viewName, isMapView);
     }
 
 
