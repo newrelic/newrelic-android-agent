@@ -176,4 +176,33 @@ public class AnalyticsEventTests {
         AnalyticsEvent newEvent = AnalyticsEvent.eventFromJsonString(origUUID, origEvent.toJsonString());
         Assert.assertEquals("UUID should stay the same", origUUID, newEvent.getEventUUID());
     }
+
+    @Test
+    public void putAttributesUncheckedReplacesByNameAndAllowsReserved() {
+        AnalyticsEvent event = new AnalyticsEvent("e");
+
+        // Reserved name (sessionId) is accepted here — the public addAttributes() would reject it.
+        Set<AnalyticsAttribute> first = new HashSet<AnalyticsAttribute>();
+        first.add(new AnalyticsAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, "S_OLD", false));
+        first.add(new AnalyticsAttribute("userId", "u1"));
+        event.putAttributesUnchecked(first);
+        Assert.assertEquals("S_OLD", attrValue(event, AnalyticsAttribute.SESSION_ID_ATTRIBUTE));
+        Assert.assertEquals("u1", attrValue(event, "userId"));
+
+        // A same-named attribute is replaced (supplied value wins); others are preserved.
+        Set<AnalyticsAttribute> second = new HashSet<AnalyticsAttribute>();
+        second.add(new AnalyticsAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE, "S_NEW", false));
+        event.putAttributesUnchecked(second);
+        Assert.assertEquals("S_NEW", attrValue(event, AnalyticsAttribute.SESSION_ID_ATTRIBUTE));
+        Assert.assertEquals("u1", attrValue(event, "userId"));
+    }
+
+    private static String attrValue(AnalyticsEvent event, String name) {
+        for (AnalyticsAttribute a : event.getAttributeSet()) {
+            if (name.equals(a.getName())) {
+                return a.getStringValue();
+            }
+        }
+        return null;
+    }
 }

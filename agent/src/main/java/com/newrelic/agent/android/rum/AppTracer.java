@@ -16,6 +16,7 @@ public final class AppTracer {
     private static final AtomicReference<AppTracer> instance = new AtomicReference<>(new AppTracer());
 
     private static Long contentProviderStartedTime = 0L;
+    private static Long processStartTime = 0L;
     private static Long appOnCreateTime = 0L;
     private static Long appOnCreateEndTime = 0L;
     private static Long firstDrawTime = 0L;
@@ -50,6 +51,21 @@ public final class AppTracer {
 
     public void setContentProviderStartedTime(Long contentProviderStartedTime) {
         AppTracer.contentProviderStartedTime = contentProviderStartedTime;
+    }
+
+    /**
+     * Process-creation time on the {@link SystemClock#uptimeMillis()} clock, used as the
+     * cold-start (TTID) start anchor. Falls back to {@link #getContentProviderStartedTime()}
+     * when the true process-start time is unavailable (below API 24 or not yet set).
+     */
+    public Long getProcessStartTime() {
+        return processStartTime != null && processStartTime > 0
+                ? processStartTime
+                : contentProviderStartedTime;
+    }
+
+    public void setProcessStartTime(Long processStartTime) {
+        AppTracer.processStartTime = processStartTime;
     }
 
     public Long getAppOnCreateTime() {

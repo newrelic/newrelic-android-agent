@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -59,6 +60,9 @@ import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
+import com.newrelic.agent.android.hybrid.FileJSErrorStore;
+import com.newrelic.agent.android.sessioncontext.FileSessionContextStore;
+import com.newrelic.agent.android.sessioncontext.SessionContextManager;
 import com.newrelic.agent.android.payload.FilePayloadStore;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.sample.MachineMeasurementConsumer;
@@ -68,17 +72,20 @@ import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.sessionReplay.SessionReplayMode;
 import com.newrelic.agent.android.sessionReplay.SessionReplayModeManager;
 import com.newrelic.agent.android.stats.StatsEngine;
+import com.newrelic.agent.android.stores.FileCrashStore;
+import com.newrelic.agent.android.stores.FileEventStore;
+import com.newrelic.agent.android.stores.FileOfflineSessionReplayStore;
+import com.newrelic.agent.android.stores.FileSessionReplayStore;
 import com.newrelic.agent.android.stores.SharedPrefsAnalyticsAttributeStore;
-import com.newrelic.agent.android.stores.SharedPrefsCrashStore;
-import com.newrelic.agent.android.stores.SharedPrefsEventStore;
-import com.newrelic.agent.android.stores.SharedPrefsSessionReplayStore;
 import com.newrelic.agent.android.tracing.Sample;
 import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
+import com.newrelic.agent.android.util.AndroidDecoder;
 import com.newrelic.agent.android.util.AndroidEncoder;
 import com.newrelic.agent.android.util.ComposeChecker;
 import com.newrelic.agent.android.util.KmpChecker;
 import com.newrelic.agent.android.util.Connectivity;
+import com.newrelic.agent.android.util.Decoder;
 import com.newrelic.agent.android.util.Encoder;
 import com.newrelic.agent.android.util.OfflineStorage;
 import com.newrelic.agent.android.util.PersistentUUID;
@@ -111,6 +118,11 @@ public class AndroidAgentImpl implements
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
+    // Must match NewRelicConfigTask.BUILD_ID_RESOURCE_NAME in the Gradle plugin
+    // (plugins/gradle/src/main/groovy/com/newrelic/agent/android/NewRelicConfigTask.groovy).
+    // Underscores, not periods - see newrelic_keep.xml for why.
+    private static final String BUILD_ID_RESOURCE_NAME = "com_newrelic_android_buildId";
+
     // Stored for use by static API methods (recordReplay → log activation)
     private static Context savedContext;
 
@@ -120,6 +132,7 @@ public class AndroidAgentImpl implements
     private final Lock lock = new ReentrantLock();
 
     private final Encoder encoder = new AndroidEncoder();
+    private final Decoder decoder = new AndroidDecoder();
 
     // Cached application and device information
     DeviceInformation deviceInformation;
@@ -134,6 +147,9 @@ public class AndroidAgentImpl implements
         // We want an Application context, not an Activity context.
         this.context = appContext(context);
         this.agentConfiguration = agentConfiguration;
+
+        resolveBuildId(this.context);
+
         this.savedState = new SavedState(this.context);
         this.offlineStorageInstance = new OfflineStorage(context);
 
@@ -149,12 +165,28 @@ public class AndroidAgentImpl implements
         // Register ourselves with the TraceMachine
         TraceMachine.setTraceMachineInterface(this);
 
-        agentConfiguration.setCrashStore(new SharedPrefsCrashStore(context));
+        FileCrashStore crashStore = new FileCrashStore(context, agentConfiguration);
+        crashStore.migrateFromSharedPrefs(context, FileCrashStore.LEGACY_PREFS_NAME);
+        context.deleteSharedPreferences(FileCrashStore.LEGACY_PREFS_NAME);
+        agentConfiguration.setCrashStore(crashStore);
+
         agentConfiguration.setPayloadStore(new FilePayloadStore(context, agentConfiguration));
         context.deleteSharedPreferences("NRPayloadStore");
+
         agentConfiguration.setAnalyticsAttributeStore(new SharedPrefsAnalyticsAttributeStore(context));
-        agentConfiguration.setEventStore(new SharedPrefsEventStore(context));
-        agentConfiguration.setSessionReplayStore(new SharedPrefsSessionReplayStore(context));
+
+        agentConfiguration.setEventStore(new FileEventStore(context, agentConfiguration));
+        context.deleteSharedPreferences("NREventStore");
+
+        agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
+        context.deleteSharedPreferences("NRSessionReplayStore");
+
+        agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
+
+        agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
+        context.deleteSharedPreferences("NRJSErrorStore");
+
+        agentConfiguration.setSessionContextStore(new FileSessionContextStore(context, agentConfiguration));
 
         ApplicationStateMonitor.getInstance().addApplicationStateListener(this);
         // used to determine when app backgrounds
@@ -182,6 +214,29 @@ public class AndroidAgentImpl implements
         context.registerComponentCallbacks(backgroundListener);
 
         setupSession();
+    }
+
+    /**
+     * The build ID is generated at build time by NewRelicConfigTask and injected as a
+     * generated Android string resource (not compiled Java source, so it doesn't bust
+     * compile/R8 caching). Resolve it here, where a Context is available, and push it into
+     * Agent (agent-core has no Android dependency and can't read resources itself). If the
+     * resource isn't present (e.g. an older Gradle plugin version), leave Agent's build ID
+     * unset so it falls back to its existing NewRelicConfig reflection path.
+     */
+    private static void resolveBuildId(final Context context) {
+        try {
+            Resources resources = context.getResources();
+            int id = resources.getIdentifier(BUILD_ID_RESOURCE_NAME, "string", context.getPackageName());
+            if (id != 0) {
+                String buildId = resources.getString(id);
+                if (buildId != null && !buildId.isEmpty()) {
+                    Agent.setBuildId(buildId);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("AndroidAgentImpl.resolveBuildId(): unable to resolve build ID resource: " + e);
+        }
     }
 
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
@@ -235,6 +290,8 @@ public class AndroidAgentImpl implements
         StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_UNCAUGHT_HANDLER
                 .replace(MetricNames.TAG_NAME, getUnhandledExceptionHandlerName()));
         PayloadController.initialize(agentConfiguration);
+
+        SessionContextManager.initialize();
 
         // Set up the sampler
         Sampler.init(context);
@@ -1086,6 +1143,10 @@ public class AndroidAgentImpl implements
         return encoder;
     }
 
+    public Decoder getDecoder() {
+        return decoder;
+    }
+
     // TraceMachineInterface methods
     @Override
     public long getCurrentThreadId() {
@@ -1148,6 +1209,11 @@ public class AndroidAgentImpl implements
 
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
             startSessionReplayRecorder(context, agentConfiguration);
+
+            // Recover orphaned SR buffers from a prior abnormal termination. Runs here (not at SR
+            // init) so the reporter is initialized and the prior session's AEI exit reasons have
+            // already been recorded into the manifests above.
+            SessionReplay.recoverOrphans();
 
             // Re-coordinate logging override after SR reseed — mode may have changed
             SessionReplayMode currentSrMode = SessionReplay.getCurrentMode();

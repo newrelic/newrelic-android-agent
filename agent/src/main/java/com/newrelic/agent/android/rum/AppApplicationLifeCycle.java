@@ -8,10 +8,14 @@ package com.newrelic.agent.android.rum;
 import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
 import android.os.SystemClock;
+import android.view.View;
+import android.view.ViewTreeObserver;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
@@ -35,6 +39,11 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
     private static boolean isActivityChangingConfig = false;
     private static boolean isForegrounded = false;
     private static boolean isBackgrounded = false;
+    // Latches true if the app is backgrounded before the first frame is drawn. In that case the
+    // cold-start (TTID) sample would include the backgrounded duration, so it is invalidated.
+    // Unambiguous: no activity handoff precedes the first frame, so a zero-activity state before
+    // the first draw is always a real user-backgrounding.
+    private static boolean backgroundedBeforeFirstDraw = false;
     private static int activityReferences = 0;
 
     private static AgentConfiguration agentConfiguration = new AgentConfiguration();
@@ -59,6 +68,11 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
         // ClassCastException with Microsoft Intune MAM's MAMContext wrapper
 
         AppTracer.getInstance().setAppOnCreateTime(SystemClock.uptimeMillis());
+        // Cold-start (TTID) start anchor: true process-creation time on API 24+, otherwise fall
+        // back to the content-provider init time (the earliest hook the agent has).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            AppTracer.getInstance().setProcessStartTime(Process.getStartUptimeMillis());
+        }
         if (this.context instanceof Application) {
             ((Application) this.context).registerActivityLifecycleCallbacks(this);
             // Captures end of Application.onCreate(): ContentProvider.onCreate runs inside
@@ -95,6 +109,9 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
                 tracer.setFirstActivityName(activity.getLocalClassName());
                 tracer.setFirstActivityReferrer(activity.getReferrer() + "");
                 tracer.setFirstActivityIntent(activity.getIntent());
+                // Cold start ends when the first frame is drawn (TTID). Watch the first activity's
+                // decor view for its first draw.
+                registerFirstFrameListener(activity);
             }
             log.debug("App launch time onActivityCreated " + new Date().getTime());
         } catch (Exception ex) {
@@ -129,24 +146,18 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
 
             log.debug(activity.getLocalClassName());
             AppTracer tracer = AppTracer.getInstance();
-            if (!firstActivityResumed
-                    && (agentConfiguration.getLaunchActivityClassName() == null
-                    || (agentConfiguration.getLaunchActivityClassName().equalsIgnoreCase(activity.getLocalClassName())))) {
-                firstActivityResumed = true;
+            if (isForegrounded) {
+                // Hot start: the app returned to the foreground from the background.
+                isForegrounded = false;
                 tracer.setFirstActivityResumeTime(SystemClock.uptimeMillis());
                 AppStartUpMetrics metrics = new AppStartUpMetrics();
-                if (tracer.isColdStart()) {
-                    StatsEngine.get().sample(MetricNames.APP_LAUNCH_COLD, metrics.getColdStartTime() / 1000.0f);
-                }
+                StatsEngine.get().sample(MetricNames.APP_LAUNCH_HOT, metrics.getHotStartTime() / 1000.0f);
                 log.debug("App launch time " + metrics.toString());
-            } else {
-                if (isForegrounded) {
-                    isForegrounded = false;
-                    tracer.setFirstActivityResumeTime(SystemClock.uptimeMillis());
-                    AppStartUpMetrics metrics = new AppStartUpMetrics();
-                    StatsEngine.get().sample(MetricNames.APP_LAUNCH_HOT, metrics.getHotStartTime() / 1000.0f);
-                    log.debug("App launch time " + metrics.toString());
-                }
+            } else if (!firstActivityResumed) {
+                // First resume of the cold session. Cold start (TTID) is measured at the first
+                // frame, not here; this only records the resume time for sub-timings/debug.
+                firstActivityResumed = true;
+                tracer.setFirstActivityResumeTime(SystemClock.uptimeMillis());
             }
         } catch (Exception ex) {
             log.error("App launch time exception: " + ex);
@@ -164,6 +175,11 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
         isActivityChangingConfig = activity.isChangingConfigurations();
         if (--activityReferences == 0 && !isActivityChangingConfig) {
             isBackgrounded = true;
+            if (!firstDrawInvoked) {
+                // Backgrounded before the first frame was drawn: the cold-start (TTID) sample
+                // would include the backgrounded time, so mark it invalid.
+                backgroundedBeforeFirstDraw = true;
+            }
         }
     }
 
@@ -185,6 +201,72 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
     @Override
     public void applicationBackgrounded(ApplicationStateEvent applicationStateEvent) {
         log.debug("App launch time applicationBackgrounded" + new Date().getTime());
+    }
+
+    /**
+     * Registers a one-shot listener on the activity's decor view that fires when the first frame
+     * is drawn, marking the end of the cold-start (TTID) window.
+     */
+    private void registerFirstFrameListener(final Activity activity) {
+        try {
+            final View decorView = activity.getWindow().getDecorView();
+            final ViewTreeObserver viewTreeObserver = decorView.getViewTreeObserver();
+            if (!viewTreeObserver.isAlive()) {
+                return;
+            }
+            viewTreeObserver.addOnDrawListener(new ViewTreeObserver.OnDrawListener() {
+                @Override
+                public void onDraw() {
+                    if (firstDrawInvoked) {
+                        return;
+                    }
+                    // Guarded: onDraw() runs during the view draw pass, so an uncaught exception
+                    // here would surface in rendering. A metric must never crash the UI.
+                    try {
+                        firstDrawInvoked = true;
+                        AppTracer.getInstance().setFirstDrawTime(SystemClock.uptimeMillis());
+                        sampleColdStart();
+                        // A listener cannot be removed from within onDraw(); post the removal.
+                        final ViewTreeObserver.OnDrawListener self = this;
+                        decorView.post(() -> {
+                            ViewTreeObserver vto = decorView.getViewTreeObserver();
+                            if (vto.isAlive()) {
+                                vto.removeOnDrawListener(self);
+                            }
+                        });
+                    } catch (Exception ex) {
+                        log.error("App launch time exception in first-frame listener: " + ex);
+                    }
+                }
+            });
+        } catch (Exception ex) {
+            log.error("App launch time exception registering first-frame listener: " + ex);
+        }
+    }
+
+    /**
+     * Samples the cold-start (TTID) metric if this launch qualifies. Invoked once, from the
+     * first-frame callback.
+     */
+    static void sampleColdStart() {
+        if (!FeatureFlag.featureEnabled(FeatureFlag.AppStartMetrics)) {
+            log.verbose("App launch time feature is not enabled.");
+            return;
+        }
+        AppTracer tracer = AppTracer.getInstance();
+        AppStartUpMetrics metrics = new AppStartUpMetrics();
+        if (shouldRecordColdStart(tracer.isColdStart(), backgroundedBeforeFirstDraw)) {
+            StatsEngine.get().sample(MetricNames.APP_LAUNCH_COLD, metrics.getColdStartTime() / 1000.0f);
+        }
+        log.debug("App launch time " + metrics.toString());
+    }
+
+    /**
+     * A cold-start sample is recorded only when this is a genuine cold start and the app was not
+     * backgrounded before the first frame drew (which would inflate the measurement).
+     */
+    static boolean shouldRecordColdStart(boolean isColdStart, boolean backgroundedBeforeFirstDraw) {
+        return isColdStart && !backgroundedBeforeFirstDraw;
     }
 
     private String emptyIfNull(String s) {

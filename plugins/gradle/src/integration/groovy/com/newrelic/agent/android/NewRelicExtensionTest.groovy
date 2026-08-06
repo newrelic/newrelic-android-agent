@@ -166,4 +166,46 @@ class NewRelicExtensionTest extends PluginTest {
         Assert.assertFalse(ext.shouldIncludeMapUpload("KeViN"))
     }
 
+    @Test
+    void reactNativeSourceMapUploadEnabled() {
+        // Default should be true
+        Assert.assertTrue(ext.reactNativeSourceMapUploadEnabled.get())
+
+        ext.reactNativeSourceMapUploadEnabled.set(false)
+        Assert.assertFalse(ext.reactNativeSourceMapUploadEnabled.get())
+
+        ext.reactNativeSourceMapUploadEnabled.set(true)
+        Assert.assertTrue(ext.reactNativeSourceMapUploadEnabled.get())
+    }
+
+    @Test
+    void shouldUploadReactNativeSourceMap() {
+        // Default should use same config as map uploads (release by default)
+        Assert.assertTrue(ext.shouldUploadReactNativeSourceMap("release"))
+        Assert.assertTrue(ext.shouldUploadReactNativeSourceMap("productionRelease"))
+        Assert.assertFalse(ext.shouldUploadReactNativeSourceMap("debug"))
+
+        // Test with custom variant configuration
+        ext.uploadMapsForVariant("staging", "production")
+        Assert.assertTrue(ext.shouldUploadReactNativeSourceMap("staging"))
+        Assert.assertTrue(ext.shouldUploadReactNativeSourceMap("production"))
+        Assert.assertFalse(ext.shouldUploadReactNativeSourceMap("release"))
+
+        // Test when disabled
+        ext.reactNativeSourceMapUploadEnabled.set(false)
+        Assert.assertFalse(ext.shouldUploadReactNativeSourceMap("staging"))
+        Assert.assertFalse(ext.shouldUploadReactNativeSourceMap("production"))
+    }
+
+    @Test
+    void shouldUploadReactNativeSourceMapUsesVariantMapConfig() {
+        // Verify React Native source map upload uses the same config as mapping file uploads
+        ext.uploadMapsForVariant("customRelease", "customStaging")
+
+        // Both should have same behavior
+        Assert.assertEquals(ext.shouldIncludeMapUpload("customRelease"), ext.shouldUploadReactNativeSourceMap("customRelease"))
+        Assert.assertEquals(ext.shouldIncludeMapUpload("customStaging"), ext.shouldUploadReactNativeSourceMap("customStaging"))
+        Assert.assertEquals(ext.shouldIncludeMapUpload("debug"), ext.shouldUploadReactNativeSourceMap("debug"))
+    }
+
 }
