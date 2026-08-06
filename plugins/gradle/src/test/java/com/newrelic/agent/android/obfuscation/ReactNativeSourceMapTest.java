@@ -382,7 +382,7 @@ public class ReactNativeSourceMapTest {
     }
 
     @Test
-    public void maxCompressedSizeIs200MB() {
-        Assert.assertEquals(200L * 1024 * 1024, ReactNativeSourceMap.MAX_COMPRESSED_SIZE);
+    public void maxSourceMapSizeIs200MB() {
+        Assert.assertEquals(200L * 1024 * 1024, ReactNativeSourceMap.MAX_SOURCE_MAP_SIZE);
     }
 }
