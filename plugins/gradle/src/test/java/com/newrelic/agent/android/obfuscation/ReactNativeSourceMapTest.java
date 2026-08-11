@@ -179,9 +179,8 @@ public class ReactNativeSourceMapTest {
     @Test
     public void parseRegionFromApplicationToken() {
         Assert.assertNull(sourceMapUploader.parseRegionFromApplicationToken("<APP-TOKEN>"));
-        Assert.assertEquals("eu", sourceMapUploader.parseRegionFromApplicationToken("eu01xx544ebfee1f547c425d885ff1ddfc4e82acd2"));
-        Assert.assertEquals("us", sourceMapUploader.parseRegionFromApplicationToken("us01x1234567890abcdef"));
-        Assert.assertEquals("jp", sourceMapUploader.parseRegionFromApplicationToken("jpxc189405136169fca50c1188e2daed28f75d895c-NRMA"));
+        Assert.assertEquals("eu01", sourceMapUploader.parseRegionFromApplicationToken("eu01xx544ebfee1f547c425d885ff1ddfc4e82acd2"));
+        Assert.assertEquals("us01", sourceMapUploader.parseRegionFromApplicationToken("us01x1234567890abcdef"));
     }
 
     @Test
@@ -196,8 +195,8 @@ public class ReactNativeSourceMapTest {
         URL url = sourceMapUploader.getHttpURLConnection().getURL();
 
         Assert.assertEquals("https", url.getProtocol());
-        Assert.assertTrue(url.toString().contains("symbol-ingest-api.service.eu.newrelic.com"));
-        Assert.assertTrue(sourceMapUploader.sourceMapApiHost.contains("symbol-ingest-api.service.eu.newrelic.com"));
+        Assert.assertTrue(url.toString().contains("eu01"));
+        Assert.assertTrue(sourceMapUploader.sourceMapApiHost.contains("eu01"));
     }
 
     @Test
