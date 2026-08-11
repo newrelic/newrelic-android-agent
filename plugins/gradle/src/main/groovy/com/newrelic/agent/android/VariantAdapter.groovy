@@ -362,27 +362,23 @@ abstract class VariantAdapter {
 
     /**
      * Get the path to React Native source map file for the given variant.
-     * Standard: build/generated/sourcemaps/react/release/index.android.bundle.map
-     * Flavored: build/generated/sourcemaps/react/<flavorName>/release/index.android.bundle.map
+     * The React Native Gradle plugin writes this flat, keyed by the full variant name:
+     * build/generated/sourcemaps/react/<variantName>/index.android.bundle.map
+     * (e.g. "demoRelease", not nested "demo/release"). Falls back to that legacy nested
+     * layout if the flat path isn't present, in case some setup still produces it.
      */
     RegularFileProperty getReactNativeSourceMapPath(String variantName) {
         def buildType = withBuildType(variantName)
-
-        // Build the source map path based on variant structure
         def sourceMapsDir = buildHelper.project.layout.buildDirectory.dir("generated/sourcemaps/react")
 
-        // Check for flavor-based path first, then standard path
-        def sourceMapFile
-        if (buildType.flavor && buildType.flavor != buildType.buildType) {
-            // Flavored build: build/generated/sourcemaps/react/<flavor>/<buildType>/index.android.bundle.map
-            sourceMapFile = sourceMapsDir.map { dir ->
-                dir.file("${buildType.flavor}/${buildType.buildType}/index.android.bundle.map")
-            }
-        } else {
-            // Standard build: build/generated/sourcemaps/react/<buildType>/index.android.bundle.map
-            sourceMapFile = sourceMapsDir.map { dir ->
-                dir.file("${buildType.buildType}/index.android.bundle.map")
-            }
+        def flatSourceMapFile = sourceMapsDir.map { dir -> dir.file("${variantName}/index.android.bundle.map") }
+        def legacySourceMapFile = sourceMapsDir.map { dir ->
+            dir.file("${buildType.flavor}/${buildType.buildType}/index.android.bundle.map")
+        }
+
+        def sourceMapFile = flatSourceMapFile.map { flat ->
+            def legacy = legacySourceMapFile.get()
+            (!flat.asFile.exists() && legacy.asFile.exists()) ? legacy : flat
         }
 
         return objectFactory.fileProperty().fileProvider(sourceMapFile.map { it.asFile })

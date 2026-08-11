@@ -294,6 +294,27 @@ class BuildHelperTest extends PluginTest {
     }
 
     @Test
+    void checkReactNativeNewArchitecturePlugin() {
+        // New architecture RN projects apply com.facebook.react instead of
+        // shipping a node_modules/react-native/react.gradle file, and their
+        // bundle tasks are flavor-qualified (e.g. createBundleDemoReleaseJsAndAssets),
+        // so neither of the legacy file/task-name checks can detect them.
+        Assert.assertFalse(buildHelper.checkReactNative())
+        Mockito.when(project.plugins.hasPlugin("com.facebook.react")).thenReturn(true)
+        Assert.assertTrue(buildHelper.checkReactNative())
+    }
+
+    @Test
+    void checkReactNativeFlavoredBundleTaskFallback() {
+        // Without the com.facebook.react plugin applied (e.g. a legacy react.gradle setup
+        // where the react.gradle file itself can't be found), the task-name fallback must
+        // still detect flavor-qualified bundle tasks like createBundleDemoReleaseJsAndAssets,
+        // not just the unflavored "Release" names.
+        project.tasks.register("createBundleDemoReleaseJsAndAssets")
+        Assert.assertTrue(buildHelper.checkReactNative())
+    }
+
+    @Test
     void getMapCompilerName() {
         Assert.assertEquals(buildHelper.getMapCompilerName(), Proguard.Provider.DEFAULT)
 

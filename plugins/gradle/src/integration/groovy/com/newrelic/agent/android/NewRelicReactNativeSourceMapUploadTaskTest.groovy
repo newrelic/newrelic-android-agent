@@ -84,4 +84,39 @@ class NewRelicReactNativeSourceMapUploadTaskTest extends PluginTest {
     void taskName() {
         Assert.assertEquals("newrelicReactNativeSourceMapUpload", NewRelicReactNativeSourceMapUploadTask.NAME)
     }
+
+    @Test
+    void getReactNativeSourceMapPathPrefersFlatVariantPath() {
+        // The React Native Gradle plugin (both architectures) writes the source map flat,
+        // keyed by the full variant name: generated/sourcemaps/react/<variantName>/index.android.bundle.map
+        // — not nested under separate flavor/buildType directories.
+        def variantAdapter = plugin.buildHelper.variantAdapter
+        variantAdapter.buildTypes.put("demoRelease",
+                new VariantAdapter.BuildTypeAdapter("demoRelease", false, "demo", "release"))
+
+        def buildDir = project.layout.buildDirectory.get().asFile
+        def flatSourceMap = new File(buildDir, "generated/sourcemaps/react/demoRelease/index.android.bundle.map")
+        flatSourceMap.parentFile.mkdirs()
+        flatSourceMap.text = "{}"
+
+        def resolved = variantAdapter.getReactNativeSourceMapPath("demoRelease").get().asFile
+        Assert.assertEquals(flatSourceMap.canonicalFile, resolved.canonicalFile)
+    }
+
+    @Test
+    void getReactNativeSourceMapPathFallsBackToLegacyNestedPath() {
+        // If the flat variant path isn't present, fall back to the legacy nested
+        // <flavor>/<buildType> layout rather than failing outright.
+        def variantAdapter = plugin.buildHelper.variantAdapter
+        variantAdapter.buildTypes.put("stagingRelease",
+                new VariantAdapter.BuildTypeAdapter("stagingRelease", false, "staging", "release"))
+
+        def buildDir = project.layout.buildDirectory.get().asFile
+        def legacySourceMap = new File(buildDir, "generated/sourcemaps/react/staging/release/index.android.bundle.map")
+        legacySourceMap.parentFile.mkdirs()
+        legacySourceMap.text = "{}"
+
+        def resolved = variantAdapter.getReactNativeSourceMapPath("stagingRelease").get().asFile
+        Assert.assertEquals(legacySourceMap.canonicalFile, resolved.canonicalFile)
+    }
 }
