@@ -66,7 +66,7 @@ public class AEISessionMapperTest {
 
     @Test
     public void get() {
-        Assert.assertNotNull(mapper.get(234));
+        Assert.assertNotNull(mapper.get(232));
         Assert.assertNull(mapper.get(456));
     }
     @Test

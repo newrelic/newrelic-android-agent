@@ -148,9 +148,11 @@ public class Error extends HarvestableObject {
     public void setAnalyticsEvents(HashMap<String, Object> event) {
         this.event = event;
     }
+
     public boolean getIsObfuscated() {
         return Agent.getIsObfuscated();
     }
+
     public Set<AnalyticsAttribute> getErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
         if (sessionAttributes == null) {
             return null;

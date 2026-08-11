@@ -248,12 +248,10 @@ public class ApplicationExitMonitor {
             }
 
             log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited.get() + "] existing [" + recordsSkipped.get() + "] dropped[" + recordsDropped.get() + "]");
-
-            if (sessionMeta != null) {
-                AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId(), sessionMeta.backgrounded);
-                sessionMapper.put(getCurrentProcessId(), model);
-                sessionMapper.flush();
-            }
+            boolean isBackgrounded = ApplicationStateMonitor.isAppInBackground();
+            AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId(), isBackgrounded);
+            sessionMapper.put(getCurrentProcessId(), model);
+            sessionMapper.flush();
 
             // sync the cache dir and session mapper
             reconcileMetadata(applicationExitInfoList);

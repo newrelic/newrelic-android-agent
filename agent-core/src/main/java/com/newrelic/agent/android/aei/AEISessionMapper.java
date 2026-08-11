@@ -135,7 +135,7 @@ public class AEISessionMapper {
     public static class AEISessionMeta {
         final String sessionId;
         public final int realAgentId;
-        public boolean backgrounded;
+        public final boolean backgrounded;
 
         public AEISessionMeta(String sessionId, int realAgentId, boolean backgrounded) {
             this.sessionId = sessionId == null ? "" : sessionId;
