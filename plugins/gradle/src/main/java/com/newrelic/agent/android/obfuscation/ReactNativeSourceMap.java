@@ -53,7 +53,7 @@ public class ReactNativeSourceMap {
     static final String PROP_SSL_CONNECTION = "com.newrelic.ssl_connection";
     static final String PROP_COMPRESSED_UPLOADS = "com.newrelic.compressed_uploads";
 
-    static final String DEFAULT_SOURCEMAP_API_HOST = "symbol-ingest-api-service.newrelic.com";
+    static final String DEFAULT_SOURCEMAP_API_HOST = "symbol-ingest-api.service.newrelic.com";
     static final String DEFAULT_REGION_SOURCEMAP_API_HOST = "symbol-ingest-api.service.%s.newrelic.com";
     static final String DEFAULT_SOURCEMAP_API_PATH = "/v1/react-native/sourcemaps";
 
