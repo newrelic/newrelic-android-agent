@@ -118,6 +118,10 @@ class NewRelicGradlePlugin implements Plugin<Project> {
             LOGGER.info("DexGuard detected " + buildHelper.dexguardHelper?.currentVersion)
         }
 
+        if (buildHelper.checkReactNative()) {
+            LOGGER.info("React Native detected. Source map uploads will be configured for applicable variants.")
+        }
+
         if (buildHelper.checkApplication()) {
             LOGGER.info("BuildMetrics[${buildHelper.getBuildMetrics()}]")
         }

@@ -364,6 +364,14 @@ public class HarvesterTest {
         HarvestTimer mockHarvestTimer = Mockito.spy(new HarvestTimer(harvester));
         long fiveHoursInMs = 5 * 60 * 60 * 1000; // 5 hours
         Mockito.doReturn(fiveHoursInMs).when(mockHarvestTimer).sessionTimeSinceStart();
+        // Bypass the real tick (schedules on a real background executor) and run inline.
+        Mockito.doAnswer(invocation -> {
+            Runnable onComplete = invocation.getArgument(0);
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return null;
+        }).when(mockHarvestTimer).tickNow(Mockito.any(Runnable.class));
 
         Harvest mockHarvest = Mockito.spy(Harvest.getInstance());
         Mockito.doReturn(mockHarvestTimer).when(mockHarvest).getHarvestTimer();
@@ -387,6 +395,14 @@ public class HarvesterTest {
         HarvestTimer mockHarvestTimer = Mockito.spy(new HarvestTimer(harvester));
         long fiveHoursInMs = 5 * 60 * 60 * 1000; // 5 hours
         Mockito.doReturn(fiveHoursInMs).when(mockHarvestTimer).sessionTimeSinceStart();
+        // Bypass the real tick (schedules on a real background executor) and run inline.
+        Mockito.doAnswer(invocation -> {
+            Runnable onComplete = invocation.getArgument(0);
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return null;
+        }).when(mockHarvestTimer).tickNow(Mockito.any(Runnable.class));
 
         Harvest mockHarvest = Mockito.spy(Harvest.getInstance());
         Mockito.doReturn(mockHarvestTimer).when(mockHarvest).getHarvestTimer();
