@@ -10,6 +10,7 @@ import com.newrelic.agent.android.TaskQueue;
 import com.newrelic.agent.android.harvest.type.HarvestableArray;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 
 import java.text.MessageFormat;
@@ -44,7 +45,7 @@ public class AgentHealth extends HarvestableArray {
                     log.warn("Passed metric key is null. Defaulting to " + DEFAULT_KEY);
                 }
 
-                statsEngine.inc(MessageFormat.format("Supportability/AgentHealth/{0}/{1}/{2}/{3}",
+                statsEngine.inc(MessageFormat.format(MetricNames.SUPPORTABILITY_AGENT_EXCEPTION,
                         (key == null) ? DEFAULT_KEY : key,
                         exception.getSourceClass(),
                         exception.getSourceMethod(),

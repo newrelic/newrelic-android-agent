@@ -7,6 +7,7 @@ package com.newrelic.agent.android.distributedtracing;
 
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 
 import java.util.HashMap;
@@ -33,9 +34,6 @@ public abstract class TraceContext {
 
     final static String TRACE_ID_REGEX = "^[A-Fa-f0-9]{32}";
     final static String SPAN_ID_REGEX = "^([A-Fa-f0-9]{16})?";
-
-    public static final String SUPPORTABILITY_TRACE_CONTEXT_CREATED = "Supportability/TraceContext/Create/Success";
-    public static final String SUPPORTABILITY_TRACE_CONTEXT_EXCEPTION = "Supportability/TraceContext/Create/Exception/%s";
 
     final TraceConfiguration traceConfiguration;
     final String traceId;               // unique id (guid) for this trace
@@ -141,13 +139,13 @@ public abstract class TraceContext {
     }
 
     public static void reportSupportabilityMetrics() {
-        StatsEngine.get().inc(SUPPORTABILITY_TRACE_CONTEXT_CREATED);
+        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_TRACE_CONTEXT_CREATED);
     }
 
     public static void reportSupportabilityExceptionMetric(Exception e) {
         log.error("setDistributedTraceHeaders: Unable to add trace headers. ", e);
         StatsEngine.get().inc(String.format(Locale.ROOT,
-                TraceContext.SUPPORTABILITY_TRACE_CONTEXT_EXCEPTION, e.getClass().getSimpleName()));
+                MetricNames.SUPPORTABILITY_TRACE_CONTEXT_EXCEPTION, e.getClass().getSimpleName()));
     }
 
     public Map<String, Object> asTraceAttributes() {

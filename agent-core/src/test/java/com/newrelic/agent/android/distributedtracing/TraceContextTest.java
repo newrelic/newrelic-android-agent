@@ -7,6 +7,7 @@ package com.newrelic.agent.android.distributedtracing;
 
 import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.metric.Metric;
+import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 
@@ -136,13 +137,13 @@ public class TraceContextTest  {
     public void testReportSupportabilityMetrics() {
         TraceContext.reportSupportabilityMetrics();
         ConcurrentHashMap<String, Metric> statsMap = StatsEngine.get().getStatsMap();
-        Assert.assertNotNull(statsMap.entrySet().contains(TraceContext.SUPPORTABILITY_TRACE_CONTEXT_CREATED));
+        Assert.assertNotNull(statsMap.entrySet().contains(MetricNames.SUPPORTABILITY_TRACE_CONTEXT_CREATED));
     }
 
     @Test
     public void testReportSupportabilityExceptionMetric() {
         TraceContext.reportSupportabilityExceptionMetric(new RuntimeException("tenet"));
         ConcurrentHashMap<String, Metric> statsMap = StatsEngine.get().getStatsMap();
-        Assert.assertNotNull(statsMap.entrySet().contains(TraceContext.SUPPORTABILITY_TRACE_CONTEXT_CREATED));
+        Assert.assertNotNull(statsMap.entrySet().contains(MetricNames.SUPPORTABILITY_TRACE_CONTEXT_CREATED));
     }
 }
