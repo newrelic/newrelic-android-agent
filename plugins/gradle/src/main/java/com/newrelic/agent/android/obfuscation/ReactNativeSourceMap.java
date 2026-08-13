@@ -53,8 +53,8 @@ public class ReactNativeSourceMap {
     static final String PROP_SSL_CONNECTION = "com.newrelic.ssl_connection";
     static final String PROP_COMPRESSED_UPLOADS = "com.newrelic.compressed_uploads";
 
-    static final String DEFAULT_SOURCEMAP_API_HOST = "symbol-ingest-api-service.newrelic.com";
-    static final String DEFAULT_REGION_SOURCEMAP_API_HOST = "symbol-ingest-api.%s.newrelic.com";
+    static final String DEFAULT_SOURCEMAP_API_HOST = "symbol-ingest-api.service.newrelic.com";
+    static final String DEFAULT_REGION_SOURCEMAP_API_HOST = "symbol-ingest-api.service.%s.newrelic.com";
     static final String DEFAULT_SOURCEMAP_API_PATH = "/v1/react-native/sourcemaps";
 
     static final int USEFUL_BUFFER_SIZE = 0x10000;  // 64k
@@ -449,8 +449,8 @@ public class ReactNativeSourceMap {
             return null;
         }
 
-        // spec says: [a-z]{2,3}[0-9]{2}x{1,2}
-        final Pattern pattern = Pattern.compile("^(.+?)x{1,2}.*");
+        // spec says: [a-z]{2,3}[0-9]{2}x{1,2}, but the digit shard is not always present (e.g. "jpxc...")
+        final Pattern pattern = Pattern.compile("^([a-zA-Z]{2,3})[0-9]{0,2}x{1,2}.*");
         final Matcher matcher = pattern.matcher(applicationToken);
 
         if (matcher.matches()) {
@@ -459,7 +459,7 @@ public class ReactNativeSourceMap {
                 if (prefix == null || "".equals(prefix)) {
                     log.warn("Region prefix empty");
                 } else {
-                    return prefix;
+                    return prefix.toLowerCase(Locale.US);
                 }
 
             } catch (Exception e) {
