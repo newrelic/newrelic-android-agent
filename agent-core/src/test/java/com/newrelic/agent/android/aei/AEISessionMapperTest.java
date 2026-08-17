@@ -6,7 +6,6 @@
 package com.newrelic.agent.android.aei;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
@@ -23,11 +22,16 @@ import java.nio.file.Files;
 import java.util.Set;
 import java.util.UUID;
 
+
+
 public class AEISessionMapperTest {
 
     private static File reportsDir;
     private File sessionMapperFile;
     private AEISessionMapper mapper;
+
+    final private int[] pids = {123, 234, 345};
+    final private int[] realAgentIds = {321, 432, 543};
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -43,9 +47,9 @@ public class AEISessionMapperTest {
         sessionMapperFile = new File(reportsDir, "sessionMapper");
         mapper = new AEISessionMapper(sessionMapperFile);
 
-        mapper.put(123, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 321));
-        mapper.put(234, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 432));
-        mapper.put(345, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 543));
+        mapper.put(pids[0], new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), realAgentIds[0], false));
+        mapper.put(pids[1], new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), realAgentIds[1], true));
+        mapper.put(pids[2], new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), realAgentIds[2], false));
     }
 
     @After
@@ -60,15 +64,22 @@ public class AEISessionMapperTest {
 
     @Test
     public void put() {
-        mapper.put(6661, new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), 1666));
+        mapper.put(6661, new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), 1666, false));
         Assert.assertEquals(AgentConfiguration.getInstance().getSessionID(), mapper.getSessionId(6661));
         Assert.assertEquals(1666, mapper.getRealAgentID(6661));
     }
 
     @Test
     public void get() {
-        Assert.assertNotNull(mapper.get(234));
+
+        Assert.assertNotNull(mapper.get(pids[1]));
         Assert.assertNull(mapper.get(456));
+    }
+
+    @Test
+    public void getAppBackgrounded() {
+        Assert.assertTrue(mapper.getAppBackgrounded(pids[1]));
+        Assert.assertFalse(mapper.getAppBackgrounded(456));
     }
 
     @Test
@@ -77,13 +88,13 @@ public class AEISessionMapperTest {
     }
 
     @Test
-    public void load() {
+    public void restore() {
         Assert.assertEquals(0, sessionMapperFile.length());
         mapper.flush();
         Assert.assertNotEquals(0, sessionMapperFile.length());
         mapper.clear();
         Assert.assertTrue(mapper.mapper.isEmpty());
-        mapper.load();
+        mapper.restore();
         Assert.assertFalse(mapper.mapper.isEmpty());
     }
 
@@ -111,19 +122,19 @@ public class AEISessionMapperTest {
 
     @Test
     public void erase() {
-        Assert.assertNotNull(mapper.get(123));
-        Assert.assertNotNull(mapper.get(234));
-        Assert.assertNotNull(mapper.get(345));
+        Assert.assertNotNull(mapper.get(pids[0]));
+        Assert.assertNotNull(mapper.get(pids[1]));
+        Assert.assertNotNull(mapper.get(pids[2]));
         Assert.assertNull(mapper.get(456));
 
-        Set<Integer> pidSet = Set.of(123, 234, 456);
+        Set<Integer> pidSet = Set.of(pids[0], pids[1], 456);
         mapper.erase(pidSet);
 
-        Assert.assertNotNull(mapper.get(123));
-        Assert.assertNotNull(mapper.get(234));
-        Assert.assertNull(mapper.get(345));
+        Assert.assertNotNull(mapper.get(pids[0]));
+        Assert.assertNotNull(mapper.get(pids[1]));
+        Assert.assertNull(mapper.get(pids[2]));
 
-        mapper.put(456, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 654));
+        mapper.put(456, new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 654, false));
         mapper.erase(pidSet);
         Assert.assertNotNull(mapper.get(456));
     }

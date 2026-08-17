@@ -32,7 +32,7 @@ public class AEISessionMapper {
         this.mapStore = mapStore;
         this.mapper = new HashMap<>();
         if (mapStore.exists()) {
-            load();
+            restore();
         }
     }
 
@@ -55,6 +55,11 @@ public class AEISessionMapper {
         return model == null ? "" : model.sessionId;
     }
 
+    public boolean getAppBackgrounded(int pid) {
+        AEISessionMeta model = get(pid);
+        return model != null && model.backgrounded;
+    }
+
     public int getRealAgentID(int pid) {
         AEISessionMeta model = get(pid);
         return model == null ? 0 : model.realAgentId;
@@ -66,15 +71,14 @@ public class AEISessionMapper {
                 ? defaultSessionId : model.sessionId;
     }
 
-    @SuppressWarnings("unchecked")
-    public AEISessionMapper load() {
+    public void restore() {
         if (mapStore.exists() && mapStore.canRead()) {
             try {
                 String storeData = Streams.slurpString(mapStore, StandardCharsets.UTF_8.toString());
                 final Type gtype = new TypeToken<Map<Integer, AEISessionMeta>>(){}.getType();
-                Map map = gson.fromJson(storeData, gtype);
+                Map<Integer, AEISessionMeta> map = gson.fromJson(storeData, gtype);
 
-                map.forEach((key, val) -> mapper.putIfAbsent((Integer) key, (AEISessionMeta) val));
+                map.forEach(mapper::putIfAbsent);
 
             } catch (Exception e) {
                 AgentLogManager.getAgentLog().error("Cannot read session ID mapper: " + e);
@@ -82,8 +86,6 @@ public class AEISessionMapper {
         } else {
             AgentLogManager.getAgentLog().debug("Cannot read session ID mapper: file does not exist or is unreadable");
         }
-
-        return this;
     }
 
     public boolean flush() {
@@ -133,11 +135,14 @@ public class AEISessionMapper {
     public static class AEISessionMeta {
         final String sessionId;
         public final int realAgentId;
+        public final boolean backgrounded;
 
-        public AEISessionMeta(String sessionId, int realAgentId) {
+        public AEISessionMeta(String sessionId, int realAgentId, boolean backgrounded) {
             this.sessionId = sessionId == null ? "" : sessionId;
             this.realAgentId = realAgentId;
+            this.backgrounded = backgrounded;
         }
+
 
         public boolean isValid() {
             return !(sessionId.isEmpty() || realAgentId == 0);

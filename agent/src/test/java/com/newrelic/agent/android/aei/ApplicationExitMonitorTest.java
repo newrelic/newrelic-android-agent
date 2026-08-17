@@ -11,7 +11,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
@@ -20,8 +19,6 @@ import android.os.Build;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.NewRelic;
-import com.newrelic.agent.android.NewRelicTest;
-import com.newrelic.agent.android.NullAgentImpl;
 import com.newrelic.agent.android.SpyContext;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
@@ -58,25 +55,21 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 @RunWith(RobolectricTestRunner.class)
 public class ApplicationExitMonitorTest {
     private AgentLog logger;
     private SpyContext spyContext;
+    private Random random;
 
     ApplicationExitMonitor applicationExitMonitor;
     ArrayList<ApplicationExitInfo> applicationExitInfoList;
@@ -93,6 +86,7 @@ public class ApplicationExitMonitorTest {
     public void setUp() throws Exception {
         logger = Mockito.spy(new ConsoleAgentLog());
         logger.setLevel(AgentLog.DEBUG);
+        random = new Random();
         AgentLogManager.setAgentLog(logger);
 
         spyContext = new SpyContext();
@@ -493,7 +487,7 @@ public class ApplicationExitMonitorTest {
             frozen.add(new AnalyticsAttribute("checkout_step", "review"));
             store.upsert(new SessionManifest("S_PRIOR", 1234, 0L, 1L, frozen));
 
-            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_PRIOR", 1234);
+            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_PRIOR", 1234, random.nextBoolean());
             Set<AnalyticsAttribute> resolved = applicationExitMonitor.resolveSessionAttributes(meta);
 
             Assert.assertEquals(1, resolved.size());
@@ -512,7 +506,7 @@ public class ApplicationExitMonitorTest {
         AgentConfiguration.getInstance().setSessionContextStore(store);
         StatsEngine.SUPPORTABILITY.getStatsMap().clear();
         try {
-            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_UNKNOWN", 1234);
+            AEISessionMapper.AEISessionMeta meta = new AEISessionMapper.AEISessionMeta("S_UNKNOWN", 1234, random.nextBoolean());
             Set<AnalyticsAttribute> resolved = applicationExitMonitor.resolveSessionAttributes(meta);
 
             // No manifest (e.g. prior session ran under a pre-upgrade agent) → transitional
@@ -594,7 +588,7 @@ public class ApplicationExitMonitorTest {
     public void testGetEventAttributesForANR() throws IOException {
 
 
-        AEISessionMapper.AEISessionMeta sessionMeta = new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234);
+        AEISessionMapper.AEISessionMeta sessionMeta = new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234, random.nextBoolean());
         ApplicationExitInfo exitInfo = provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR);
 
         HashMap<String, Object> eventAttributes = applicationExitMonitor.getEventAttributesForAEI(exitInfo,sessionMeta, Objects.requireNonNull(exitInfo.getTraceInputStream()).toString());
@@ -618,7 +612,7 @@ public class ApplicationExitMonitorTest {
     public void testGetEventAttributesForNonANRAEI() throws IOException {
 
 
-        AEISessionMapper.AEISessionMeta sessionMeta = new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234);
+        AEISessionMapper.AEISessionMeta sessionMeta = new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234,  random.nextBoolean());
         ApplicationExitInfo exitInfo = provideApplicationExitInfo(ApplicationExitInfo.REASON_CRASH);
 
         HashMap<String, Object> eventAttributes = applicationExitMonitor.getEventAttributesForAEI(exitInfo,sessionMeta, Objects.requireNonNull(exitInfo.getTraceInputStream()).toString());
@@ -648,7 +642,7 @@ public class ApplicationExitMonitorTest {
         // seed the session mapper
         applicationExitInfoList.forEach(aei ->
                 applicationExitMonitor.sessionMapper.mapper.putIfAbsent(aei.getPid(),
-                        new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234))
+                        new AEISessionMapper.AEISessionMeta(UUID.randomUUID().toString(), 1234, random.nextBoolean()))
         );
         applicationExitMonitor.sessionMapper.flush();
     }
