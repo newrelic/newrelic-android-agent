@@ -991,13 +991,15 @@ public class AndroidAgentImpl implements
     public void applicationForegrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application foregrounded");
 
-        // BackgroundReporting
-        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if(NewRelic.isStarted()) {
-                stop();
-            }
-        }
-        if (!NewRelic.isShutdown) {
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && NewRelic.isStarted()) {
+            stop(false);
+            Harvest.harvestNow(true, () -> {
+                if (!NewRelic.isShutdown && !ApplicationStateMonitor.isAppInBackground()) {
+                    start();
+                    AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME);
+                }
+            });
+        } else if (!NewRelic.isShutdown) {
             start();
             AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME);
         }
@@ -1006,15 +1008,16 @@ public class AndroidAgentImpl implements
     @Override
     public void applicationBackgrounded(ApplicationStateEvent e) {
         log.info("AndroidAgentImpl: application backgrounded");
-            stop();
-        // BackgroundReporting
-        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            start();
-            if (agentConfiguration.getLogReportingConfiguration().getLoggingEnabled()) {
-                startLogReporter(context, agentConfiguration);
+        stop(false);
+        Harvest.harvestNow(true, () -> {
+            if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
+                start();
+                if (agentConfiguration.getLogReportingConfiguration().getLoggingEnabled()) {
+                    startLogReporter(context, agentConfiguration);
+                }
+                AnalyticsControllerImpl.getInstance().addAttributeUnchecked(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true), false);
             }
-            AnalyticsControllerImpl.getInstance().addAttributeUnchecked(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME,true), false);
-        }
+        });
     }
 
     @Override
