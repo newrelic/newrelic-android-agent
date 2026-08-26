@@ -57,6 +57,7 @@ import com.newrelic.agent.android.logging.LogReporting;
 import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.measurement.MeasurementEngine;
 import com.newrelic.agent.android.metric.Metric;
+import com.newrelic.agent.android.mobileview.MobileViewActivityLifecycleCallbacks;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
@@ -209,6 +210,11 @@ public class AndroidAgentImpl implements
             }
         } else {
             backgroundListener = new UiBackgroundListener();
+        }
+
+        if (context.getApplicationContext() instanceof Application) {
+            ((Application) context.getApplicationContext())
+                    .registerActivityLifecycleCallbacks(new MobileViewActivityLifecycleCallbacks());
         }
 
         context.registerComponentCallbacks(backgroundListener);
