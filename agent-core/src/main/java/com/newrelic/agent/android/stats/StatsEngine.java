@@ -291,12 +291,12 @@ public class StatsEngine extends HarvestAdapter {
                 }
             }
 
-            name = name.replaceAll(MetricNames.TAG_FRAMEWORK, emptyIfNull(framework))
-                    .replaceAll(MetricNames.TAG_FRAMEWORK_VERSION, emptyIfNull(frameworkVersion));
+            name = name.replace(MetricNames.TAG_FRAMEWORK, emptyIfNull(framework))
+                    .replace(MetricNames.TAG_FRAMEWORK_VERSION, emptyIfNull(frameworkVersion));
 
             // compress empty namespaces
             while (name.contains("//")) {
-                name = name.replaceAll("//", "/");
+                name = name.replace("//", "/");
             }
 
             return super.lazyGet(name);

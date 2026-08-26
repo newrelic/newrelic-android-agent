@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.widget.EditText;
 
 import com.newrelic.agent.android.AgentConfiguration;
-import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator;
 import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord;
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.RRWebMutationData;
@@ -75,9 +74,9 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
     public RRWebElementNode generateRRWebNode() {
         RRWebTextNode textNode;
         if (super.getLabelText().isEmpty() && !hint.isEmpty()) {
-            textNode = new RRWebTextNode(hint, false, NewRelicIdGenerator.generateId());
+            textNode = new RRWebTextNode(hint, false, textNodeId);
         } else {
-            textNode = new RRWebTextNode(super.getLabelText(), false, NewRelicIdGenerator.generateId());
+            textNode = new RRWebTextNode(super.getLabelText(), false, textNodeId);
         }
 
         Attributes attributes = new Attributes(viewDetails.getCssSelector());
@@ -135,7 +134,7 @@ public class SessionReplayEditTextThingy extends SessionReplayTextViewThingy imp
 
         // Check if label text has changed
         if (!super.getLabelText().equals(((SessionReplayTextViewThingy) other).getLabelText())) {
-            mutations.add(new RRWebMutationData.TextRecord(viewDetails.viewId, ((SessionReplayTextViewThingy) other).getLabelText()));
+            mutations.add(new RRWebMutationData.TextRecord(textNodeId, ((SessionReplayTextViewThingy) other).getLabelText()));
         }
 
         return mutations;

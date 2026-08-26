@@ -25,7 +25,13 @@ public class ClassWriterSafe extends ClassWriter {
     protected String getCommonSuperClass(String type1, String type2) {
         try {
             return super.getCommonSuperClass(type1, type2);
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // Catch Throwable (not just Exception) because ASM's hierarchy walk
+            // calls Class.forName, which can throw LinkageError subtypes (e.g.
+            // IllegalAccessError under Gradle 9's stricter classloader isolation
+            // when an inner class and its enclosing type are loaded by different
+            // InstrumentingVisitableURLClassLoader instances). Falling back to
+            // java/lang/Object is a safe upper bound for frame computation.
             return "java/lang/Object";
         }
     }

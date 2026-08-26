@@ -18,6 +18,7 @@ import com.newrelic.agent.android.sessionReplay.compose.ComposeBlockedViewThingy
 import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeEditTextThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeImageThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeRadioButtonThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeSwitchThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeSliderThingy;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails;
 import com.newrelic.agent.android.sessionReplay.compose.SessionReplayComposeViewThingy;
@@ -102,6 +103,12 @@ public class SessionReplayThingyRecorder {
                     if(node.getChildren().isEmpty()) {
                          return new ComposeRadioButtonThingy(composeViewDetails, node, agentConfiguration);
                     }
+                    break;
+                case "Switch":
+                    if(node.getChildren().isEmpty()) {
+                        return new ComposeSwitchThingy(composeViewDetails, node, agentConfiguration);
+                    }
+                    break;
                 default:
                     // Handle other roles or default case
                     break;

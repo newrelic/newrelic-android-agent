@@ -12,24 +12,34 @@ import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.agentdata.builder.AgentDataBuilder;
-import com.newrelic.agent.android.crash.CrashReporterTests;
+import com.newrelic.agent.android.crash.CrashReporterTest;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
+import com.newrelic.agent.android.util.Constants;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
+import java.net.HttpURLConnection;
 import java.nio.ByteBuffer;
+
+import com.newrelic.agent.android.payload.PayloadSender;
+import com.newrelic.agent.android.payload.PayloadStore;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Future;
 
 public class AgentDataReporterTest {
     private static AgentConfiguration agentConfiguration;
@@ -38,15 +48,17 @@ public class AgentDataReporterTest {
     @Before
     public void setUp() throws Exception {
         agentConfiguration = new AgentConfiguration();
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(true);
         agentConfiguration.setReportHandledExceptions(true);
         agentConfiguration.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
 
+        agentConfiguration.setPayloadStore(new TestPayloadStore());
         FeatureFlag.enableFeature(FeatureFlag.HandledExceptions);
 
         PayloadController.initialize(agentConfiguration);
+        AgentDataReporter.initialize(agentConfiguration);
 
         final Map<String, Object> sessionAttributes = new HashMap<String, Object>() {{
             put("a string", "hello");
@@ -80,6 +92,7 @@ public class AgentDataReporterTest {
 
     @After
     public void tearDown() throws Exception {
+        AgentDataReporter.shutdown();
         Agent.stop();
     }
 
@@ -117,6 +130,88 @@ public class AgentDataReporterTest {
     }
 
     @Test
+    public void reportAgentDataReturnsFuture() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+        AgentDataReporter reporter = AgentDataReporter.initialize(agentConfiguration);
+
+        // PayloadController queues payloads by default (opportunisticUploads=false), which returns
+        // null from submitPayload. Enable opportunistic uploads so a Future is returned instead.
+        java.lang.reflect.Field field = PayloadController.class.getDeclaredField("opportunisticUploads");
+        field.setAccessible(true);
+        field.set(null, true);
+
+        Payload payload = new Payload(flat.dataBuffer().array());
+        Future future = reporter.reportAgentData(payload);
+        Assert.assertNotNull("reportAgentData should return a non-null Future", future);
+    }
+
+    @Test
+    public void reportAgentDataReturnsNullWhenPayloadOversized() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+        AgentDataReporter reporter = AgentDataReporter.initialize(agentConfiguration);
+
+        byte[] oversized = new byte[(int) Constants.Network.MAX_PAYLOAD_SIZE + 1];
+        Payload payload = new Payload(oversized);
+        Future future = reporter.reportAgentData(payload);
+        Assert.assertNull("reportAgentData should return null for oversized payload", future);
+    }
+
+    @Test
+    public void testPermanentlyRejectedPayloadDeletedFromStore() throws Exception {
+        AgentDataReporter reporter = AgentDataReporter.initialize(agentConfiguration);
+        Payload payload = new Payload(flat.dataBuffer().array());
+        agentConfiguration.getPayloadStore().store(payload);
+        Assert.assertEquals(1, agentConfiguration.getPayloadStore().count());
+
+        PayloadSender mockSender = Mockito.mock(PayloadSender.class);
+        Mockito.when(mockSender.isSuccessfulResponse()).thenReturn(false);
+        Mockito.when(mockSender.getPayload()).thenReturn(payload);
+
+        Mockito.when(mockSender.getResponseCode()).thenReturn(HttpURLConnection.HTTP_FORBIDDEN);
+        reporter.onAgentDataResponse(mockSender);
+        Assert.assertEquals("Payload should be deleted on 403", 0, agentConfiguration.getPayloadStore().count());
+
+        agentConfiguration.getPayloadStore().store(payload);
+        Mockito.when(mockSender.getResponseCode()).thenReturn(HttpURLConnection.HTTP_BAD_REQUEST);
+        reporter.onAgentDataResponse(mockSender);
+        Assert.assertEquals("Payload should be deleted on 400", 0, agentConfiguration.getPayloadStore().count());
+    }
+
+    @Test
+    public void testTransientErrorRetainsPayloadInStore() throws Exception {
+        AgentDataReporter reporter = AgentDataReporter.initialize(agentConfiguration);
+        Payload payload = new Payload(flat.dataBuffer().array());
+        agentConfiguration.getPayloadStore().store(payload);
+        Assert.assertEquals(1, agentConfiguration.getPayloadStore().count());
+
+        PayloadSender mockSender = Mockito.mock(PayloadSender.class);
+        Mockito.when(mockSender.isSuccessfulResponse()).thenReturn(false);
+        Mockito.when(mockSender.getPayload()).thenReturn(payload);
+
+        for (int code : new int[]{HttpURLConnection.HTTP_CLIENT_TIMEOUT, 429, HttpURLConnection.HTTP_UNAVAILABLE}) {
+            Mockito.when(mockSender.getResponseCode()).thenReturn(code);
+            reporter.onAgentDataResponse(mockSender);
+            Assert.assertEquals("Payload should be retained on " + code, 1, agentConfiguration.getPayloadStore().count());
+        }
+    }
+
+    @Test
+    public void testSuccessfulResponseDeletesPayloadFromStore() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+        AgentDataReporter reporter = AgentDataReporter.initialize(agentConfiguration);
+        Payload payload = new Payload(flat.dataBuffer().array());
+        agentConfiguration.getPayloadStore().store(payload);
+        Assert.assertEquals(1, agentConfiguration.getPayloadStore().count());
+
+        PayloadSender mockSender = Mockito.mock(PayloadSender.class);
+        Mockito.when(mockSender.isSuccessfulResponse()).thenReturn(true);
+        Mockito.when(mockSender.getPayload()).thenReturn(payload);
+
+        reporter.onAgentDataResponse(mockSender);
+        Assert.assertEquals("Payload should be deleted on success", 0, agentConfiguration.getPayloadStore().count());
+    }
+
+    @Test
     public void reportSavedAgentData() throws Exception {
     }
 
@@ -130,6 +225,57 @@ public class AgentDataReporterTest {
         Assert.assertTrue(agentConfiguration.getPayloadStore().store(payload));
     }
 
+    @Test
+    public void reportAgentDataStoresOffCallingThreadWhenPayloadControllerInitialized() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+
+        // Swap in a thread-capturing store: shut down the reporter (setUp already
+        // constructed it with the default TestPayloadStore) and re-initialize so the
+        // new store is picked up. PayloadController stays initialized -> async path.
+        AgentDataReporter.shutdown();
+        ThreadCapturingPayloadStore store = new ThreadCapturingPayloadStore();
+        agentConfiguration.setPayloadStore(store);
+        AgentDataReporter.initialize(agentConfiguration);
+        Assert.assertTrue(PayloadController.isInitialized());
+
+        final String callerThread = Thread.currentThread().getName();
+        boolean reported = AgentDataReporter.reportAgentData(new Payload(flat.dataBuffer().array()).getBytes());
+        Assert.assertTrue("reportAgentData should accept the payload", reported);
+
+        Assert.assertTrue("store should execute within the executor window",
+                store.storeLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+        Assert.assertEquals("payload should be persisted", 1, store.count());
+        Assert.assertNotEquals("store must not run on the calling thread",
+                callerThread, store.storeThreadName);
+        // NamedThreadFactory prefixes worker threads with "NR_", so PayloadController's
+        // executor threads are named "NR_PayloadWorker-<n>".
+        Assert.assertTrue("store should run on an NR_PayloadWorker thread but ran on: " + store.storeThreadName,
+                store.storeThreadName != null && store.storeThreadName.startsWith("NR_PayloadWorker"));
+    }
+
+    @Test
+    public void reportAgentDataStoresInlineWhenPayloadControllerUnavailable() throws Exception {
+        Agent.setImpl(new StubAgentImpl());
+
+        // Reporter initialized but PayloadController shut down -> fallback path.
+        AgentDataReporter.shutdown();
+        PayloadController.shutdown();
+        ThreadCapturingPayloadStore store = new ThreadCapturingPayloadStore();
+        agentConfiguration.setPayloadStore(store);
+        AgentDataReporter.initialize(agentConfiguration);
+        Assert.assertFalse("PayloadController must be down for this test",
+                PayloadController.isInitialized());
+
+        final String callerThread = Thread.currentThread().getName();
+        boolean reported = AgentDataReporter.reportAgentData(new Payload(flat.dataBuffer().array()).getBytes());
+
+        Assert.assertTrue("reportAgentData should accept the payload", reported);
+        // Inline store completes before reportAgentData returns — no await needed.
+        Assert.assertEquals("payload should be persisted inline", 1, store.count());
+        Assert.assertEquals("fallback store should run on the calling thread",
+                callerThread, store.storeThreadName);
+    }
+
     private static class TestAgentDataReporter extends AgentDataReporter {
         public TestAgentDataReporter(AgentConfiguration agentConfiguration) {
             super(agentConfiguration);
@@ -137,6 +283,85 @@ public class AgentDataReporterTest {
 
         public boolean isRunning() {
             return isStarted.get();
+        }
+    }
+
+    private static class TestPayloadStore implements PayloadStore<Payload> {
+        private final Map<String, Payload> store = new HashMap<>();
+
+        @Override
+        public boolean store(Payload payload) {
+            store.put(payload.getUuid(), payload);
+            return true;
+        }
+
+        @Override
+        public List<Payload> fetchAll() {
+            return new ArrayList<>(store.values());
+        }
+
+        @Override
+        public int count() {
+            return store.size();
+        }
+
+        @Override
+        public void clear() {
+            store.clear();
+        }
+
+        @Override
+        public void delete(Payload payload) {
+            store.remove(payload.getUuid());
+        }
+
+        @Override
+        public String getRootPath() {
+            return "";
+        }
+    }
+
+    /**
+     * PayloadStore double that records the thread its store() ran on and signals a latch,
+     * so tests can assert whether the store executed on the calling thread (inline fallback)
+     * or on a background PayloadController worker (async path).
+     */
+    private static class ThreadCapturingPayloadStore implements PayloadStore<Payload> {
+        final java.util.concurrent.CountDownLatch storeLatch = new java.util.concurrent.CountDownLatch(1);
+        volatile String storeThreadName;
+        private final Map<String, Payload> store = new HashMap<>();
+
+        @Override
+        public boolean store(Payload payload) {
+            storeThreadName = Thread.currentThread().getName();
+            store.put(payload.getUuid(), payload);
+            storeLatch.countDown();
+            return true;
+        }
+
+        @Override
+        public List<Payload> fetchAll() {
+            return new ArrayList<>(store.values());
+        }
+
+        @Override
+        public int count() {
+            return store.size();
+        }
+
+        @Override
+        public void clear() {
+            store.clear();
+        }
+
+        @Override
+        public void delete(Payload payload) {
+            store.remove(payload.getUuid());
+        }
+
+        @Override
+        public String getRootPath() {
+            return "";
         }
     }
 

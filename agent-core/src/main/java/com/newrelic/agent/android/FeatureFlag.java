@@ -17,6 +17,7 @@ public enum FeatureFlag {
     NetworkRequests,
     NetworkErrorRequests,
     HandledExceptions,
+    JSError,
     DistributedTracing,
     NativeReporting,
     AppStartMetrics,
@@ -60,9 +61,11 @@ public enum FeatureFlag {
         enableFeature(NetworkRequests);
         enableFeature(NetworkErrorRequests);
         enableFeature(HandledExceptions);
+        enableFeature(JSError);
         enableFeature(DistributedTracing);
         enableFeature(AppStartMetrics);
         enableFeature(ApplicationExitReporting);
         enableFeature(LogReporting);
+        enableFeature(EventPersistence);
     }
 }

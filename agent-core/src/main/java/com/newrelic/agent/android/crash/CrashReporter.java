@@ -18,9 +18,11 @@ import com.newrelic.agent.android.sessionReplay.CrashSessionReplayHandler;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
+import java.net.HttpURLConnection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
+
 
 public class CrashReporter extends PayloadReporter {
     protected static AtomicReference<CrashReporter> instance = new AtomicReference<>(null);
@@ -105,7 +107,7 @@ public class CrashReporter extends PayloadReporter {
         if (crashStore != null) {
             for (Crash crash : crashStore.fetchAll()) {
                 if (crash.isStale()) {
-                    crashStore.delete(crash);
+                    deleteCrash(crash);
                     log.info("CrashReporter: Crash [" + crash.getUuid().toString() + "] has become stale, and has been removed");
                     StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_REMOVED_STALE);
                 } else {
@@ -136,7 +138,7 @@ public class CrashReporter extends PayloadReporter {
                                 .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
                                 .replace(MetricNames.TAG_SUBDESTINATION, "mobile_crash");
                         StatsEngine.notice().inc(name);
-                        crashStore.delete(crash);
+                        deleteCrash(crash);
                         log.error("Unable to upload crashes because payload is larger than 1 MB, crash report is discarded.");
                         return null;
                     }
@@ -144,24 +146,7 @@ public class CrashReporter extends PayloadReporter {
                     final PayloadSender.CompletionHandler completionHandler = new PayloadSender.CompletionHandler() {
                         @Override
                         public void onResponse(PayloadSender payloadSender) {
-                            if (payloadSender.isSuccessfulResponse()) {
-                                if (crashStore != null) {
-                                    crashStore.delete(crash);
-                                }
-
-                                //add supportability metrics
-                                DeviceInformation deviceInformation = Agent.getDeviceInformation();
-                                String name = MetricNames.SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES
-                                        .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
-                                        .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
-                                        .replace(MetricNames.TAG_SUBDESTINATION, "mobile_crash");
-                                StatsEngine.get().sampleMetricDataUsage(name, crash.asJsonObject().toString().getBytes().length, 0);
-                            } else {
-                                //Offline storage: No network at all, don't send back data
-                                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
-                                    log.warn("CrashReporter didn't send due to lack of network connection");
-                                }
-                            }
+                            onCrashResponse(payloadSender, crash);
                         }
 
                         @Override
@@ -185,6 +170,34 @@ public class CrashReporter extends PayloadReporter {
         }
 
         return null;
+    }
+
+    void deleteCrash(Crash crash) {
+        if (crashStore != null) {
+            crashStore.delete(crash);
+        }
+    }
+
+    void onCrashResponse(PayloadSender payloadSender, Crash crash) {
+        if (payloadSender.isSuccessfulResponse()) {
+            deleteCrash(crash);
+
+            //add supportability metrics
+            DeviceInformation deviceInformation = Agent.getDeviceInformation();
+            String name = MetricNames.SUPPORTABILITY_SUBDESTINATION_OUTPUT_BYTES
+                    .replace(MetricNames.TAG_FRAMEWORK, deviceInformation.getApplicationFramework().name())
+                    .replace(MetricNames.TAG_DESTINATION, MetricNames.METRIC_DATA_USAGE_COLLECTOR)
+                    .replace(MetricNames.TAG_SUBDESTINATION, "mobile_crash");
+            StatsEngine.get().sampleMetricDataUsage(name, crash.asJsonObject().toString().getBytes().length, 0);
+        } else {
+            if (payloadSender.getResponseCode() == HttpURLConnection.HTTP_BAD_REQUEST || payloadSender.getResponseCode() == HttpURLConnection.HTTP_FORBIDDEN) {
+                deleteCrash(crash);
+            } else {
+                if (FeatureFlag.featureEnabled(FeatureFlag.OfflineStorage)) {
+                    log.warn("CrashReporter didn't send due to lack of network connection");
+                }
+            }
+        }
     }
 
     public void storeAndReportCrash(Crash crash,boolean isNativeCrashReport) {

@@ -34,6 +34,7 @@ abstract class NewRelicExtension {
     Property<Boolean> logInstrumentationEnabled
     Property<Boolean> defaultInteractionsEnabled
     Property<Boolean> webviewInstrumentationEnabled
+    Property<Boolean> reactNativeSourceMapUploadEnabled
 
 
     NamedDomainObjectContainer<VariantConfiguration> variantConfigurations
@@ -56,6 +57,7 @@ abstract class NewRelicExtension {
         this.logInstrumentationEnabled = objectFactory.property(Boolean.class).convention(true)
         this.defaultInteractionsEnabled = objectFactory.property(Boolean.class).convention(true)
         this.webviewInstrumentationEnabled = objectFactory.property(Boolean.class).convention(true)
+        this.reactNativeSourceMapUploadEnabled = objectFactory.property(Boolean.class).convention(true)
         this.variantConfigurations = objectFactory.domainObjectContainer(VariantConfiguration, { name ->
             objectFactory.newInstance(VariantConfiguration.class, name)
         })
@@ -183,5 +185,18 @@ abstract class NewRelicExtension {
         return !packageExclusions.findAll { it ->
             pkg.toLowerCase().startsWith(it) || pkg.toLowerCase().matches(it)
         }.empty
+    }
+
+    /**
+     * Check if React Native source maps should be uploaded for the given variant.
+     * Uses the same variantMapUploads configuration as ProGuard/R8 mapping file uploads.
+     */
+    boolean shouldUploadReactNativeSourceMap(String variantName) {
+        if (!reactNativeSourceMapUploadEnabled.get()) {
+            return false
+        }
+
+        // Reuse the same variant configuration as mapping file uploads
+        return shouldIncludeMapUpload(variantName)
     }
 }

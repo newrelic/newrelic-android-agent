@@ -3,9 +3,9 @@ package com.newrelic.agent.android;
 
 import com.newrelic.agent.android.util.Constants;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class HttpHeaders {
@@ -18,7 +18,9 @@ public class HttpHeaders {
     public static final String OPERATION_ID = "operationId";
 
     private HttpHeaders() {
-        httpHeaders = new HashSet<>();
+        // CopyOnWriteArraySet: lock-free iteration safe under concurrent mutation.
+        // Reads happen on every HTTP request; writes are rare (init / public API).
+        httpHeaders = new CopyOnWriteArraySet<>();
         httpHeaders.add(Constants.ApolloGraphQLHeader.OPERATION_NAME);
         httpHeaders.add(Constants.ApolloGraphQLHeader.OPERATION_ID);
         httpHeaders.add(Constants.ApolloGraphQLHeader.OPERATION_TYPE);

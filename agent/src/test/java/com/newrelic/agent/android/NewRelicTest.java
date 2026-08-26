@@ -51,6 +51,7 @@ import com.newrelic.agent.android.payload.NullPayloadStore;
 import com.newrelic.agent.android.payload.Payload;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
+import com.newrelic.agent.android.sessionReplay.CompositeEventListener;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.test.spy.AgentDataReporterSpy;
@@ -96,6 +97,7 @@ public class NewRelicTest {
     private static final String APP_URL = "http://swear.net";
     private static final ApplicationFramework APP_FRAMEWORK = ApplicationFramework.ReactNative;
     private static final String APP_FRAMEWORK_VERSION = "9.8.7";
+    private static final long ASYNC_VERIFY_TIMEOUT_MS = 2000L;
 
     private SpyContext spyContext;
     private AnalyticsControllerImpl analyticsController;
@@ -762,6 +764,68 @@ public class NewRelicTest {
     }
 
     @Test
+    public void testSetUserIdSetsAttributeWhenNoPriorUserId() {
+        // Regression: setUserId was a no-op on a fresh launch when the previous
+        // session never set USER_ID_ATTRIBUTE. The attribute must be created
+        // on the first call.
+        Assert.assertNull("Precondition: no prior userId attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+
+        Assert.assertTrue("Should set valid user ID on fresh launch",
+                NewRelic.setUserId("firstLaunchUser"));
+
+        AnalyticsAttribute attr = analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE);
+        Assert.assertNotNull("USER_ID_ATTRIBUTE should be created on first set", attr);
+        Assert.assertEquals(AnalyticsAttribute.USER_ID_ATTRIBUTE, attr.getName());
+        Assert.assertEquals("firstLaunchUser", attr.getStringValue());
+    }
+
+    @Test
+    public void testSetUserIdNullIsNoOpWhenNoPriorUserId() {
+        Assert.assertNull("Precondition: no prior userId attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+
+        Assert.assertTrue(NewRelic.setUserId(null));
+
+        Assert.assertNull("Null userId must not create an attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+    }
+
+    @Test
+    public void testSetUserIdEmptyIsNoOpWhenNoPriorUserId() {
+        Assert.assertNull("Precondition: no prior userId attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+
+        Assert.assertTrue(NewRelic.setUserId(""));
+
+        Assert.assertNull("Empty userId must not create an attribute",
+                analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+    }
+
+    @Test
+    public void testSetUserIdDoesNotRestartSessionWhenNoPriorUserId() {
+        // First-time set should create the attribute WITHOUT rotating the session
+        // or queuing a session-restart event. Session rotation is reserved for
+        // changing an existing userId (covered by testSetUserIdWithSessionRestart).
+        Harvest.start();
+        try {
+            String preSessionId = NewRelic.currentSessionId();
+            Assert.assertNull(analyticsController.getAttribute(AnalyticsAttribute.USER_ID_ATTRIBUTE));
+            eventManager.empty();
+
+            Assert.assertTrue(NewRelic.setUserId("firstLaunchUser"));
+
+            Assert.assertEquals("Session ID must not rotate on first userId set",
+                    preSessionId, NewRelic.currentSessionId());
+            boolean hasSessionEvent = eventManager.getQueuedEvents().stream()
+                    .anyMatch(e -> e.getCategory().equals(AnalyticsEventCategory.Session));
+            Assert.assertFalse("First userId set must not queue a session event", hasSessionEvent);
+        } finally {
+            Harvest.stop();
+        }
+    }
+
+    @Test
     public void testSetUserIdWithSessionRestart() {
         String preSessionId = NewRelic.currentSessionId();
 
@@ -777,6 +841,7 @@ public class NewRelicTest {
         Assert.assertNotEquals("Should contain updated 'userId' value", "validUserId", attr.getStringValue());
 
         Assert.assertTrue(analyticsController.getEventManager().isTransmitRequired());
+        Harvest.harvestNow(true, true);
         Assert.assertNotEquals("Should generate a new session", preSessionId, NewRelic.currentSessionId());
         Assert.assertEquals("Should match system attribute", analyticsController.getAttribute(AnalyticsAttribute.SESSION_ID_ATTRIBUTE).getStringValue(),
                 NewRelic.currentSessionId());
@@ -907,7 +972,8 @@ public class NewRelicTest {
     public void testHandledException() {
         AgentDataReporter agentDataReporter = AgentDataReporterSpy.initialize(agentConfiguration);
         Assert.assertTrue("Should queue exception for delivery", NewRelic.recordHandledException(new Exception("testException")));
-        verify(agentDataReporter).storeAndReportAgentData(any(Payload.class));
+        // storeAndReportAgentData now runs on PayloadController's IO executor (NR-589852), not the calling thread.
+        verify(agentDataReporter, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS)).storeAndReportAgentData(any(Payload.class));
     }
 
     @Test
@@ -919,11 +985,193 @@ public class NewRelicTest {
         exceptionAttributes.put("fakedException", true);
         exceptionAttributes.put("numberOfDaysSinceNewJSFramework", 0);
         Assert.assertTrue("Should queue exception with attributes for delivery", NewRelic.recordHandledException(new Exception("testException"), exceptionAttributes));
-        verify(agentDataReporter, times(1)).storeAndReportAgentData(any(Payload.class));
+        // storeAndReportAgentData now runs on PayloadController's IO executor (NR-589852), not the calling thread.
+        verify(agentDataReporter, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(1)).storeAndReportAgentData(any(Payload.class));
 
         // verify null attribute set also
         Assert.assertTrue("Should queue exception with null attributes for delivery", NewRelic.recordHandledException(new Exception("testException"), null));
-        verify(agentDataReporter, times(2)).storeAndReportAgentData(any(Payload.class));
+        verify(agentDataReporter, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(2)).storeAndReportAgentData(any(Payload.class));
+    }
+
+    @Test
+    public void testHandledExceptionTriggersSessionReplayWhenEnabled() {
+        // When SR is enabled and the exception is accepted, the SR error path must
+        // run (samplingOverride flips to true via activateLoggingForSessionReplay()).
+        AgentDataReporterSpy.initialize(agentConfiguration);
+        boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
+        try {
+            primeSessionReplayObservability(true);
+
+            Assert.assertTrue("Should queue exception for delivery when SR is enabled",
+                    NewRelic.recordHandledException(new Exception("testException")));
+            Assert.assertTrue("Accepted exception must activate SR error path when SR is enabled",
+                    agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
+        } finally {
+            agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
+            agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
+        }
+    }
+
+    @Test
+    public void testHandledExceptionDoesNotTriggerSessionReplayWhenDisabled() {
+        AgentDataReporterSpy.initialize(agentConfiguration);
+        boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
+        try {
+            primeSessionReplayObservability(false);
+
+            Assert.assertTrue("Should queue exception for delivery when SR is disabled",
+                    NewRelic.recordHandledException(new Exception("testException")));
+            Assert.assertFalse("Accepted exception must NOT activate SR error path when SR is disabled",
+                    agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
+        } finally {
+            agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
+            agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
+        }
+    }
+
+    @Test
+    public void testHandledExceptionDoesNotTriggerSessionReplayWhenRejected() {
+        // When both HandledExceptions and NativeReporting are off, sendAgentData()
+        // returns false. The SR error path must NOT run for a rejected exception
+        // even when SR is enabled.
+        AgentDataReporterSpy.initialize(agentConfiguration);
+        boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
+        boolean originalHandled = FeatureFlag.featureEnabled(FeatureFlag.HandledExceptions);
+        boolean originalNative = FeatureFlag.featureEnabled(FeatureFlag.NativeReporting);
+        try {
+            primeSessionReplayObservability(true);
+            NewRelic.disableFeature(FeatureFlag.HandledExceptions);
+            NewRelic.disableFeature(FeatureFlag.NativeReporting);
+
+            Assert.assertFalse("recordHandledException should be a no-op when HandledExceptions and NativeReporting are both disabled",
+                    NewRelic.recordHandledException(new Exception("testException")));
+            Assert.assertFalse("Rejected exception must NOT activate SR error path",
+                    agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
+        } finally {
+            if (originalHandled) {
+                NewRelic.enableFeature(FeatureFlag.HandledExceptions);
+            }
+            if (originalNative) {
+                NewRelic.enableFeature(FeatureFlag.NativeReporting);
+            }
+            agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
+            agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
+        }
+    }
+
+    @Test
+    public void testRecordJavaScriptError() {
+        Assert.assertTrue("JSError feature should be enabled by default",
+                FeatureFlag.featureEnabled(FeatureFlag.JSError));
+
+        Assert.assertTrue("Should queue JS error for delivery",
+                NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+    }
+
+    @Test
+    public void testRecordJavaScriptErrorWithAttributes() {
+        HashMap<String, Object> attributes = new HashMap<>();
+        attributes.put("module", "junit");
+        attributes.put("fakedError", true);
+
+        Assert.assertTrue("Should queue JS error with attributes for delivery",
+                NewRelic.recordJavaScriptError("TypeError", "boom", "stack", true, attributes));
+
+        // verify null attribute set also
+        Assert.assertTrue("Should queue JS error with null attributes for delivery",
+                NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+    }
+
+    @Test
+    public void testRecordJavaScriptErrorFeatureDisabled() {
+        boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
+        try {
+            primeSessionReplayObservability(true);
+            NewRelic.disableFeature(FeatureFlag.JSError);
+
+            Assert.assertFalse("recordJavaScriptError should be a no-op when JSError feature is disabled",
+                    NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+            Assert.assertFalse("Rejected JS error must NOT activate SR error path when feature is disabled",
+                    agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
+        } finally {
+            NewRelic.enableFeature(FeatureFlag.JSError);
+            agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
+            agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
+        }
+    }
+
+    @Test
+    public void testRecordJavaScriptErrorRejectsInvalidName() {
+        boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
+        try {
+            primeSessionReplayObservability(true);
+
+            Assert.assertFalse("Null error name must be rejected",
+                    NewRelic.recordJavaScriptError(null, "boom", "stack", false, null));
+            Assert.assertFalse("Rejected null-name JS error must NOT activate SR error path",
+                    agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
+
+            Assert.assertFalse("Empty error name must be rejected",
+                    NewRelic.recordJavaScriptError("", "boom", "stack", false, null));
+            Assert.assertFalse("Rejected empty-name JS error must NOT activate SR error path",
+                    agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
+        } finally {
+            agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
+            agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
+        }
+    }
+
+    @Test
+    public void testRecordJavaScriptErrorTriggersSessionReplayWhenEnabled() {
+        // Mirrors the recordHandledException SessionReplay trigger pattern (NR-547254):
+        // when SR is enabled, a JS error must invoke the SR error path so error-mode
+        // sessions flush their buffer and sampled-start sessions evaluate the error
+        // sampling rate. The SR path must be safe to invoke even when SR runtime
+        // components are not initialized in this unit-test environment.
+        // We observe the SR-trigger side effect via LogReportingConfiguration's
+        // samplingOverride flag, which AndroidAgentImpl.activateLoggingForSessionReplay()
+        // flips to true on the SR error path.
+        boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
+        try {
+            primeSessionReplayObservability(true);
+
+            Assert.assertTrue("Should queue JS error for delivery when SR is enabled",
+                    NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+            Assert.assertTrue("Accepted JS error must activate SR error path when SR is enabled",
+                    agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
+        } finally {
+            agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
+            agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
+        }
+    }
+
+    @Test
+    public void testRecordJavaScriptErrorDoesNotTriggerSessionReplayWhenDisabled() {
+        boolean originalSrEnabled = agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled();
+        try {
+            primeSessionReplayObservability(false);
+
+            Assert.assertTrue("Should queue JS error for delivery when SR is disabled",
+                    NewRelic.recordJavaScriptError("TypeError", "boom", "stack", false, null));
+            Assert.assertFalse("Accepted JS error must NOT activate SR error path when SR is disabled",
+                    agentConfiguration.getLogReportingConfiguration().isSamplingOverridden());
+        } finally {
+            agentConfiguration.getSessionReplayConfiguration().setEnabled(originalSrEnabled);
+            agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
+        }
+    }
+
+    /**
+     * Prepare LogReporting + SessionReplay state so the SR error path is observable
+     * via {@link com.newrelic.agent.android.logging.LogReportingConfiguration#isSamplingOverridden()}.
+     * AndroidAgentImpl.activateLoggingForSessionReplay() only flips samplingOverride
+     * when LogReporting is enabled and the level is not NONE.
+     */
+    private void primeSessionReplayObservability(boolean srEnabled) {
+        agentConfiguration.getSessionReplayConfiguration().setEnabled(srEnabled);
+        agentConfiguration.getLogReportingConfiguration().setLoggingEnabled(true);
+        agentConfiguration.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
+        agentConfiguration.getLogReportingConfiguration().setSamplingOverride(false);
     }
 
     @Test
@@ -1013,23 +1261,23 @@ public class NewRelicTest {
 
         NewRelic.setEventListener(listener);
         Assert.assertEquals(managerStarted.get(), 0);
-        Assert.assertEquals(listener, ((EventManagerImpl) eventManager).getListener());
+        Assert.assertEquals(listener, ((CompositeEventListener)((EventManagerImpl) eventManager).getListener()).getUserListener());
 
         // b/g
         eventManager.shutdown();
         Assert.assertEquals(0, managerStarted.get());
         Assert.assertEquals(1, managerStopped.get());
-        Assert.assertEquals(listener, ((EventManagerImpl) eventManager).getListener());
+        Assert.assertEquals(listener, ((CompositeEventListener)((EventManagerImpl) eventManager).getListener()).getUserListener());
 
         // f/g
         eventManager.initialize(agentConfiguration);
         Assert.assertEquals(1, managerStarted.get());
-        Assert.assertEquals(listener, ((EventManagerImpl) eventManager).getListener());
+        Assert.assertEquals(listener, ((CompositeEventListener)((EventManagerImpl) eventManager).getListener()).getUserListener());
 
         // b/g
         eventManager.shutdown();
         Assert.assertEquals(2, managerStopped.get());
-        Assert.assertEquals(listener, ((EventManagerImpl) eventManager).getListener());
+        Assert.assertEquals(listener, ((CompositeEventListener)((EventManagerImpl) eventManager).getListener()).getUserListener());
     }
 
     @Test
@@ -1482,6 +1730,11 @@ public class NewRelicTest {
 
         @Override
         public void delete(AnalyticsAttribute attribute) {
+        }
+
+        @Override
+        public String getRootPath() {
+            return "";
         }
     }
 

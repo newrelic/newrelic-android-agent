@@ -97,6 +97,11 @@ class AGP70Adapter extends VariantAdapter {
     }
 
     @Override
+    TaskProvider getReactNativeSourceMapUploadProvider(String variantName, Action action = null) {
+        return registerOrNamed("${NewRelicReactNativeSourceMapUploadTask.NAME}${variantName.capitalize()}", NewRelicReactNativeSourceMapUploadTask.class, action)
+    }
+
+    @Override
     RegularFileProperty getMappingFileProvider(String variantName, Action action = null) {
         def variant = withVariant(variantName)
         def variantConfiguration = buildHelper.extension.variantConfigurations.findByName(variantName)
@@ -156,6 +161,12 @@ class AGP70Adapter extends VariantAdapter {
             } catch (Exception ignored) {
                 //  FIXME
                 logger.debug("${GradleVersion.current()} does not provide addGeneratedSourceDirectory() on the Java sources instance.")
+            }
+
+            try {
+                variant.sources.res?.addGeneratedSourceDirectory(configProvider, { it.getResourceOutputDir() })
+            } catch (Exception ignored) {
+                logger.debug("${GradleVersion.current()} does not provide addGeneratedSourceDirectory() on the resource sources instance.")
             }
         }
 

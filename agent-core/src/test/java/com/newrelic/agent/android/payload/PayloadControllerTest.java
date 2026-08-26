@@ -15,7 +15,7 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.agentdata.AgentDataReporter;
 import com.newrelic.agent.android.agentdata.AgentDataSender;
 import com.newrelic.agent.android.crash.CrashReporter;
-import com.newrelic.agent.android.crash.CrashReporterTests;
+import com.newrelic.agent.android.crash.CrashReporterTest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
@@ -31,17 +31,18 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.mockito.AdditionalAnswers;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -81,7 +82,7 @@ public class PayloadControllerTest {
     @Before
     public void setUp() throws Exception {
         agentConfiguration = Mockito.spy(new AgentConfiguration());
-        agentConfiguration.setApplicationToken(CrashReporterTests.class.getSimpleName());
+        agentConfiguration.setApplicationToken(CrashReporterTest.class.getSimpleName());
         agentConfiguration.setEnableAnalyticsEvents(true);
         agentConfiguration.setReportCrashes(false);
         agentConfiguration.setReportHandledExceptions(true);
@@ -95,9 +96,12 @@ public class PayloadControllerTest {
 
         payloadController = Mockito.spy(PayloadController.initialize(agentConfiguration));
 
-        PayloadController.queueExecutor = Mockito.spy(PayloadController.queueExecutor);
-        PayloadController.payloadReaperQueue = Mockito.spy(PayloadController.payloadReaperQueue);
-        PayloadController.payloadReaperRetryQueue = Mockito.spy(PayloadController.payloadReaperRetryQueue);
+        PayloadController.queueExecutor = Mockito.mock(PayloadController.ThrottledScheduledThreadPoolExecutor.class,
+                AdditionalAnswers.delegatesTo(PayloadController.queueExecutor));
+        PayloadController.payloadReaperQueue = Mockito.mock(ConcurrentLinkedQueue.class,
+                AdditionalAnswers.delegatesTo(PayloadController.payloadReaperQueue));
+        PayloadController.payloadReaperRetryQueue = Mockito.mock(ConcurrentLinkedQueue.class,
+                AdditionalAnswers.delegatesTo(PayloadController.payloadReaperRetryQueue));
 
         Mockito.doReturn(opportunisticUploads).when(payloadController).uploadOpportunistically();
         Mockito.doReturn(new TestFuture()).when(PayloadController.queueExecutor).submit(ArgumentMatchers.any(PayloadReaper.class));
@@ -407,7 +411,7 @@ public class PayloadControllerTest {
         return new PayloadSender(payload, agentConfiguration) {
             @Override
             protected HttpURLConnection getConnection() throws IOException {
-                HttpURLConnection connection = Mockito.spy((HttpURLConnection) new URL("http://www.newrelic.com").openConnection());
+                HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
                 Mockito.doReturn(false).when(connection).getDoOutput();
                 Mockito.doReturn(false).when(connection).getDoInput();
                 Mockito.doReturn(HttpsURLConnection.HTTP_OK).when(connection).getResponseCode();

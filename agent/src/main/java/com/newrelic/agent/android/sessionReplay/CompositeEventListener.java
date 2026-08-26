@@ -5,6 +5,8 @@
 
 package com.newrelic.agent.android.sessionReplay;
 
+import androidx.annotation.VisibleForTesting;
+
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.EventListener;
 import com.newrelic.agent.android.analytics.EventManager;
@@ -20,6 +22,11 @@ public class CompositeEventListener implements EventListener {
     public CompositeEventListener(EventListener sessionReplayListener) {
         this.sessionReplayListener = sessionReplayListener;
         this.userListener = null;
+    }
+
+    @VisibleForTesting
+    public  EventListener getUserListener() {
+        return userListener;
     }
 
     /**

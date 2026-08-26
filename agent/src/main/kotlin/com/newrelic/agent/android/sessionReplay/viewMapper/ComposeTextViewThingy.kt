@@ -281,7 +281,7 @@ open class ComposeTextViewThingy(
         }
 
         if (fontSize != other.fontSize) {
-            styleDifferences["font-size"] = String.format("%.2fpx", other.fontSize)
+            styleDifferences["font-size"] = String.format(java.util.Locale.US, "%.2fpx", other.fontSize)
         }
 
         if (viewDetails.isHidden() != other.viewDetails.isHidden()) {
@@ -363,6 +363,6 @@ open class ComposeTextViewThingy(
 
 
     private val formattedFontSize: String by lazy {
-        String.format("%.2f", fontSize)
+        String.format(java.util.Locale.US, "%.2f", fontSize)
     }
 }

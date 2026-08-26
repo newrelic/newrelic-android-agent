@@ -753,11 +753,9 @@ public class LogReporter extends PayloadReporter {
      *                   the limit (1MB).
      * @throws IOException
      */
-    public void appendToWorkingLogfile(Map<String, Object> logDataMap) throws IOException {
+    public synchronized void appendToWorkingLogfile(Map<String, Object> logDataMap) throws IOException {
         try {
             String logJsonData = gson.toJson(logDataMap, gtype);
-
-
 
             if (null != workingLogfileWriter.get()) {
                 // Check Vortex limits prior to writing

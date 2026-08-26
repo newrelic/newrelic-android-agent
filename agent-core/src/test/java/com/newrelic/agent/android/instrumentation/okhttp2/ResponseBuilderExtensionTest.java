@@ -121,7 +121,7 @@ public class ResponseBuilderExtensionTest {
         Call mockCall = new MockCall(client, request, mockResponse);
         when(spyClient.newCall(request)).thenReturn(mockCall);
 
-        CallExtension instrumentedCall = (CallExtension) OkHttp2Instrumentation.newCall(client, request);
+        CallExtension instrumentedCall = (CallExtension) OkHttp2Instrumentation.newCall(spyClient, request);
 
         assertTrue("Instrumented call must be an instance of CallExtension.", instrumentedCall instanceof CallExtension);
 
@@ -177,7 +177,7 @@ public class ResponseBuilderExtensionTest {
         Call mockCall = new MockCall(client, request, mockResponse);
         when(spyClient.newCall(request)).thenReturn(mockCall);
 
-        CallExtension instrumentedCall = (CallExtension) OkHttp2Instrumentation.newCall(client, request);
+        CallExtension instrumentedCall = (CallExtension) OkHttp2Instrumentation.newCall(spyClient, request);
 
         assertTrue("Instrumented call must be an instance of CallExtension.", instrumentedCall instanceof CallExtension);
 

@@ -118,6 +118,10 @@ public class ActivityClassVisitorTest {
             }
         }
 
+        // Additional target: the onStop injection must also call Activity.isChangingConfigurations()
+        // so the boolean argument to the new activityStopped(Z)V overload is sourced from the activity.
+        targets.add("INVOKEVIRTUAL android/app/Activity.isChangingConfigurations ()Z");
+
         String targetsArray[] = new String[targets.size()];
         testContext.testVisitorInjection(classBytes, cv, targets.toArray(targetsArray));
     }

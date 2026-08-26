@@ -80,17 +80,27 @@ class PluginDexGuardRegressionSpec extends PluginSpec {
 
             def configClass = new File(buildDir, "intermediates/javac/${var}/classes/com/newrelic/agent/android/NewRelicConfig.class")
             configClass.exists() && configClass.canRead()
+
+            def buildIdResource = new File(buildDir,
+                    "generated/res/newrelicConfig${var.capitalize()}/values/com_newrelic_android_agent_config.xml")
+            buildIdResource.exists() && buildIdResource.canRead()
+            buildIdResource.text.contains('name="com_newrelic_android_buildId"')
+            buildIdResource.text.contains('name="com_newrelic_android_metrics"')
         }
 
         mapUploadVariants.each { var ->
-            buildResult.task(":newrelicMapUpload${var.capitalize()}")?.outcome == SUCCESS ||
-                    buildResult.task(":newrelicMapUploadDexguard${var.capitalize()}")?.outcome == SUCCESS
-            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+            buildResult.task(":newrelicMapUploadApk${var.capitalize()}")?.outcome == SUCCESS
+            // Check the tagged output file instead of original mapping file
+            with(new File(buildDir, "outputs/newrelic/apk/${var}/mapping.txt")) {
                 exists()
                 text.contains(Proguard.NR_MAP_PREFIX)
+            }
+            // Check that original mapping file detection still works
+            with(new File(buildDir, "outputs/dexguard/mapping/${var}/${var}-mapping.txt")) {
+                exists()
                 filteredOutput.contains("Map file for variant [${var}] detected: [${getCanonicalPath()}]")
-                filteredOutput.contains("Tagging map [${getCanonicalPath()}] with buildID [") ||
-                        filteredOutput.contains("Map [${getCanonicalPath()}] has already been tagged")
+                filteredOutput.contains("Tagging map [") && filteredOutput.contains("] with buildID [") ||
+                        filteredOutput.contains("Map already tagged, skipping duplicate tag for [")
             }
         }
 

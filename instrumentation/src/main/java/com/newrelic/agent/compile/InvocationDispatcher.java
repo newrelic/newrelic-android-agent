@@ -191,7 +191,12 @@ public class InvocationDispatcher {
                     }
                     cr.accept(cv, parsingOptions);
 
-                } catch (Exception e) {
+                } catch (Throwable e) {
+                    // Catch Throwable so LinkageError subtypes raised during ASM
+                    // frame computation (e.g. IllegalAccessError from Class.forName
+                    // under Gradle 9's stricter classloader isolation) fall through
+                    // to the COMPUTE_MAXS retry / pass-through path instead of
+                    // crashing the entire transform task.
                     if (classWriterFlags != ClassWriter.COMPUTE_MAXS) {
                         log.debug("[InvocationDispatcher] [" + className + "] " + e);
                         log.debug("[InvocationDispatcher] Retry with ClassWriter.COMPUTE_MAXS");

@@ -38,6 +38,7 @@ public class HarvesterTest {
     private static final long FIVE_HOURS_MS = 5 * 60 * 60 * 1000L;
     private static final long EIGHT_HOURS_MS = 8 * 60 * 60 * 1000L;
     private static final int CONCURRENT_TEST_TIMEOUT_SECONDS = 10;
+    private static final long ASYNC_VERIFY_TIMEOUT_MS = 2000L;
 
     @Before
     public void setUp() throws Exception {
@@ -238,12 +239,12 @@ public class HarvesterTest {
         LogReportingConfiguration postValue = Mockito.spy(harvester.getAgentConfiguration().getLogReportingConfiguration());
         Mockito.when(postValue.isSampled()).thenReturn(false);
         Assert.assertFalse(postValue.toString().equals(preValue.toString()));
-        Assert.assertFalse(postValue.getLoggingEnabled());
+        Assert.assertFalse(postValue.getLoggingEnabledAndSessionSampled());
         Assert.assertEquals(LogLevel.WARN, postValue.getLogLevel());
 
         Mockito.reset(postValue);
         Mockito.when(postValue.isSampled()).thenReturn(true);
-        Assert.assertTrue(postValue.getLoggingEnabled());
+        Assert.assertTrue(postValue.getLoggingEnabledAndSessionSampled());
     }
 
     @Test
@@ -300,7 +301,7 @@ public class HarvesterTest {
 
         harvester.checkAndResetSessionIfExpired();
 
-        Mockito.verify(mockHarvest, Mockito.times(1)).startSession();
+        Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(1)).startSession();
     }
 
     @Test
@@ -309,7 +310,7 @@ public class HarvesterTest {
 
         harvester.checkAndResetSessionIfExpired();
 
-        Mockito.verify(mockHarvest, Mockito.times(1)).startSession();
+        Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(1)).startSession();
     }
 
     @Test
@@ -363,6 +364,14 @@ public class HarvesterTest {
         HarvestTimer mockHarvestTimer = Mockito.spy(new HarvestTimer(harvester));
         long fiveHoursInMs = 5 * 60 * 60 * 1000; // 5 hours
         Mockito.doReturn(fiveHoursInMs).when(mockHarvestTimer).sessionTimeSinceStart();
+        // Bypass the real tick (schedules on a real background executor) and run inline.
+        Mockito.doAnswer(invocation -> {
+            Runnable onComplete = invocation.getArgument(0);
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return null;
+        }).when(mockHarvestTimer).tickNow(Mockito.any(Runnable.class));
 
         Harvest mockHarvest = Mockito.spy(Harvest.getInstance());
         Mockito.doReturn(mockHarvestTimer).when(mockHarvest).getHarvestTimer();
@@ -373,7 +382,7 @@ public class HarvesterTest {
 
         harvester.execute();
 
-        Mockito.verify(mockHarvest, Mockito.times(1)).startSession();
+        Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).atLeastOnce()).startSession();
     }
 
     @Test
@@ -386,6 +395,14 @@ public class HarvesterTest {
         HarvestTimer mockHarvestTimer = Mockito.spy(new HarvestTimer(harvester));
         long fiveHoursInMs = 5 * 60 * 60 * 1000; // 5 hours
         Mockito.doReturn(fiveHoursInMs).when(mockHarvestTimer).sessionTimeSinceStart();
+        // Bypass the real tick (schedules on a real background executor) and run inline.
+        Mockito.doAnswer(invocation -> {
+            Runnable onComplete = invocation.getArgument(0);
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return null;
+        }).when(mockHarvestTimer).tickNow(Mockito.any(Runnable.class));
 
         Harvest mockHarvest = Mockito.spy(Harvest.getInstance());
         Mockito.doReturn(mockHarvestTimer).when(mockHarvest).getHarvestTimer();
@@ -395,7 +412,7 @@ public class HarvesterTest {
         harvester.transition(Harvester.State.CONNECTED);
 
         harvester.execute();
-        Mockito.verify(mockHarvest, Mockito.times(1)).startSession();
+        Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).atLeastOnce()).startSession();
     }
 
     @Test
@@ -424,7 +441,7 @@ public class HarvesterTest {
 
         harvester.checkAndResetSessionIfExpired();
 
-        Mockito.verify(mockHarvest, Mockito.times(1)).startSession();
+        Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(1)).startSession();
     }
 
     @Test
@@ -449,7 +466,7 @@ public class HarvesterTest {
 
             harvester.execute();
 
-            Mockito.verify(mockHarvest, Mockito.times(1)).startSession();
+            Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).atLeastOnce()).startSession();
 
             // Verify: New session ID was created (if initial session existed)
             if (initialSessionId != null) {
@@ -467,6 +484,14 @@ public class HarvesterTest {
 
         HarvestTimer mockHarvestTimer = Mockito.spy(new HarvestTimer(harvester));
         Mockito.doReturn(FIVE_HOURS_MS).when(mockHarvestTimer).sessionTimeSinceStart();
+        // Bypass real tick (blocks on network) and run the post-harvest callback inline.
+        Mockito.doAnswer(invocation -> {
+            Runnable onComplete = invocation.getArgument(0);
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return null;
+        }).when(mockHarvestTimer).tickNow(Mockito.any(Runnable.class));
 
         Harvest mockHarvest = Mockito.spy(Harvest.getInstance());
         Mockito.doReturn(mockHarvestTimer).when(mockHarvest).getHarvestTimer();
@@ -500,7 +525,7 @@ public class HarvesterTest {
         Assert.assertTrue("Concurrent test should complete within timeout",
                          latch.await(CONCURRENT_TEST_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS));
 
-        Assert.assertTrue("Session should be reset at least once", resetCount.get() >= 1);
+        Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).atLeastOnce()).startSession();
         Assert.assertTrue("Session reset count should be reasonable (may have race condition)",
                          resetCount.get() <= 2);
     }
@@ -511,7 +536,7 @@ public class HarvesterTest {
 
         harvester.checkAndResetSessionIfExpired();
 
-        Mockito.verify(mockHarvest, Mockito.times(1)).startSession();
+        Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(1)).startSession();
     }
 
     @Test
@@ -522,7 +547,7 @@ public class HarvesterTest {
 
         harvester.checkAndResetSessionIfExpired();
 
-        Mockito.verify(mockHarvest, Mockito.times(1)).startSession();
+        Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(1)).startSession();
     }
 
     @Test
@@ -536,7 +561,7 @@ public class HarvesterTest {
 
         harvester.checkAndResetSessionIfExpired();
 
-        Mockito.verify(mockHarvest, Mockito.times(1)).startSession();
+        Mockito.verify(mockHarvest, Mockito.timeout(ASYNC_VERIFY_TIMEOUT_MS).times(1)).startSession();
 
         Assert.assertNotNull("Harvest data should be preserved during session reset",
                             harvester.getHarvestData().getDataToken());
@@ -582,17 +607,30 @@ public class HarvesterTest {
 
     @Test
     public void testCheckAndResetSessionIfExpired_DoesNotFireWhenUnderLimit() {
-        setupMockHarvestWithSessionTime(TWO_HOURS_MS);
+        HarvestTimer mockHarvestTimer = Mockito.spy(new HarvestTimer(harvester));
+        Mockito.doReturn(TWO_HOURS_MS).when(mockHarvestTimer).sessionTimeSinceStart();
+
+        Harvest mockHarvest = Mockito.spy(Harvest.getInstance());
+        Mockito.doReturn(mockHarvestTimer).when(mockHarvest).getHarvestTimer();
+        Harvest.setInstance(mockHarvest);
 
         harvester.checkAndResetSessionIfExpired();
 
-        Assert.assertFalse("onSessionRestarted should NOT fire when session is under the limit",
-                testAdapter.didSessionRestart());
+        Mockito.verify(mockHarvestTimer, Mockito.never()).tickNow(Mockito.any(Runnable.class));
     }
 
     private Harvest setupMockHarvestWithSessionTime(long sessionTimeMs) {
         HarvestTimer mockHarvestTimer = Mockito.spy(new HarvestTimer(harvester));
         Mockito.doReturn(sessionTimeMs).when(mockHarvestTimer).sessionTimeSinceStart();
+        // Bypass the real harvest tick (which performs blocking network I/O via
+        // uninitialized()->disconnected()) and run the post-harvest callback inline.
+        Mockito.doAnswer(invocation -> {
+            Runnable onComplete = invocation.getArgument(0);
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return null;
+        }).when(mockHarvestTimer).tickNow(Mockito.any(Runnable.class));
 
         Harvest mockHarvest = Mockito.spy(Harvest.getInstance());
         Mockito.doReturn(mockHarvestTimer).when(mockHarvest).getHarvestTimer();

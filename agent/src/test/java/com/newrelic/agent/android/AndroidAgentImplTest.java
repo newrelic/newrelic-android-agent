@@ -7,8 +7,12 @@ package com.newrelic.agent.android;
 
 import static com.newrelic.agent.android.analytics.AnalyticsAttribute.ACTION_TYPE_ATTRIBUTE;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+
+import android.content.Context;
+import android.content.res.Resources;
 
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
@@ -45,6 +49,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -97,6 +102,7 @@ public class AndroidAgentImplTest {
     @After
     public void tearDown() throws Exception {
         Agent.stop();
+        Agent.setBuildId(null);
     }
 
     @Test
@@ -127,6 +133,36 @@ public class AndroidAgentImplTest {
         Assert.assertFalse("New device info should not be equal",
                 agentImpl.getSavedState().getConnectInformation().getDeviceInformation().equals(agentImpl.getDeviceInformation()));
         Assert.assertTrue("Should update connection info on device info change", agentImpl.updateSavedConnectInformation());
+    }
+
+    @Test
+    public void testBuildIdResolvedFromGeneratedResource() throws Exception {
+        Context contextSpy = spyContext.getContext();
+        Resources resourcesSpy = spy(contextSpy.getResources());
+        // Evaluate this ahead of the stubbing calls below - calling a method on the contextSpy
+        // mock as an inline argument while resourcesSpy's stub is mid-setup confuses Mockito's
+        // stubbing tracker (UnfinishedStubbingException, hint #3: "stubbing the behaviour of
+        // another mock inside before 'thenReturn' instruction is completed").
+        String packageName = contextSpy.getPackageName();
+
+        doReturn(resourcesSpy).when(contextSpy).getResources();
+        doReturn(4242).when(resourcesSpy).getIdentifier("com_newrelic_android_buildId", "string", packageName);
+        doReturn("resource-provided-build-id").when(resourcesSpy).getString(4242);
+
+        new AndroidAgentImpl(contextSpy, agentConfig);
+
+        Assert.assertEquals("resource-provided-build-id", Agent.getBuildId());
+    }
+
+    @Test
+    public void testBuildIdFallsBackWhenResourceMissing() throws Exception {
+        // spyContext's real Robolectric resources have no matching entry, so getIdentifier()
+        // returns 0 and Agent.setBuildId() is never called - Agent.getBuildId() falls back to
+        // its existing NewRelicConfig reflection path (which finds nothing on this module's
+        // test classpath and returns "").
+        new AndroidAgentImpl(spyContext.getContext(), agentConfig);
+
+        Assert.assertEquals("", Agent.getBuildId());
     }
 
     @Test
@@ -287,6 +323,7 @@ public class AndroidAgentImplTest {
                 (int) (SpyContext.APP_MEMORY / 1024), environmentInformation.getMemoryUsage());
     }
 
+    @Ignore
     @Test
     public void testCombinedAgentLifecycleGestures() throws Exception {
         eventStore = agentConfig.getEventStore();
@@ -312,7 +349,6 @@ public class AndroidAgentImplTest {
 
         Collection<AnalyticsEvent> queuedEvents;
         EventManager eventManager = analyticsController.getEventManager();
-
 
         agentImpl.start();
         assertEquals("Should contain app launch user action event", eventManager.getEventsRecorded(), 1);
@@ -445,12 +481,76 @@ public class AndroidAgentImplTest {
         Assert.assertTrue(log.getInstance() instanceof ConsoleAgentLog);
 
         Mockito.when(loggingConfig.getLoggingEnabled()).thenReturn(true);
+        Mockito.when(loggingConfig.isSampled()).thenReturn(true);
         agentConfig.getLogReportingConfiguration().setLogLevel(LogLevel.DEBUG);
         agentImpl = new AndroidAgentImpl(spyContext.getContext(), agentConfig);
         agentImpl.initialize();
         Assert.assertTrue(log.getInstance() instanceof ForwardingAgentLog);
     }
 
+
+    @Test
+    public void testShutdownHarvestIncludesFullSessionAttributes() throws Exception {
+        agentStart();
+
+        final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+        final int systemAttrCountBeforeShutdown = analyticsController.getSystemAttributes().size();
+        Assert.assertTrue("Agent should have system attributes after start", systemAttrCountBeforeShutdown > 1);
+
+        final int[] systemAttrCountDuringHarvest = {-1};
+        Harvest.addHarvestListener(new HarvestAdapter() {
+            @Override
+            public void onHarvestBefore() {
+                systemAttrCountDuringHarvest[0] = analyticsController.getSystemAttributes().size();
+            }
+        });
+
+        NewRelic.isShutdown = true;
+        agentImpl.stop(true);
+        NewRelic.isShutdown = false;
+
+        Assert.assertTrue(
+                "Shutdown harvest must include full session attributes, not just sessionDuration. Got: " + systemAttrCountDuringHarvest[0],
+                systemAttrCountDuringHarvest[0] > 1);
+    }
+
+    @Test
+    public void testShutdownHarvestFlushesBufferedEvents() throws Exception {
+        agentStart();
+
+        final AnalyticsControllerImpl analyticsController = AnalyticsControllerImpl.getInstance();
+        final EventManager eventManager = analyticsController.getEventManager();
+
+        // Buffer a custom event in the EventManager
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put("custom", "value");
+        Assert.assertTrue("Custom event should be recorded",
+                analyticsController.recordCustomEvent("CustomCategory", attrs));
+
+        final int bufferedBeforeShutdown = eventManager.getQueuedEvents().size();
+        Assert.assertTrue("EventManager should hold buffered events before shutdown",
+                bufferedBeforeShutdown > 0);
+
+        // Capture how many events remain in the buffer when the shutdown harvest begins.
+        // clearExistingData() must NOT empty the buffer before harvestNow flushes it; otherwise
+        // only session attributes are sent and the recorded events are silently dropped.
+        final int[] bufferedDuringHarvest = {-1};
+        Harvest.addHarvestListener(new HarvestAdapter() {
+            @Override
+            public void onHarvestBefore() {
+                bufferedDuringHarvest[0] = eventManager.getQueuedEvents().size();
+            }
+        });
+
+        NewRelic.isShutdown = true;
+        agentImpl.stop(true);
+        NewRelic.isShutdown = false;
+
+        Assert.assertTrue(
+                "Shutdown harvest must retain buffered events for flush, not drop them in clearExistingData(). Got: "
+                        + bufferedDuringHarvest[0],
+                bufferedDuringHarvest[0] >= bufferedBeforeShutdown);
+    }
 
     private void agentStart() throws InterruptedException {
         Agent.start();

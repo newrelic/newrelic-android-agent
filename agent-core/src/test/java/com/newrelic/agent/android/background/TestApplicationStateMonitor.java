@@ -92,6 +92,50 @@ public class TestApplicationStateMonitor {
         }
     }
 
+    @Test
+    public void activityStoppedWithConfigChangeDoesNotEmitBackgroundEvent() throws InterruptedException {
+        // Counter at 1, foregrounded=true (initial state)
+        asm.activityStarted();
+
+        // Stop with isChangingConfiguration=true: counter goes 1->0, but no uiHidden
+        asm.activityStopped(true);
+        asm.shutdownExecutor();
+
+        assertEquals("No background/foreground event should fire on a config-change stop",
+                0, listener.getEvents().size());
+    }
+
+    @Test
+    public void activityStoppedWithoutConfigChangeStillEmitsBackgroundEvent() throws InterruptedException {
+        asm.activityStarted();
+
+        // Stop with isChangingConfiguration=false: existing behavior, uiHidden fires.
+        // The activityStopped runnable chains a uiHidden runnable onto the same executor,
+        // so we sleep to let that chained submission settle before shutting down (mirrors
+        // the pattern in ensureTrivialUsageWorks).
+        asm.activityStopped(false);
+        Thread.sleep(750);
+        asm.shutdownExecutor();
+
+        assertEquals(1, listener.getEvents().size());
+        assertEquals("background", listener.getEvents().get(0));
+    }
+
+    @Test
+    public void rotationSimulationKeepsCounterConsistentAndEmitsNoEvents() throws InterruptedException {
+        // Initial: counter=0, foregrounded=true
+        asm.activityStarted();    // OLD activity started: counter=1
+        listener.getEvents().clear();
+
+        // Rotation: OLD.onStop with config change, then NEW.onStart
+        asm.activityStopped(true);   // counter 1->0, NO uiHidden
+        asm.activityStarted();       // counter 0->1, foregrounded still true, NO foreground event
+        asm.shutdownExecutor();
+
+        assertEquals("No events expected during rotation", 0, listener.getEvents().size());
+        assertTrue("App should still be foregrounded", asm.getForgroundState().get());
+    }
+
     private static final class StubApplicationStateListener implements ApplicationStateListener {
         private final ArrayList<String> events = new ArrayList<String>();
 

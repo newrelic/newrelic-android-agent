@@ -50,12 +50,14 @@ public class CrashSender extends PayloadSender {
     public PayloadSender call() {
         setPayload(crash.toJsonString().getBytes());
 
-        // Increment the upload counter
-        crash.incrementUploadCount();
-        agentConfiguration.getCrashStore().store(crash);
-
         try {
-            return super.call();
+            PayloadSender result = super.call();
+
+            if(responseCode > 0) { // `responseCode` is part of the PayloadSender interface
+                crash.incrementUploadCount();
+                agentConfiguration.getCrashStore().store(crash);
+            }
+            return result;
 
         } catch (Exception e) {
             onFailedUpload("Unable to report crash to New Relic, will try again later. " + e);
@@ -83,6 +85,12 @@ public class CrashSender extends PayloadSender {
             case 429: // Not defined by HttpURLConnection
                 StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_THROTTLED);
                 onFailedUpload("The request to submit the payload [" + payload.getUuid() + "] was has timed out - (will try again later) - Response code [" + responseCode + "]");
+                break;
+
+            case HttpsURLConnection.HTTP_FORBIDDEN:
+            case HttpsURLConnection.HTTP_BAD_REQUEST:
+                StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_UPLOAD_REJECTED_DEVICE_OFFLINE);
+                onFailedUpload("The crash was rejected - Response code " + connection.getResponseCode());
                 break;
 
             case HttpsURLConnection.HTTP_INTERNAL_ERROR:

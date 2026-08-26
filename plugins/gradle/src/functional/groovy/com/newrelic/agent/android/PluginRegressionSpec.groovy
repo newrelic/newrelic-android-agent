@@ -72,7 +72,8 @@ class PluginRegressionSpec extends PluginSpec {
                 (task(":${NewRelicMapUploadTask.NAME}${var.capitalize()}")?.outcome == SUCCESS ||
                         task("newrelicMapUploadMinify${var.capitalize()}WithR8")?.outcome == SUCCESS)
 
-                with(new File(buildDir, "outputs/mapping/${var}/mapping.txt")) {
+                // Check the tagged output file instead of original mapping file
+                with(new File(buildDir, "outputs/newrelic/${var}/mapping.txt")) {
                     exists()
                     text.contains(Proguard.NR_MAP_PREFIX)
                 }

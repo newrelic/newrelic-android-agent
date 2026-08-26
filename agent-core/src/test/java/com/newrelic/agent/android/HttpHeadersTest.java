@@ -14,6 +14,9 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class HttpHeadersTest {
     private HttpHeaders httpHeaders;
@@ -56,6 +59,77 @@ public class HttpHeadersTest {
     public void testRemoveHttpHeaderAsAttribute() {
         httpHeaders.removeHttpHeaderAsAttribute("X-Custom-Header");
         assertFalse(httpHeaders.getHttpHeaders().contains("X-Custom-Header"));
+    }
+
+    @Test
+    public void testConcurrentMutationDoesNotThrow() throws InterruptedException {
+        // Reproduces NR-575842: ConcurrentModificationException when iterating
+        // HttpHeaders while another thread mutates it. The "defensive copy"
+        // pattern new HashSet<>(getHttpHeaders()) does not prevent CME because
+        // HashSet's collection constructor calls iterator() on the source.
+        final String prefix = "TestHeaderConcurrent_";
+        final long deadline = System.currentTimeMillis() + 250;
+        final AtomicReference<Throwable> error = new AtomicReference<>();
+        final CountDownLatch ready = new CountDownLatch(2);
+        final CountDownLatch start = new CountDownLatch(1);
+
+        Thread iterator = new Thread(() -> {
+            ready.countDown();
+            try {
+                start.await();
+            } catch (InterruptedException ignored) {
+                return;
+            }
+            try {
+                while (System.currentTimeMillis() < deadline) {
+                    Set<String> snapshot = new HashSet<>(httpHeaders.getHttpHeaders());
+                    snapshot.size();
+                }
+            } catch (Throwable t) {
+                error.compareAndSet(null, t);
+            }
+        }, "HttpHeaders-iterator");
+
+        Thread mutator = new Thread(() -> {
+            ready.countDown();
+            try {
+                start.await();
+            } catch (InterruptedException ignored) {
+                return;
+            }
+            try {
+                int i = 0;
+                while (System.currentTimeMillis() < deadline) {
+                    String h = prefix + (i++ & 0x3FF);
+                    httpHeaders.addHttpHeaderAsAttribute(h);
+                    httpHeaders.removeHttpHeaderAsAttribute(h);
+                }
+            } catch (Throwable t) {
+                error.compareAndSet(null, t);
+            }
+        }, "HttpHeaders-mutator");
+
+        try {
+            iterator.start();
+            mutator.start();
+            ready.await();
+            start.countDown();
+            iterator.join();
+            mutator.join();
+
+            if (error.get() != null) {
+                throw new AssertionError(
+                        "Concurrent iteration + mutation must not throw: " + error.get(),
+                        error.get());
+            }
+        } finally {
+            // Restore singleton to pre-test state
+            for (String h : new HashSet<>(httpHeaders.getHttpHeaders())) {
+                if (h != null && h.startsWith(prefix)) {
+                    httpHeaders.removeHttpHeaderAsAttribute(h);
+                }
+            }
+        }
     }
 
     @Test

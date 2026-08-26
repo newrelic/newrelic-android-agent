@@ -137,7 +137,7 @@ public class IncrementalDiffGeneratorTest {
 
         // Modify the frame to simulate a change (frame is now non-final)
         android.graphics.Rect newFrame = new android.graphics.Rect(10, 20, 100, 200);
-        updatedThingy2.viewDetails.frame = newFrame;
+        updatedThingy2.getViewDetails().frame = newFrame;
 
 
         List<SessionReplayViewThingyInterface> newList = Arrays.asList(updatedThingy2);

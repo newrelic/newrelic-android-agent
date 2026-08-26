@@ -33,6 +33,9 @@ public class AgentConfigurationTest {
         region = agentConfiguration.parseRegionFromApplicationToken("eu01xx" + appToken);
         Assert.assertEquals("eu01", region);
 
+        region = agentConfiguration.parseRegionFromApplicationToken("jpxx" + appToken);
+        Assert.assertEquals("jp", region);
+
         region = agentConfiguration.parseRegionFromApplicationToken("xtestx" + appToken);
         Assert.assertEquals("xtest", region);
 
@@ -41,6 +44,9 @@ public class AgentConfigurationTest {
 
         region = agentConfiguration.parseRegionFromApplicationToken("eu01x");
         Assert.assertEquals("eu01", region);
+
+        region = agentConfiguration.parseRegionFromApplicationToken("jpx");
+        Assert.assertEquals("jp", region);
 
         region = agentConfiguration.parseRegionFromApplicationToken("gov66xx");
         Assert.assertEquals("gov66", region);
@@ -65,6 +71,9 @@ public class AgentConfigurationTest {
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("eu01xx" + appToken);
         Assert.assertEquals("mobile-collector.eu01.nr-data.net", collectorHost);
 
+        collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("jpxx" + appToken);
+        Assert.assertEquals("mobile-collector.jp.nr-data.net", collectorHost);
+
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("xtestx" + appToken);
         Assert.assertEquals("mobile-collector.xtest.nr-data.net", collectorHost);
 
@@ -85,6 +94,9 @@ public class AgentConfigurationTest {
         // region aware key with more than one identifier
         collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("eu01xeu02x" + appToken);
         Assert.assertEquals(collectorHost, "mobile-collector.eu01.nr-data.net");
+
+        collectorHost = agentConfiguration.getRegionalCollectorFromLicenseKey("jpxeu02x" + appToken);
+        Assert.assertEquals(collectorHost, "mobile-collector.jp.nr-data.net");
 
         // More tests: https://source.datanerd.us/agents/cross_agent_tests/blob/master/collector_hostname.json
     }
@@ -112,6 +124,10 @@ public class AgentConfigurationTest {
         Assert.assertEquals(agentConfiguration.getCollectorHost(), "mobile-collector.eu01.nr-data.net");
         Assert.assertEquals(agentConfiguration.getCrashCollectorHost(), "mobile-crash.eu01.nr-data.net");
 
+        agentConfiguration.setApplicationToken("jpxx" + appToken);
+        Assert.assertEquals(agentConfiguration.getCollectorHost(), "mobile-collector.jp.nr-data.net");
+        Assert.assertEquals(agentConfiguration.getCrashCollectorHost(), "mobile-crash.jp.nr-data.net");
+
         agentConfiguration.setCollectorHost("staging-mobile-collector");
         Assert.assertEquals(agentConfiguration.getCollectorHost(), "staging-mobile-collector");
 
@@ -130,6 +146,11 @@ public class AgentConfigurationTest {
         Assert.assertEquals(agentConfiguration.getApplicationToken(), "eu01xx" + appToken);
         Assert.assertEquals(agentConfiguration.getCollectorHost(), "mobile-collector.eu01.nr-data.net");
         Assert.assertEquals(agentConfiguration.getCrashCollectorHost(), "mobile-crash.eu01.nr-data.net");
+
+        agentConfiguration.setApplicationToken("jpxx" + appToken);
+        Assert.assertEquals(agentConfiguration.getApplicationToken(), "jpxx" + appToken);
+        Assert.assertEquals(agentConfiguration.getCollectorHost(), "mobile-collector.jp.nr-data.net");
+        Assert.assertEquals(agentConfiguration.getCrashCollectorHost(), "mobile-crash.jp.nr-data.net");
     }
 
     @Test

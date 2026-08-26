@@ -1,0 +1,130 @@
+name: Nightly Release
+
+# CDD rollout step 1: workflow_dispatch only until end-to-end verification is complete.
+# Uncomment schedule (step 3) after a successful manual run.
+on:
+  # schedule:
+  #   - cron: '0 2 * * *'  # 2:00 AM UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Skip check and version resolution
+    runs-on: ubuntu-latest
+    outputs:
+      skip:             ${{ steps.skip-check.outputs.skip }}
+      date:             ${{ steps.vars.outputs.date }}
+      tag:              ${{ steps.vars.outputs.tag }}
+      head_sha:         ${{ steps.vars.outputs.head_sha }}
+      snapshot_version: ${{ steps.vars.outputs.snapshot_version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Skip if no new commits since last nightly
+        id: skip-check
+        run: |
+          # should we tag another commit as a nightly build candidate?
+
+          # Bail early if today's tag already exists (guards against same-day re-runs)
+          TODAY_TAG="nightly-$(date -u +%Y-%m-%d)"
+          if git tag -l "$TODAY_TAG" | grep -q .; then
+            echo "Tag $TODAY_TAG already exists — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LAST_NIGHTLY=$(git tag -l 'nightly-*' --sort=-version:refname | head -1)
+
+          if [ -z "$LAST_NIGHTLY" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LAST_NIGHTLY_SHA=$(git rev-list -n 1 "$LAST_NIGHTLY")
+          HEAD_SHA=$(git rev-parse HEAD)
+
+          if [ "$LAST_NIGHTLY_SHA" = "$HEAD_SHA" ]; then
+            echo "No new commits since $LAST_NIGHTLY — skipping nightly."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve version and date
+        if: steps.skip-check.outputs.skip != 'true'
+        id: vars
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BASE_VERSION=$(grep '^newrelic\.agent\.version' gradle.properties \
+            | sed 's/.*=\s*\([0-9][0-9.]*\).*/\1/')
+          echo "date=${DATE}"                                             >> "$GITHUB_OUTPUT"
+          echo "snapshot_version=${BASE_VERSION}-SNAPSHOT"                >> "$GITHUB_OUTPUT"
+          echo "tag=nightly-${DATE}"                                      >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(git rev-parse HEAD)"                           >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build and test
+    needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
+    uses: ./.github/workflows/android.yml
+    with:
+      ref: develop
+
+  publish:
+    name: Publish nightly artifacts to Sonatype
+    needs: [prepare, build]
+    if: needs.prepare.outputs.skip != 'true'
+    uses: ./.github/workflows/sonatypeDeployment.yml
+    with:
+      ref: develop
+      version: ${{ needs.prepare.outputs.snapshot_version }}
+    secrets: inherit
+
+  release:
+    name: Tag and create GitHub pre-release
+    needs: [prepare, publish]
+    if: needs.prepare.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Create and push nightly tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ needs.prepare.outputs.tag }}"
+          git push origin "${{ needs.prepare.outputs.tag }}"
+
+      - name: Create GitHub pre-release
+        env:
+          GH_TOKEN:        ${{ github.token }}
+          TAG:             ${{ needs.prepare.outputs.tag }}
+          DATE:            ${{ needs.prepare.outputs.date }}
+          HEAD_SHA:         ${{ needs.prepare.outputs.head_sha }}
+          SNAPSHOT_VERSION: ${{ needs.prepare.outputs.snapshot_version }}
+        run: |
+          {
+            echo "Nightly pre-release from \`develop\` at commit \`${HEAD_SHA}\`."
+            echo ""
+            echo "**Maven artifact version:** \`${SNAPSHOT_VERSION}\`"
+            echo ""
+            echo '```groovy'
+            echo "implementation 'com.newrelic.agent.android:android-agent:${SNAPSHOT_VERSION}'"
+            echo '```'
+            echo ""
+            echo "> Pre-release build — not intended for production use."
+          } > /tmp/release-notes.md
+
+          gh release create "$TAG" \
+            --title "Nightly Build — ${DATE}" \
+            --notes-file /tmp/release-notes.md \
+            --prerelease

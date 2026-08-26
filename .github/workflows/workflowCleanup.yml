@@ -40,6 +40,10 @@ on:
     # run second day of the month
     - cron: '0 0 2 * *'
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   actions-cleanup:
     runs-on: ubuntu-latest

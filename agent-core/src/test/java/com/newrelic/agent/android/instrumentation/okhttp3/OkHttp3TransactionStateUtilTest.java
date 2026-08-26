@@ -178,7 +178,15 @@ public class OkHttp3TransactionStateUtilTest {
                                 .url(newUrl)
                                 .build();
 
-                        return chain.proceed(request);
+                        // Return a synthetic response so the test does not depend on
+                        // real network access to httpbin.org.
+                        return new Response.Builder()
+                                .request(request)
+                                .protocol(Protocol.HTTP_1_1)
+                                .code(HttpStatus.SC_OK)
+                                .message("OK")
+                                .body(ResponseBody.create(MediaType.parse("text/plain"), ""))
+                                .build();
                     }
                 })
                 .build();
@@ -366,7 +374,15 @@ public class OkHttp3TransactionStateUtilTest {
                                 .url(newUrl)
                                 .build();
 
-                        return chain.proceed(request);
+                        // Return a synthetic response so the test does not depend on
+                        // real network access to httpbin.org.
+                        return new Response.Builder()
+                                .request(request)
+                                .protocol(Protocol.HTTP_1_1)
+                                .code(HttpStatus.SC_OK)
+                                .message("OK")
+                                .body(ResponseBody.create(MediaType.parse("text/plain"), ""))
+                                .build();
                     }
                 })
                 .build();
@@ -697,8 +713,9 @@ public class OkHttp3TransactionStateUtilTest {
     }
 
     /**
-     * Test that peekBody() is used as LAST RESORT when body().contentLength() returns -1
-     * and no Content-Length header is present
+     * When body().contentLength() returns -1 and no Content-Length header is present,
+     * the implementation must NOT fall back to peekBody() (would block on streaming responses);
+     * content length stays unknown (-1).
      */
     @Test
     public void testContentLengthFromPeekBodyWhenBodyReturnsMinusOne() throws Exception {
@@ -712,23 +729,19 @@ public class OkHttp3TransactionStateUtilTest {
                 .body(body)
                 .message("200 OK")
                 .header("Transfer-Encoding", "chunked")
-                // No Content-Length header, so will fall back to peekBody
                 .build();
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        // Should get content length from peekBody() as last resort - limited to 4097 bytes
-        assertTrue("Content length should be > 0", contentLength > 0);
-        assertTrue("Content length should be <= 4097 (peek limit)", contentLength <= 4097);
+        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
+                -1L, contentLength);
     }
 
     /**
-     * Test that peekBody is limited to 4097 bytes to prevent memory issues
-     * (only used as last resort when all other methods fail)
+     * Large body with no Content-Length header must remain unknown (-1) — peekBody is not used.
      */
     @Test
     public void testPeekBodyLimitedTo4097Bytes() throws Exception {
-        // Create a very large response (100KB) with no Content-Length header
         String largeContent = generateString(100 * 1024);
         ResponseBody body = createResponseBodyWithoutContentLength(largeContent);
 
@@ -739,19 +752,16 @@ public class OkHttp3TransactionStateUtilTest {
                 .body(body)
                 .message("200 OK")
                 .header("Transfer-Encoding", "chunked")
-                // No Content-Length header, so will fall back to peekBody as last resort
                 .build();
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        // Should return at most 4097 (ATTRIBUTE_VALUE_MAX_LENGTH + 1)
-        assertTrue("Content length should be > 0", contentLength > 0);
-        assertTrue("Content length should be limited to 4097 bytes, got: " + contentLength,
-                  contentLength <= 4097);
+        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
+                -1L, contentLength);
     }
 
     /**
-     * Test that malformed Content-Length header falls back to peekBody
+     * Malformed Content-Length header is skipped; peekBody is not used, so result is unknown (-1).
      */
     @Test
     public void testMalformedContentLengthHeader() throws Exception {
@@ -768,7 +778,6 @@ public class OkHttp3TransactionStateUtilTest {
 
             @Override
             public okio.BufferedSource source() {
-                // Empty source, so peekBody will return 0
                 return okio.Okio.buffer(okio.Okio.source(new java.io.ByteArrayInputStream(new byte[0])));
             }
         };
@@ -784,8 +793,8 @@ public class OkHttp3TransactionStateUtilTest {
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        // Malformed header is skipped, peekBody returns 0 for empty source
-        assertEquals("Content length should be 0 from peekBody (empty source)", 0L, contentLength);
+        assertEquals("Content length should remain unknown (-1) when header is malformed and no peekBody fallback",
+                -1L, contentLength);
     }
 
     /**
@@ -810,7 +819,7 @@ public class OkHttp3TransactionStateUtilTest {
     }
 
     /**
-     * Test boundary: exactly 4096 bytes (via peekBody as last resort)
+     * 4096-byte body with no Content-Length header: result remains unknown (-1) — peekBody fallback removed.
      */
     @Test
     public void testExactly4096BytesViaPeekBody() throws Exception {
@@ -823,16 +832,16 @@ public class OkHttp3TransactionStateUtilTest {
                 .code(HttpStatus.SC_OK)
                 .body(body)
                 .message("200 OK")
-                // No Content-Length header, so will use peekBody as last resort
                 .build();
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        assertEquals("Content length should be 4096 from peekBody", 4096L, contentLength);
+        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
+                -1L, contentLength);
     }
 
     /**
-     * Test boundary: 4097 bytes (at peek limit, via peekBody as last resort)
+     * 4097-byte body with no Content-Length header: result remains unknown (-1) — peekBody fallback removed.
      */
     @Test
     public void testExactly4097BytesViaPeekBody() throws Exception {
@@ -845,16 +854,16 @@ public class OkHttp3TransactionStateUtilTest {
                 .code(HttpStatus.SC_OK)
                 .body(body)
                 .message("200 OK")
-                // No Content-Length header, so will use peekBody as last resort
                 .build();
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        assertEquals("Content length should be 4097 from peekBody (at peek limit)", 4097L, contentLength);
+        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
+                -1L, contentLength);
     }
 
     /**
-     * Test boundary: 5000 bytes exceeds peek limit (via peekBody as last resort)
+     * 5000-byte body with no Content-Length header: result remains unknown (-1) — peekBody fallback removed.
      */
     @Test
     public void testExceeds4097BytesViaPeekBody() throws Exception {
@@ -867,13 +876,12 @@ public class OkHttp3TransactionStateUtilTest {
                 .code(HttpStatus.SC_OK)
                 .body(body)
                 .message("200 OK")
-                // No Content-Length header, so will use peekBody as last resort
                 .build();
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        // peekBody limited to 4097, so should return 4097 not 5000
-        assertEquals("Content length should be limited to 4097 from peekBody", 4097L, contentLength);
+        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
+                -1L, contentLength);
     }
 
 }

@@ -131,23 +131,4 @@ class VariantAdapterTest extends PluginTest {
         Assert.assertEquals(buildHelper.logger, NewRelicGradlePlugin.LOGGER)
     }
 
-    @Test
-    void getVariantAdapterByGradleVersion() {
-        Assert.assertTrue(variantAdapter instanceof AGP74Adapter)
-
-        buildHelper = Mockito.spy(plugin.buildHelper)
-        Mockito.doReturn("7.2").when(buildHelper).getAgpVersion()
-        Mockito.doReturn("7.3.3").when(buildHelper).getGradleVersion()
-        def adapter = VariantAdapter.register(buildHelper)
-        Assert.assertTrue(adapter instanceof AGP4Adapter)
-    }
-
-    @Test
-    void getVariantAdapterByAGPVersion() {
-        buildHelper = Mockito.spy(plugin.buildHelper)
-        Mockito.doReturn("7.3.3").when(buildHelper).getAgpVersion()
-        def adapter = VariantAdapter.register(buildHelper)
-        Assert.assertTrue(adapter instanceof AGP4Adapter)
-    }
-
 }

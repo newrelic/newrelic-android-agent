@@ -17,6 +17,7 @@ import static com.newrelic.agent.android.FeatureFlag.FedRampEnabled;
 import static com.newrelic.agent.android.FeatureFlag.HandledExceptions;
 import static com.newrelic.agent.android.FeatureFlag.HttpResponseBodyCapture;
 import static com.newrelic.agent.android.FeatureFlag.InteractionTracing;
+import static com.newrelic.agent.android.FeatureFlag.JSError;
 import static com.newrelic.agent.android.FeatureFlag.LogReporting;
 import static com.newrelic.agent.android.FeatureFlag.NetworkErrorRequests;
 import static com.newrelic.agent.android.FeatureFlag.NetworkRequests;
@@ -62,11 +63,13 @@ public class FeatureFlagTest {
         Assert.assertTrue("DefaultInteractions is enabled by default", FeatureFlag.featureEnabled(DefaultInteractions));
         Assert.assertTrue("NetworkErrorRequests is enabled by default", FeatureFlag.featureEnabled(NetworkErrorRequests));
         Assert.assertTrue("HandledExceptions is enabled by default", FeatureFlag.featureEnabled(HandledExceptions));
+        Assert.assertTrue("JSError is enabled by default", FeatureFlag.featureEnabled(JSError));
         Assert.assertTrue("NetworkRequests is enabled by default", FeatureFlag.featureEnabled(NetworkRequests));
         Assert.assertTrue("Distributed tracing is enabled by default", FeatureFlag.featureEnabled(DistributedTracing));
         Assert.assertTrue("AppStartMetrics is enabled by default", FeatureFlag.featureEnabled(AppStartMetrics));
         Assert.assertTrue("ApplicationExitReporting is enabled by default", FeatureFlag.featureEnabled(ApplicationExitReporting));
         Assert.assertTrue("LogReporting is enabled by default", FeatureFlag.featureEnabled(LogReporting));
+        Assert.assertTrue("EventPersistence is enabled by default", FeatureFlag.featureEnabled(EventPersistence));
     }
 
     @Test
@@ -74,7 +77,6 @@ public class FeatureFlagTest {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));
-        Assert.assertFalse("EventPersistence is disabled by default", FeatureFlag.featureEnabled(EventPersistence));
     }
 
     @Test
@@ -111,6 +113,10 @@ public class FeatureFlagTest {
         FeatureFlag.disableFeature(ApplicationExitReporting);
         Assert.assertFalse("ApplicationExitReporting is now disabled", FeatureFlag.featureEnabled(ApplicationExitReporting));
 
+        Assert.assertTrue("JSError is enabled by default", FeatureFlag.featureEnabled(JSError));
+        FeatureFlag.disableFeature(JSError);
+        Assert.assertFalse("JSError is now disabled", FeatureFlag.featureEnabled(JSError));
+
         FeatureFlag.resetFeatures();
         Assert.assertTrue("CrashReporting is now enabled", FeatureFlag.featureEnabled(CrashReporting));
         Assert.assertTrue("NetworkRequests is now enabled", FeatureFlag.featureEnabled(NetworkRequests));
@@ -119,11 +125,12 @@ public class FeatureFlagTest {
         Assert.assertTrue("AppStartMetrics is now enabled", FeatureFlag.featureEnabled(AppStartMetrics));
         Assert.assertTrue("ApplicationExitReporting is now enabled", FeatureFlag.featureEnabled(ApplicationExitReporting));
         Assert.assertTrue("LogReporting is now enabled", FeatureFlag.featureEnabled(LogReporting));
+        Assert.assertTrue("JSError is now enabled", FeatureFlag.featureEnabled(JSError));
+        Assert.assertTrue("EventPersistence is disabled by default", FeatureFlag.featureEnabled(EventPersistence));
 
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));
-        Assert.assertFalse("EventPersistence is disabled by default", FeatureFlag.featureEnabled(EventPersistence));
     }
 
 }

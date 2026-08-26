@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.newrelic.agent.android.SpyContext;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -11,7 +12,10 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(RobolectricTestRunner.class)
 public class OfflineStorageTest {
@@ -21,6 +25,15 @@ public class OfflineStorageTest {
     @Before
     public void setUp() {
         spyContext = new SpyContext().getContext();
+        instance = new OfflineStorage(spyContext);
+        instance.cleanOfflineFiles();
+    }
+
+    @After
+    public void tearDown() {
+        instance.cleanOfflineFiles();
+        OfflineStorage.setOfflineStorageTTL(OfflineStorage.DEFAULT_OFFLINE_STORAGE_TTL);
+        instance.setOfflineStorageSize(100 * 1024 * 1024);
     }
 
     @Test
@@ -32,6 +45,8 @@ public class OfflineStorageTest {
         File offlineFolder = instance.getOfflineStorage();
         Assert.assertNotNull(offlineFolder);
         Assert.assertTrue(offlineFolder.exists());
+
+        instance.persistHarvestDataToDisk("{'testKey': 'testValue'}");
 
         File fakeFile = new File("test");
         instance.setOfflineStorage(fakeFile);
@@ -170,5 +185,110 @@ public class OfflineStorageTest {
                 }
             }
         }.start();
+    }
+
+    @Test
+    public void testDefaultTTL() {
+        Assert.assertEquals(TimeUnit.DAYS.toMillis(7), OfflineStorage.DEFAULT_OFFLINE_STORAGE_TTL);
+        Assert.assertEquals(OfflineStorage.DEFAULT_OFFLINE_STORAGE_TTL, OfflineStorage.getOfflineStorageTTL());
+    }
+
+    @Test
+    public void testSetGetTTL() {
+        long customTTL = TimeUnit.DAYS.toMillis(14);
+        OfflineStorage.setOfflineStorageTTL(customTTL);
+        Assert.assertEquals(customTTL, OfflineStorage.getOfflineStorageTTL());
+    }
+
+    @Test
+    public void testExpiredFilesAreDeletedOnRead() {
+        instance.persistHarvestDataToDisk("{'expired': 'data'}");
+
+        File[] files = instance.getOfflineStorage().listFiles();
+        Assert.assertNotNull(files);
+        Assert.assertEquals(1, files.length);
+        Assert.assertTrue(files[0].setLastModified(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(8)));
+
+        Map<String, String> data = instance.getAllOfflineData();
+        Assert.assertEquals(0, data.size());
+        Assert.assertFalse("Expired file should be deleted from disk", files[0].exists());
+    }
+
+    @Test
+    public void testNonExpiredFilesAreReturned() {
+        instance.persistHarvestDataToDisk("{'fresh': 'data'}");
+
+        Map<String, String> data = instance.getAllOfflineData();
+        Assert.assertEquals(1, data.size());
+    }
+
+    @Test
+    public void testMixedExpiredAndValidFiles() throws InterruptedException {
+        instance.persistHarvestDataToDisk("{'expired': 'data'}");
+        Thread.sleep(10);
+        instance.persistHarvestDataToDisk("{'fresh': 'data'}");
+
+        File[] files = instance.getOfflineStorage().listFiles();
+        Assert.assertNotNull(files);
+        Assert.assertEquals(2, files.length);
+        Arrays.sort(files, Comparator.comparingLong(File::lastModified));
+        Assert.assertTrue(files[0].setLastModified(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(8)));
+
+        Map<String, String> data = instance.getAllOfflineData();
+        Assert.assertEquals(1, data.size());
+        Assert.assertFalse("Expired file should be deleted", files[0].exists());
+        Assert.assertTrue("Fresh file should be retained", files[1].exists());
+    }
+
+    @Test
+    public void testLruEvictionEvictsOldestFile() throws InterruptedException {
+        // 3 payloads of ~24 bytes each; cap set so 2 fit but adding a 3rd triggers eviction
+        String payload = "{'k':'v','n':'12345678'}";
+        instance.setOfflineStorageSize(60);
+
+        instance.persistHarvestDataToDisk(payload);
+        Thread.sleep(10);
+        instance.persistHarvestDataToDisk(payload);
+
+        File[] filesBefore = instance.getOfflineStorage().listFiles();
+        Assert.assertEquals(2, filesBefore.length);
+        Arrays.sort(filesBefore, Comparator.comparingLong(File::lastModified));
+        File oldest = filesBefore[0];
+
+        boolean saved = instance.persistHarvestDataToDisk(payload);
+        Assert.assertTrue("New payload should be saved after eviction", saved);
+        Assert.assertFalse("Oldest file should have been evicted", oldest.exists());
+    }
+
+    @Test
+    public void testPersistReturnsFalseWhenEvictionCannotFreeEnoughSpace() {
+        // Cap smaller than a single payload — eviction cannot help
+        String payload = "{'k':'v','n':'12345678'}";
+        instance.setOfflineStorageSize(10);
+
+        boolean saved = instance.persistHarvestDataToDisk(payload);
+        Assert.assertFalse("Should return false when payload exceeds cap", saved);
+    }
+
+    @Test
+    public void testOversizedPayloadDoesNotEvictExistingFiles() {
+        // Store a small payload that fits within cap
+        instance.setOfflineStorageSize(50);
+        Assert.assertTrue(instance.persistHarvestDataToDisk("{'ok':'data'}"));
+
+        File[] filesBefore = instance.getOfflineStorage().listFiles();
+        Assert.assertNotNull(filesBefore);
+        Assert.assertEquals(1, filesBefore.length);
+
+        // Payload larger than the cap — should be rejected without evicting the stored file
+        String oversized = "{'k':'v','padding':'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}";
+        Assert.assertTrue("oversized payload must exceed cap for this test", oversized.getBytes().length > 50);
+
+        boolean saved = instance.persistHarvestDataToDisk(oversized);
+        Assert.assertFalse("Oversized payload should be rejected", saved);
+
+        File[] filesAfter = instance.getOfflineStorage().listFiles();
+        Assert.assertNotNull(filesAfter);
+        Assert.assertEquals("Existing files must not be evicted by an oversized payload", 1, filesAfter.length);
     }
 }

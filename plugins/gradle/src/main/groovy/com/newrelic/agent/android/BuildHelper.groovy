@@ -40,6 +40,10 @@ class BuildHelper {
      * 8.2              8.2
      * 8.3              8.4
      * 8.4              8.6
+     * 9.0              9.1.0
+     * 9.1              9.3.1
+     * 9.2              9.4.1
+     * 9.3              9.5.0
      *
      **/
 
@@ -50,7 +54,7 @@ class BuildHelper {
 
     public final String gradleVersion = GradleVersion.current().version
     static final String minSupportedAGPVersion = '7.0.0'
-    static final String maxSupportedAGPVersion = "9.0.0"
+    static final String maxSupportedAGPVersion = "9.3.0"
     static final String minSupportedGradleVersion = '7.1'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
     static final String minSupportedAGPConfigCacheVersion = '7.0.0'
@@ -315,6 +319,59 @@ class BuildHelper {
 
     boolean checkLibrary() {
         return project.plugins.hasPlugin("com.android.library")
+    }
+
+    /**
+     * Detect if this is a React Native project.
+
+     * Checks for the com.facebook.react plugin, the presence of react.gradle in
+     * node_modules, or React Native bundle tasks.
+     * @return true if React Native is detected
+     */
+    boolean checkReactNative() {
+        // Method 1: Check for the React Native Gradle plugin (new architecture/autolinking).
+        // This is flavor- and layout-agnostic, unlike the checks below: new-architecture RN
+        // projects don't ship a node_modules/react-native/react.gradle file, and their bundle
+        // tasks are flavor-qualified (e.g. createBundleDemoReleaseJsAndAssets), so neither of
+        // the legacy checks below can detect them on a flavored build.
+        if (project.plugins.hasPlugin("com.facebook.react")) {
+            logger.debug("React Native detected via com.facebook.react plugin")
+            return true
+        }
+
+        // Method 2: Check for react.gradle file in node_modules
+        // React Native projects typically have node_modules at the project root level (../../ from android/app)
+        def reactGradlePaths = [
+                project.file("../../node_modules/react-native/react.gradle"),
+                project.file("../node_modules/react-native/react.gradle"),
+                project.file("node_modules/react-native/react.gradle"),
+                project.rootProject.file("node_modules/react-native/react.gradle"),
+        ]
+
+        for (def reactGradle : reactGradlePaths) {
+            if (reactGradle.exists()) {
+                logger.debug("React Native detected via react.gradle at: ${reactGradle.absolutePath}")
+                return true
+            }
+        }
+
+        // Method 3: Check for React Native bundle tasks (created by react.gradle).
+        // Match by name pattern rather than a hardcoded "Release"-only name, since flavored
+        // builds produce flavor-qualified task names (e.g. createBundleDemoReleaseJsAndAssets).
+        // project.tasks.names is a name snapshot and doesn't force task creation/configuration.
+        try {
+            def taskName = project.tasks.names.find {
+                (it.startsWith("bundle") || it.startsWith("createBundle")) && it.endsWith("JsAndAssets")
+            }
+            if (taskName != null) {
+                logger.debug("React Native detected via task: ${taskName}")
+                return true
+            }
+        } catch (Exception ignored) {
+            // Task lookup may fail during configuration phase
+        }
+
+        return false
     }
 
 

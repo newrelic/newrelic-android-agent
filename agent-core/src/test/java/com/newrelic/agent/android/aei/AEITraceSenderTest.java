@@ -327,7 +327,7 @@ public class AEITraceSenderTest {
     }
 
     private HttpURLConnection getMockedConnection(AEITraceSender traceSender) throws IOException {
-        HttpURLConnection connection = Mockito.spy(traceSender.getConnection());
+        HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
 
         Mockito.doReturn(false).when(connection).getDoOutput();
         Mockito.doReturn(false).when(connection).getDoInput();

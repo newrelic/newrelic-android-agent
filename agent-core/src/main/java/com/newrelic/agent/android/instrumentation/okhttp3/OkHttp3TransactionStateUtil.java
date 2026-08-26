@@ -22,9 +22,7 @@ import org.apache.http.HttpStatus;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 import okhttp3.Headers;
@@ -263,19 +261,13 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
      * Adds HTTP headers from the request as custom attributes to the transaction state.
      * Only headers configured via {@link HttpHeaders#addHttpHeaderAsAttribute(String)} are captured.
      *
-     * <p><b>Thread Safety:</b> Creates a defensive copy of the header list to avoid
-     * {@link java.util.ConcurrentModificationException} if headers are modified concurrently.</p>
-     *
      * @param transactionState The transaction state to add attributes to
      * @param request The OkHttp request containing headers
      */
     public static void addHeadersAsCustomAttribute(TransactionState transactionState, Request request) {
         Map<String, String> headers = new HashMap<>();
 
-        // Defensive copy to prevent ConcurrentModificationException
-        Set<String> headersCopy = new HashSet<>(HttpHeaders.getInstance().getHttpHeaders());
-
-        for (String headerName : headersCopy) {
+        for (String headerName : HttpHeaders.getInstance().getHttpHeaders()) {
             String headerValue = request.headers().get(headerName);
             if (headerValue != null) {
                 headers.put(HttpHeaders.translateApolloHeader(headerName), headerValue);

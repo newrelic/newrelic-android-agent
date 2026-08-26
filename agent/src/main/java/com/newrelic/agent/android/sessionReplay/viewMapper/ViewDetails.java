@@ -74,6 +74,7 @@ public class ViewDetails {
             // If the parent is not a ViewGroup, we can still get its ID
             parentId = 0;
         }
+
     }
 
     // Getters for the final properties

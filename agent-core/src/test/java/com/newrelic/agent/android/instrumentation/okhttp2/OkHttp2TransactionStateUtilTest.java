@@ -157,7 +157,15 @@ public class OkHttp2TransactionStateUtilTest {
                             .removeHeader(header)
                             .build();
                 }
-                return chain.proceed(request);
+                // Return a synthetic response with the modified request so the test
+                // does not depend on real network access to httpbin.org.
+                return new Response.Builder()
+                        .request(request)
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(HttpStatus.SC_OK)
+                        .message("OK")
+                        .body(new ResponseBuilderExtensionTest.TestResponseBody())
+                        .build();
             }
         });
 

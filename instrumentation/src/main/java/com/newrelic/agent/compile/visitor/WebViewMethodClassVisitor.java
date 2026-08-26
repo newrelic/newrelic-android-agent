@@ -117,7 +117,8 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
      */
     static final ImmutableSet<String> WEBVIEW_CLASSES = ImmutableSet.of(
             "^android/webkit/WebView$",        // Direct WebView subclass
-            "^android/webkit/WebView"          // WebView and its subclasses
+            "^android/webkit/WebView",         // WebView and its subclasses
+            "^android/webkit/WebViewClient$"   // Direct WebViewClient subclass (for onPageFinished)
     );
 
     /**

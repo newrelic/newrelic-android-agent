@@ -68,10 +68,14 @@ public class ApplicationStateMonitor {
     }
 
     public void activityStopped() {
+        activityStopped(false);
+    }
+
+    public void activityStopped(final boolean isChangingConfiguration) {
         final Runnable runner = new Runnable() {
             @Override
             public void run() {
-                if (activityCount.decrementAndGet() == 0) {
+                if (activityCount.decrementAndGet() == 0 && !isChangingConfiguration) {
                     //application in background
                     uiHidden();
                 }
