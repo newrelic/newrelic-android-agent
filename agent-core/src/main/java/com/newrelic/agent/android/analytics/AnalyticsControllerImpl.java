@@ -993,7 +993,7 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
         return txn.getStatusCode() > 0 && txn.getStatusCode() < 400;
     }
 
-    private boolean isInitializedAndEnabled() {
+    public boolean isInitializedAndEnabled() {
         if (!initialized.get()) {
             log.warn("Analytics controller is not initialized!");
             return false;

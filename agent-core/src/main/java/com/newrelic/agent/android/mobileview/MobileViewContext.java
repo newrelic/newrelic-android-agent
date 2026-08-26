@@ -48,6 +48,11 @@ public class MobileViewContext {
             return;
         }
 
+        if (!AnalyticsControllerImpl.getInstance().isInitializedAndEnabled()) {
+            log.debug("MobileViewContext.onViewAppeared(): analytics controller is not initialized or enabled, ignoring.");
+            return;
+        }
+
         final String referrer;
         final long now = System.currentTimeMillis();
 
@@ -85,10 +90,24 @@ public class MobileViewContext {
             return;
         }
 
+        if (!AnalyticsControllerImpl.getInstance().isInitializedAndEnabled()) {
+            log.debug("MobileViewContext.onViewDisappeared(): analytics controller is not initialized or enabled, ignoring.");
+            return;
+        }
+
         final double timeVisibleMs;
 
         synchronized (lock) {
+            if (!viewName.equals(currentView)) {
+                // Another view has since become current (e.g. this callback fired after the
+                // next view's appearance during a lifecycle transition) — the appearance
+                // timestamp we're holding no longer belongs to viewName, so it can't be used
+                // to compute a meaningful dwell time.
+                log.debug("MobileViewContext.onViewDisappeared(): [" + viewName + "] is not the current view, ignoring.");
+                return;
+            }
             timeVisibleMs = currentViewAppearedAtMs == 0 ? 0 : (System.currentTimeMillis() - currentViewAppearedAtMs);
+            currentViewAppearedAtMs = 0;
         }
 
         Map<String, Object> eventAttributes = new HashMap<>();

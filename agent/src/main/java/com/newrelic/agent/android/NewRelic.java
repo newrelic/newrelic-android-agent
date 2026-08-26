@@ -31,6 +31,7 @@ import com.newrelic.agent.android.logging.NullAgentLog;
 import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
+import com.newrelic.agent.android.mobileview.MobileViewContext;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.CompositeEventListener;
@@ -985,6 +986,49 @@ public final class NewRelic {
             breadcrumbAttributes.put(AnalyticsAttribute.EVENT_NAME_ATTRIBUTE, breadcrumbName);
         }
         return AnalyticsControllerImpl.getInstance().recordBreadcrumb(breadcrumbName, breadcrumbAttributes);
+    }
+
+    /**
+     * Manually records a MobileView event for the given view name. Use this to track screens
+     * that automatic MobileView tracking cannot capture (e.g. React Native screens, or views
+     * you want to rename). Requires the {@link FeatureFlag#ManualMobileViewTracing} feature
+     * flag to be enabled.
+     *
+     * @param viewName Name of the view to record as currently visible.
+     * @return Returns true if the MobileView event was successfully recorded.
+     */
+    public static boolean setCurrentView(String viewName) {
+        return setCurrentView(viewName, null);
+    }
+
+    /**
+     * Manually records a MobileView event for the given view name and attributes. Use this to
+     * track screens that automatic MobileView tracking cannot capture (e.g. React Native
+     * screens, or views you want to rename). Requires the
+     * {@link FeatureFlag#ManualMobileViewTracing} feature flag to be enabled.
+     *
+     * @param viewName   Name of the view to record as currently visible.
+     * @param attributes A map of key-value pairs holding the event attributes. The values must
+     *                    be of type String, Double, or Boolean.
+     * @return Returns true if the MobileView event was successfully recorded.
+     */
+    public static boolean setCurrentView(String viewName, Map<String, Object> attributes) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setCurrentView"));
+
+        if (!FeatureFlag.featureEnabled(FeatureFlag.ManualMobileViewTracing)) {
+            log.debug("NewRelic.setCurrentView: ManualMobileViewTracing feature flag is disabled, ignoring.");
+            return false;
+        }
+
+        if (viewName == null || viewName.isEmpty()) {
+            log.error("NewRelic.setCurrentView: viewName must not be null or empty.");
+            return false;
+        }
+
+        MobileViewContext.getInstance().onViewAppeared(viewName, null, attributes);
+
+        return true;
     }
 
     /**
