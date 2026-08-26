@@ -834,6 +834,32 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
     }
 
     /**
+     * API: Record MobileView event from passed name and attributes
+     *
+     * @param name
+     * @param eventAttributes
+     * @return True if added to event pool
+     */
+    public boolean recordMobileViewEvent(String name, Map<String, Object> eventAttributes) {
+        try {
+            log.audit("AnalyticsControllerImpl.recordMobileViewEvent(" + name + ", " + eventAttributes + ")");
+
+            if (!isInitializedAndEnabled()) {
+                return false;
+            }
+
+            Set<AnalyticsAttribute> attributes = new HashSet<>();
+            attributes.addAll(validator.toValidatedAnalyticsAttributes(eventAttributes));
+
+            return addEvent(name, AnalyticsEventCategory.MobileView, AnalyticsEvent.EVENT_TYPE_MOBILE_VIEW, attributes);
+        } catch (Exception e) {
+            log.error(String.format("Error occurred while recording MobileView event [%s]: ", name), e);
+        }
+
+        return false;
+    }
+
+    /**
      * Records an event without validating attributes! Only for internal event use!
      *
      * @param name            name attribute. can be the same as eventType.

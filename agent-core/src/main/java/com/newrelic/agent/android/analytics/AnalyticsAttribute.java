@@ -84,6 +84,13 @@ public class AnalyticsAttribute {
 
     public static final String INSTANT_APP_ATTRIBUTE = "instantApp";
 
+    // MobileView
+    public static final String MOBILE_VIEW_NAME_ATTRIBUTE = "viewName";
+    public static final String MOBILE_VIEW_CLASS_ATTRIBUTE = "viewClass";
+    public static final String MOBILE_VIEW_PREVIOUS_VIEW_ATTRIBUTE = "previousView";
+    public static final String MOBILE_VIEW_LOAD_TIME_ATTRIBUTE = "loadTime";
+    public static final String MOBILE_VIEW_TIME_VISIBLE_ATTRIBUTE = "timeVisible";
+
     // NativeReporting
     public static final String NATIVE_ROOTED_DEVICE_ATTRIBUTE = "rootedDevice";
     public static final String NATIVE_EXCEPTION_MESSAGE_ATTRIBUTE = "exceptionMessage";

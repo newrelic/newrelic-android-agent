@@ -26,7 +26,9 @@ public enum FeatureFlag {
     LogReporting,
     ApplicationExitReporting,
     BackgroundReporting,
-    EventPersistence;
+    EventPersistence,
+    AutomaticMobileViewTracing,
+    ManualMobileViewTracing;
 
     public static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
 
