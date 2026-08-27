@@ -14,8 +14,20 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 public class WebViewInstrumentationCallbacks {
     private static final AgentLog log = AgentLogManager.getAgentLog();
+
+    private static final Map<WebView, Boolean> jsInterfaceInjected = new WeakHashMap<>();
+
+    private static final String DETECTION_SCRIPT =
+            "(function() {" +
+            "if (window." + WebViewJSInterface.INTERFACE_NAME + ") {" +
+            "window." + WebViewJSInterface.INTERFACE_NAME + ".reportBrowserAgentDetected(typeof window.newrelic !== 'undefined');" +
+            "}" +
+            "})();";
 
 
     public static void ButtonClicked(View view) {
@@ -96,15 +108,36 @@ public class WebViewInstrumentationCallbacks {
 
     }
 
+    static synchronized void ensureJsInterfaceInjected(WebView webView) {
+        if (webView == null || jsInterfaceInjected.containsKey(webView)) {
+            return;
+        }
+        jsInterfaceInjected.put(webView, Boolean.TRUE);
+        try {
+            webView.addJavascriptInterface(new WebViewJSInterface(), WebViewJSInterface.INTERFACE_NAME);
+        } catch (Exception e) {
+            log.error("Failed to inject NR WebView JS interface", e);
+        }
+    }
+
     public static void loadUrlCalled(WebView var0) {
+        ensureJsInterfaceInjected(var0);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_LOAD_URL);
     }
 
     public static void postUrlCalled(WebView var0) {
+        ensureJsInterfaceInjected(var0);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_POST_URL);
     }
 
     public static void onPageFinishedCalled(WebViewClient var0, WebView var1, String var2) {
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED);
+        if (var1 != null) {
+            try {
+                var1.evaluateJavascript(DETECTION_SCRIPT, null);
+            } catch (Exception e) {
+                log.error("Failed to run NR browser agent detection script", e);
+            }
+        }
     }
 }
