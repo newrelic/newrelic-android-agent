@@ -22,11 +22,30 @@ public class WebViewInstrumentationCallbacks {
 
     private static final Map<WebView, Boolean> jsInterfaceInjected = new WeakHashMap<>();
 
+    // Polls for window.newrelic instead of checking once, since a Browser agent snippet loaded
+    // via <script async>/defer, or injected dynamically, may not exist yet when onPageFinished fires.
+    private static final int DETECTION_POLL_INTERVAL_MS = 250;
+    private static final int DETECTION_MAX_POLL_ATTEMPTS = 8;
+
     private static final String DETECTION_SCRIPT =
             "(function() {" +
-            "if (window." + WebViewJSInterface.INTERFACE_NAME + ") {" +
-            "window." + WebViewJSInterface.INTERFACE_NAME + ".reportBrowserAgentDetected(typeof window.newrelic !== 'undefined');" +
+            "if (!window." + WebViewJSInterface.INTERFACE_NAME + ") { return; }" +
+            "var attempts = 0;" +
+            "var maxAttempts = " + DETECTION_MAX_POLL_ATTEMPTS + ";" +
+            "var intervalMs = " + DETECTION_POLL_INTERVAL_MS + ";" +
+            "var check = function() {" +
+            "if (typeof window.newrelic !== 'undefined') {" +
+            "window." + WebViewJSInterface.INTERFACE_NAME + ".reportBrowserAgentDetected(true);" +
+            "return;" +
             "}" +
+            "attempts++;" +
+            "if (attempts >= maxAttempts) {" +
+            "window." + WebViewJSInterface.INTERFACE_NAME + ".reportBrowserAgentDetected(false);" +
+            "return;" +
+            "}" +
+            "setTimeout(check, intervalMs);" +
+            "};" +
+            "check();" +
             "})();";
 
 

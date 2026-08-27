@@ -12,8 +12,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.contains
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.ArgumentMatchers.isNull
 import org.mockito.Mockito.mock
@@ -67,6 +67,12 @@ class WebViewInstrumentationCallbacksTest {
 
         assertTrue(StatsEngine.SUPPORTABILITY.statsMap
                 .containsKey(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED))
-        verify(webView, times(1)).evaluateJavascript(contains(WebViewJSInterface.INTERFACE_NAME), isNull())
+
+        val scriptCaptor = ArgumentCaptor.forClass(String::class.java)
+        verify(webView, times(1)).evaluateJavascript(scriptCaptor.capture(), isNull())
+        val script = scriptCaptor.value
+        assertTrue("Script should reference the bridge", script.contains(WebViewJSInterface.INTERFACE_NAME))
+        assertTrue("Script should retry via setTimeout instead of a single synchronous check",
+                script.contains("setTimeout"))
     }
 }
