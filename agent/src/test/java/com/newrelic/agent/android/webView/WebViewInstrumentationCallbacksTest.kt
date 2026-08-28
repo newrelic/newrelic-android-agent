@@ -75,4 +75,16 @@ class WebViewInstrumentationCallbacksTest {
         assertTrue("Script should retry via setTimeout instead of a single synchronous check",
                 script.contains("setTimeout"))
     }
+
+    @Test
+    fun pageFinished_incrementsMetricAndEvaluatesDetectionScript() {
+        WebViewInstrumentationCallbacks.pageFinished(webView, "https://example.com")
+
+        assertTrue(StatsEngine.SUPPORTABILITY.statsMap
+                .containsKey(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED))
+
+        val scriptCaptor = ArgumentCaptor.forClass(String::class.java)
+        verify(webView, times(1)).evaluateJavascript(scriptCaptor.capture(), isNull())
+        assertTrue(scriptCaptor.value.contains(WebViewJSInterface.INTERFACE_NAME))
+    }
 }

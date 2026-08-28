@@ -20,7 +20,24 @@ import java.util.WeakHashMap;
 public class WebViewInstrumentationCallbacks {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
-    private static final Map<WebView, Boolean> jsInterfaceInjected = new WeakHashMap<>();
+    private static final Map<WebView, WebViewState> states = new WeakHashMap<>();
+
+    /**
+     * Per-WebView instrumentation state. Held in a WeakHashMap so tracking a WebView never
+     * keeps it (and its Activity) alive.
+     */
+    static final class WebViewState {
+        boolean jsInterfaceInjected;
+    }
+
+    private static synchronized WebViewState stateFor(WebView webView) {
+        WebViewState state = states.get(webView);
+        if (state == null) {
+            state = new WebViewState();
+            states.put(webView, state);
+        }
+        return state;
+    }
 
     // Polls for window.newrelic instead of checking once, since a Browser agent snippet loaded
     // via <script async>/defer, or injected dynamically, may not exist yet when onPageFinished fires.
@@ -128,10 +145,14 @@ public class WebViewInstrumentationCallbacks {
     }
 
     static synchronized void ensureJsInterfaceInjected(WebView webView) {
-        if (webView == null || jsInterfaceInjected.containsKey(webView)) {
+        if (webView == null) {
             return;
         }
-        jsInterfaceInjected.put(webView, Boolean.TRUE);
+        WebViewState state = stateFor(webView);
+        if (state.jsInterfaceInjected) {
+            return;
+        }
+        state.jsInterfaceInjected = true;
         try {
             webView.addJavascriptInterface(new WebViewJSInterface(), WebViewJSInterface.INTERFACE_NAME);
         } catch (Exception e) {
@@ -149,14 +170,24 @@ public class WebViewInstrumentationCallbacks {
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_POST_URL);
     }
 
-    public static void onPageFinishedCalled(WebViewClient var0, WebView var1, String var2) {
+    /**
+     * Records a completed page load and runs browser-agent detection. Called by
+     * {@link NRWebViewClient} and, on WebViews with no NR client installed, by the
+     * bytecode-instrumented {@code onPageFinished} override in the host app.
+     */
+    public static void pageFinished(WebView webView, String url) {
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED);
-        if (var1 != null) {
-            try {
-                var1.evaluateJavascript(DETECTION_SCRIPT, null);
-            } catch (Exception e) {
-                log.error("Failed to run NR browser agent detection script", e);
-            }
+        if (webView == null) {
+            return;
         }
+        try {
+            webView.evaluateJavascript(DETECTION_SCRIPT, null);
+        } catch (Exception e) {
+            log.error("Failed to run NR browser agent detection script", e);
+        }
+    }
+
+    public static void onPageFinishedCalled(WebViewClient var0, WebView var1, String var2) {
+        pageFinished(var1, var2);
     }
 }
