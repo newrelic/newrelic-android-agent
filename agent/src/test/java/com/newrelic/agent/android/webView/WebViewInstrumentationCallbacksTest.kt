@@ -1,5 +1,7 @@
 package com.newrelic.agent.android.webView
 
+import android.os.Build
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 
@@ -17,12 +19,15 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.ArgumentMatchers.isNull
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 class WebViewInstrumentationCallbacksTest {
@@ -141,5 +146,62 @@ class WebViewInstrumentationCallbacksTest {
                 StatsEngine.SUPPORTABILITY.statsMap
                         .containsKey(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED))
         verify(webView, times(0)).evaluateJavascript(org.mockito.ArgumentMatchers.anyString(), isNull())
+    }
+
+    @Test
+    fun loadUrlCalled_enablesJavaScriptWhenDisabled() {
+        val settings = mock(WebSettings::class.java)
+        `when`(webView.getSettings()).thenReturn(settings)
+        `when`(settings.getJavaScriptEnabled()).thenReturn(false)
+
+        WebViewInstrumentationCallbacks.loadUrlCalled(webView)
+
+        verify(settings, times(1)).setJavaScriptEnabled(true)
+    }
+
+    @Test
+    fun loadUrlCalled_leavesJavaScriptAloneWhenAlreadyEnabled() {
+        val settings = mock(WebSettings::class.java)
+        `when`(webView.getSettings()).thenReturn(settings)
+        `when`(settings.getJavaScriptEnabled()).thenReturn(true)
+
+        WebViewInstrumentationCallbacks.loadUrlCalled(webView)
+
+        verify(settings, times(0)).setJavaScriptEnabled(anyBoolean())
+    }
+
+    @Test
+    fun loadUrlCalled_installsWrapperPreservingExistingClient() {
+        val customer = mock(WebViewClient::class.java)
+        `when`(webView.getWebViewClient()).thenReturn(customer)
+
+        WebViewInstrumentationCallbacks.loadUrlCalled(webView)
+
+        val clientCaptor = ArgumentCaptor.forClass(WebViewClient::class.java)
+        verify(webView, times(1)).setWebViewClient(clientCaptor.capture())
+        val installed = clientCaptor.value
+        assertTrue(installed is NRWebViewClient)
+        assertSame("Existing client must be preserved as the delegate",
+                customer, (installed as NRWebViewClient).delegate)
+    }
+
+    @Test
+    fun loadUrlCalled_doesNotReinstallWhenSetWebViewClientAlreadyWrapped() {
+        // Ordering case from spec 2.4: client set first, then load.
+        WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, mock(WebViewClient::class.java))
+
+        WebViewInstrumentationCallbacks.loadUrlCalled(webView)
+
+        verify(webView, times(0)).setWebViewClient(org.mockito.ArgumentMatchers.any())
+    }
+
+    @Test
+    @Config(sdk = [Build.VERSION_CODES.N])
+    fun loadUrlCalled_belowApi26_doesNotInstallWrapper() {
+        WebViewInstrumentationCallbacks.loadUrlCalled(webView)
+
+        // getWebViewClient() does not exist below API 26, so an existing client could not be
+        // preserved; the safety rule is to skip installation rather than risk clobbering it.
+        verify(webView, times(0)).setWebViewClient(org.mockito.ArgumentMatchers.any())
     }
 }

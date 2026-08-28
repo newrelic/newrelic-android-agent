@@ -1,8 +1,12 @@
 package com.newrelic.agent.android.webView;
 
+import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.os.Build;
 import android.view.View;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.AdapterView;
@@ -161,13 +165,79 @@ public class WebViewInstrumentationCallbacks {
         }
     }
 
+    /**
+     * Enables JavaScript so the detection script can run. This deliberately overrides a host-app
+     * setting — see section 5 of the design spec. The warning is the audit trail for support cases.
+     */
+    @SuppressLint("SetJavaScriptEnabled")
+    static void enableJavaScript(WebView webView) {
+        if (webView == null) {
+            return;
+        }
+        try {
+            WebSettings settings = webView.getSettings();
+            if (settings != null && !settings.getJavaScriptEnabled()) {
+                settings.setJavaScriptEnabled(true);
+                log.warn("New Relic enabled JavaScript on a WebView for browser agent detection");
+            }
+        } catch (Throwable t) {
+            log.error("Failed to enable JavaScript for NR browser agent detection", t);
+        }
+    }
+
+    /**
+     * Installs an {@link NRWebViewClient} on this WebView, preserving any client already set.
+     *
+     * Skipped below API 26: {@code getWebViewClient()} does not exist there, so an existing client
+     * could neither be read nor distinguished from "no client set" — and installing blind would
+     * silently drop the host app's callbacks. On those API levels the wrapper arrives only via
+     * {@link #setWebViewClientCalled}, which carries the delegate by construction.
+     */
+    @TargetApi(Build.VERSION_CODES.O)
+    static synchronized void ensureNRClientInstalled(WebView webView) {
+        if (webView == null) {
+            return;
+        }
+        WebViewState state = stateFor(webView);
+        if (state.nrClient != null) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            log.debug("Skipping NR WebViewClient install below API 26: existing client cannot be preserved");
+            return;
+        }
+        try {
+            WebViewClient existing = webView.getWebViewClient();
+            if (existing instanceof NRWebViewClient) {
+                state.nrClient = (NRWebViewClient) existing;
+                return;
+            }
+            NRWebViewClient wrapper = new NRWebViewClient(existing);
+            state.nrClient = wrapper;
+            webView.setWebViewClient(wrapper);
+        } catch (Throwable t) {
+            log.error("Failed to install NR WebViewClient", t);
+        }
+    }
+
+    /**
+     * Pre-navigation setup, run inline on the caller's thread from the loadUrl/postUrl call sites.
+     * Never posted to the WebView's handler: a posted install can land after onPageFinished has
+     * already fired for the page we wanted to inspect.
+     */
+    static void prepare(WebView webView) {
+        ensureJsInterfaceInjected(webView);
+        enableJavaScript(webView);
+        ensureNRClientInstalled(webView);
+    }
+
     public static void loadUrlCalled(WebView var0) {
-        ensureJsInterfaceInjected(var0);
+        prepare(var0);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_LOAD_URL);
     }
 
     public static void postUrlCalled(WebView var0) {
-        ensureJsInterfaceInjected(var0);
+        prepare(var0);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_POST_URL);
     }
 
