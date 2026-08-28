@@ -157,10 +157,12 @@ public class WebViewInstrumentationCallbacks {
         if (state.jsInterfaceInjected) {
             return;
         }
-        state.jsInterfaceInjected = true;
         try {
             webView.addJavascriptInterface(new WebViewJSInterface(), WebViewJSInterface.INTERFACE_NAME);
+            state.jsInterfaceInjected = true;
         } catch (Exception e) {
+            // Flag deliberately left unset so the next navigation retries. Marking it before the
+            // call would let one transient failure disable detection for this WebView permanently.
             log.error("Failed to inject NR WebView JS interface", e);
         }
     }
@@ -213,8 +215,11 @@ public class WebViewInstrumentationCallbacks {
                 return;
             }
             NRWebViewClient wrapper = new NRWebViewClient(existing);
-            state.nrClient = wrapper;
             webView.setWebViewClient(wrapper);
+            // Recorded only after the install actually succeeded. Recording first would make
+            // hasNRClient() claim a wrapper that isn't there, suppressing the fallback path and
+            // losing the page load from both paths at once.
+            state.nrClient = wrapper;
         } catch (Throwable t) {
             log.error("Failed to install NR WebViewClient", t);
         }
@@ -295,9 +300,25 @@ public class WebViewInstrumentationCallbacks {
         }
     }
 
+    /**
+     * Whether an {@link NRWebViewClient} is currently this WebView's client — meaning
+     * {@link NRWebViewClient#onPageFinished} already reported the page load.
+     *
+     * Prefers the live client over tracked state. The host app can replace our wrapper through a
+     * call site we did not intercept (see the residual gap in the design spec), and trusting stale
+     * bookkeeping there would suppress the fallback path and lose the page load entirely.
+     */
+    @TargetApi(Build.VERSION_CODES.O)
     private static synchronized boolean hasNRClient(WebView webView) {
         if (webView == null) {
             return false;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                return webView.getWebViewClient() instanceof NRWebViewClient;
+            } catch (Throwable t) {
+                log.debug("Could not read the current WebViewClient; falling back to tracked state");
+            }
         }
         WebViewState state = states.get(webView);   // deliberately not stateFor(): no entry created
         return state != null && state.nrClient != null;

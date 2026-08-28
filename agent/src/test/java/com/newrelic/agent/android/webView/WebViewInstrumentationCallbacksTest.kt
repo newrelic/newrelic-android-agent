@@ -22,6 +22,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.ArgumentMatchers.isNull
+import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
@@ -137,7 +138,9 @@ class WebViewInstrumentationCallbacksTest {
 
     @Test
     fun onPageFinishedCalled_isSuppressedWhenNRClientInstalled() {
-        WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, mock(WebViewClient::class.java))
+        val wrapper = WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, mock(WebViewClient::class.java))
+        // Model reality: the wrapper is genuinely the WebView's live client.
+        `when`(webView.getWebViewClient()).thenReturn(wrapper)
 
         WebViewInstrumentationCallbacks.onPageFinishedCalled(
                 mock(WebViewClient::class.java), webView, "https://example.com")
@@ -203,5 +206,54 @@ class WebViewInstrumentationCallbacksTest {
         // getWebViewClient() does not exist below API 26, so an existing client could not be
         // preserved; the safety rule is to skip installation rather than risk clobbering it.
         verify(webView, times(0)).setWebViewClient(org.mockito.ArgumentMatchers.any())
+    }
+
+    @Test
+    fun ensureJsInterfaceInjected_retriesAfterAFailedAttempt() {
+        doThrow(RuntimeException("boom"))
+                .doNothing()
+                .`when`(webView)
+                .addJavascriptInterface(any(WebViewJSInterface::class.java), eq(WebViewJSInterface.INTERFACE_NAME))
+
+        WebViewInstrumentationCallbacks.loadUrlCalled(webView)
+        WebViewInstrumentationCallbacks.loadUrlCalled(webView)
+
+        // The first attempt threw; the second must retry rather than being suppressed forever,
+        // otherwise one transient failure disables detection for this WebView permanently.
+        verify(webView, times(2))
+                .addJavascriptInterface(any(WebViewJSInterface::class.java), eq(WebViewJSInterface.INTERFACE_NAME))
+    }
+
+    @Test
+    fun failedClientInstall_doesNotSuppressFallbackPageFinished() {
+        `when`(webView.getWebViewClient()).thenReturn(mock(WebViewClient::class.java))
+        doThrow(RuntimeException("boom")).`when`(webView).setWebViewClient(any(WebViewClient::class.java))
+
+        WebViewInstrumentationCallbacks.loadUrlCalled(webView)
+        StatsEngine.SUPPORTABILITY.statsMap.clear()
+
+        WebViewInstrumentationCallbacks.onPageFinishedCalled(
+                mock(WebViewClient::class.java), webView, "https://example.com")
+
+        // The wrapper was never installed, so suppressing the fallback would lose the page load
+        // from both paths at once.
+        assertTrue("Failed install must not suppress the fallback path",
+                StatsEngine.SUPPORTABILITY.statsMap
+                        .containsKey(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED))
+    }
+
+    @Test
+    fun onPageFinishedCalled_countsWhenOurClientWasReplaced() {
+        // Tracked state says we installed a wrapper...
+        WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, mock(WebViewClient::class.java))
+        // ...but the live client is now someone else's, replaced via an un-intercepted call site.
+        `when`(webView.getWebViewClient()).thenReturn(mock(WebViewClient::class.java))
+
+        WebViewInstrumentationCallbacks.onPageFinishedCalled(
+                mock(WebViewClient::class.java), webView, "https://example.com")
+
+        assertTrue("Stale tracked state must not suppress the fallback path",
+                StatsEngine.SUPPORTABILITY.statsMap
+                        .containsKey(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED))
     }
 }
