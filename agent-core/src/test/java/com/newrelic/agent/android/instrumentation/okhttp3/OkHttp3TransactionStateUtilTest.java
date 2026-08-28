@@ -713,9 +713,9 @@ public class OkHttp3TransactionStateUtilTest {
     }
 
     /**
-     * When body().contentLength() returns -1 and no Content-Length header is present,
-     * the implementation must NOT fall back to peekBody() (would block on streaming responses);
-     * content length stays unknown (-1).
+     * When body().contentLength() returns -1 and no Content-Length header is present
+     * (e.g. HTTP/2 responses, which omit Content-Length entirely), a bounded peekBody()
+     * fallback determines the real length instead of leaving it unknown.
      */
     @Test
     public void testContentLengthFromPeekBodyWhenBodyReturnsMinusOne() throws Exception {
@@ -733,16 +733,17 @@ public class OkHttp3TransactionStateUtilTest {
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
-                -1L, contentLength);
+        assertEquals("Content length should be resolved via bounded peekBody fallback",
+                content.getBytes().length, contentLength);
     }
 
     /**
-     * Large body with no Content-Length header must remain unknown (-1) — peekBody is not used.
+     * A body larger than the peek cap (MAX_BODY_PEEK, 512KB) must not be fully buffered —
+     * the result is capped at MAX_BODY_PEEK rather than exposing the true (larger) size.
      */
     @Test
-    public void testPeekBodyLimitedTo4097Bytes() throws Exception {
-        String largeContent = generateString(100 * 1024);
+    public void testPeekBodyBoundedAtMaxBodyPeek() throws Exception {
+        String largeContent = generateString(600 * 1024);
         ResponseBody body = createResponseBodyWithoutContentLength(largeContent);
 
         Response response = new Response.Builder()
@@ -751,17 +752,77 @@ public class OkHttp3TransactionStateUtilTest {
                 .code(HttpStatus.SC_OK)
                 .body(body)
                 .message("200 OK")
-                .header("Transfer-Encoding", "chunked")
                 .build();
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
+        assertEquals("Content length should be capped at the 512KB peek bound, not the true size",
+                512 * 1024L, contentLength);
+    }
+
+    /**
+     * A response with a Content-Type of text/event-stream (SSE) must skip the peekBody
+     * fallback entirely, since peeking can block indefinitely on a live stream.
+     */
+    @Test
+    public void testContentLengthPeekSkippedForEventStreamResponse() throws Exception {
+        ResponseBody body = new ResponseBody() {
+            @Override
+            public MediaType contentType() {
+                return MediaType.parse(Constants.Network.ContentType.EVENT_STREAM);
+            }
+
+            @Override
+            public long contentLength() {
+                return -1;
+            }
+
+            @Override
+            public okio.BufferedSource source() {
+                return okio.Okio.buffer(okio.Okio.source(new java.io.ByteArrayInputStream("data: hello\n\n".getBytes())));
+            }
+        };
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(HttpStatus.SC_OK)
+                .body(body)
+                .message("200 OK")
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        assertEquals("Content length should remain unknown (-1) for event-stream responses",
                 -1L, contentLength);
     }
 
     /**
-     * Malformed Content-Length header is skipped; peekBody is not used, so result is unknown (-1).
+     * A response carrying a Sec-WebSocket-Accept header (a WebSocket upgrade) must skip the
+     * peekBody fallback entirely, since its body is not a readable HTTP payload.
+     */
+    @Test
+    public void testContentLengthPeekSkippedForWebSocketUpgrade() throws Exception {
+        ResponseBody body = createResponseBodyWithoutContentLength("");
+
+        Response response = new Response.Builder()
+                .request(provideRequest())
+                .protocol(Protocol.HTTP_1_1)
+                .code(101)
+                .body(body)
+                .message("Switching Protocols")
+                .header(Constants.Network.WEBSOCKET_ACCEPT_HEADER, "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")
+                .build();
+
+        long contentLength = invokeExhaustiveContentLength(response);
+
+        assertEquals("Content length should remain unknown (-1) for WebSocket upgrade responses",
+                -1L, contentLength);
+    }
+
+    /**
+     * Malformed Content-Length header is skipped, then the bounded peekBody fallback
+     * resolves the real (empty) body length.
      */
     @Test
     public void testMalformedContentLengthHeader() throws Exception {
@@ -793,8 +854,8 @@ public class OkHttp3TransactionStateUtilTest {
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        assertEquals("Content length should remain unknown (-1) when header is malformed and no peekBody fallback",
-                -1L, contentLength);
+        assertEquals("Content length should resolve to the real (empty) body length via peekBody fallback",
+                0L, contentLength);
     }
 
     /**
@@ -819,11 +880,12 @@ public class OkHttp3TransactionStateUtilTest {
     }
 
     /**
-     * 4096-byte body with no Content-Length header: result remains unknown (-1) — peekBody fallback removed.
+     * A body exactly at the MAX_BODY_PEEK boundary (512KB) with no Content-Length header:
+     * the full, exact length is resolved via peekBody, not just the capped bound.
      */
     @Test
-    public void testExactly4096BytesViaPeekBody() throws Exception {
-        String content = generateString(4096);
+    public void testContentLengthAtMaxBodyPeekBoundary() throws Exception {
+        String content = generateString(512 * 1024);
         ResponseBody body = createResponseBodyWithoutContentLength(content);
 
         Response response = new Response.Builder()
@@ -836,16 +898,17 @@ public class OkHttp3TransactionStateUtilTest {
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
-                -1L, contentLength);
+        assertEquals("Content length exactly at the peek bound should resolve to the true size",
+                512 * 1024L, contentLength);
     }
 
     /**
-     * 4097-byte body with no Content-Length header: result remains unknown (-1) — peekBody fallback removed.
+     * A body one byte over the MAX_BODY_PEEK boundary (512KB + 1) with no Content-Length
+     * header: the result is capped at MAX_BODY_PEEK rather than the true (larger) size.
      */
     @Test
-    public void testExactly4097BytesViaPeekBody() throws Exception {
-        String content = generateString(4097);
+    public void testContentLengthExceedsMaxBodyPeekBoundary() throws Exception {
+        String content = generateString(512 * 1024 + 1);
         ResponseBody body = createResponseBodyWithoutContentLength(content);
 
         Response response = new Response.Builder()
@@ -858,30 +921,8 @@ public class OkHttp3TransactionStateUtilTest {
 
         long contentLength = invokeExhaustiveContentLength(response);
 
-        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
-                -1L, contentLength);
-    }
-
-    /**
-     * 5000-byte body with no Content-Length header: result remains unknown (-1) — peekBody fallback removed.
-     */
-    @Test
-    public void testExceeds4097BytesViaPeekBody() throws Exception {
-        String content = generateString(5000);
-        ResponseBody body = createResponseBodyWithoutContentLength(content);
-
-        Response response = new Response.Builder()
-                .request(provideRequest())
-                .protocol(Protocol.HTTP_1_1)
-                .code(HttpStatus.SC_OK)
-                .body(body)
-                .message("200 OK")
-                .build();
-
-        long contentLength = invokeExhaustiveContentLength(response);
-
-        assertEquals("Content length should remain unknown (-1) without peekBody fallback",
-                -1L, contentLength);
+        assertEquals("Content length one byte over the peek bound should be capped at MAX_BODY_PEEK",
+                512 * 1024L, contentLength);
     }
 
 }
