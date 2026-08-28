@@ -49,6 +49,57 @@ public class WebViewCallSiteVisitorTest {
         Assert.assertEquals("Should have instrumented one call to postUrl", 1, counter.getCount("postUrlCalled"));
     }
 
+    @Test
+    public void testSetWebViewClientIsWrapped() {
+        byte[] classBytes = fixtureCallingSetWebViewClient();
+        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        ClassVisitor visitor = new WebViewCallSiteVisitor(classWriter, instrumentationContext, InstrumentationAgent.LOGGER);
+        new ClassReader(classBytes).accept(visitor, ClassReader.EXPAND_FRAMES);
+        Assert.assertTrue("Class should be modified by the visitor", instrumentationContext.isClassModified());
+
+        byte[] modifiedBytes = classWriter.toByteArray();
+
+        final MethodCallCounter callbackCounter = new MethodCallCounter(
+                "com/newrelic/agent/android/webView/WebViewInstrumentationCallbacks",
+                "setWebViewClientCalled"
+        );
+        new ClassReader(modifiedBytes).accept(callbackCounter, ClassReader.EXPAND_FRAMES);
+        Assert.assertEquals("Should have wrapped one setWebViewClient call",
+                1, callbackCounter.getCount("setWebViewClientCalled"));
+
+        final MethodCallCounter originalCounter = new MethodCallCounter(
+                "android/webkit/WebView",
+                "setWebViewClient"
+        );
+        new ClassReader(modifiedBytes).accept(originalCounter, ClassReader.EXPAND_FRAMES);
+        Assert.assertEquals("The original setWebViewClient call must be preserved",
+                1, originalCounter.getCount("setWebViewClient"));
+    }
+
+    /**
+     * Builds a class equivalent to:
+     * {@code static void install(WebView v, WebViewClient c) { v.setWebViewClient(c); } }
+     */
+    private static byte[] fixtureCallingSetWebViewClient() {
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        cw.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "com/example/SetClientFixture",
+                null, "java/lang/Object", null);
+
+        MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "install",
+                "(Landroid/webkit/WebView;Landroid/webkit/WebViewClient;)V", null, null);
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitVarInsn(Opcodes.ALOAD, 1);
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "android/webkit/WebView", "setWebViewClient",
+                "(Landroid/webkit/WebViewClient;)V", false);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+
+        cw.visitEnd();
+        return cw.toByteArray();
+    }
+
     private static class MethodCallCounter extends ClassVisitor {
         private final String owner;
         private final Map<String, Integer> counts = new HashMap<>();
