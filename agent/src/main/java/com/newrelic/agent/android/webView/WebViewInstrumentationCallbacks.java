@@ -28,6 +28,7 @@ public class WebViewInstrumentationCallbacks {
      */
     static final class WebViewState {
         boolean jsInterfaceInjected;
+        NRWebViewClient nrClient;
     }
 
     private static synchronized WebViewState stateFor(WebView webView) {
@@ -188,6 +189,47 @@ public class WebViewInstrumentationCallbacks {
     }
 
     public static void onPageFinishedCalled(WebViewClient var0, WebView var1, String var2) {
+        if (hasNRClient(var1)) {
+            return;     // NRWebViewClient.onPageFinished already reported this page load
+        }
         pageFinished(var1, var2);
+    }
+
+    /**
+     * Bytecode entry point for {@code WebView.setWebViewClient(WebViewClient)}. Returns the client
+     * that should actually be set — an {@link NRWebViewClient} wrapping the caller's client, so
+     * every callback the host app registered still fires.
+     *
+     * Fails open: any problem returns the original client unchanged rather than breaking the
+     * host app's call.
+     */
+    public static synchronized WebViewClient setWebViewClientCalled(WebView webView, WebViewClient client) {
+        if (client instanceof NRWebViewClient) {
+            return client;              // already ours (also covers the agent's own install call)
+        }
+        if (webView == null) {
+            return client;              // nothing to key state on; don't alter behavior
+        }
+        try {
+            WebViewState state = stateFor(webView);
+            if (state.nrClient != null) {
+                state.nrClient.setDelegate(client != null ? client : new WebViewClient());
+                return state.nrClient;  // re-parent rather than stacking a second wrapper
+            }
+            NRWebViewClient wrapper = new NRWebViewClient(client);
+            state.nrClient = wrapper;
+            return wrapper;
+        } catch (Throwable t) {
+            log.error("Failed to wrap WebViewClient; using the original", t);
+            return client;
+        }
+    }
+
+    private static synchronized boolean hasNRClient(WebView webView) {
+        if (webView == null) {
+            return false;
+        }
+        WebViewState state = states.get(webView);   // deliberately not stateFor(): no entry created
+        return state != null && state.nrClient != null;
     }
 }

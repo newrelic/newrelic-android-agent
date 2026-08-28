@@ -8,6 +8,9 @@ import com.newrelic.agent.android.stats.StatsEngine
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -86,5 +89,57 @@ class WebViewInstrumentationCallbacksTest {
         val scriptCaptor = ArgumentCaptor.forClass(String::class.java)
         verify(webView, times(1)).evaluateJavascript(scriptCaptor.capture(), isNull())
         assertTrue(scriptCaptor.value.contains(WebViewJSInterface.INTERFACE_NAME))
+    }
+
+    @Test
+    fun setWebViewClientCalled_wrapsCustomerClient() {
+        val customer = mock(WebViewClient::class.java)
+
+        val result = WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, customer)
+
+        assertTrue("Should return an NR wrapper", result is NRWebViewClient)
+        assertSame(customer, (result as NRWebViewClient).delegate)
+    }
+
+    @Test
+    fun setWebViewClientCalled_doesNotDoubleWrap() {
+        val alreadyOurs = NRWebViewClient(mock(WebViewClient::class.java))
+
+        val result = WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, alreadyOurs)
+
+        assertSame(alreadyOurs, result)
+    }
+
+    @Test
+    fun setWebViewClientCalled_reparentsExistingWrapper() {
+        val first = mock(WebViewClient::class.java)
+        val second = mock(WebViewClient::class.java)
+
+        val wrapper = WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, first)
+        val again = WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, second)
+
+        assertSame("Should reuse the same wrapper instance", wrapper, again)
+        assertSame(second, (again as NRWebViewClient).delegate)
+    }
+
+    @Test
+    fun setWebViewClientCalled_nullClient_wrapsWithDefaultBehavior() {
+        val result = WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, null)
+
+        assertTrue(result is NRWebViewClient)
+        assertNotNull("Delegate must never be null", (result as NRWebViewClient).delegate)
+    }
+
+    @Test
+    fun onPageFinishedCalled_isSuppressedWhenNRClientInstalled() {
+        WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, mock(WebViewClient::class.java))
+
+        WebViewInstrumentationCallbacks.onPageFinishedCalled(
+                mock(WebViewClient::class.java), webView, "https://example.com")
+
+        assertFalse("Wrapper already counts this page load",
+                StatsEngine.SUPPORTABILITY.statsMap
+                        .containsKey(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED))
+        verify(webView, times(0)).evaluateJavascript(org.mockito.ArgumentMatchers.anyString(), isNull())
     }
 }
