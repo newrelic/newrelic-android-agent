@@ -136,6 +136,8 @@ dependencies {
 
     compileOnly "androidx.navigation:navigation-compose:${project.versions.jetpack}"
     compileOnly "androidx.compose.ui:ui:${project.versions.composeui}"
+    compileOnly "androidx.fragment:fragment:1.5.4"
+    compileOnly "androidx.navigation:navigation-fragment:${project.versions.jetpack}"
 
     // Add Compose runtime for tests to satisfy the Compose Compiler
     testImplementation "androidx.compose.runtime:runtime:${project.versions.composeui}"
