@@ -44,8 +44,6 @@ public abstract class TraceContext {
     final TracePayload tracePayload;    // legacy NewRelic trace payload
     final Map<String, String> requestContext;
 
-    boolean legacyHeadersEnabled = true;
-
     /**
      * Trace context factory
      *
@@ -129,11 +127,7 @@ public abstract class TraceContext {
      * @return Collection (set) of all headers for this instance.
      */
     public Set<TraceHeader> getHeaders() {
-        return new HashSet<TraceHeader>() {{
-            if (legacyHeadersEnabled) {
-                add(tracePayload);
-            }
-        }};
+        return new HashSet<>();
     }
 
     public TracePayload getTracePayload() {
