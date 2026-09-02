@@ -127,7 +127,7 @@ public abstract class TraceContext {
      * @return Collection (set) of all headers for this instance.
      */
     public Set<TraceHeader> getHeaders() {
-        return new HashSet<>();
+        return new HashSet<TraceHeader>();
     }
 
     public TracePayload getTracePayload() {
@@ -145,13 +145,11 @@ public abstract class TraceContext {
     }
 
     public Map<String, Object> asTraceAttributes() {
-        final Map<String, Object> attributeMap = new HashMap<String, Object>() {{
+        return new HashMap<String, Object>() {{
             put(DistributedTracing.NR_ID_ATTRIBUTE, tracePayload.spanId);
             put(DistributedTracing.NR_GUID_ATTRIBUTE, tracePayload.spanId);  // deprecated, but include for now
             put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, traceId);
         }};
-
-        return attributeMap;
     }
 
     public void putRequestContext(Map<String, String> requestContextAsMap) {

@@ -262,13 +262,9 @@ public class ApplicationExitMonitorTest {
 
         loadSessionMapper();
         applicationExitMonitor.harvestApplicationExitInfo();
-//        Assert.assertTrue(eventManager.getQueuedEvents().isEmpty());
-//        Assert.assertFalse(eventManager.isTransmitRequired());
 
-//        Assert.assertNotNull(eventManager.getQueuedEvents()); // flush data reset flag
         applicationExitInfoList.clear();
         applicationExitMonitor.harvestApplicationExitInfo();
-//        Assert.assertFalse(eventMgr.isTransmitRequired());
     }
 
     @Test
