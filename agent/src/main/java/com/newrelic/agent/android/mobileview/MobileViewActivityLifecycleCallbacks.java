@@ -114,10 +114,18 @@ public class MobileViewActivityLifecycleCallbacks implements Application.Activit
     }
 
     /**
-     * @return true if the activity's primary content is a {@link NavHostFragment} (i.e. it's a
-     * pure navigation container whose destinations are tracked by the Fragment producer instead).
+     * @return true if the activity's primary content is a {@link NavHostFragment} or a Compose
+     * {@code NavHost} (i.e. it's a pure navigation container whose destinations are tracked by
+     * the Fragment or Compose producer instead).
      */
     private static boolean isNavHostContainer(@NonNull Activity activity) {
+        try {
+            if (ComposeNavHostRegistry.getInstance().isRegistered(activity)) {
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("MobileViewActivityLifecycleCallbacks.isNavHostContainer: ", e);
+        }
         if (!(activity instanceof FragmentActivity)) {
             return false;
         }

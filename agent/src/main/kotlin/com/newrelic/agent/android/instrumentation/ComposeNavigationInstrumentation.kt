@@ -1,7 +1,11 @@
 package com.newrelic.agent.android.instrumentation
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -12,6 +16,7 @@ import com.newrelic.agent.android.FeatureFlag
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl
 import com.newrelic.agent.android.logging.AgentLog
 import com.newrelic.agent.android.logging.AgentLogManager
+import com.newrelic.agent.android.mobileview.ComposeNavHostRegistry
 import com.newrelic.agent.android.mobileview.MobileViewContext
 import com.newrelic.agent.android.sessionReplay.SessionReplay
 import  kotlin.collections.Map
@@ -30,18 +35,41 @@ private val log: AgentLog = AgentLogManager.getAgentLog()
 @Composable
 fun NavHostController.withNewRelicNavigationListener(): NavHostController {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val activity = LocalContext.current.findActivity()
     DisposableEffect(lifecycle, this) {
         val observer = MeasureNavigationObserver(
             this@withNewRelicNavigationListener,
         )
         lifecycle.addObserver(observer)
 
+        // Registered here (DisposableEffect-attach time, synchronous within onCreate) rather
+        // than on ON_RESUME like the destination-changed listener above: composeInitial() runs
+        // the first composition and applies DisposableEffect bodies synchronously on the calling
+        // thread, so this registration is guaranteed to land before this Activity's first
+        // onActivityResumed - see MobileViewActivityLifecycleCallbacks.isNavHostContainer().
+        try {
+            activity?.let { ComposeNavHostRegistry.getInstance().register(it) }
+        } catch (e: Exception) {
+            log.error("ComposeNavigationInstrumentation.withNewRelicNavigationListener: ", e)
+        }
+
         onDispose {
             observer.dispose()
             lifecycle.removeObserver(observer)
+            try {
+                activity?.let { ComposeNavHostRegistry.getInstance().unregister(it) }
+            } catch (e: Exception) {
+                log.error("ComposeNavigationInstrumentation.withNewRelicNavigationListener onDispose: ", e)
+            }
         }
     }
     return this
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 private class MeasureNavigationObserver(
