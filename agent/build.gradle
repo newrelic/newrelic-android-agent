@@ -142,6 +142,8 @@ dependencies {
     // Add Compose runtime for tests to satisfy the Compose Compiler
     testImplementation "androidx.compose.runtime:runtime:${project.versions.composeui}"
     testImplementation "androidx.compose.ui:ui:${project.versions.composeui}"
+    testImplementation "androidx.fragment:fragment:1.5.4"
+    testImplementation "androidx.navigation:navigation-fragment:${project.versions.jetpack}"
 
     testImplementation project(path: ':agent-core', configuration: 'fat')
     testImplementation fileTree(dir: 'libs', include: '*.jar')

@@ -41,6 +41,15 @@ public class MobileViewFragmentLifecycleCallbacks extends FragmentManager.Fragme
         this.hostActivity = hostActivity;
     }
 
+    /**
+     * Clears the static config-change suppression state. Test use only - production code
+     * relies on this state surviving across the old/new Activity instance boundary during
+     * a real rotation, so it must never be called outside of test teardown.
+     */
+    static void clearChangingConfigurationsForTest() {
+        changingConfigurations.clear();
+    }
+
     @Override
     public void onFragmentResumed(@NonNull FragmentManager fm, @NonNull Fragment fragment) {
         if (fragment instanceof NavHostFragment) {
