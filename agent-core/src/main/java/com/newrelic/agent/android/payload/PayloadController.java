@@ -88,11 +88,16 @@ public class PayloadController implements HarvestLifecycleAware {
                 log.warn("PayloadController: No payload reporter - payload reporting will be disabled");
             }
 
-            SessionReplayReporter sessionReplayReporter = SessionReplayReporter.initialize(agentConfiguration);
-            if(sessionReplayReporter != null){
-                sessionReplayReporter.start();
-            }else{
-                log.warn("SessionReplayController: No session replay reporter - session replay reporting will be disabled");
+            // Gated so R8 can strip the sessionReplay package when SR is disabled at build
+            // time (NR-587343). This was the largest ungated entry point into the package:
+            // SessionReplayReporter transitively reaches the sender and capture pipeline.
+            if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+                SessionReplayReporter sessionReplayReporter = SessionReplayReporter.initialize(agentConfiguration);
+                if(sessionReplayReporter != null){
+                    sessionReplayReporter.start();
+                }else{
+                    log.warn("SessionReplayController: No session replay reporter - session replay reporting will be disabled");
+                }
             }
 
             JSErrorDataReporter jsErrorDataReporter = JSErrorDataReporter.initialize(agentConfiguration);
@@ -131,7 +136,9 @@ public class PayloadController implements HarvestLifecycleAware {
                         }
                         AgentDataReporter.shutdown();
                         CrashReporter.shutdown();
-                        SessionReplayReporter.shutdown();
+                        if (AgentConfiguration.getInstance().getSessionReplayConfiguration().isSessionReplayEnabled()) {
+                            SessionReplayReporter.shutdown();
+                        }
                         JSErrorDataReporter.shutdown();
 
                     } catch (InterruptedException e) {

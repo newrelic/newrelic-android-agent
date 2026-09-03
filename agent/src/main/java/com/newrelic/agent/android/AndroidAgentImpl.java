@@ -180,8 +180,6 @@ public class AndroidAgentImpl implements
 
         context.deleteSharedPreferences("NRSessionReplayStore");
 
-        agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
-
         agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
         context.deleteSharedPreferences("NRJSErrorStore");
 
@@ -941,6 +939,12 @@ public class AndroidAgentImpl implements
                                                            SessionReplayMode mode) {
         if(sessionReplayConfiguration.isEnabled()) {
             agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
+            // Relocated out of the constructor: an unconditional allocation keeps
+            // FileOfflineSessionReplayStore reachable, which anchors OfflineSessionReplayStore
+            // and OfflineSessionReplayPayload in the sessionReplay package (NR-587343).
+            // Only SessionReplayReporter reads this store, and that is itself gated now.
+            agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
+
             sessionReplayConfiguration.processCustomMaskingRules();
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
             Handler uiHandler = new Handler(Looper.getMainLooper());
