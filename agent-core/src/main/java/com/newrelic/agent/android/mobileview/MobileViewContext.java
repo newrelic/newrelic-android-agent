@@ -43,6 +43,19 @@ public class MobileViewContext {
      * @param attributes Optional caller-supplied attributes to merge into the event
      */
     public void onViewAppeared(String viewName, String viewClass, Map<String, Object> attributes) {
+        onViewAppeared(viewName, viewClass, attributes, null);
+    }
+
+    /**
+     * Record that a view has appeared, emitting a MobileView event and updating
+     * the current/previous view referrer chain.
+     *
+     * @param viewName   Human-readable name for the view (e.g. Activity/Fragment simple name, or Compose route)
+     * @param viewClass  Fully-qualified class name backing the view, or null if not applicable (e.g. Compose route)
+     * @param attributes Optional caller-supplied attributes to merge into the event
+     * @param loadTimeMs Elapsed time from view creation to this appearance, or null if not applicable/known
+     */
+    public void onViewAppeared(String viewName, String viewClass, Map<String, Object> attributes, Long loadTimeMs) {
         if (viewName == null || viewName.isEmpty()) {
             log.warn("MobileViewContext.onViewAppeared(): view name is null or empty, ignoring.");
             return;
@@ -73,6 +86,9 @@ public class MobileViewContext {
         }
         if (referrer != null && !referrer.isEmpty()) {
             eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_PREVIOUS_VIEW_ATTRIBUTE, referrer);
+        }
+        if (loadTimeMs != null && loadTimeMs >= 0) {
+            eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE, loadTimeMs.doubleValue());
         }
 
         AnalyticsControllerImpl.getInstance().recordMobileViewEvent(viewName, eventAttributes);

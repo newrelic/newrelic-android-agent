@@ -6,7 +6,9 @@
 package com.newrelic.agent.android.mobileview;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 
@@ -19,6 +21,9 @@ import androidx.fragment.app.FragmentManager;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.analytics.AnalyticsAttribute;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.analytics.AnalyticsEvent;
 
 import org.junit.After;
 import org.junit.Before;
@@ -112,6 +117,51 @@ public class MobileViewActivityLifecycleCallbacksTests {
     }
 
     @Test
+    public void createdThenResumedActivityRecordsLoadTime() {
+        FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
+        Activity activity = plainActivity();
+
+        callbacks.onActivityCreated(activity, (Bundle) null);
+        callbacks.onActivityResumed(activity);
+
+        AnalyticsEvent event = onlyQueuedEvent();
+        AnalyticsAttribute loadTime = attribute(event, AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE);
+        assertNotNull("loadTime should be recorded when a resume follows a create.", loadTime);
+        assertTrue("loadTime should be non-negative.", loadTime.getDoubleValue() >= 0);
+    }
+
+    @Test
+    public void resumeWithoutPrecedingCreateOmitsLoadTime() {
+        FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
+        Activity activity = plainActivity();
+
+        callbacks.onActivityResumed(activity);
+
+        AnalyticsEvent event = onlyQueuedEvent();
+        assertNull("loadTime should be absent when no create preceded the resume.",
+                attribute(event, AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE));
+    }
+
+    @Test
+    public void secondResumeAfterCreateOmitsLoadTime() {
+        FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
+        Activity activity = plainActivity();
+
+        callbacks.onActivityCreated(activity, (Bundle) null);
+        callbacks.onActivityResumed(activity);
+        callbacks.onActivityPaused(activity);
+        AnalyticsControllerImpl.getInstance().getEventManager().empty();
+
+        // Backgrounded then foregrounded again, no intervening create - the created-at entry
+        // was already consumed by the first resume.
+        callbacks.onActivityResumed(activity);
+
+        AnalyticsEvent event = onlyQueuedEvent();
+        assertNull("A second resume without a preceding create should have no loadTime.",
+                attribute(event, AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE));
+    }
+
+    @Test
     public void isNavHostContainerViaComposeRegistrySuppressesTracking() {
         FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
         Activity activity = plainActivity();
@@ -201,6 +251,23 @@ public class MobileViewActivityLifecycleCallbacksTests {
         Activity activity = plainActivity();
 
         callbacks.onActivityCreated(activity, (Bundle) null);
+    }
+
+    private static AnalyticsEvent onlyQueuedEvent() {
+        java.util.Collection<AnalyticsEvent> events = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
+        assertEquals("Queued event collection should have a size of 1.", 1, events.size());
+        return events.iterator().next();
+    }
+
+    private static AnalyticsAttribute attribute(AnalyticsEvent event, String name) {
+        java.util.Iterator<AnalyticsAttribute> it = event.getAttributeSet().iterator();
+        while (it.hasNext()) {
+            AnalyticsAttribute a = it.next();
+            if (name.equals(a.getName())) {
+                return a;
+            }
+        }
+        return null;
     }
 
     private static Activity plainActivity() {

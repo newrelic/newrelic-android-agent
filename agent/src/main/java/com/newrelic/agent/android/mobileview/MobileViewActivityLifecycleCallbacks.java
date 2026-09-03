@@ -43,6 +43,12 @@ public class MobileViewActivityLifecycleCallbacks implements Application.Activit
     // skipped on "disappeared" (or vice versa), permanently corrupting MobileViewContext's state.
     private final Map<Activity, Boolean> navHostContainerAtAppear = new WeakHashMap<>();
 
+    // Wall-clock time of onActivityCreated, per Activity instance, consumed (removed) by the
+    // first onActivityResumed that follows. Only that first resume represents actual load time;
+    // a later resume (e.g. backgrounding then foregrounding the same instance) has nothing to
+    // measure, so it correctly gets no loadTime once the entry has been consumed.
+    private final Map<Activity, Long> createdAtMs = new WeakHashMap<>();
+
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
         // Bookkeeping (config-change suppression, container-check caching) always runs, even if
@@ -59,6 +65,7 @@ public class MobileViewActivityLifecycleCallbacks implements Application.Activit
         Class<?> clazz = activity.getClass();
         boolean isContainer = isNavHostContainer(activity);
         navHostContainerAtAppear.put(activity, isContainer);
+        Long createdAt = createdAtMs.remove(activity);
         if (changingConfigurations.remove(clazz.getName())) {
             return;
         }
@@ -72,7 +79,8 @@ public class MobileViewActivityLifecycleCallbacks implements Application.Activit
             return;
         }
         try {
-            MobileViewContext.getInstance().onViewAppeared(clazz.getSimpleName(), clazz.getName(), null);
+            Long loadTime = createdAt != null ? (System.currentTimeMillis() - createdAt) : null;
+            MobileViewContext.getInstance().onViewAppeared(clazz.getSimpleName(), clazz.getName(), null, loadTime);
         } catch (Exception e) {
             log.error("MobileViewActivityLifecycleCallbacks.onActivityResumed: ", e);
         }
@@ -100,6 +108,7 @@ public class MobileViewActivityLifecycleCallbacks implements Application.Activit
 
     @Override
     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle bundle) {
+        createdAtMs.put(activity, System.currentTimeMillis());
         if (!FeatureFlag.featureEnabled(FeatureFlag.AutomaticMobileViewTracing)) {
             return;
         }

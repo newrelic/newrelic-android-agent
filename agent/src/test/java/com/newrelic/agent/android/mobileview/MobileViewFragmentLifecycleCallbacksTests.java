@@ -6,7 +6,9 @@
 package com.newrelic.agent.android.mobileview;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import android.app.Activity;
 
@@ -15,6 +17,9 @@ import androidx.fragment.app.FragmentManager;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.analytics.AnalyticsAttribute;
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.analytics.AnalyticsEvent;
 
 import org.junit.After;
 import org.junit.Before;
@@ -126,6 +131,60 @@ public class MobileViewFragmentLifecycleCallbacksTests {
         callbacks.onFragmentResumed(fragmentManager, other);
         assertEquals("A different fragment type should be tracked as the new current view.",
                 other.getClass().getSimpleName(), MobileViewContext.getInstance().getCurrentView());
+    }
+
+    @Test
+    public void createdThenResumedFragmentRecordsLoadTime() {
+        FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
+        Fragment fragment = plainFragment();
+
+        callbacks.onFragmentCreated(fragmentManager, fragment, null);
+        callbacks.onFragmentResumed(fragmentManager, fragment);
+
+        AnalyticsEvent event = onlyQueuedEvent();
+        AnalyticsAttribute loadTime = attribute(event, AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE);
+        assertNotNull("loadTime should be recorded when a resume follows a create.", loadTime);
+        assertTrue("loadTime should be non-negative.", loadTime.getDoubleValue() >= 0);
+    }
+
+    @Test
+    public void resumeWithoutPrecedingCreateOmitsLoadTime() {
+        FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
+        Fragment fragment = plainFragment();
+
+        callbacks.onFragmentResumed(fragmentManager, fragment);
+
+        AnalyticsEvent event = onlyQueuedEvent();
+        assertNull("loadTime should be absent when no create preceded the resume.",
+                attribute(event, AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE));
+    }
+
+    @Test
+    public void navHostFragmentCreationIsIgnored() {
+        FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
+        NavHostFragment navHostFragment = Mockito.mock(NavHostFragment.class);
+
+        callbacks.onFragmentCreated(fragmentManager, navHostFragment, null);
+        callbacks.onFragmentResumed(fragmentManager, navHostFragment);
+
+        assertNull("A NavHostFragment should never be tracked, even after create.", MobileViewContext.getInstance().getCurrentView());
+    }
+
+    private static AnalyticsEvent onlyQueuedEvent() {
+        java.util.Collection<AnalyticsEvent> events = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
+        assertEquals("Queued event collection should have a size of 1.", 1, events.size());
+        return events.iterator().next();
+    }
+
+    private static AnalyticsAttribute attribute(AnalyticsEvent event, String name) {
+        java.util.Iterator<AnalyticsAttribute> it = event.getAttributeSet().iterator();
+        while (it.hasNext()) {
+            AnalyticsAttribute a = it.next();
+            if (name.equals(a.getName())) {
+                return a;
+            }
+        }
+        return null;
     }
 
     private static Fragment plainFragment() {

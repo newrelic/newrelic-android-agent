@@ -105,6 +105,25 @@ public class MobileViewContextTests {
     }
 
     @Test
+    public void onViewAppearedWithLoadTimeRecordsLoadTimeAttribute() {
+        MobileViewContext.getInstance().onViewAppeared("ViewOne", "com.example.ViewOne", null, 123L);
+
+        AnalyticsEvent event = onlyQueuedEvent();
+        AnalyticsAttribute attribute = attribute(event, AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE);
+        Assert.assertNotNull("loadTime attribute should be present when a load time is supplied.", attribute);
+        Assert.assertEquals("loadTime attribute should match the supplied value.", 123.0, attribute.getDoubleValue(), 0.0);
+    }
+
+    @Test
+    public void onViewAppearedWithoutLoadTimeOmitsLoadTimeAttribute() {
+        MobileViewContext.getInstance().onViewAppeared("ViewOne", "com.example.ViewOne", null);
+
+        AnalyticsEvent event = onlyQueuedEvent();
+        Assert.assertNull("loadTime attribute should be absent when no load time is supplied.",
+                attribute(event, AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE));
+    }
+
+    @Test
     public void onViewAppearedWithNullOrEmptyNameIsIgnored() {
         MobileViewContext.getInstance().onViewAppeared(null, "com.example.ViewOne", null);
         MobileViewContext.getInstance().onViewAppeared("", "com.example.ViewOne", null);

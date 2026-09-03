@@ -6,8 +6,10 @@
 package com.newrelic.agent.android.mobileview;
 
 import android.app.Activity;
+import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.navigation.fragment.NavHostFragment;
@@ -17,7 +19,9 @@ import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -37,6 +41,12 @@ public class MobileViewFragmentLifecycleCallbacks extends FragmentManager.Fragme
     private static final Set<String> changingConfigurations = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Activity hostActivity;
 
+    // Wall-clock time of onFragmentCreated, per Fragment instance, consumed (removed) by the
+    // first onFragmentResumed that follows - mirrors MobileViewActivityLifecycleCallbacks'
+    // createdAtMs. A later resume without an intervening create (e.g. backgrounding) correctly
+    // gets no loadTime once the entry has been consumed.
+    private final Map<Fragment, Long> createdAtMs = new WeakHashMap<>();
+
     public MobileViewFragmentLifecycleCallbacks(@NonNull Activity hostActivity) {
         this.hostActivity = hostActivity;
     }
@@ -51,6 +61,14 @@ public class MobileViewFragmentLifecycleCallbacks extends FragmentManager.Fragme
     }
 
     @Override
+    public void onFragmentCreated(@NonNull FragmentManager fm, @NonNull Fragment fragment, @Nullable Bundle savedInstanceState) {
+        if (fragment instanceof NavHostFragment) {
+            return;
+        }
+        createdAtMs.put(fragment, System.currentTimeMillis());
+    }
+
+    @Override
     public void onFragmentResumed(@NonNull FragmentManager fm, @NonNull Fragment fragment) {
         if (fragment instanceof NavHostFragment) {
             return;
@@ -58,6 +76,7 @@ public class MobileViewFragmentLifecycleCallbacks extends FragmentManager.Fragme
         // Bookkeeping runs regardless of flag state - see the matching comment in
         // MobileViewActivityLifecycleCallbacks.onActivityResumed for why.
         Class<?> clazz = fragment.getClass();
+        Long createdAt = createdAtMs.remove(fragment);
         if (changingConfigurations.remove(clazz.getName())) {
             return;
         }
@@ -65,7 +84,8 @@ public class MobileViewFragmentLifecycleCallbacks extends FragmentManager.Fragme
             return;
         }
         try {
-            MobileViewContext.getInstance().onViewAppeared(clazz.getSimpleName(), clazz.getName(), null);
+            Long loadTime = createdAt != null ? (System.currentTimeMillis() - createdAt) : null;
+            MobileViewContext.getInstance().onViewAppeared(clazz.getSimpleName(), clazz.getName(), null, loadTime);
         } catch (Exception e) {
             log.error("MobileViewFragmentLifecycleCallbacks.onFragmentResumed: ", e);
         }
