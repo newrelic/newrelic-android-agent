@@ -314,7 +314,20 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             persistSrState(true, true);
         }
 
+        // curtains.Curtains is a main-thread-only, non-thread-safe API (NR-608999): every
+        // access must happen inside this single post() so the calling thread never races
+        // the main thread on Curtains' internal LazyThreadSafetyMode.NONE delegate. The
+        // listener must be registered before the decorViews.length == 0 early return,
+        // otherwise cold start (no root view yet) never registers a listener at all.
         uiThreadHandler.post(() -> {
+            Curtains.getOnRootViewsChangedListeners().add((view, added) -> {
+                if (added) {
+                    viewDrawInterceptor.Intercept(new View[]{view});
+                } else {
+                    viewDrawInterceptor.removeIntercept(new View[]{view});
+                }
+            });
+
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
 
             // Check if decorViews is not empty before accessing
@@ -326,24 +339,17 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             viewDrawInterceptor.Intercept(decorViews);
             sessionReplayActivityLifecycleCallbacks.setupTouchInterceptorForWindow(decorViews[0]);
         });
-
-        Curtains.getOnRootViewsChangedListeners().add((view, added) -> {
-            if (added) {
-                viewDrawInterceptor.Intercept(new View[]{view});
-            } else {
-                viewDrawInterceptor.removeIntercept(new View[]{view});
-            }
-        });
     }
 
 
     public static void stopRecording() {
-        if(viewDrawInterceptor != null) {
-            uiThreadHandler.post(() -> {
+        // See NR-608999: Curtains access must stay confined to the main thread.
+        uiThreadHandler.post(() -> {
+            if (viewDrawInterceptor != null) {
                 viewDrawInterceptor.stopIntercept();
-            });
-        }
-        Curtains.getOnRootViewsChangedListeners().clear();
+            }
+            Curtains.getOnRootViewsChangedListeners().clear();
+        });
     }
 
     @Override
