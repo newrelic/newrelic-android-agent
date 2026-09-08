@@ -35,6 +35,9 @@ class WebViewJSInterface {
         /** Kept under logcat's ~4KB per-line limit, with room for the prefix. */
         private const val CHUNK_SIZE = 3500
 
+        /** Skip reason that represents correct behavior rather than a failure. */
+        private const val SKIP_REASON_EXISTING_AGENT = "existing-agent"
+
         private val log: AgentLog = AgentLogManager.getAgentLog()
     }
 
@@ -54,7 +57,28 @@ class WebViewJSInterface {
      */
     @JavascriptInterface
     fun reportInjectionSkipped(reason: String?) {
-        log.warn("$LOG_TAG injection skipped: $reason")
+        // 'existing-agent' is a designed-correct outcome, not a failure: the page runs its own
+        // browser agent and we deliberately stay out. Warning on it would cry wolf on every page
+        // load of a legitimately-instrumented customer page. The other two reasons are real
+        // failures worth a warning.
+        if (SKIP_REASON_EXISTING_AGENT == reason) {
+            log.info("$LOG_TAG injection skipped: $reason")
+        } else {
+            log.warn("$LOG_TAG injection skipped: $reason")
+        }
+    }
+
+    /**
+     * One-shot proof-of-life from the injected hook, reported on its first invocation for any
+     * feature before the session_replay filter is applied.
+     *
+     * This exists to separate two failure modes that are otherwise indistinguishable by silence:
+     * session replay never harvesting at all (no RUM response to carry an entitlement/sampling
+     * decision), versus the hook receiving a wrapper whose shape is not `{feature, payload}`.
+     */
+    @JavascriptInterface
+    fun reportHarvestObserved(detail: String?) {
+        log.info("$LOG_TAG $detail")
     }
 
     /**
@@ -95,8 +119,10 @@ class WebViewJSInterface {
         val sb = StringBuilder(LOG_TAG)
         sb.append(' ').append(envelope.optString("feature", "?"))
         sb.append(" url=").append(envelope.optString("url", "?"))
+        // Order matters: shape/bodyShape/sizes are the answer to the payload-shape question this
+        // POC exists to settle, so they precede `keys`. A long `keys` value ahead of them could
+        // push them past logcat's per-line limit and truncate the very finding being measured.
         sb.append(" shape=").append(envelope.optString("shape", "?"))
-        sb.append(" keys=").append(envelope.opt("keys")?.toString() ?: "null")
         sb.append(" bodyShape=").append(envelope.optString("bodyShape", "?"))
         sb.append(" chars=").append(serialized.length)
         // True byte counts, present only when the payload (or its body) turned out to be binary.
@@ -109,6 +135,7 @@ class WebViewJSInterface {
         if (bodyBytes >= 0) {
             sb.append(" bodyBytes=").append(bodyBytes)
         }
+        sb.append(" keys=").append(envelope.opt("keys")?.toString() ?: "null")
         appendEventStats(sb, serialized)
         return sb.toString()
     }
