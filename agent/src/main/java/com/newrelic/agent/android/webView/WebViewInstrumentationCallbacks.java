@@ -51,6 +51,13 @@ public class WebViewInstrumentationCallbacks {
     private static final int DETECTION_POLL_INTERVAL_MS = 250;
     private static final int DETECTION_MAX_POLL_ATTEMPTS = 8;
 
+    /**
+     * License key the POC's injected observation-mode agent advertises. Deliberately recognizable:
+     * it is never used for egress (observation mode sends nothing), and it lets
+     * {@link #DETECTION_SCRIPT} tell a page-owned agent from the one this POC injected.
+     */
+    private static final String OBSERVATION_LICENSE_KEY = "NRWV_OBSERVATION_MODE";
+
     private static final String DETECTION_SCRIPT =
             "(function() {" +
             "if (!window." + WebViewJSInterface.INTERFACE_NAME + ") { return; }" +
@@ -60,10 +67,19 @@ public class WebViewInstrumentationCallbacks {
             "var check = function() {" +
             "if (typeof window.newrelic !== 'undefined') {" +
             // Report only a PRE-EXISTING agent. Detection polls asynchronously (8 x 250ms), so on a
-            // page where the POC injected its own observation-mode agent, a later poll would see
-            // ours and fire a false positive on this shipped supportability metric. The injection
-            // sentinel distinguishes the two: set means the agent on this page is ours.
-            "window." + WebViewJSInterface.INTERFACE_NAME + ".reportBrowserAgentDetected(!window.__nrWvInjected);" +
+            // page where the POC injected its own observation-mode agent, a naive check would see
+            // ours and fire a false positive on this shipped supportability metric.
+            //
+            // Two discriminators, because the sentinel alone is not enough. A page whose own snippet
+            // is async/deferred may not have run when onPageFinished fired -- the very case this
+            // polling exists for -- so the POC's collision check misses it and injects, setting the
+            // sentinel. Their snippet then runs and overwrites NREUM.info with its REAL license key.
+            // A license key that is not our sentinel is therefore positive proof of a page-owned
+            // agent even when our sentinel is set, which keeps that true positive from being lost.
+            "var nrOurs=!!window.__nrWvInjected;" +
+            "var nrForeign=!!(window.NREUM&&window.NREUM.info&&" +
+            "window.NREUM.info.licenseKey!=='" + OBSERVATION_LICENSE_KEY + "');" +
+            "window." + WebViewJSInterface.INTERFACE_NAME + ".reportBrowserAgentDetected(!nrOurs||nrForeign);" +
             "return;" +
             "}" +
             "attempts++;" +
@@ -123,8 +139,8 @@ public class WebViewInstrumentationCallbacks {
             // itself configured -- and that failure looks identical to "wrong build" (R3) at the
             // 5s poll timeout. They are free placeholders here since observation mode sends nothing.
             "window.NREUM.info={beacon:'bam.nr-data.net',errorBeacon:'bam.nr-data.net'," +
-            "licenseKey:'NRWV_OBSERVATION_MODE',applicationID:'0',sa:1};" +
-            "window.NREUM.loader_config={licenseKey:'NRWV_OBSERVATION_MODE'," +
+            "licenseKey:'" + OBSERVATION_LICENSE_KEY + "',applicationID:'0',sa:1};" +
+            "window.NREUM.loader_config={licenseKey:'" + OBSERVATION_LICENSE_KEY + "'," +
             "applicationID:'0',agentID:'0',trustKey:'0'};" +
             "window.NREUM.init={" +
             "observation_mode:{enabled:true}," +
