@@ -134,15 +134,52 @@ public class WebViewInstrumentationCallbacks {
             "window.newrelic.beforeHarvest(function(h){" +
             "try{" +
             "if(!h||h.feature!=='session_replay'){return h&&h.payload;}" +
-            "var pl=h.payload;var ser;" +
-            "try{ser=JSON.stringify(pl);}" +
-            "catch(e){ser='[unserializable: '+(e&&e.message)+']';}" +
+            // Binary-safe envelope. JSON.stringify does not fail on a typed array — it silently
+            // expands it to {"0":31,"1":139,...}, one key per byte. Measured: a payload whose body
+            // is a 200KB Uint8Array produces a 2,551,465-char envelope, and a payload that IS a
+            // 200KB Uint8Array produces 4,283,525 chars with 204,800 entries in `keys`. That would
+            // blow the bridge and the logcat ring buffer, and report a size 12x the real one — in
+            // exactly the compressed-payload case this POC exists to detect. So describe binary
+            // values by byte length instead of expanding them, and cap `keys`.
+            "var pl=h.payload;" +
+            "var nBytes=function(v){" +
+            "try{" +
+            "if(!v||typeof v!=='object'){return -1;}" +
+            "if(typeof Blob!=='undefined'&&v instanceof Blob){return v.size;}" +
+            "if(typeof ArrayBuffer!=='undefined'){" +
+            "if(v instanceof ArrayBuffer){return v.byteLength;}" +
+            "if(ArrayBuffer.isView&&ArrayBuffer.isView(v)){return v.byteLength;}}" +
+            "return -1;}catch(e){return -1;}};" +
+            "var descOf=function(v){" +
+            "return '[binary '+Object.prototype.toString.call(v)+' bytes='+nBytes(v)+']';};" +
+            "var plBytes=nBytes(pl);" +
+            "var bodyBytes=(plBytes<0&&pl&&typeof pl==='object')?nBytes(pl.body):-1;" +
+            "var ser;" +
+            "try{" +
+            // Payload itself is binary: describe it, never expand it.
+            "if(plBytes>=0){ser=descOf(pl);}" +
+            // Only the body is binary: keep the rest of the envelope (qs etc. is diagnostic),
+            // swapping just the body for its descriptor.
+            "else if(bodyBytes>=0){" +
+            "var sh={};var bk=Object.keys(pl);" +
+            "for(var bi=0;bi<bk.length&&bi<64;bi++){" +
+            "sh[bk[bi]]=(bk[bi]==='body')?descOf(pl.body):pl[bk[bi]];}" +
+            "ser=JSON.stringify(sh);}" +
+            // Plain JSON payload: verbatim, byte-identical to the unpatched behavior.
+            "else{ser=JSON.stringify(pl);}" +
+            "}catch(e){ser='[unserializable: '+(e&&e.message)+']';}" +
+            "var kz=null;" +
+            "if(plBytes<0&&pl&&typeof pl==='object'){" +
+            "var ka=Object.keys(pl);" +
+            "kz=(ka.length>32)?ka.slice(0,32).concat(['...+'+(ka.length-32)+' more']):ka;}" +
             "B.reportSessionReplayPayload(JSON.stringify({" +
             "url:location.href," +
             "feature:h.feature," +
             "shape:Object.prototype.toString.call(pl)," +
-            "keys:(pl&&typeof pl==='object')?Object.keys(pl):null," +
+            "keys:kz," +
             "bodyShape:pl?Object.prototype.toString.call(pl.body):null," +
+            "payloadBytes:plBytes," +
+            "bodyBytes:bodyBytes," +
             "serialized:ser}));" +
             "}catch(e){}" +
             "return h&&h.payload;" +

@@ -99,6 +99,16 @@ class WebViewJSInterface {
         sb.append(" keys=").append(envelope.opt("keys")?.toString() ?: "null")
         sb.append(" bodyShape=").append(envelope.optString("bodyShape", "?"))
         sb.append(" chars=").append(serialized.length)
+        // True byte counts, present only when the payload (or its body) turned out to be binary.
+        // `chars` then measures the descriptor, not the data, so these are the real size signal.
+        val payloadBytes = envelope.optInt("payloadBytes", -1)
+        if (payloadBytes >= 0) {
+            sb.append(" payloadBytes=").append(payloadBytes)
+        }
+        val bodyBytes = envelope.optInt("bodyBytes", -1)
+        if (bodyBytes >= 0) {
+            sb.append(" bodyBytes=").append(bodyBytes)
+        }
         appendEventStats(sb, serialized)
         return sb.toString()
     }
