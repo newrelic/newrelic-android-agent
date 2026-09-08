@@ -116,8 +116,11 @@ public class WebViewInstrumentationCallbacks {
      * onPageFinished fires and SPA re-renders are no-ops.
      *
      * Observation mode means the agent builds every payload it would send but sends nothing.
-     * Every feature except session_replay is disabled, and sampling is forced to 100% because
-     * there is no RUM response to carry a sampling decision.
+     * Most other features are disabled. page_view_event is deliberately LEFT ENABLED: its
+     * postHarvestCleanup is where activateWithSyntheticRumResponse lives, which is the only
+     * source of the srs/sr flags replay blocks on via waitForFlags -- disabling it would make
+     * replay structurally incapable of harvesting. Sampling is pinned at 100 for determinism;
+     * the synthetic RUM response is what actually selects the mode (it lands in FULL).
      */
     private static final String INJECTION_SCRIPT =
             "(function(){" +
@@ -144,6 +147,11 @@ public class WebViewInstrumentationCallbacks {
             "applicationID:'0',agentID:'0',trustKey:'0'};" +
             "window.NREUM.init={" +
             "observation_mode:{enabled:true}," +
+            // Default harvest interval is 30s, and the timer only starts at synthetic RUM
+            // activation -- so the first replay harvest is ~30s out. An operator who taps for
+            // 15s and navigates away would see injection succeed then silence, and conclude
+            // replay never harvested: the exact wrong answer to the risk phase 1 exists to settle.
+            "harvest:{interval:5}," +
             "session_replay:{enabled:true,sampling_rate:100,error_sampling_rate:100}," +
             "jserrors:{enabled:false}," +
             "ajax:{enabled:false}," +
@@ -167,13 +175,15 @@ public class WebViewInstrumentationCallbacks {
             // feature, and reveals the actual wrapper shape.
             "if(!hookSeen){hookSeen=true;" +
             "try{B.reportHarvestObserved('first harvest: typeof='+(typeof h)" +
-            "+' keys='+((h&&typeof h==='object')?Object.keys(h).slice(0,16).join('|'):'n/a')" +
+            "+' keys='+((h&&typeof h==='object'&&!(typeof ArrayBuffer!=='undefined'"
+            +"&&ArrayBuffer.isView&&ArrayBuffer.isView(h)))"
+            +"?Object.keys(h).slice(0,16).join('|'):'n/a')" +
             "+' feature='+(h&&h.feature));}catch(e){}}" +
             // Never return null. Per the beforeHarvest contract, null CANCELS the harvest while
             // undefined means "send the original, unmodified". `h&&h.payload` evaluates to null
             // when h is null, which would silently drop a harvest -- a direct violation of the
             // spec's rule that a bug in our code must never alter what the agent does.
-            "if(!h||h.feature!=='session_replay'){return h?h.payload:undefined;}" +
+            "if(!h||h.feature!=='session_replay'){return (h&&h.payload!=null)?h.payload:undefined;}" +
             // Binary-safe envelope. JSON.stringify does not fail on a typed array — it silently
             // expands it to {"0":31,"1":139,...}, one key per byte. Measured: a payload whose body
             // is a 200KB Uint8Array produces a 2,551,465-char envelope, and a payload that IS a
@@ -194,16 +204,28 @@ public class WebViewInstrumentationCallbacks {
             "return '[binary '+Object.prototype.toString.call(v)+' bytes='+nBytes(v)+']';};" +
             "var plBytes=nBytes(pl);" +
             "var bodyBytes=(plBytes<0&&pl&&typeof pl==='object')?nBytes(pl.body):-1;" +
+            // Any binary value at the top level, not just `body`. Keying only on `body` moved the
+            // blowup one key over: {qs, body:Uint8Array(16), extra:Uint8Array(200KB)} measured a
+            // 2,551,555-char envelope. Since the payload shape is precisely what is unknown here,
+            // "only body is ever binary" is not an assumption available to us.
+            "var anyBin=false;" +
+            "if(plBytes<0&&pl&&typeof pl==='object'){" +
+            "var ak=Object.keys(pl);" +
+            "for(var ai=0;ai<ak.length&&ai<64;ai++){" +
+            "if(nBytes(pl[ak[ai]])>=0){anyBin=true;break;}}}" +
             "var ser;" +
             "try{" +
             // Payload itself is binary: describe it, never expand it.
             "if(plBytes>=0){ser=descOf(pl);}" +
-            // Only the body is binary: keep the rest of the envelope (qs etc. is diagnostic),
-            // swapping just the body for its descriptor.
-            "else if(bodyBytes>=0){" +
+            // Some field is binary: keep every non-binary sibling (qs and friends are diagnostic)
+            // and swap each binary one for its descriptor.
+            "else if(anyBin){" +
             "var sh={};var bk=Object.keys(pl);" +
             "for(var bi=0;bi<bk.length&&bi<64;bi++){" +
-            "sh[bk[bi]]=(bk[bi]==='body')?descOf(pl.body):pl[bk[bi]];}" +
+            "var bv=pl[bk[bi]];var nb=nBytes(bv);" +
+            "sh[bk[bi]]=(nb>=0)?descOf(bv):bv;}" +
+            // Mark the cap rather than truncating silently, mirroring how `keys` reports its own.
+            "if(bk.length>64){sh.__nrTruncated=(bk.length-64)+' more keys';}" +
             "ser=JSON.stringify(sh);}" +
             // Plain JSON payload: verbatim, byte-identical to the unpatched behavior.
             "else{ser=JSON.stringify(pl);}" +
@@ -222,11 +244,12 @@ public class WebViewInstrumentationCallbacks {
             "bodyBytes:bodyBytes," +
             "serialized:ser}));" +
             "}catch(e){}" +
-            "return h?h.payload:undefined;" +   // null would cancel the harvest; see above
+            "return (h&&h.payload!=null)?h.payload:undefined;" +   // never null; see above
             "});" +
             "return;}" +
             "if(n>=" + HOOK_MAX_POLL_ATTEMPTS + "){" +
-            "B.reportInjectionSkipped('beforeHarvest-unavailable');return;}" +
+            "B.reportInjectionSkipped('beforeHarvest-unavailable (typeof newrelic='"
+            +"+(typeof window.newrelic)+')');return;}" +
             "setTimeout(function(){register(n+1);}," + HOOK_POLL_INTERVAL_MS + ");" +
             "}catch(e){}" +
             "};" +
