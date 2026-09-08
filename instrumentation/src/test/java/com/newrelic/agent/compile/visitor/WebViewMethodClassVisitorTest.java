@@ -27,6 +27,67 @@ public class WebViewMethodClassVisitorTest {
         instrumentationContext = testContext.instrumentationContext;
     }
 
+    /**
+     * Characterizes the limitation this visitor cannot overcome, and the reason
+     * {@code NRWebViewClient} exists: bytecode can only be injected into a method that is
+     * actually present in the class. A {@code WebViewClient} subclass written for URL
+     * interception — the most common reason to subclass it — has no {@code onPageFinished}
+     * override, so there is nothing to inject into and no page-load hook is produced.
+     *
+     * The existing {@code /MyWebViewClientTest.class} fixture happens to override
+     * {@code onPageFinished}, which is why this gap is invisible to the other tests here.
+     */
+    @Test
+    public void clientWithoutOnPageFinishedOverride_getsNoPageFinishedHook() {
+        byte[] classBytes = clientOverridingOnlyShouldOverrideUrlLoading();
+
+        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        instrumentationContext.setSuperClassName("android/webkit/WebViewClient");
+        ClassVisitor visitor = new WebViewMethodClassVisitor(classWriter, instrumentationContext, InstrumentationAgent.LOGGER);
+        new ClassReader(classBytes).accept(visitor, ClassReader.EXPAND_FRAMES);
+
+        final MethodCallCounter counter = new MethodCallCounter(
+                "com/newrelic/agent/android/webView/WebViewInstrumentationCallbacks",
+                "onPageFinishedCalled"
+        );
+        new ClassReader(classWriter.toByteArray()).accept(counter, ClassReader.EXPAND_FRAMES);
+
+        Assert.assertEquals(
+                "No hook can be injected into a method the class does not declare — this is why the "
+                        + "agent installs its own delegating WebViewClient instead of relying on the app's",
+                0, counter.getCount("onPageFinishedCalled"));
+    }
+
+    /**
+     * Builds the common real-world shape:
+     * {@code class MyClient extends WebViewClient { boolean shouldOverrideUrlLoading(WebView, String) } }
+     * — subclassed for URL interception, with no {@code onPageFinished} override.
+     */
+    private static byte[] clientOverridingOnlyShouldOverrideUrlLoading() {
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        cw.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "com/example/MyClient", null,
+                "android/webkit/WebViewClient", null);
+
+        MethodVisitor ctor = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+        ctor.visitCode();
+        ctor.visitVarInsn(Opcodes.ALOAD, 0);
+        ctor.visitMethodInsn(Opcodes.INVOKESPECIAL, "android/webkit/WebViewClient", "<init>", "()V", false);
+        ctor.visitInsn(Opcodes.RETURN);
+        ctor.visitMaxs(0, 0);
+        ctor.visitEnd();
+
+        MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "shouldOverrideUrlLoading",
+                "(Landroid/webkit/WebView;Ljava/lang/String;)Z", null, null);
+        mv.visitCode();
+        mv.visitInsn(Opcodes.ICONST_0);
+        mv.visitInsn(Opcodes.IRETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+
+        cw.visitEnd();
+        return cw.toByteArray();
+    }
+
     @Test
     public void testWebViewSubclassInstrumentation() throws IOException {
         byte[] classBytes = testContext.classBytesFromResource("/MyWebViewTest.class");
