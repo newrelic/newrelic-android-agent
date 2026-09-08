@@ -116,7 +116,7 @@ public class ApacheInstrumentationTest {
         verify(httpUriRequest).setHeader(Constants.Network.CROSS_PROCESS_ID_HEADER, Agent.getCrossProcessId());
 
         if (FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
-            Assert.assertTrue(httpUriRequest.containsHeader(TracePayload.TRACE_PAYLOAD_HEADER));
+            Assert.assertFalse(httpUriRequest.containsHeader(TracePayload.TRACE_PAYLOAD_HEADER));
             Assert.assertTrue(httpUriRequest.containsHeader(TraceState.TRACE_STATE_HEADER));
             Assert.assertTrue(httpUriRequest.containsHeader(TraceParent.TRACE_PARENT_HEADER));
         }
@@ -220,7 +220,7 @@ public class ApacheInstrumentationTest {
             Assert.fail("HttpRequest.getRequestLine should not be null");
         }
 
-        Assert.assertTrue(httpRequest.containsHeader(TracePayload.TRACE_PAYLOAD_HEADER));
+        Assert.assertFalse(httpRequest.containsHeader(TracePayload.TRACE_PAYLOAD_HEADER));
         Assert.assertTrue(httpRequest.containsHeader(TraceParent.TRACE_PARENT_HEADER));
         Assert.assertTrue(httpRequest.containsHeader(TraceState.TRACE_STATE_HEADER));
     }

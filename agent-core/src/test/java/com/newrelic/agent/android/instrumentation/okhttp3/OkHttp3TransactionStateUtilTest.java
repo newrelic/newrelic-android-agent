@@ -277,7 +277,7 @@ public class OkHttp3TransactionStateUtilTest {
         HarvestConfiguration.getDefaultHarvestConfiguration().setAccount_id("1234");
         CallExtension call = (CallExtension) OkHttp3Instrumentation.newCall(client, request);
 
-        assertNotNull("Trace payload should not be null", call.request.header(TracePayload.TRACE_PAYLOAD_HEADER));
+        assertNull("Trace payload header should not be sent", call.request.header(TracePayload.TRACE_PAYLOAD_HEADER));
         assertNotNull("Trace context parent should not be null", call.request.header(TraceParent.TRACE_PARENT_HEADER));
         assertNotNull("Trace context state should not be null", call.request.header(TraceState.TRACE_STATE_HEADER));
 

@@ -49,11 +49,8 @@ public class TraceContextTest  {
 
     @Test
     public void testGetHeaders() {
-        Assert.assertNotNull(traceContext.tracePayload);
         Assert.assertFalse(traceContext.getHeaders().isEmpty());
-
-        traceContext.legacyHeadersEnabled = false;
-        Assert.assertFalse(traceContext.getHeaders().isEmpty());
+        Assert.assertFalse(traceContext.getHeaders().stream().anyMatch(h -> TracePayload.TRACE_PAYLOAD_HEADER.equals(h.getHeaderName())));
     }
 
     @Test
@@ -129,7 +126,7 @@ public class TraceContextTest  {
     public void testGetPayloadTraceHeader() {
         TraceHeader traceHeader = traceContext.getTracePayload();
         Assert.assertEquals(TracePayload.TRACE_PAYLOAD_HEADER, traceHeader.getHeaderName());
-        Assert.assertNotNull(traceHeader.getHeaderValue());
+        Assert.assertFalse(traceContext.getHeaders().stream().anyMatch(h -> TracePayload.TRACE_PAYLOAD_HEADER.equals(h.getHeaderName())));
     }
 
     @Test
