@@ -83,6 +83,87 @@ public class WebViewInstrumentationCallbacks {
             "window.__nrWvProbe={hadNREUM:!!window.NREUM,hadNewrelic:!!window.newrelic};" +
             "}}catch(e){}})();";
 
+    /** Experimental browser agent build — the only one exposing observation_mode and beforeHarvest. */
+    private static final String LOADER_URL =
+            "https://js-agent.newrelic.com/experiments/dev/before-send-hook/nr-loader-spa.min.js";
+
+    private static final int HOOK_POLL_INTERVAL_MS = 50;
+    private static final int HOOK_MAX_POLL_ATTEMPTS = 100;
+
+    /**
+     * Injects the browser agent in observation mode and registers a beforeHarvest hook that
+     * forwards session_replay payloads to the native bridge. Sentinel-guarded, so repeat
+     * onPageFinished fires and SPA re-renders are no-ops.
+     *
+     * Observation mode means the agent builds every payload it would send but sends nothing.
+     * Every feature except session_replay is disabled, and sampling is forced to 100% because
+     * there is no RUM response to carry a sampling decision.
+     */
+    private static final String INJECTION_SCRIPT =
+            "(function(){" +
+            "var B=window." + WebViewJSInterface.INTERFACE_NAME + ";" +
+            "if(!B){return;}" +
+            "try{" +
+            // 1. Sentinel: never inject twice into one document.
+            "if(window.__nrWvInjected){return;}" +
+            // 2. Collision: the page's own agent wins. Probe first, live checks as fallback.
+            "var p=window.__nrWvProbe;" +
+            "if((p&&(p.hadNREUM||p.hadNewrelic))||window.NREUM||window.newrelic){" +
+            "B.reportInjectionSkipped('existing-agent');return;}" +
+            // 3. Claim the document before doing any work.
+            "window.__nrWvInjected=true;" +
+            // 4. Configuration.
+            "window.NREUM=window.NREUM||{};" +
+            "window.NREUM.info={errorBeacon:'bam.nr-data.net'," +
+            "licenseKey:'NRWV_OBSERVATION_MODE',applicationID:'0'};" +
+            "window.NREUM.init={" +
+            "observation_mode:{enabled:true}," +
+            "session_replay:{enabled:true,sampling_rate:100,error_sampling_rate:100}," +
+            "jserrors:{enabled:false}," +
+            "ajax:{enabled:false}," +
+            "page_view_timing:{enabled:false}," +
+            "session_trace:{enabled:false}," +
+            "metrics:{enabled:false}," +
+            "generic_events:{enabled:false}," +
+            "logging:{enabled:false}," +
+            "soft_navigations:{enabled:false}};" +
+            // 5. Hook registration, polling until the agent exposes beforeHarvest.
+            "var register=function(n){" +
+            "try{" +
+            "if(window.newrelic&&typeof window.newrelic.beforeHarvest==='function'){" +
+            "window.newrelic.beforeHarvest(function(h){" +
+            "try{" +
+            "if(!h||h.feature!=='session_replay'){return h&&h.payload;}" +
+            "var pl=h.payload;var ser;" +
+            "try{ser=JSON.stringify(pl);}" +
+            "catch(e){ser='[unserializable: '+(e&&e.message)+']';}" +
+            "B.reportSessionReplayPayload(JSON.stringify({" +
+            "url:location.href," +
+            "feature:h.feature," +
+            "shape:Object.prototype.toString.call(pl)," +
+            "keys:(pl&&typeof pl==='object')?Object.keys(pl):null," +
+            "bodyShape:pl?Object.prototype.toString.call(pl.body):null," +
+            "serialized:ser}));" +
+            "}catch(e){}" +
+            "return h&&h.payload;" +
+            "});" +
+            "return;}" +
+            "if(n>=" + HOOK_MAX_POLL_ATTEMPTS + "){" +
+            "B.reportInjectionSkipped('beforeHarvest-unavailable');return;}" +
+            "setTimeout(function(){register(n+1);}," + HOOK_POLL_INTERVAL_MS + ");" +
+            "}catch(e){}" +
+            "};" +
+            // 6. Loader tag. onerror is the CSP / network failure signal.
+            "var s=document.createElement('script');" +
+            "s.src='" + LOADER_URL + "';" +
+            "s.type='text/javascript';" +
+            "s.onerror=function(){try{B.reportInjectionSkipped('loader-load-failed');}catch(e){}};" +
+            "(document.head||document.documentElement).appendChild(s);" +
+            // 7. Start polling immediately: a loader that never fires onload still gets a hook attempt.
+            "register(0);" +
+            "}catch(e){}" +
+            "})();";
+
     public static void ButtonClicked(View view) {
         try {
             // Do something
@@ -312,6 +393,15 @@ public class WebViewInstrumentationCallbacks {
             webView.evaluateJavascript(DETECTION_SCRIPT, null);
         } catch (Exception e) {
             log.error("Failed to run NR browser agent detection script", e);
+        }
+        if (!shouldCaptureWebViewReplay()) {
+            return;
+        }
+        try {
+            webView.evaluateJavascript(INJECTION_SCRIPT, null);
+            log.debug("NR browser agent injection script evaluated for " + url);
+        } catch (Exception e) {
+            log.error("Failed to run the NR browser agent injection script", e);
         }
     }
 
