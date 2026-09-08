@@ -152,15 +152,17 @@ public class WebViewInstrumentationCallbacks {
             // 15s and navigates away would see injection succeed then silence, and conclude
             // replay never harvested: the exact wrong answer to the risk phase 1 exists to settle.
             "harvest:{interval:5}," +
-            "session_replay:{enabled:true,sampling_rate:100,error_sampling_rate:100}," +
-            "jserrors:{enabled:false}," +
-            "ajax:{enabled:false}," +
-            "page_view_timing:{enabled:false}," +
-            "session_trace:{enabled:false}," +
-            "metrics:{enabled:false}," +
-            "generic_events:{enabled:false}," +
-            "logging:{enabled:false}," +
-            "soft_navigations:{enabled:false}};" +
+            // session_trace is REQUIRED, not optional. Device run showed the hook registering and
+            // page_view_event harvesting, but session_replay never harvesting -- with session_trace
+            // disabled. Replay is coupled to trace through session identity, so turning it off
+            // prevented replay from recording at all.
+            "session_trace:{enabled:true}," +
+            // Every other feature is left at its default. Disabling them was meant to cut noise,
+            // but two turned out to be load-bearing (page_view_event supplies the srs/sr flags
+            // replay waits on; session_trace as above), and a config that suppresses the signal is
+            // worth nothing. The hook filters to session_replay, so extra features cost log noise
+            // rather than wrong data. Re-disable individually only after replay is confirmed working.
+            "session_replay:{enabled:true,sampling_rate:100,error_sampling_rate:100}};" +
             // 5. Hook registration, polling until the agent exposes beforeHarvest.
             "var hookSeen=false;" +
             "var register=function(n){" +
