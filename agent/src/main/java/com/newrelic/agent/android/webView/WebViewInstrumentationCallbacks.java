@@ -16,6 +16,8 @@ import android.widget.RadioGroup;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.sessionReplay.SessionReplay;
+import com.newrelic.agent.android.sessionReplay.SessionReplayMode;
 import com.newrelic.agent.android.stats.StatsEngine;
 
 import java.util.Map;
@@ -70,6 +72,16 @@ public class WebViewInstrumentationCallbacks {
             "check();" +
             "})();";
 
+    /**
+     * Records whether the page already had a New Relic Browser agent, sampled at onPageStarted —
+     * before the POC could have injected one. The collision check at onPageFinished reads this,
+     * because by then our own agent may be present and indistinguishable from the page's.
+     */
+    private static final String PROBE_SCRIPT =
+            "(function(){try{" +
+            "if(window.__nrWvProbe===undefined){" +
+            "window.__nrWvProbe={hadNREUM:!!window.NREUM,hadNewrelic:!!window.newrelic};" +
+            "}}catch(e){}})();";
 
     public static void ButtonClicked(View view) {
         try {
@@ -244,6 +256,46 @@ public class WebViewInstrumentationCallbacks {
     public static void postUrlCalled(WebView var0) {
         prepare(var0);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_POST_URL);
+    }
+
+    /**
+     * Whether WebView replay capture should run for this page.
+     *
+     * Deliberately avoids {@link SessionReplay#isReplayRecording()}: that method's null guard uses
+     * {@code &&} where it needs {@code ||}, so it dereferences a null modeManager and throws NPE in
+     * exactly the "session replay never initialized" case it was written to handle. Reading the mode
+     * is null-safe, and SessionReplayModeManager.isRecording() is defined as {@code mode != OFF},
+     * so this is semantically identical.
+     */
+    private static boolean shouldCaptureWebViewReplay() {
+        try {
+            SessionReplayMode mode = SessionReplay.getCurrentMode();
+            return mode != null && mode != SessionReplayMode.OFF;
+        } catch (Throwable t) {
+            log.debug("Could not read the session replay mode; skipping WebView replay capture");
+            return false;
+        }
+    }
+
+    /**
+     * Pre-injection probe, run from {@link NRWebViewClient#onPageStarted}. Deliberately does not
+     * inject the browser agent: at onPageStarted the page's own head scripts have not run, so a
+     * collision check here would pass almost unconditionally and we would inject on top of a page
+     * that carries its own agent.
+     */
+    public static void pageStarted(WebView webView, String url) {
+        if (webView == null) {
+            return;
+        }
+        if (!shouldCaptureWebViewReplay()) {
+            return;
+        }
+        try {
+            webView.evaluateJavascript(PROBE_SCRIPT, null);
+            log.debug("NR WebView replay probe evaluated for " + url);
+        } catch (Exception e) {
+            log.error("Failed to run the NR WebView replay probe script", e);
+        }
     }
 
     /**
