@@ -59,7 +59,11 @@ public class WebViewInstrumentationCallbacks {
             "var intervalMs = " + DETECTION_POLL_INTERVAL_MS + ";" +
             "var check = function() {" +
             "if (typeof window.newrelic !== 'undefined') {" +
-            "window." + WebViewJSInterface.INTERFACE_NAME + ".reportBrowserAgentDetected(true);" +
+            // Report only a PRE-EXISTING agent. Detection polls asynchronously (8 x 250ms), so on a
+            // page where the POC injected its own observation-mode agent, a later poll would see
+            // ours and fire a false positive on this shipped supportability metric. The injection
+            // sentinel distinguishes the two: set means the agent on this page is ours.
+            "window." + WebViewJSInterface.INTERFACE_NAME + ".reportBrowserAgentDetected(!window.__nrWvInjected);" +
             "return;" +
             "}" +
             "attempts++;" +
@@ -114,8 +118,14 @@ public class WebViewInstrumentationCallbacks {
             "window.__nrWvInjected=true;" +
             // 4. Configuration.
             "window.NREUM=window.NREUM||{};" +
-            "window.NREUM.info={errorBeacon:'bam.nr-data.net'," +
-            "licenseKey:'NRWV_OBSERVATION_MODE',applicationID:'0'};" +
+            // beacon/sa and loader_config are populated by the standard snippet. Omitting them
+            // risks the agent rejecting an incomplete config or the SPA loader not considering
+            // itself configured -- and that failure looks identical to "wrong build" (R3) at the
+            // 5s poll timeout. They are free placeholders here since observation mode sends nothing.
+            "window.NREUM.info={beacon:'bam.nr-data.net',errorBeacon:'bam.nr-data.net'," +
+            "licenseKey:'NRWV_OBSERVATION_MODE',applicationID:'0',sa:1};" +
+            "window.NREUM.loader_config={licenseKey:'NRWV_OBSERVATION_MODE'," +
+            "applicationID:'0',agentID:'0',trustKey:'0'};" +
             "window.NREUM.init={" +
             "observation_mode:{enabled:true}," +
             "session_replay:{enabled:true,sampling_rate:100,error_sampling_rate:100}," +
@@ -128,12 +138,26 @@ public class WebViewInstrumentationCallbacks {
             "logging:{enabled:false}," +
             "soft_navigations:{enabled:false}};" +
             // 5. Hook registration, polling until the agent exposes beforeHarvest.
+            "var hookSeen=false;" +
             "var register=function(n){" +
             "try{" +
             "if(window.newrelic&&typeof window.newrelic.beforeHarvest==='function'){" +
             "window.newrelic.beforeHarvest(function(h){" +
             "try{" +
-            "if(!h||h.feature!=='session_replay'){return h&&h.payload;}" +
+            // One-shot proof-of-life, reported BEFORE the feature filter. Without it, silence after
+            // successful registration is ambiguous between "replay never harvested" (R1, the risk
+            // that can silently sink this POC) and "the wrapper shape is not {feature,payload}"
+            // (R3). This collapses the two to a single logcat line on the first harvest of any
+            // feature, and reveals the actual wrapper shape.
+            "if(!hookSeen){hookSeen=true;" +
+            "try{B.reportHarvestObserved('first harvest: typeof='+(typeof h)" +
+            "+' keys='+((h&&typeof h==='object')?Object.keys(h).slice(0,16).join('|'):'n/a')" +
+            "+' feature='+(h&&h.feature));}catch(e){}}" +
+            // Never return null. Per the beforeHarvest contract, null CANCELS the harvest while
+            // undefined means "send the original, unmodified". `h&&h.payload` evaluates to null
+            // when h is null, which would silently drop a harvest -- a direct violation of the
+            // spec's rule that a bug in our code must never alter what the agent does.
+            "if(!h||h.feature!=='session_replay'){return h?h.payload:undefined;}" +
             // Binary-safe envelope. JSON.stringify does not fail on a typed array — it silently
             // expands it to {"0":31,"1":139,...}, one key per byte. Measured: a payload whose body
             // is a 200KB Uint8Array produces a 2,551,465-char envelope, and a payload that IS a
@@ -182,7 +206,7 @@ public class WebViewInstrumentationCallbacks {
             "bodyBytes:bodyBytes," +
             "serialized:ser}));" +
             "}catch(e){}" +
-            "return h&&h.payload;" +
+            "return h?h.payload:undefined;" +   // null would cancel the harvest; see above
             "});" +
             "return;}" +
             "if(n>=" + HOOK_MAX_POLL_ATTEMPTS + "){" +
