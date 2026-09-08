@@ -30,8 +30,8 @@ import androidx.annotation.RequiresApi
  *
  * Every callback is forwarded to [delegate]. When the host app had no client of its own,
  * [delegate] is a plain [WebViewClient] instance whose behavior is by definition identical to
- * `super` — which is why no callback below needs a null branch. Only [onPageFinished] adds
- * behavior; everything else is pass-through.
+ * `super` — which is why no callback below needs a null branch. Only [onPageStarted] and
+ * [onPageFinished] add behavior; everything else is pass-through.
  */
 class NRWebViewClient(delegate: WebViewClient?) : WebViewClient() {
 
@@ -46,6 +46,7 @@ class NRWebViewClient(delegate: WebViewClient?) : WebViewClient() {
     // ---- page lifecycle ----
 
     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+        WebViewInstrumentationCallbacks.pageStarted(view, url)
         delegate.onPageStarted(view, url, favicon)
     }
 
