@@ -109,7 +109,7 @@ public class AnalyticsEvent extends HarvestableObject {
 
         //Background Reporting
         if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (ApplicationStateMonitor.isAppInBackground()) {
+            if (ApplicationStateMonitor.isBackgrounded()) {
                 this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
                 StatsEngine.notice().inc(MetricNames.BACKGROUND_EVENT_COUNT);
             }

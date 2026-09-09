@@ -46,6 +46,7 @@ public class SessionReplayReporterTest {
     }
 
     @Before
+    @SuppressWarnings("unchecked")
     public void setUp() throws Exception {
         StatsEngine.reset();
 

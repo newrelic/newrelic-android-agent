@@ -151,7 +151,7 @@ public class AgentDataController {
 
                 //Background Reporting
                 if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-                    if (ApplicationStateMonitor.isAppInBackground()) {
+                    if (ApplicationStateMonitor.isBackgrounded()) {
                         attributes.put(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true);
                         StatsEngine.notice().inc(MetricNames.BACKGROUND_HANDLED_EXCEPTION_COUNT);
                     }

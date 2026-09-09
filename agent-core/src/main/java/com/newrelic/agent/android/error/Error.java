@@ -84,6 +84,15 @@ public class Error extends HarvestableObject {
 
         if (sessionMeta != null) {
             this.dataToken.setAgentId(sessionMeta.realAgentId);
+            if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && this.sessionAttributes != null) {
+                this.sessionAttributes.removeIf(attr -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(attr.getName()));
+                if (sessionMeta.backgrounded) {
+                    this.sessionAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
+                    if (!ApplicationStateMonitor.isBackgrounded()) {
+                        StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
+                    }
+                }
+            }
         }
     }
 
@@ -161,7 +170,7 @@ public class Error extends HarvestableObject {
 
         //Background Reporting
         if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (ApplicationStateMonitor.isAppInBackground()) {
+            if (ApplicationStateMonitor.isBackgrounded()) {
                 attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
                 StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
             }

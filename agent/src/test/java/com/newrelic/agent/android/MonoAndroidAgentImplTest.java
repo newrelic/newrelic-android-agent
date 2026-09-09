@@ -74,15 +74,15 @@ public class MonoAndroidAgentImplTest {
             setUpAgent();
             try {
                 ApplicationStateMonitor asm = ApplicationStateMonitor.getInstance();
-                Assert.assertFalse("Should be foregrounded on start", ApplicationStateMonitor.isAppInBackground());
+                Assert.assertFalse("Should be foregrounded on start", ApplicationStateMonitor.isBackgrounded());
                 asm.activityStopped();
                 Thread.sleep(5000);
-                Assert.assertTrue("Should be backgrounded on stop", ApplicationStateMonitor.isAppInBackground());
+                Assert.assertTrue("Should be backgrounded on stop", ApplicationStateMonitor.isBackgrounded());
                 asm.activityStarted();
                 Thread.sleep(5000);
                 asm.activityStopped();
                 Thread.sleep(5000);
-                Assert.assertTrue("Should be backgrounded after restart", ApplicationStateMonitor.isAppInBackground());
+                Assert.assertTrue("Should be backgrounded after restart", ApplicationStateMonitor.isBackgrounded());
             } catch (Exception e) {
                 Assert.fail("Should not throw exception on mono agent impl");
             }
@@ -98,16 +98,16 @@ public class MonoAndroidAgentImplTest {
             setUpAgent();
             try {
                 ApplicationStateMonitor asm = ApplicationStateMonitor.getInstance();
-                Assert.assertFalse("Should be foregrounded on start", ApplicationStateMonitor.isAppInBackground());
+                Assert.assertFalse("Should be foregrounded on start", ApplicationStateMonitor.isBackgrounded());
                 asm.activityStopped();
                 Thread.sleep(5000);
-                Assert.assertTrue("Should be backgrounded on stop", ApplicationStateMonitor.isAppInBackground());
+                Assert.assertTrue("Should be backgrounded on stop", ApplicationStateMonitor.isBackgrounded());
                 asm.activityStarted();
                 Thread.sleep(5000);
-                Assert.assertFalse("Should be foregrounded on start after being backgrounded", ApplicationStateMonitor.isAppInBackground());
+                Assert.assertFalse("Should be foregrounded on start after being backgrounded", ApplicationStateMonitor.isBackgrounded());
                 asm.activityStopped();
                 Thread.sleep(5000);
-                Assert.assertTrue("Should be backgrounded after restart", ApplicationStateMonitor.isAppInBackground());
+                Assert.assertTrue("Should be backgrounded after restart", ApplicationStateMonitor.isBackgrounded());
             } catch (Exception e) {
                 Assert.fail("Should not throw exception on mono agent impl");
             }

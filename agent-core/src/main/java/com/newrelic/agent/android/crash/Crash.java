@@ -183,7 +183,7 @@ public class Crash extends HarvestableObject {
 
         //Background Reporting
         if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (ApplicationStateMonitor.isAppInBackground()) {
+            if (ApplicationStateMonitor.isBackgrounded()) {
                 attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
                 StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
             }

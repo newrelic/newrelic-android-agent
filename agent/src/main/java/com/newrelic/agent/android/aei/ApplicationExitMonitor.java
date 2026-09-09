@@ -19,6 +19,7 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -134,7 +135,7 @@ public class ApplicationExitMonitor {
     @SuppressLint("SwitchIntDef")
     @SuppressWarnings("deprecation")
     public void harvestApplicationExitInfo() {
-        sessionMapper.load();
+        sessionMapper.restore();
 
         // Only supported in Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -142,7 +143,7 @@ public class ApplicationExitMonitor {
             AtomicInteger recordsSkipped = new AtomicInteger(0);
             AtomicInteger recordsDropped = new AtomicInteger(0);
 
-            if (null == am) {
+            if (am == null) {
                 log.error("harvestApplicationExitInfo: ActivityManager is null! Cannot record ApplicationExitInfo data.");
                 return;
             }
@@ -166,6 +167,7 @@ public class ApplicationExitMonitor {
 
                 // try to map the AEI with the session it occurred in
                 String aeiSessionId = sessionMapper.getSessionId(exitInfo.getPid());
+
                 if (!(aeiSessionId == null || aeiSessionId.isEmpty() || aeiSessionId.equals(AgentConfiguration.getInstance().getSessionID()))) {
                     // found a prior session ID
                     log.debug("ApplicationExitMonitor: Found session id [" + aeiSessionId + "] for AEI pid[" + exitInfo.getPid() + "]");
@@ -202,6 +204,9 @@ public class ApplicationExitMonitor {
 
                 // try to map the AEI with the session it occurred in
                 AEISessionMapper.AEISessionMeta sessionMeta = sessionMapper.get(exitInfo.getPid());
+                if (sessionMeta != null) {
+                    sessionMeta = new AEISessionMapper.AEISessionMeta(sessionMeta.sessionId, sessionMeta.realAgentId, isExitBackgrounded(exitInfo.getImportance()));
+                }
 
                 // we are not dropping it if the session is not found, we will still report it
 //                if (sessionMeta == null || !sessionMeta.isValid() || sessionMeta.sessionId.equals(AgentConfiguration.getInstance().getSessionID())) {
@@ -243,9 +248,9 @@ public class ApplicationExitMonitor {
 
                 traceReporter.reportAEITrace(error.asJsonObject().toString(), exitInfo.getPid());
             }
-            log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited.get() + "] existing [" + recordsSkipped.get() + "] dropped[" + recordsDropped.get() + "]");
 
-            AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId());
+            log.debug("AEI: inspected [" + applicationExitInfoList.size() + "] records: new[" + recordsVisited.get() + "] existing [" + recordsSkipped.get() + "] dropped[" + recordsDropped.get() + "]");
+            AEISessionMapper.AEISessionMeta model = new AEISessionMapper.AEISessionMeta(AgentConfiguration.getInstance().getSessionID(), Harvest.getHarvestConfiguration().getDataToken().getAgentId(), ApplicationStateMonitor.isBackgrounded());
             sessionMapper.put(getCurrentProcessId(), model);
             sessionMapper.flush();
 
@@ -317,18 +322,8 @@ public class ApplicationExitMonitor {
         eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
 
         // Add fg/bg flag based on inferred importance:
-        switch (exitInfo.getImportance()) {
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
-                break;
-            default:
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
-                break;
-        }
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE,
+                isExitBackgrounded(exitInfo.getImportance()) ? "background" : "foreground");
 
         // Add the reason for the exit
         if (exitInfo.getReason() == ApplicationExitInfo.REASON_ANR) {
@@ -380,6 +375,19 @@ public class ApplicationExitMonitor {
 
     protected String toValidAttributeValue(String attributeValue) {
         return (null == attributeValue ? "null" : attributeValue.substring(0, Math.min(attributeValue.length(), AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH - 1)));
+    }
+
+    boolean isExitBackgrounded(int importance) {
+        switch (importance) {
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
+                return false;
+            default:
+                return true;
+        }
     }
 
     protected String getReasonAsString(int reason) {

@@ -250,7 +250,7 @@ public class Harvester implements HarvestConfigurable {
         }
 
         //Background reporting
-        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isBackgrounded()) {
             StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Background", response.getResponseTime());
         } else {
             StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest", response.getResponseTime());
@@ -264,7 +264,7 @@ public class Harvester implements HarvestConfigurable {
             fireOnHarvestError();
 
             //Background reporting
-            if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
+            if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isBackgrounded()) {
                 StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/Background/" + response.getResponseCode());
             } else {
                 StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Harvest/Error/" + response.getResponseCode());

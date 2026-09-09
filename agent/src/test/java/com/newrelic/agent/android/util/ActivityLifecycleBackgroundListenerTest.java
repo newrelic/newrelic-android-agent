@@ -52,21 +52,21 @@ public class ActivityLifecycleBackgroundListenerTest {
     @Test
     public void ensureTrivialUsageWorks() throws Exception {
 
-        assertFalse(ApplicationStateMonitorTest.isAppInBackground());
+        assertFalse(ApplicationStateMonitorTest.isBackgrounded());
 
         albl.onActivityPaused(null);
         albl.onTrimMemory(20);
         albl.onActivityStopped(null);
 
         Thread.sleep(750);
-        assertTrue(ApplicationStateMonitorTest.isAppInBackground());
+        assertTrue(ApplicationStateMonitorTest.isBackgrounded());
 
         albl.onActivityStarted(null);
         albl.onActivityResumed(null);
         Thread.sleep(750);
         asm.shutdownExecutor();
 
-        assertFalse(ApplicationStateMonitorTest.isAppInBackground());
+        assertFalse(ApplicationStateMonitorTest.isBackgrounded());
 
         assertEquals(2, listener.getEvents().size());
         assertEquals("background", listener.getEvents().get(0));
@@ -100,7 +100,7 @@ public class ActivityLifecycleBackgroundListenerTest {
         asm.activityStopped(true);
         asm.getExecutor().submit(() -> {}).get();
         asm.getForegroundState().set(false);
-        assertTrue(ApplicationStateMonitorTest.isAppInBackground());
+        assertTrue(ApplicationStateMonitorTest.isBackgrounded());
 
         // Restarting an activity (count 0 -> 1 while backgrounded) foregrounds the app,
         // emitting exactly one foreground event.
@@ -114,7 +114,7 @@ public class ActivityLifecycleBackgroundListenerTest {
     @Test
     public void rotationDoesNotEmitBackgroundOrForegroundEvents() throws Exception {
         // Initial: foregrounded=true
-        assertFalse(ApplicationStateMonitorTest.isAppInBackground());
+        assertFalse(ApplicationStateMonitorTest.isBackgrounded());
 
         Activity oldActivity = Mockito.mock(Activity.class);
         Mockito.when(oldActivity.isChangingConfigurations()).thenReturn(true);
@@ -135,7 +135,7 @@ public class ActivityLifecycleBackgroundListenerTest {
 
         assertEquals("No state events should fire during rotation", 0, listener.getEvents().size());
         assertFalse("App should still be foregrounded after rotation",
-                ApplicationStateMonitorTest.isAppInBackground());
+                ApplicationStateMonitorTest.isBackgrounded());
     }
 
     @Test
@@ -148,7 +148,7 @@ public class ActivityLifecycleBackgroundListenerTest {
         albl.onActivityPaused(activity);
         albl.onActivityStopped(activity);
         Thread.sleep(750);
-        assertTrue(ApplicationStateMonitorTest.isAppInBackground());
+        assertTrue(ApplicationStateMonitorTest.isBackgrounded());
 
         albl.onActivityStarted(activity);
         albl.onActivityResumed(activity);

@@ -108,6 +108,7 @@ public class ApplicationStateMonitor {
     }
 
     private void notifyApplicationInForeground() {
+        foregrounded.set(true);
         final ArrayList<ApplicationStateListener> listeners;
         synchronized (applicationStateListeners) {
             listeners = new ArrayList<ApplicationStateListener>(applicationStateListeners);
@@ -116,6 +117,7 @@ public class ApplicationStateMonitor {
         for (ApplicationStateListener listener : listeners) {
             listener.applicationForegrounded(e);
         }
+
     }
 
     public ExecutorService getExecutor() {
@@ -126,7 +128,7 @@ public class ApplicationStateMonitor {
         return foregrounded.get();
     }
 
-    public static boolean isAppInBackground() {
+    public static boolean isBackgrounded() {
         return !getInstance().getForegrounded();
     }
 

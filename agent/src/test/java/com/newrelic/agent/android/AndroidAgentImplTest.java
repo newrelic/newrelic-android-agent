@@ -276,11 +276,11 @@ public class AndroidAgentImplTest {
 
         ApplicationStateMonitor.getInstance().activityStopped();
         Thread.sleep(1000);
-        Assert.assertTrue("Agent should be in background", ApplicationStateMonitor.isAppInBackground());
+        Assert.assertTrue("Agent should be in background", ApplicationStateMonitor.isBackgrounded());
 
         ApplicationStateMonitor.getInstance().activityStarted();
         Thread.sleep(1000);
-        Assert.assertFalse("Agent should be in foreground", ApplicationStateMonitor.isAppInBackground());
+        Assert.assertFalse("Agent should be in foreground", ApplicationStateMonitor.isBackgrounded());
 
         Assert.assertNotEquals("Agent should provide new session ID when foregrounded", sessionId, agentConfig.getSessionID());
     }

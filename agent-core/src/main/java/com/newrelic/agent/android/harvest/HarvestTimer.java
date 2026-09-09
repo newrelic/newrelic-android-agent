@@ -86,7 +86,7 @@ public class HarvestTimer implements Runnable {
                 log.debug("Harvest: executed");
                 log.debug("Harvest: executed in the background");
             } else {
-                if (ApplicationStateMonitor.isAppInBackground()) {
+                if (ApplicationStateMonitor.isBackgrounded()) {
                     log.error("HarvestTimer: Attempting to harvest while app is in background");
                 } else {
                     harvester.execute();
@@ -109,7 +109,7 @@ public class HarvestTimer implements Runnable {
 
     public void start() {
         if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (ApplicationStateMonitor.isAppInBackground()) {
+            if (ApplicationStateMonitor.isBackgrounded()) {
                 log.warn("HarvestTimer: Attempting to start while app is in background");
                 return;
             }
