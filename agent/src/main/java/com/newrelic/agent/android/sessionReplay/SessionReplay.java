@@ -275,7 +275,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
 
     /**
-     * Drops WebView document grafts, largest first, until the chunk fits under
+     * Drops WebView documents, largest first, until the chunk fits under
      * {@link Constants.Network#MAX_PAYLOAD_SIZE} compressed.
      *
      * Without this, {@link SessionReplayReporter} rejects an oversized chunk <em>whole</em> — native
@@ -302,23 +302,23 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             long budget = (long) ((Constants.Network.MAX_PAYLOAD_SIZE / ratio) * 0.95);
 
             // Largest first, so the fewest documents are lost.
-            List<Integer> graftIndices = new ArrayList<>();
+            List<Integer> documentIndices = new ArrayList<>();
             for (int i = 0; i < events.size(); i++) {
-                if (isWebViewGraft(events.get(i))) {
-                    graftIndices.add(i);
+                if (isWebViewDocumentEvent(events.get(i))) {
+                    documentIndices.add(i);
                 }
             }
-            if (graftIndices.isEmpty()) {
+            if (documentIndices.isEmpty()) {
                 log.warn("SessionReplay: chunk is " + compressed + " compressed bytes, over the "
                         + Constants.Network.MAX_PAYLOAD_SIZE + " cap, and carries no WebView documents to shed");
                 return events;
             }
-            graftIndices.sort((a, b) -> Integer.compare(
+            documentIndices.sort((a, b) -> Integer.compare(
                     events.get(b).toString().length(), events.get(a).toString().length()));
 
             Set<Integer> shed = new HashSet<>();
             long total = json.length;
-            for (Integer index : graftIndices) {
+            for (Integer index : documentIndices) {
                 if (total <= budget) {
                     break;
                 }
@@ -340,7 +340,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             int after = gzippedLength(new Gson().toJson(reduced).getBytes());
             log.warn("SessionReplay: chunk was " + compressed + " compressed bytes (cap "
                     + Constants.Network.MAX_PAYLOAD_SIZE + "); shed " + shed.size() + " of "
-                    + graftIndices.size() + " WebView document(s), now " + after
+                    + documentIndices.size() + " WebView document(s), now " + after
                     + ". The native replay is preserved; those WebViews render empty until the next graft.");
             return reduced;
         } catch (Exception e) {
@@ -351,30 +351,40 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     /**
-     * Whether this event is a WebView document graft.
-     *
-     * Identified structurally rather than by a marker field: only the WebView merge path ever adds a
-     * {@code type: 0} Document node, since the native diff generator adds element and text nodes.
-     * That keeps the discriminator out of the uploaded payload.
+     * Must match {@code WebViewReplayMerger.PLUGIN_NAME} and the replay plugin's own
+     * {@code PLUGIN_NAME}. Duplicated as a literal rather than imported because this package keeps no
+     * compile-time dependency on the WebView package -- the same reason
+     * {@link #setFullSnapshotListener} exists as a listener instead of a direct call.
      */
-    private static boolean isWebViewGraft(JsonElement event) {
+    private static final String WEBVIEW_REPLAY_PLUGIN_NAME = "nr-webview-replay";
+
+    /**
+     * Whether this event is a plugin envelope carrying a WebView's full document.
+     *
+     * These are the only events worth shedding: one holds an entire serialized web page, measured at
+     * 79-97% of the chunk that contained it, while every other WebView event is one frame of change.
+     *
+     * Matched on the envelope's own plugin name and the inner event's type, which is exact rather
+     * than heuristic. The graft design had to infer it structurally instead — a {@code type: 0}
+     * Document node inside a mutation's {@code adds} — because the graft was shaped like an ordinary
+     * native mutation and carried no marker to key on.
+     */
+    private static boolean isWebViewDocumentEvent(JsonElement event) {
         try {
             JsonObject object = event.getAsJsonObject();
-            if (object.get("type").getAsInt() != RRWebEvent.RRWEB_EVENT_INCREMENTAL_SNAPSHOT) {
+            if (object.get("type").getAsInt() != RRWebEvent.RRWEB_EVENT_PLUGIN) {
                 return false;
             }
             JsonObject data = object.getAsJsonObject("data");
-            if (data == null || !data.has("adds")) {
+            if (data == null || !WEBVIEW_REPLAY_PLUGIN_NAME.equals(
+                    data.get("plugin").getAsString())) {
                 return false;
             }
-            for (JsonElement add : data.getAsJsonArray("adds")) {
-                JsonObject node = add.getAsJsonObject().getAsJsonObject("node");
-                if (node != null && node.has("type") && node.get("type").getAsInt() == 0) {
-                    return true;
-                }
-            }
+            JsonObject inner = data.getAsJsonObject("payload").getAsJsonObject("innerEvent");
+            return inner != null && inner.has("type")
+                    && inner.get("type").getAsInt() == RRWebEvent.RRWEB_EVENT_FULL_SNAPSHOT;
         } catch (Exception e) {
-            // Not a graft-shaped event.
+            // Not a WebView document envelope.
         }
         return false;
     }
@@ -401,9 +411,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * serialized behind a mutation that depends on it.
      *
      * The sort is <em>stable</em> ({@link Collections#sort} is a merge sort), which is load-bearing:
-     * within a type, arrival order is preserved, and that is what keeps a WebView document graft
-     * ahead of the incremental mutations that arrived after it in the same batch and share its
-     * timestamp.
+     * within a type, arrival order is preserved, and that is what keeps a WebView's document event
+     * ahead of the plugin events that arrived after it in the same batch and share its timestamp.
      *
      * @param events events in file arrival order
      * @return a new array in replay order
