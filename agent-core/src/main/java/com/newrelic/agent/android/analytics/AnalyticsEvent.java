@@ -35,6 +35,7 @@ public class AnalyticsEvent extends HarvestableObject {
     public static final String EVENT_TYPE_MOBILE_REQUEST = "MobileRequest";
     public static final String EVENT_TYPE_MOBILE_REQUEST_ERROR = "MobileRequestError";
     public static final String EVENT_TYPE_MOBILE_BREADCRUMB = "MobileBreadcrumb";
+    public static final String EVENT_TYPE_MOBILE_VIEW = "MobileView";
     public static final String EVENT_TYPE_MOBILE_CRASH = "MobileCrash";
     public static final String EVENT_TYPE_MOBILE_USER_ACTION = "MobileUserAction";
     public static final String EVENT_TYPE_MOBILE_APPLICATION_EXIT = "MobileApplicationExit";
