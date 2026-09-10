@@ -36,6 +36,7 @@ public final class WebViewReplayMerger {
     public static final String PLUGIN_NAME = "nr-webview-replay";
 
     public static final int TYPE_FULL_SNAPSHOT = RRWebEvent.RRWEB_EVENT_FULL_SNAPSHOT;
+    public static final int TYPE_META = RRWebEvent.RRWE_EVENT_META;
 
     private static final String KEY_TIMESTAMP = "timestamp";
     private static final String KEY_TYPE = "type";

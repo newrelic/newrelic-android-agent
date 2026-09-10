@@ -134,6 +134,22 @@ public class WebViewReplayState {
      */
     private String lastDocumentInnerJson;
 
+    /**
+     * The most recent Meta event's serialized inner event, re-emitted with the document.
+     *
+     * Load-bearing for visibility, not just for sizing. A nested {@code Replayer} is constructed with
+     * an empty event array, and rrweb creates its iframe with {@code display: none}; the only thing
+     * that ever sets {@code display: inherit} is {@code handleResize}, which fires from a Meta event
+     * or from a Meta found in the constructor's initial array. So a chunk whose WebView document
+     * arrives without a Meta builds the whole DOM correctly and renders nothing at all.
+     *
+     * rrweb's {@code takeFullSnapshot} emits Meta immediately before the FullSnapshot, so a cached
+     * document always has a Meta to pair with. Under the graft design the child's Meta had to be
+     * discarded — it would have resized the entire player — which is the exact inversion of what it
+     * is needed for here.
+     */
+    private String lastMetaInnerJson;
+
     /** When a document was last written, against which the harvest clock is compared. */
     private long lastDocumentWrittenAtMs;
 
@@ -166,6 +182,14 @@ public class WebViewReplayState {
             return;                 // this chunk already carries the document
         }
 
+        // Meta first, so the nested replayer is sized and made visible before the document lands.
+        if (lastMetaInnerJson != null) {
+            SessionReplay.recordWebViewReplayEvent(WebViewReplayMerger.buildPluginEventJson(
+                    channelId, lastMetaInnerJson, timestampMs));
+        } else {
+            log.warn(LOG_TAG + " re-emitting a document for channel " + channelId
+                    + " with no cached Meta; the nested replayer will stay hidden");
+        }
         SessionReplay.recordWebViewReplayEvent(WebViewReplayMerger.buildPluginEventJson(
                 channelId, lastDocumentInnerJson, timestampMs));
         lastDocumentWrittenAtMs = System.currentTimeMillis();
@@ -266,9 +290,17 @@ public class WebViewReplayState {
             log.info(LOG_TAG + " DOCUMENT channel=" + channelId
                     + " nodes=" + WebViewReplayMerger.countNodes(
                             WebViewReplayMerger.snapshotNode(event))
-                    + " chars=" + wrapped.toString().length());
+                    + " chars=" + wrapped.toString().length()
+                    + " metaCached=" + (lastMetaInnerJson != null));
             StatsEngine.SUPPORTABILITY.inc(
                     MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_GRAFTED);
+        } else if (type == WebViewReplayMerger.TYPE_META) {
+            // Cached for re-emission alongside the document, and forwarded as normal below.
+            lastMetaInnerJson = event.toString();
+            log.info(LOG_TAG + " META cached for channel " + channelId
+                    + " chars=" + wrapped.toString().length());
+            StatsEngine.SUPPORTABILITY.inc(
+                    MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_MERGED);
         } else {
             StatsEngine.SUPPORTABILITY.inc(
                     MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_MERGED);
