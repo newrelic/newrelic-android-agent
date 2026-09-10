@@ -35,6 +35,12 @@ public class WebViewInstrumentationCallbacks {
     static final class WebViewState {
         boolean jsInterfaceInjected;
         NRWebViewClient nrClient;
+        /**
+         * The bridge instance injected into this WebView. Held so the page lifecycle callbacks —
+         * which are static and only have the WebView — can reach the per-WebView replay merge state
+         * that lives on it.
+         */
+        WebViewJSInterface jsInterface;
     }
 
     private static synchronized WebViewState stateFor(WebView webView) {
@@ -162,9 +168,14 @@ public class WebViewInstrumentationCallbacks {
             // replay waits on; session_trace as above), and a config that suppresses the signal is
             // worth nothing. The hook filters to session_replay, so extra features cost log noise
             // rather than wrong data. Re-disable individually only after replay is confirmed working.
-            "session_replay:{enabled:true,sampling_rate:100,error_sampling_rate:100}};" +
+            // inline_stylesheet stays TRUE while fonts and images are shed. The player has no network
+            // access to the customer's origin, so dropping stylesheets would render the WebView's
+            // content as unstyled markup — the opposite of the point. Fonts and inline images are the
+            // two biggest contributors to payload size and cost only fidelity.
+            "session_replay:{enabled:true,sampling_rate:100,error_sampling_rate:100," +
+            "inline_stylesheet:true,collect_fonts:false,inline_images:false}};" +
             // 5. Hook registration, polling until the agent exposes beforeHarvest.
-            "var hookSeen=false;" +
+            "var hookSeen=false;var srSeen=false;" +
             "var register=function(n){" +
             "try{" +
             "if(window.newrelic&&typeof window.newrelic.beforeHarvest==='function'){" +
@@ -186,65 +197,46 @@ public class WebViewInstrumentationCallbacks {
             // when h is null, which would silently drop a harvest -- a direct violation of the
             // spec's rule that a bug in our code must never alter what the agent does.
             "if(!h||h.feature!=='session_replay'){return (h&&h.payload!=null)?h.payload:undefined;}" +
-            // Binary-safe envelope. JSON.stringify does not fail on a typed array — it silently
-            // expands it to {"0":31,"1":139,...}, one key per byte. Measured: a payload whose body
-            // is a 200KB Uint8Array produces a 2,551,465-char envelope, and a payload that IS a
-            // 200KB Uint8Array produces 4,283,525 chars with 204,800 entries in `keys`. That would
-            // blow the bridge and the logcat ring buffer, and report a size 12x the real one — in
-            // exactly the compressed-payload case this POC exists to detect. So describe binary
-            // values by byte length instead of expanding them, and cap `keys`.
+            // Hand the rrweb events to the native side for merging.
+            //
+            // The browser agent build now hands over an UNCOMPRESSED body, so the events cross the
+            // bridge as plain JSON text and there is no decode step on either side.
+            //
+            // What survives from the compressed era is a refusal, not a decoder. JSON.stringify does
+            // not fail on a typed array — it silently expands it to {"0":31,"1":139,...}, one key per
+            // byte, and a measured 200KB Uint8Array body became a 2.5-million-char string. So a binary
+            // body is reported and dropped rather than forwarded: if the agent ever starts compressing
+            // again, that regression shows up as one labelled log line instead of a flooded bridge and
+            // a parse failure that looks like a merge bug.
             "var pl=h.payload;" +
-            "var nBytes=function(v){" +
+            "var body=(pl&&typeof pl==='object')?pl.body:null;" +
+            "var bin=function(v){" +
             "try{" +
-            "if(!v||typeof v!=='object'){return -1;}" +
-            "if(typeof Blob!=='undefined'&&v instanceof Blob){return v.size;}" +
-            "if(typeof ArrayBuffer!=='undefined'){" +
-            "if(v instanceof ArrayBuffer){return v.byteLength;}" +
-            "if(ArrayBuffer.isView&&ArrayBuffer.isView(v)){return v.byteLength;}}" +
-            "return -1;}catch(e){return -1;}};" +
-            "var descOf=function(v){" +
-            "return '[binary '+Object.prototype.toString.call(v)+' bytes='+nBytes(v)+']';};" +
-            "var plBytes=nBytes(pl);" +
-            "var bodyBytes=(plBytes<0&&pl&&typeof pl==='object')?nBytes(pl.body):-1;" +
-            // Any binary value at the top level, not just `body`. Keying only on `body` moved the
-            // blowup one key over: {qs, body:Uint8Array(16), extra:Uint8Array(200KB)} measured a
-            // 2,551,555-char envelope. Since the payload shape is precisely what is unknown here,
-            // "only body is ever binary" is not an assumption available to us.
-            "var anyBin=false;" +
-            "if(plBytes<0&&pl&&typeof pl==='object'){" +
-            "var ak=Object.keys(pl);" +
-            "for(var ai=0;ai<ak.length&&ai<64;ai++){" +
-            "if(nBytes(pl[ak[ai]])>=0){anyBin=true;break;}}}" +
-            "var ser;" +
+            "if(!v||typeof v!=='object'){return false;}" +
+            "if(typeof Blob!=='undefined'&&v instanceof Blob){return true;}" +
+            "if(typeof ArrayBuffer==='undefined'){return false;}" +
+            "return (v instanceof ArrayBuffer)||!!(ArrayBuffer.isView&&ArrayBuffer.isView(v));" +
+            "}catch(e){return false;}};" +
+            "var out=null;var shape='json';" +
             "try{" +
-            // Payload itself is binary: describe it, never expand it.
-            "if(plBytes>=0){ser=descOf(pl);}" +
-            // Some field is binary: keep every non-binary sibling (qs and friends are diagnostic)
-            // and swap each binary one for its descriptor.
-            "else if(anyBin){" +
-            "var sh={};var bk=Object.keys(pl);" +
-            "for(var bi=0;bi<bk.length&&bi<64;bi++){" +
-            "var bv=pl[bk[bi]];var nb=nBytes(bv);" +
-            "sh[bk[bi]]=(nb>=0)?descOf(bv):bv;}" +
-            // Mark the cap rather than truncating silently, mirroring how `keys` reports its own.
-            "if(bk.length>64){sh.__nrTruncated=(bk.length-64)+' more keys';}" +
-            "ser=JSON.stringify(sh);}" +
-            // Plain JSON payload: verbatim, byte-identical to the unpatched behavior.
-            "else{ser=JSON.stringify(pl);}" +
-            "}catch(e){ser='[unserializable: '+(e&&e.message)+']';}" +
-            "var kz=null;" +
-            "if(plBytes<0&&pl&&typeof pl==='object'){" +
-            "var ka=Object.keys(pl);" +
-            "kz=(ka.length>32)?ka.slice(0,32).concat(['...+'+(ka.length-32)+' more']):ka;}" +
-            "B.reportSessionReplayPayload(JSON.stringify({" +
-            "url:location.href," +
-            "feature:h.feature," +
-            "shape:Object.prototype.toString.call(pl)," +
-            "keys:kz," +
-            "bodyShape:pl?Object.prototype.toString.call(pl.body):null," +
-            "payloadBytes:plBytes," +
-            "bodyBytes:bodyBytes," +
-            "serialized:ser}));" +
+            "if(bin(pl)||bin(body)){out=null;shape='binary';}" +
+            // Already JSON text: forward verbatim rather than re-stringifying it into a quoted string.
+            "else if(typeof body==='string'){out=body;}" +
+            "else if(body){out=JSON.stringify(body);}" +
+            // No `body` member at all: hand over the whole payload and let the native side find the
+            // event array inside it.
+            "else{out=JSON.stringify(pl);}" +
+            "}catch(e){out=null;shape='error:'+(e&&e.message);}" +
+            // One-shot shape line for the first replay harvest. Kept after the decode path was removed
+            // precisely because nothing else now records what shape arrived: this line is the evidence
+            // that the body is still text, and the first thing to read if merging goes quiet.
+            "if(!srSeen){srSeen=true;" +
+            "try{B.reportHarvestObserved('first session_replay harvest: shape='+shape" +
+            "+' payloadShape='+Object.prototype.toString.call(pl)" +
+            "+' bodyShape='+Object.prototype.toString.call(body)" +
+            "+' chars='+(out?out.length:-1));}catch(e){}}" +
+            "if(out){B.reportSessionReplayEvents(out);}" +
+            "else{B.reportInjectionSkipped('replay-body-unreadable ('+shape+')');}" +
             "}catch(e){}" +
             "return (h&&h.payload!=null)?h.payload:undefined;" +   // never null; see above
             "});" +
@@ -353,7 +345,9 @@ public class WebViewInstrumentationCallbacks {
             return;
         }
         try {
-            webView.addJavascriptInterface(new WebViewJSInterface(), WebViewJSInterface.INTERFACE_NAME);
+            WebViewJSInterface bridge = new WebViewJSInterface(webView);
+            webView.addJavascriptInterface(bridge, WebViewJSInterface.INTERFACE_NAME);
+            state.jsInterface = bridge;
             state.jsInterfaceInjected = true;
         } catch (Exception e) {
             // Flag deliberately left unset so the next navigation retries. Marking it before the
@@ -444,20 +438,30 @@ public class WebViewInstrumentationCallbacks {
     /**
      * Whether WebView replay capture should run for this page.
      *
+     * FULL mode only. ERROR mode is deliberately excluded: its 15-second sliding-window prune deletes
+     * events by timestamp, which can remove a document graft while the mutations that depend on it
+     * survive, leaving the player with orphaned references to nodes it never saw added.
+     *
      * Deliberately avoids {@link SessionReplay#isReplayRecording()}: that method's null guard uses
      * {@code &&} where it needs {@code ||}, so it dereferences a null modeManager and throws NPE in
      * exactly the "session replay never initialized" case it was written to handle. Reading the mode
-     * is null-safe, and SessionReplayModeManager.isRecording() is defined as {@code mode != OFF},
-     * so this is semantically identical.
+     * is null-safe.
      */
     private static boolean shouldCaptureWebViewReplay() {
         try {
-            SessionReplayMode mode = SessionReplay.getCurrentMode();
-            return mode != null && mode != SessionReplayMode.OFF;
+            return SessionReplay.getCurrentMode() == SessionReplayMode.FULL;
         } catch (Throwable t) {
             log.debug("Could not read the session replay mode; skipping WebView replay capture");
             return false;
         }
+    }
+
+    /**
+     * @return the replay merge state for this WebView, or null when no bridge was injected.
+     */
+    private static synchronized WebViewReplayState replayStateFor(WebView webView) {
+        WebViewState state = states.get(webView);   // deliberately not stateFor(): no entry created
+        return state == null || state.jsInterface == null ? null : state.jsInterface.getReplayState();
     }
 
     /**
@@ -469,6 +473,17 @@ public class WebViewInstrumentationCallbacks {
     public static void pageStarted(WebView webView, String url) {
         if (webView == null) {
             return;
+        }
+        // Runs before the mode check: the old document's node IDs are dead either way, and leaving a
+        // stale mapping or a grafted subtree behind would corrupt the next page's merge if replay is
+        // switched back on mid-session.
+        WebViewReplayState replayState = replayStateFor(webView);
+        if (replayState != null) {
+            try {
+                replayState.onNavigationStarted();
+            } catch (Throwable t) {
+                log.error("Failed to reset NR WebView replay state on navigation", t);
+            }
         }
         if (!shouldCaptureWebViewReplay()) {
             return;
@@ -504,6 +519,18 @@ public class WebViewInstrumentationCallbacks {
             log.debug("NR browser agent injection script evaluated for " + url);
         } catch (Exception e) {
             log.error("Failed to run the NR browser agent injection script", e);
+        }
+
+        // Resolve the iframe node ID and force a native full snapshot. This runs on the UI thread —
+        // where view tags are safe to touch — and is the only place that happens, because bridge
+        // calls arrive on the WebView's JS thread and must never reach a View.
+        WebViewReplayState replayState = replayStateFor(webView);
+        if (replayState != null) {
+            try {
+                replayState.onRegistered();
+            } catch (Throwable t) {
+                log.error("Failed to register the NR WebView replay iframe node", t);
+            }
         }
     }
 

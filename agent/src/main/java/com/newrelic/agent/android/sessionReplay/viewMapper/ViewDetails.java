@@ -185,7 +185,16 @@ public class ViewDetails {
         return Objects.hash(viewId, frame, backgroundColor, alpha, isHidden, viewName);
     }
 
-    private int getStableId(View view) {
+    /**
+     * The session-replay node ID for a view, allocated on first sight and cached on the view
+     * itself so it survives every subsequent capture.
+     *
+     * Public and static so the WebView replay merge path can resolve the node ID of a
+     * {@code WebView} — the {@code parentId} its grafted child document hangs off — without
+     * building a whole {@link ViewDetails}. Must be called on the UI thread: view tags are not
+     * safe to read or write off it.
+     */
+    public static int getStableId(View view) {
         int keyCode = "NewRelicSessionReplayViewId".hashCode();
         Integer idValue = null;
         idValue = (Integer) view.getTag(keyCode);

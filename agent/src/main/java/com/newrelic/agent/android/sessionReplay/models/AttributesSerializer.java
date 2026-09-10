@@ -65,6 +65,9 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
         if (src.step != null) {
             jsonObject.addProperty("step", src.step);
         }
+        if (src.dataNrSrc != null) {
+            jsonObject.addProperty("data-nr-src", src.dataNrSrc);
+        }
 
         return jsonObject;
     }

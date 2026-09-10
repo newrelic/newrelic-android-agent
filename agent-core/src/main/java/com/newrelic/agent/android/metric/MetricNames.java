@@ -191,6 +191,19 @@ public class MetricNames {
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW + "PageFinished";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_BROWSER_AGENT_DETECTED = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW + "BrowserAgentDetected";
 
+    // WebView session replay merge. The dropped/decode counters are the read-out for whether the
+    // type-2/type-3 event whitelist is too narrow and whether the bridge encoding is understood.
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW + "Replay/";
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_GRAFTED = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY + "Grafted";
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_MERGED = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY + "EventsMerged";
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_DROPPED = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY + "EventDropped/";
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_BUFFER_EVICTED = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY + "BufferEvicted";
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_DECODE_FAILED = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY + "DecodeFailed";
+    /** A cached WebView document was re-attached after a native full snapshot reset the mirror. */
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_REGRAFTED = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY + "Regrafted";
+    /** A WebView document was dropped from a harvest to keep the payload under the size cap. */
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_SHED = SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY + "ShedForSize";
+
     //WEBSOCKET
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET = SUPPORTABILITY_MOBILE_ANDROID + "WebSocket/";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET_OPEN = SUPPORTABILITY_MOBILE_ANDROID_WEBSOCKET + "Open";

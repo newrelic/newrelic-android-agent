@@ -192,6 +192,46 @@ public class SessionReplayFileManager {
         submitFileWriteTask(fileWriteTask);
     }
 
+    /**
+     * Appends one already-serialized rrweb event to the working session replay file.
+     *
+     * Used by the WebView replay merge path, whose events are Gson trees rather than
+     * {@link RRWebEvent} model objects. Validates before writing so a malformed event costs one
+     * line rather than corrupting the NDJSON file for the whole harvest.
+     *
+     * The file manager stays unaware that WebViews exist: this is just "one more event", which is
+     * what keeps offline persistence and orphan recovery working unchanged.
+     *
+     * @param jsonString the JSON object text of a single rrweb event
+     */
+    public void addJsonEventToFile(final String jsonString) {
+        Callable<Void> fileWriteTask = new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                synchronized (fileSyncLock) {
+                    try {
+                        BufferedWriter writer = workingSessionReplayFileWriter.get();
+                        if (writer != null) {
+                            // Parse first: an unparseable line would break readEventsAsJsonArray
+                            // for every event after it.
+                            JsonObject jsonObject = JsonParser.parseString(jsonString).getAsJsonObject();
+                            writer.write(gson.toJson(jsonObject));
+                            writer.newLine();
+                            writer.flush();
+                        }
+                    } catch (IOException e) {
+                        log.error("Error writing JSON event to session replay file", e);
+                    } catch (Exception e) {
+                        log.error("Error parsing JSON event for session replay file", e);
+                    }
+                }
+                return null;
+            }
+        };
+
+        submitFileWriteTask(fileWriteTask);
+    }
+
     public void clearWorkingFileWhileRunningSession() {
         Callable<Void> clearFileTask = new Callable<Void>() {
             @Override
