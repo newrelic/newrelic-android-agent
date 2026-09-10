@@ -31,7 +31,9 @@ import com.newrelic.agent.android.logging.NullAgentLog;
 import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
+import com.newrelic.agent.android.mobileview.MobileViewAppearance;
 import com.newrelic.agent.android.mobileview.MobileViewContext;
+import com.newrelic.agent.android.mobileview.UiPlatform;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.CompositeEventListener;
@@ -1026,9 +1028,14 @@ public final class NewRelic {
             return false;
         }
 
-        MobileViewContext.getInstance().onViewAppeared(viewName, null, attributes);
-
-        return true;
+        try {
+            return MobileViewContext.getInstance().onViewAppeared(
+                    new MobileViewAppearance(viewName, UiPlatform.ANDROID)
+                            .attributes(attributes)) != null;
+        } catch (Exception e) {
+            log.error("NewRelic.setCurrentView: ", e);
+            return false;
+        }
     }
 
     /**

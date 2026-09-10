@@ -80,7 +80,10 @@ public class MobileViewActivityLifecycleCallbacks implements Application.Activit
         }
         try {
             Long loadTime = createdAt != null ? (System.currentTimeMillis() - createdAt) : null;
-            MobileViewContext.getInstance().onViewAppeared(clazz.getSimpleName(), clazz.getName(), null, loadTime);
+            MobileViewContext.getInstance().onViewAppeared(
+                    new MobileViewAppearance(clazz.getSimpleName(), UiPlatform.ANDROID)
+                            .viewClass(clazz.getName())
+                            .loadTimeMs(loadTime));
         } catch (Exception e) {
             log.error("MobileViewActivityLifecycleCallbacks.onActivityResumed: ", e);
         }

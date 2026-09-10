@@ -87,7 +87,13 @@ public class AnalyticsAttribute {
     // MobileView
     public static final String MOBILE_VIEW_NAME_ATTRIBUTE = "viewName";
     public static final String MOBILE_VIEW_CLASS_ATTRIBUTE = "viewClass";
+    public static final String MOBILE_VIEW_INSTANCE_ID_ATTRIBUTE = "viewInstanceId";
     public static final String MOBILE_VIEW_PREVIOUS_VIEW_ATTRIBUTE = "previousView";
+    public static final String MOBILE_VIEW_PREVIOUS_VIEW_INSTANCE_ID_ATTRIBUTE = "previousViewInstanceId";
+    public static final String MOBILE_VIEW_APPEARED_ATTRIBUTE = "appeared";
+    public static final String MOBILE_VIEW_RESTARTED_ATTRIBUTE = "restarted";
+    public static final String MOBILE_VIEW_REAPPEARED_ATTRIBUTE = "reappeared";
+    public static final String MOBILE_VIEW_UI_PLATFORM_ATTRIBUTE = "uiPlatform";
     public static final String MOBILE_VIEW_LOAD_TIME_ATTRIBUTE = "loadTime";
     public static final String MOBILE_VIEW_TIME_VISIBLE_ATTRIBUTE = "timeVisible";
 

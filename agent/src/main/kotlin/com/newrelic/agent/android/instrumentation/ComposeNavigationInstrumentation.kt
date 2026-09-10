@@ -17,7 +17,9 @@ import com.newrelic.agent.android.analytics.AnalyticsControllerImpl
 import com.newrelic.agent.android.logging.AgentLog
 import com.newrelic.agent.android.logging.AgentLogManager
 import com.newrelic.agent.android.mobileview.ComposeNavHostRegistry
+import com.newrelic.agent.android.mobileview.MobileViewAppearance
 import com.newrelic.agent.android.mobileview.MobileViewContext
+import com.newrelic.agent.android.mobileview.UiPlatform
 import com.newrelic.agent.android.sessionReplay.SessionReplay
 import  kotlin.collections.Map
 
@@ -106,7 +108,14 @@ private class MeasureNavigationObserver(
                 if (FeatureFlag.featureEnabled(FeatureFlag.AutomaticMobileViewTracing) && to != lastMobileViewRoute) {
                     lastMobileViewRoute = to
                     try {
-                        MobileViewContext.getInstance().onViewAppeared(to, null, null)
+                        // No distinct "created" moment exists for a Compose destination (only
+                        // this destination-changed callback firing) - loadTime is left
+                        // unpopulated for Compose until a real start-time hook is designed,
+                        // rather than reporting a proxy value that wouldn't reflect actual
+                        // construction time (IDD §5.4 tiers Compose as Approximate, not None).
+                        MobileViewContext.getInstance().onViewAppeared(
+                            MobileViewAppearance(to, UiPlatform.COMPOSE)
+                        )
                     } catch (e: Exception) {
                         log.error("ComposeNavigationInstrumentation.destinationChangedListener: ", e)
                     }

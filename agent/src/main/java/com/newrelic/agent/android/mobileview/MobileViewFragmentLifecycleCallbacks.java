@@ -85,7 +85,10 @@ public class MobileViewFragmentLifecycleCallbacks extends FragmentManager.Fragme
         }
         try {
             Long loadTime = createdAt != null ? (System.currentTimeMillis() - createdAt) : null;
-            MobileViewContext.getInstance().onViewAppeared(clazz.getSimpleName(), clazz.getName(), null, loadTime);
+            MobileViewContext.getInstance().onViewAppeared(
+                    new MobileViewAppearance(clazz.getSimpleName(), UiPlatform.ANDROID_FRAGMENT)
+                            .viewClass(clazz.getName())
+                            .loadTimeMs(loadTime));
         } catch (Exception e) {
             log.error("MobileViewFragmentLifecycleCallbacks.onFragmentResumed: ", e);
         }
