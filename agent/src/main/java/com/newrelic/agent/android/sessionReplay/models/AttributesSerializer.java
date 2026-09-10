@@ -68,6 +68,9 @@ public class AttributesSerializer implements JsonSerializer<Attributes> {
         if (src.dataNrSrc != null) {
             jsonObject.addProperty("data-nr-src", src.dataNrSrc);
         }
+        if (src.dataNrWebviewChannel != null) {
+            jsonObject.addProperty("data-nr-webview-channel", src.dataNrWebviewChannel);
+        }
 
         return jsonObject;
     }

@@ -439,8 +439,9 @@ public class WebViewInstrumentationCallbacks {
      * Whether WebView replay capture should run for this page.
      *
      * FULL mode only. ERROR mode is deliberately excluded: its 15-second sliding-window prune deletes
-     * events by timestamp, which can remove a document graft while the mutations that depend on it
-     * survive, leaving the player with orphaned references to nodes it never saw added.
+     * events by timestamp, which can remove the event carrying a WebView's document while the
+     * mutations that depend on it survive, leaving the nested replayer with mutations against nodes
+     * it never saw added.
      *
      * Deliberately avoids {@link SessionReplay#isReplayRecording()}: that method's null guard uses
      * {@code &&} where it needs {@code ||}, so it dereferences a null modeManager and throws NPE in
@@ -474,9 +475,8 @@ public class WebViewInstrumentationCallbacks {
         if (webView == null) {
             return;
         }
-        // Runs before the mode check: the old document's node IDs are dead either way, and leaving a
-        // stale mapping or a grafted subtree behind would corrupt the next page's merge if replay is
-        // switched back on mid-session.
+        // Runs before the mode check, so the channel is notified of the navigation even while replay
+        // is off and would otherwise miss it if replay were switched back on mid-session.
         WebViewReplayState replayState = replayStateFor(webView);
         if (replayState != null) {
             try {
@@ -521,15 +521,16 @@ public class WebViewInstrumentationCallbacks {
             log.error("Failed to run the NR browser agent injection script", e);
         }
 
-        // Resolve the iframe node ID and force a native full snapshot. This runs on the UI thread —
-        // where view tags are safe to touch — and is the only place that happens, because bridge
-        // calls arrive on the WebView's JS thread and must never reach a View.
+        // Resolve the channel ID and force a native full snapshot, so the mount point reaches the
+        // stream promptly. Runs on the UI thread — where view tags are safe to touch — and is the only
+        // place that happens, because bridge calls arrive on the WebView's JS thread and must never
+        // reach a View.
         WebViewReplayState replayState = replayStateFor(webView);
         if (replayState != null) {
             try {
                 replayState.onRegistered();
             } catch (Throwable t) {
-                log.error("Failed to register the NR WebView replay iframe node", t);
+                log.error("Failed to register the NR WebView replay channel", t);
             }
         }
     }

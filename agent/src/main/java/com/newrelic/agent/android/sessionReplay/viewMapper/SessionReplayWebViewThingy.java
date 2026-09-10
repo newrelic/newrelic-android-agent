@@ -11,42 +11,32 @@ import com.newrelic.agent.android.sessionReplay.models.Attributes;
 import com.newrelic.agent.android.sessionReplay.models.RRWebElementNode;
 
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Maps an Android {@link WebView} to an rrweb {@code <iframe>} element node instead of the default
- * {@code <div>} that {@link SessionReplayViewThingy} would produce.
+ * Maps an Android {@link WebView} to an rrweb {@code <div>} carrying a
+ * {@code data-nr-webview-channel} attribute: the mount point for that WebView's own replay stream.
  *
- * The iframe is empty in the native snapshot. The WebView's DOM arrives separately, siphoned from
- * the injected browser agent's {@code beforeHarvest} hook, and is grafted onto this node as a
- * single-add mutation carrying a remapped child document — the same mechanism rrweb itself uses
- * for cross-origin iframes.
+ * The WebView's DOM never enters this node. It travels as a separate stream of
+ * {@code EventType.Plugin} events, and the replay plugin hosts a nested {@code Replayer} — with its
+ * own {@code Mirror} and its own ID space — rooted at this node. So the two streams share exactly
+ * one thing: the channel ID in this attribute.
+ *
+ * Deliberately a {@code div} and not an {@code iframe}. The plugin mounts by constructing
+ * {@code new Replayer([], {root: node})}, which appends the replayer's own wrapper element (itself
+ * containing an iframe) as a child of {@code node} — and children of an {@code <iframe>} element are
+ * ignored by HTML, so an iframe here would render nothing. The previous graft-based design needed
+ * an iframe precisely because it went the other way, building the child document into the iframe's
+ * own {@code contentDocument}.
  *
  * Position and size are inherited from {@link SessionReplayViewThingy}'s CSS generation, so they
- * come from the native view's measured frame. The child document's own viewport dimensions are
- * deliberately unused: a top-level Meta event would resize the entire replay player.
+ * come from the native view's measured frame.
  */
 public class SessionReplayWebViewThingy extends SessionReplayViewThingy {
 
     /**
-     * When each iframe node ID was last serialized into the replay stream.
-     *
-     * This is the graft-ordering gate. A graft's {@code parentId} must already exist in the stream
-     * before the mutation that references it, so the merge path buffers WebView events until the
-     * iframe node has actually been written. Stamping it here — the one place the node is produced,
-     * on both the full-snapshot and incremental-add paths — makes that a proof rather than a proxy:
-     * a WebView that is registered but off-screen, or not yet laid out, never reaches this method
-     * and correctly keeps the gate shut.
-     *
-     * Bounded by the number of distinct WebView node IDs seen in a process, which is small.
-     */
-    private static final Map<Integer, Long> renderStamps = new ConcurrentHashMap<>();
-
-    /**
-     * The URL loaded at capture time, or null. Read here rather than at graft time because capture
-     * runs on the UI thread (see {@code Debouncer}'s main-looper handler) and
-     * {@link WebView#getUrl()} is a UI-thread-only call.
+     * The URL loaded at capture time, or null. Read here rather than later because capture runs on
+     * the UI thread (see {@code Debouncer}'s main-looper handler) and {@link WebView#getUrl()} is a
+     * UI-thread-only call. Diagnostics only — nothing depends on it.
      */
     private final String url;
 
@@ -56,17 +46,16 @@ public class SessionReplayWebViewThingy extends SessionReplayViewThingy {
         try {
             resolved = webView.getUrl();
         } catch (Throwable t) {
-            // A destroyed or cross-process-gone WebView can throw here. An iframe with no src is
-            // still a valid graft target, so this is not worth failing the whole frame over.
+            // A destroyed or cross-process-gone WebView can throw here, and the mount point is
+            // still valid without a URL. Not worth failing the whole frame over.
         }
         this.url = resolved;
     }
 
     /**
-     * A WebView's content is rendered by the web engine, not by Android child views. Descending
-     * into its (implementation-defined, API-level-dependent) internal view hierarchy would emit
-     * nodes that correspond to nothing the user sees, inside a node whose children are about to be
-     * replaced by the grafted document.
+     * A WebView's content is rendered by the web engine, not by Android child views. Descending into
+     * its (implementation-defined, API-level-dependent) internal view hierarchy would emit nodes
+     * that correspond to nothing the user sees, inside a node the plugin is about to mount into.
      */
     @Override
     public boolean shouldRecordSubviews() {
@@ -76,23 +65,18 @@ public class SessionReplayWebViewThingy extends SessionReplayViewThingy {
     @Override
     public RRWebElementNode generateRRWebNode() {
         Attributes attributes = new Attributes(viewDetails.getCSSSelector());
+
+        // The channel ID is this WebView's stable node ID, which comes from a tag on the View and so
+        // survives navigation. That matters: the plugin keys its nested replayer and retained
+        // history by channel, and a channel ID that changed on navigation would orphan both.
+        attributes.dataNrWebviewChannel = String.valueOf(viewDetails.viewId);
+
         if (url != null && !url.isEmpty()) {
-            // Recorded as an inert data-* attribute, never as `src`. A real `src` makes the replayed
-            // iframe navigate to the live URL, which destroys the contentDocument the grafted child
-            // document has to be built into. See Attributes#dataNrSrc.
+            // Inert data-* attribute, for diagnostics when reading a raw payload. Never `src`.
             attributes.dataNrSrc = url;
         }
-        renderStamps.put(viewDetails.viewId, System.currentTimeMillis());
-        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_IFRAME,
-                viewDetails.viewId, new ArrayList<>());
-    }
 
-    /**
-     * @return the wall-clock ms at which {@code nodeId} was last serialized into the replay stream,
-     * or 0 if it never has been.
-     */
-    public static long lastRenderedAtMs(int nodeId) {
-        Long stamp = renderStamps.get(nodeId);
-        return stamp == null ? 0L : stamp;
+        return new RRWebElementNode(attributes, RRWebElementNode.TAG_TYPE_DIV,
+                viewDetails.viewId, new ArrayList<>());
     }
 }

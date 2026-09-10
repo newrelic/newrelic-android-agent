@@ -35,6 +35,20 @@ public class Attributes{
      * {@code style} object.
      */
     public String dataNrSrc;
+
+    /**
+     * Marks this node as the mount point for a WebView's replay stream, valued with that
+     * WebView's channel ID.
+     *
+     * The replay plugin's {@code onBuild} looks for exactly this attribute to decide where to
+     * mount a nested {@code Replayer}, so it is the single point of coupling between the native
+     * event stream and the WebView's. Everything else about the two streams is independent.
+     *
+     * A first-class field rather than a {@link #metadata} entry for the same reason as
+     * {@link #dataNrSrc}: {@link AttributesSerializer} folds every metadata key other than
+     * {@code "style"} into a nested {@code style} object, which would bury it.
+     */
+    public String dataNrWebviewChannel;
     public Map<String, String> metadata = new HashMap<>();
 
     public Map<String, String> getMetadata() {

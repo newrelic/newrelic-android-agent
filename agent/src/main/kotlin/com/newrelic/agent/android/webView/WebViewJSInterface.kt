@@ -84,7 +84,11 @@ class WebViewJSInterface @JvmOverloads constructor(webView: WebView? = null) {
 
     /**
      * Receives one session replay harvest's rrweb event array from the injected browser agent and
-     * merges it into the native replay stream. The only path that carries replay data.
+     * writes it into the native replay stream. The only path that carries replay data.
+     *
+     * Each event is wrapped in a plugin envelope and emitted untouched — no ID remapping, no
+     * document grafting. The replay plugin hosts a nested replayer per channel with its own mirror,
+     * so a WebView's node IDs never have to mean anything in the native ID space.
      *
      * A second method used to accept the same payload wrapped in a descriptor envelope, to answer
      * what shape observation mode hands over. It is gone: the hook's one-shot
@@ -108,8 +112,7 @@ class WebViewJSInterface @JvmOverloads constructor(webView: WebView? = null) {
                 return
             }
             // Handed straight off: nothing beyond this point may run on the WebView's JS thread.
-            // The merge thread is shared with the document re-attach path, which keeps both in a
-            // single total order per WebView.
+            // A batch has been measured at nearly 2 MB, and parsing that here would stall the page.
             WebViewReplayState.post { mergeBatch(state, payload) }
         } catch (t: Throwable) {
             // Log and swallow: nothing may escape into the WebView's JS thread.
@@ -133,9 +136,9 @@ class WebViewJSInterface @JvmOverloads constructor(webView: WebView? = null) {
             }
 
             // INFO with the type histogram: this is the line that says whether the browser agent is
-            // producing full snapshots at all. A batch that is all type 3 means there is nothing to
-            // graft, which renders as an empty iframe for reasons that have nothing to do with the
-            // merge logic.
+            // producing full snapshots at all. A batch that is all type 3 means the plugin has no
+            // document to mount, which renders as an empty placeholder for reasons that have nothing
+            // to do with this path.
             val types = sortedMapOf<Int, Int>()
             for (i in 0 until events.size()) {
                 val e = events.get(i)
