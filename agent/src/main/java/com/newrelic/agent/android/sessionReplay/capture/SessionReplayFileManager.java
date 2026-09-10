@@ -106,7 +106,7 @@ public class SessionReplayFileManager {
         Callable<Void> initTask = () -> {
             try {
                 workingSessionReplayFile = getWorkingSessionReplayFile();
-                workingSessionReplayFileWriter.set(new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile)));
+                replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, false);
                 log.debug("Initialized session replay file: " + workingSessionReplayFile.getAbsolutePath());
             } catch (IOException e) {
                 log.error("Error initializing session replay file", e);
@@ -199,11 +199,7 @@ public class SessionReplayFileManager {
                 synchronized (fileSyncLock) {
                     try {
                         // Close the current writer if it exists
-                        BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
-                        if (currentWriter != null) {
-                            currentWriter.flush();
-                            workingSessionReplayFileWriter.set(null);
-                        }
+                        closeWorkingSessionReplayFileWriter();
 
                         // Clear the file contents by creating a new empty file
                         if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
@@ -214,7 +210,7 @@ public class SessionReplayFileManager {
                         }
                         // Reinitialize the writer for new content
                         if (workingSessionReplayFile != null) {
-                            workingSessionReplayFileWriter.set(new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile, true)));
+                            replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, true);
                         }
                     } catch (IOException e) {
                         log.error("Error clearing working session replay file", e);
@@ -283,6 +279,32 @@ public class SessionReplayFileManager {
         sessionReplayFile.setLastModified(System.currentTimeMillis());
 
         return sessionReplayFile;
+    }
+
+    static void closeWorkingSessionReplayFileWriter() throws IOException {
+        BufferedWriter currentWriter = workingSessionReplayFileWriter.getAndSet(null);
+        if (currentWriter != null) {
+            currentWriter.flush();
+            currentWriter.close();
+        }
+    }
+
+    static void replaceWorkingSessionReplayFileWriter(File file, boolean append) throws IOException {
+        closeWorkingSessionReplayFileWriter();
+        BufferedWriter newWriter = null;
+        try {
+            newWriter = new BufferedWriter(new java.io.FileWriter(file, append));
+            workingSessionReplayFileWriter.set(newWriter);
+        } catch (IOException e) {
+            if (newWriter != null) {
+                try {
+                    newWriter.close();
+                } catch (IOException closeException) {
+                    log.error("Error closing newly created session replay file writer", closeException);
+                }
+            }
+            throw e;
+        }
     }
 
     /**
@@ -405,12 +427,7 @@ public class SessionReplayFileManager {
                         log.debug("Pruning: removed " + (allEvents.size() - recentEvents.size()) + " old events, kept " + recentEvents.size() + " recent events");
 
                         // Close current writer before rewriting file
-                        BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
-                        if (currentWriter != null) {
-                            currentWriter.flush();
-                            currentWriter.close();
-                            workingSessionReplayFileWriter.set(null);
-                        }
+                        closeWorkingSessionReplayFileWriter();
 
                         // Rewrite file with only recent events
                         try (BufferedWriter writer = new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile, false))) {
@@ -422,7 +439,7 @@ public class SessionReplayFileManager {
                         }
 
                         // Reinitialize the writer for new content
-                        workingSessionReplayFileWriter.set(new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile, true)));
+                        replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, true);
                         log.debug("Successfully pruned events older than " + thresholdMs + "ms");
 
                     } catch (IOException e) {
