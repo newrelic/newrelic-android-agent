@@ -6,34 +6,35 @@
 package com.newrelic.agent.android.webView
 
 import android.webkit.JavascriptInterface
+import android.webkit.WebView
 
 import com.newrelic.agent.android.logging.AgentLog
 import com.newrelic.agent.android.logging.AgentLogManager
 import com.newrelic.agent.android.metric.MetricNames
 import com.newrelic.agent.android.stats.StatsEngine
 
-import org.json.JSONArray
-import org.json.JSONObject
-
-import java.util.TreeMap
-
 /**
  * JS-callable bridge injected into instrumented WebViews. Reports whether the currently-loaded
  * page is running the New Relic Browser (JS) agent, and — for the NR-489843 POC — receives
  * session replay harvest payloads siphoned from the injected browser agent's beforeHarvest hook.
  *
- * Every method here runs on the WebView's JS thread, not the UI thread. They log only; none of
- * them may touch the WebView.
+ * Every method here runs on the WebView's JS thread, not the UI thread. So none of them may touch
+ * the WebView, and none may do real work: the replay path hands its payload straight to the merge
+ * executor, and the rest only log.
  */
-class WebViewJSInterface {
+class WebViewJSInterface @JvmOverloads constructor(webView: WebView? = null) {
+
+    /**
+     * Merge state for the WebView this bridge was injected into, or null when the bridge was built
+     * without one (unit tests, and the detection-only path). The bridge being per-WebView is what
+     * makes this work without a registry: the instance *is* the key.
+     */
+    val replayState: WebViewReplayState? = webView?.let { WebViewReplayState(it) }
 
     companion object {
         const val INTERFACE_NAME = "NRWebViewBridge"
 
         private const val LOG_TAG = "[NR-WV-SR]"
-
-        /** Kept under logcat's ~4KB per-line limit, with room for the prefix. */
-        private const val CHUNK_SIZE = 3500
 
         /** Skip reason that represents correct behavior rather than a failure. */
         private const val SKIP_REASON_EXISTING_AGENT = "existing-agent"
@@ -82,122 +83,81 @@ class WebViewJSInterface {
     }
 
     /**
-     * Receives one session replay harvest payload, wrapped in a descriptor envelope built by the
-     * injected hook. The envelope carries shape information alongside the serialized payload
-     * because the payload's runtime type is not known in advance — the browser agent compresses
-     * replay payloads in normal operation, and whether observation mode hands over the
-     * pre-compression object or a binary blob is exactly what this POC is measuring.
+     * Receives one session replay harvest's rrweb event array from the injected browser agent and
+     * merges it into the native replay stream. The only path that carries replay data.
+     *
+     * A second method used to accept the same payload wrapped in a descriptor envelope, to answer
+     * what shape observation mode hands over. It is gone: the hook's one-shot
+     * `shape=… bodyShape=…` line answers that on every first replay harvest, without a second
+     * `@JavascriptInterface` method exposed to whatever else the page is running.
+     *
+     * @param payload the events as plain JSON text. The browser agent build hands over an
+     *                uncompressed body, so there is no decode step; the injected hook refuses to
+     *                forward a binary body rather than mangling one into this parameter.
      */
     @JavascriptInterface
-    fun reportSessionReplayPayload(envelopeJson: String?) {
+    fun reportSessionReplayEvents(payload: String?) {
         try {
-            if (envelopeJson.isNullOrEmpty()) {
-                log.warn("$LOG_TAG received an empty envelope from the WebView")
+            val state = replayState
+            if (state == null) {
+                log.debug("$LOG_TAG no replay state on this bridge; ignoring an event batch")
                 return
             }
-
-            val envelope = JSONObject(envelopeJson)
-            val serialized = envelope.optString("serialized", "")
-
-            log.info(buildSummary(envelope, serialized))
-
-            if (log.level >= AgentLog.DEBUG && serialized.isNotEmpty()) {
-                logChunked(serialized)
+            if (payload.isNullOrEmpty()) {
+                log.warn("$LOG_TAG received an empty event batch from the WebView")
+                return
             }
+            // Handed straight off: nothing beyond this point may run on the WebView's JS thread.
+            // The merge thread is shared with the document re-attach path, which keeps both in a
+            // single total order per WebView.
+            WebViewReplayState.post { mergeBatch(state, payload) }
         } catch (t: Throwable) {
             // Log and swallow: nothing may escape into the WebView's JS thread.
-            log.error("$LOG_TAG failed to handle a WebView session replay payload", t)
+            log.error("$LOG_TAG failed to accept a WebView session replay event batch", t)
         }
     }
 
-    /**
-     * One-line summary of a harvest. Shape fields are always present; event statistics are
-     * best-effort and omitted rather than faked when the body is not an rrweb event array —
-     * in that case `shape` and `bodyShape` explain why.
-     */
-    private fun buildSummary(envelope: JSONObject, serialized: String): String {
-        val sb = StringBuilder(LOG_TAG)
-        sb.append(' ').append(envelope.optString("feature", "?"))
-        sb.append(" url=").append(envelope.optString("url", "?"))
-        // Order matters: shape/bodyShape/sizes are the answer to the payload-shape question this
-        // POC exists to settle, so they precede `keys`. A long `keys` value ahead of them could
-        // push them past logcat's per-line limit and truncate the very finding being measured.
-        sb.append(" shape=").append(envelope.optString("shape", "?"))
-        sb.append(" bodyShape=").append(envelope.optString("bodyShape", "?"))
-        sb.append(" chars=").append(serialized.length)
-        // True byte counts, present only when the payload (or its body) turned out to be binary.
-        // `chars` then measures the descriptor, not the data, so these are the real size signal.
-        val payloadBytes = envelope.optInt("payloadBytes", -1)
-        if (payloadBytes >= 0) {
-            sb.append(" payloadBytes=").append(payloadBytes)
-        }
-        val bodyBytes = envelope.optInt("bodyBytes", -1)
-        if (bodyBytes >= 0) {
-            sb.append(" bodyBytes=").append(bodyBytes)
-        }
-        sb.append(" keys=").append(envelope.opt("keys")?.toString() ?: "null")
-        appendEventStats(sb, serialized)
-        return sb.toString()
-    }
-
-    /**
-     * Appends `events`, `types` and `ts` when the payload body turns out to be an array of
-     * rrweb-shaped events (either a real JSON array or a JSON string containing one). Any other
-     * shape leaves the summary untouched.
-     */
-    private fun appendEventStats(sb: StringBuilder, serialized: String) {
+    /** Merge executor thread. */
+    private fun mergeBatch(state: WebViewReplayState, jsonText: String) {
         try {
-            if (serialized.isEmpty()) {
+            val events = WebViewReplayMerger.extractEvents(jsonText)
+            if (events == null) {
+                StatsEngine.SUPPORTABILITY.inc(
+                    MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_DECODE_FAILED
+                )
+                log.warn(
+                    "$LOG_TAG batch is not an rrweb event array " +
+                        "(chars=${jsonText.length}, head=${jsonText.take(120)})"
+                )
                 return
             }
 
-            val body = JSONObject(serialized).opt("body")
-            val events: JSONArray = when (body) {
-                is JSONArray -> body
-                is String -> try {
-                    JSONArray(body)
-                } catch (e: Throwable) {
-                    return
-                }
-                else -> return
-            }
-
-            val types = TreeMap<Int, Int>()
-            var first = Long.MAX_VALUE
-            var last = Long.MIN_VALUE
-
-            for (i in 0 until events.length()) {
-                val event = events.optJSONObject(i) ?: continue
-                val type = event.optInt("type", -1)
-                types[type] = (types[type] ?: 0) + 1
-
-                val ts = event.optLong("timestamp", 0L)
-                if (ts > 0L) {
-                    if (ts < first) first = ts
-                    if (ts > last) last = ts
+            // INFO with the type histogram: this is the line that says whether the browser agent is
+            // producing full snapshots at all. A batch that is all type 3 means there is nothing to
+            // graft, which renders as an empty iframe for reasons that have nothing to do with the
+            // merge logic.
+            val types = sortedMapOf<Int, Int>()
+            for (i in 0 until events.size()) {
+                val e = events.get(i)
+                if (e != null && e.isJsonObject) {
+                    val t = WebViewReplayMerger.typeOf(e.asJsonObject)
+                    types[t] = (types[t] ?: 0) + 1
                 }
             }
+            log.info(
+                "$LOG_TAG BATCH events=${events.size()} types=$types chars=${jsonText.length}"
+            )
 
-            sb.append(" events=").append(events.length())
-            sb.append(" types=").append(types)
-            if (first != Long.MAX_VALUE) {
-                sb.append(" ts=").append(first).append("->").append(last)
+            for (i in 0 until events.size()) {
+                val element = events.get(i)
+                if (element == null || !element.isJsonObject) {
+                    // One malformed event must not cost the whole harvest.
+                    continue
+                }
+                state.processEvent(element.asJsonObject)
             }
-        } catch (ignored: Throwable) {
-            // Not an rrweb event array. shape/bodyShape in the summary already say so.
-        }
-    }
-
-    /** Splits the payload across logcat lines, each tagged with its index so a capture reassembles in order. */
-    private fun logChunked(serialized: String) {
-        val total = (serialized.length + CHUNK_SIZE - 1) / CHUNK_SIZE
-        var index = 0
-        var offset = 0
-        while (offset < serialized.length) {
-            val end = minOf(offset + CHUNK_SIZE, serialized.length)
-            index++
-            log.debug("$LOG_TAG chunk $index/$total ${serialized.substring(offset, end)}")
-            offset = end
+        } catch (t: Throwable) {
+            log.error("$LOG_TAG failed to merge a WebView session replay event batch", t)
         }
     }
 }

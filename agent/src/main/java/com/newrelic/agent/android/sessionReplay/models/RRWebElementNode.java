@@ -14,6 +14,7 @@ public class RRWebElementNode implements RRWebNode {
     public static String TAG_TYPE_LABEL = "label";
     public static String TAG_TYPE_VALUE = "value";
     public static String TAG_TYPE_PROGRESS = "progress";
+    public static String TAG_TYPE_IFRAME = "iframe";
 
     public int type = RRWEB_NODE_TYPE_ELEMENT;
     public String tagName;

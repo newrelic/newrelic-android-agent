@@ -1,6 +1,7 @@
 package com.newrelic.agent.android.sessionReplay.capture;
 
 import android.view.View;
+import android.webkit.WebView;
 import android.widget.AbsSeekBar;
 import android.widget.CompoundButton;
 import android.widget.EditText;
@@ -34,6 +35,7 @@ import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplaySliderTh
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayTextViewThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayViewThingyInterface;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayWebViewThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ViewDetails;
 
 public class SessionReplayThingyRecorder {
@@ -51,7 +53,11 @@ public class SessionReplayThingyRecorder {
     public SessionReplayViewThingyInterface recordView(View view) {
         ViewDetails viewDetails = new ViewDetails(view);
 
-        if (view instanceof EditText) {
+        if (view instanceof WebView) {
+            // Checked first: WebView extends AbsoluteLayout -> ViewGroup, so it would otherwise
+            // fall all the way through to the plain-View branch and render as an empty <div>.
+            return new SessionReplayWebViewThingy(viewDetails, (WebView) view);
+        }else if (view instanceof EditText) {
             return new SessionReplayEditTextThingy(viewDetails, (EditText) view,agentConfiguration);
         }else if (view instanceof CompoundButton) {
             return new SessionReplayCompoundButtonThingy(viewDetails, (CompoundButton) view, agentConfiguration);

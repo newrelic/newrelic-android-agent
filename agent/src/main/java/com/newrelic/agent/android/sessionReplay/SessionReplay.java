@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.sessioncontext.SessionContextStore;
@@ -29,7 +30,12 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFileManager;
 import com.newrelic.agent.android.sessionReplay.recovery.SessionReplayOrphanRecoverer;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.zip.GZIPOutputStream;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFrame;
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayProcessor;
 import com.newrelic.agent.android.sessionReplay.capture.ViewDrawInterceptor;
@@ -39,6 +45,7 @@ import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayImageVie
 import com.newrelic.agent.android.sessionReplay.touch.OnTouchRecordedListener;
 import com.newrelic.agent.android.sessionReplay.touch.TouchTracker;
 import com.newrelic.agent.android.sessionReplay.models.RRWebEvent;
+import com.newrelic.agent.android.sessionReplay.models.RRWebFullSnapshotEvent;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.util.Constants;
 
@@ -48,6 +55,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Executors;
@@ -69,6 +77,16 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private static final AtomicBoolean takeFullSnapshot = new AtomicBoolean(true);
     private static SessionReplayModeManager modeManager;
 
+    /**
+     * When the working buffer was last emptied by a harvest.
+     *
+     * Read by the WebView replay merge path: a harvest truncates the file, so an event written before
+     * the next native full snapshot lands in a chunk that contains no node tree for it to attach to.
+     * Republishing this lets that path re-close its graft gate at each harvest boundary and wait for
+     * the post-harvest snapshot instead.
+     */
+    private static final AtomicLong lastHarvestClearedAtMs = new AtomicLong(0L);
+
     // Guards against double-init. initSessionReplay is invoked from both agent boot and
     // onHarvestConnected; without this flag the second call would recreate the processor,
     // file manager, and re-register the Harvest listener (causing onHarvest() to fire twice
@@ -81,6 +99,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private final List<List<RRWebEvent>> frameBufferDuringHarvest =
             Collections.synchronizedList(new ArrayList<>());
     private final List<TouchTracker> touchBufferDuringHarvest =
+            Collections.synchronizedList(new ArrayList<>());
+    private final List<String> webViewEventBufferDuringHarvest =
             Collections.synchronizedList(new ArrayList<>());
 
     // Sliding window for ERROR mode
@@ -196,40 +216,42 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return;
         }
 
+        // Events reach the NDJSON file in arrival order, and merged WebView events arrive in
+        // batches that lag native writes, so the file is not ordered by time. Sorting here does two
+        // jobs at once: it makes the stream structurally valid for replay, and it turns the
+        // positional first/last timestamp reads below into real min/max, so SessionReplaySender and
+        // buildFrozenAttributes need no change.
+        jsonArray = sortEventsForReplay(jsonArray);
+
+        // Shed WebView documents rather than losing the whole chunk to the size cap.
+        jsonArray = enforcePayloadBudget(jsonArray);
+
         Map<String, Object> attributes = new HashMap<>();
 
-        // Extract first timestamp from the first event in the JsonArray
+        // First/last timestamps. Scans inward for an event that actually carries a positive
+        // timestamp rather than trusting the endpoints: a single malformed event at either end
+        // would otherwise put System.currentTimeMillis() into the chunk metadata, which for
+        // lastTimestamp reads as a chunk that extends past every event it contains.
         long firstTimestamp = System.currentTimeMillis();
-        try {
-            if (!jsonArray.isEmpty()) {
-                JsonObject firstEvent = jsonArray.get(0).getAsJsonObject();
-                if (firstEvent.has("timestamp")) {
-                    long eventTimestamp = firstEvent.get("timestamp").getAsLong();
-                    if (eventTimestamp > 0) {
-                        firstTimestamp = eventTimestamp;
-                    }
-                }
-            }
-            log.debug("Using first event timestamp from file: " + firstTimestamp);
-        } catch (Exception e) {
-            log.warn("Failed to extract first event timestamp");
-        }
-
-        // Extract last timestamp from the last event in the JsonArray
         long lastTimestamp = System.currentTimeMillis();
         try {
-            if (!jsonArray.isEmpty()) {
-                JsonObject lastEvent = jsonArray.get(jsonArray.size() - 1).getAsJsonObject();
-                if (lastEvent.has("timestamp")) {
-                    long eventTimestamp = lastEvent.get("timestamp").getAsLong();
-                    if (eventTimestamp > 0) {
-                        lastTimestamp = eventTimestamp;
-                    }
+            for (int i = 0; i < jsonArray.size(); i++) {
+                long ts = readTimestamp(jsonArray.get(i));
+                if (ts > 0) {
+                    firstTimestamp = ts;
+                    break;
                 }
             }
-            log.debug("Using last event timestamp from file: " + lastTimestamp);
+            for (int i = jsonArray.size() - 1; i >= 0; i--) {
+                long ts = readTimestamp(jsonArray.get(i));
+                if (ts > 0) {
+                    lastTimestamp = ts;
+                    break;
+                }
+            }
+            log.debug("Using event timestamps from file: " + firstTimestamp + " - " + lastTimestamp);
         } catch (Exception e) {
-            log.warn("Failed to extract last event timestamp, using current time");
+            log.warn("Failed to extract event timestamps, using current time");
         }
 
         attributes.put(FIRST_TIMESTAMP, firstTimestamp);
@@ -244,12 +266,266 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         // Clear file after successful harvest
         fileManager.clearWorkingFileWhileRunningSession();
+        lastHarvestClearedAtMs.set(System.currentTimeMillis());
         isFirstChunk = false;
         persistSrState(true, false);
         takeFullSnapshot.set(true);
 
     }
 
+
+    /**
+     * Drops WebView document grafts, largest first, until the chunk fits under
+     * {@link Constants.Network#MAX_PAYLOAD_SIZE} compressed.
+     *
+     * Without this, {@link SessionReplayReporter} rejects an oversized chunk <em>whole</em> — native
+     * events included — so a single heavy WebView document costs an entire harvest cycle of native
+     * replay and shows the viewer a blank player. Shedding the grafts instead degrades the WebView to
+     * an empty iframe while the native replay survives, which is the right direction to fail in:
+     * device measurement put one graft at 79–97% of the chunk that contained it.
+     *
+     * @return the original array when it already fits, otherwise a reduced copy
+     */
+    static JsonArray enforcePayloadBudget(JsonArray events) {
+        try {
+            byte[] json = new Gson().toJson(events).getBytes();
+            int compressed = gzippedLength(json);
+            if (compressed <= Constants.Network.MAX_PAYLOAD_SIZE) {
+                return events;
+            }
+
+            // Derive an uncompressed budget from this chunk's own measured ratio rather than a
+            // guessed constant: replay payloads have been observed compressing anywhere from 10% to
+            // 41%, so a fixed assumption would either shed too eagerly or not enough. 5% of headroom
+            // absorbs the ratio drifting as content is removed.
+            double ratio = (double) compressed / (double) json.length;
+            long budget = (long) ((Constants.Network.MAX_PAYLOAD_SIZE / ratio) * 0.95);
+
+            // Largest first, so the fewest documents are lost.
+            List<Integer> graftIndices = new ArrayList<>();
+            for (int i = 0; i < events.size(); i++) {
+                if (isWebViewGraft(events.get(i))) {
+                    graftIndices.add(i);
+                }
+            }
+            if (graftIndices.isEmpty()) {
+                log.warn("SessionReplay: chunk is " + compressed + " compressed bytes, over the "
+                        + Constants.Network.MAX_PAYLOAD_SIZE + " cap, and carries no WebView documents to shed");
+                return events;
+            }
+            graftIndices.sort((a, b) -> Integer.compare(
+                    events.get(b).toString().length(), events.get(a).toString().length()));
+
+            Set<Integer> shed = new HashSet<>();
+            long total = json.length;
+            for (Integer index : graftIndices) {
+                if (total <= budget) {
+                    break;
+                }
+                total -= events.get(index).toString().length();
+                shed.add(index);
+            }
+
+            JsonArray reduced = new JsonArray();
+            for (int i = 0; i < events.size(); i++) {
+                if (!shed.contains(i)) {
+                    reduced.add(events.get(i));
+                }
+            }
+
+            for (int i = 0; i < shed.size(); i++) {
+                StatsEngine.SUPPORTABILITY.inc(
+                        MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_SHED);
+            }
+            int after = gzippedLength(new Gson().toJson(reduced).getBytes());
+            log.warn("SessionReplay: chunk was " + compressed + " compressed bytes (cap "
+                    + Constants.Network.MAX_PAYLOAD_SIZE + "); shed " + shed.size() + " of "
+                    + graftIndices.size() + " WebView document(s), now " + after
+                    + ". The native replay is preserved; those WebViews render empty until the next graft.");
+            return reduced;
+        } catch (Exception e) {
+            // Never lose a harvest to a sizing bug: fall through and let the reporter decide.
+            log.error("SessionReplay: payload budget check failed; reporting unmodified", e);
+            return events;
+        }
+    }
+
+    /**
+     * Whether this event is a WebView document graft.
+     *
+     * Identified structurally rather than by a marker field: only the WebView merge path ever adds a
+     * {@code type: 0} Document node, since the native diff generator adds element and text nodes.
+     * That keeps the discriminator out of the uploaded payload.
+     */
+    private static boolean isWebViewGraft(JsonElement event) {
+        try {
+            JsonObject object = event.getAsJsonObject();
+            if (object.get("type").getAsInt() != RRWebEvent.RRWEB_EVENT_INCREMENTAL_SNAPSHOT) {
+                return false;
+            }
+            JsonObject data = object.getAsJsonObject("data");
+            if (data == null || !data.has("adds")) {
+                return false;
+            }
+            for (JsonElement add : data.getAsJsonArray("adds")) {
+                JsonObject node = add.getAsJsonObject().getAsJsonObject("node");
+                if (node != null && node.has("type") && node.get("type").getAsInt() == 0) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            // Not a graft-shaped event.
+        }
+        return false;
+    }
+
+    /** Compressed length using the same gzip the reporter applies, so the check matches the cap. */
+    private static int gzippedLength(byte[] uncompressed) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(32, uncompressed.length / 8));
+        try (GZIPOutputStream gzip = new GZIPOutputStream(out)) {
+            gzip.write(uncompressed);
+        }
+        return out.size();
+    }
+
+    /**
+     * @return the wall-clock ms at which a harvest last emptied the working buffer, or 0 if none has.
+     */
+    public static long getLastHarvestClearedAtMs() {
+        return lastHarvestClearedAtMs.get();
+    }
+
+    /**
+     * Orders a harvest's events for replay: by timestamp, and within one timestamp by event type so
+     * that Meta precedes FullSnapshot precedes Incremental. A snapshot can therefore never be
+     * serialized behind a mutation that depends on it.
+     *
+     * The sort is <em>stable</em> ({@link Collections#sort} is a merge sort), which is load-bearing:
+     * within a type, arrival order is preserved, and that is what keeps a WebView document graft
+     * ahead of the incremental mutations that arrived after it in the same batch and share its
+     * timestamp.
+     *
+     * @param events events in file arrival order
+     * @return a new array in replay order
+     */
+    static JsonArray sortEventsForReplay(JsonArray events) {
+        List<JsonElement> ordered = new ArrayList<>(events.size());
+        for (JsonElement event : events) {
+            ordered.add(event);
+        }
+
+        Collections.sort(ordered, (left, right) -> {
+            int byTime = Long.compare(readTimestamp(left), readTimestamp(right));
+            if (byTime != 0) {
+                return byTime;
+            }
+            return Integer.compare(typeRank(left), typeRank(right));
+        });
+
+        JsonArray sorted = new JsonArray();
+        for (JsonElement event : ordered) {
+            sorted.add(event);
+        }
+        return sorted;
+    }
+
+    /**
+     * @return the event's timestamp, or 0 when absent or unreadable. Zero sorts such an event to the
+     * front, where the {@code > 0} guards in {@link #onHarvest()} skip over it — as opposed to
+     * sinking it to the end, where it would become the chunk's {@code lastTimestamp}.
+     */
+    private static long readTimestamp(JsonElement event) {
+        try {
+            JsonObject object = event.getAsJsonObject();
+            if (object.has("timestamp") && !object.get("timestamp").isJsonNull()) {
+                return object.get("timestamp").getAsLong();
+            }
+        } catch (Exception e) {
+            // Malformed event; treated as timestamp-less.
+        }
+        return 0L;
+    }
+
+    /**
+     * Tie-break order within a single timestamp: Meta, then FullSnapshot, then Incremental, then
+     * anything unrecognized.
+     */
+    private static int typeRank(JsonElement event) {
+        try {
+            JsonObject object = event.getAsJsonObject();
+            if (object.has("type") && !object.get("type").isJsonNull()) {
+                switch (object.get("type").getAsInt()) {
+                    case RRWebEvent.RRWE_EVENT_META:
+                        return 0;
+                    case RRWebEvent.RRWEB_EVENT_FULL_SNAPSHOT:
+                        return 1;
+                    case RRWebEvent.RRWEB_EVENT_INCREMENTAL_SNAPSHOT:
+                        return 2;
+                    default:
+                        return 3;
+                }
+            }
+        } catch (Exception e) {
+            // Malformed event; ordered last within its timestamp.
+        }
+        return 3;
+    }
+
+    /**
+     * Notified whenever a native full snapshot is written.
+     *
+     * A full snapshot makes the replayer reset its mirror and rebuild the document from scratch,
+     * which destroys anything grafted into it — so any layer holding content that lives <em>inside</em>
+     * a native node has to re-attach it. Exists as a listener rather than a direct call so this
+     * package keeps no compile-time dependency on the WebView package.
+     */
+    public interface FullSnapshotListener {
+        /** @param timestampMs the snapshot's own timestamp, so re-attached content can be ordered after it */
+        void onNativeFullSnapshot(long timestampMs);
+    }
+
+    private static volatile FullSnapshotListener fullSnapshotListener;
+
+    public static void setFullSnapshotListener(FullSnapshotListener listener) {
+        fullSnapshotListener = listener;
+    }
+
+    /**
+     * Records one merged WebView rrweb event into the same NDJSON buffer the native capture writes
+     * to, so there is a single storage path and offline persistence and orphan recovery keep working
+     * unchanged.
+     *
+     * Buffers across the harvest window for the same reason {@link #onFrameTaken} does: an event
+     * written between {@link #onHarvest()}'s read and its {@code clearWorkingFileWhileRunningSession}
+     * truncate would be silently discarded.
+     *
+     * @param event a fully remapped, harvest-ready rrweb event
+     */
+    public static void recordWebViewReplayEvent(JsonObject event) {
+        if (event != null) {
+            recordWebViewReplayEvent(event.toString());
+        }
+    }
+
+    /**
+     * String overload, so a cached document can be re-attached by splicing it into a pre-built event
+     * rather than rebuilding and re-serializing a multi-megabyte Gson tree each time.
+     */
+    public static void recordWebViewReplayEvent(String eventJson) {
+        if (eventJson == null || eventJson.isEmpty()) {
+            return;
+        }
+        if (instance.fileManager == null) {
+            log.warn("SessionReplay: dropping a WebView replay event; file manager not initialized");
+            return;
+        }
+        if (isHarvesting.get()) {
+            log.audit("WebView replay event received during harvest, buffering for later write");
+            instance.webViewEventBufferDuringHarvest.add(eventJson);
+            return;
+        }
+        instance.fileManager.addJsonEventToFile(eventJson);
+    }
 
     private static void registerCallbacks() {
         application.registerActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
@@ -367,6 +643,26 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             }
         }
         takeFullSnapshot.set(false);
+
+        // A full snapshot resets the replayer's mirror, which wipes any content grafted into a
+        // native node. Announce it so that content can be re-attached, timestamped to match the
+        // snapshot so the harvest sort places it immediately after.
+        long fullSnapshotAtMs = 0L;
+        for (RRWebEvent event : events) {
+            if (event instanceof RRWebFullSnapshotEvent) {
+                fullSnapshotAtMs = Math.max(fullSnapshotAtMs, event.getTimestamp());
+            }
+        }
+        if (fullSnapshotAtMs > 0L) {
+            FullSnapshotListener listener = fullSnapshotListener;
+            if (listener != null) {
+                try {
+                    listener.onNativeFullSnapshot(fullSnapshotAtMs);
+                } catch (Throwable t) {
+                    log.error("SessionReplay: full snapshot listener failed", t);
+                }
+            }
+        }
     }
 
     @Override
@@ -484,6 +780,17 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
                 }
             }
             touchBufferDuringHarvest.clear();
+        }
+
+        // Flush any WebView replay events that were buffered during harvest
+        if (!webViewEventBufferDuringHarvest.isEmpty()) {
+            log.debug("Flushing " + webViewEventBufferDuringHarvest.size() + " buffered WebView replay events to file after harvest");
+            for (String bufferedEvent : webViewEventBufferDuringHarvest) {
+                if (fileManager != null) {
+                    fileManager.addJsonEventToFile(bufferedEvent);
+                }
+            }
+            webViewEventBufferDuringHarvest.clear();
         }
     }
 
