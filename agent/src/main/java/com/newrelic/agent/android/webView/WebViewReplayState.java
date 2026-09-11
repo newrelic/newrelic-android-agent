@@ -178,8 +178,15 @@ public class WebViewReplayState {
             lastDocumentInnerJson = null;       // the WebView is gone; stop holding its DOM
             return;
         }
-        if (SessionReplay.getLastHarvestClearedAtMs() <= lastDocumentWrittenAtMs) {
-            return;                 // this chunk already carries the document
+        // Re-emit whenever a native full snapshot lands after our last document, not merely once per
+        // chunk. A full snapshot resets the replayer's mirror and rebuilds the tagged mount div, so
+        // the player retires the nested replayer attached to the old node and builds a fresh one --
+        // which is empty unless a document follows. Keying on the harvest clear instead was wrong for
+        // any chunk containing more than one native snapshot (route changes and resizes each force
+        // one): measured across 14 captured chunks from three apps, a chunk replays if and only if
+        // the document sorts after the LAST native full snapshot in it.
+        if (timestampMs <= lastDocumentWrittenAtMs) {
+            return;                 // our document already follows this snapshot
         }
 
         // Meta first, so the nested replayer is sized and made visible before the document lands.
@@ -192,7 +199,7 @@ public class WebViewReplayState {
         }
         SessionReplay.recordWebViewReplayEvent(WebViewReplayMerger.buildPluginEventJson(
                 channelId, lastDocumentInnerJson, timestampMs));
-        lastDocumentWrittenAtMs = System.currentTimeMillis();
+        lastDocumentWrittenAtMs = timestampMs;
         StatsEngine.SUPPORTABILITY.inc(
                 MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_REPLAY_REGRAFTED);
         log.debug(LOG_TAG + " re-emitted the document for channel " + channelId
@@ -282,7 +289,10 @@ public class WebViewReplayState {
             // screen between browser agent checkouts. Only the inner event is kept: the envelope is
             // rebuilt per chunk so it can carry that chunk's timestamp.
             lastDocumentInnerJson = event.toString();
-            lastDocumentWrittenAtMs = System.currentTimeMillis();
+            // Stamped with the envelope's own timestamp, not the wall clock, because
+            // reemitDocumentForNewChunk() compares this against native full-snapshot event
+            // timestamps -- the two must be on the same clock or the comparison is meaningless.
+            lastDocumentWrittenAtMs = WebViewReplayMerger.timestampOf(event, System.currentTimeMillis());
             // Logged at INFO with the document's size, because "the WebView renders empty" has
             // several causes and only this line separates them: no line at all means the browser
             // agent never checked out, a line with a handful of nodes means it handed over an empty
