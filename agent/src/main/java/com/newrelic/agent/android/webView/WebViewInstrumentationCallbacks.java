@@ -21,8 +21,6 @@ import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.SessionReplayMode;
 import com.newrelic.agent.android.stats.StatsEngine;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -44,15 +42,6 @@ public class WebViewInstrumentationCallbacks {
          * that lives on it.
          */
         WebViewJSInterface jsInterface;
-
-        /**
-         * Whether the browser agent injection script has run for the document currently loaded.
-         *
-         * Distinguishes "injected" from "page load happened but we declined to inject", which is the
-         * state a hybrid app lands in when its agent starts after the page has loaded. Reset on
-         * navigation, since the next document needs its own injection.
-         */
-        boolean injected;
     }
 
     private static synchronized WebViewState stateFor(WebView webView) {
@@ -513,13 +502,6 @@ public class WebViewInstrumentationCallbacks {
         }
         // Runs before the mode check, so the channel is notified of the navigation even while replay
         // is off and would otherwise miss it if replay were switched back on mid-session.
-        // The next document needs its own injection, so stop treating this WebView as injected.
-        synchronized (WebViewInstrumentationCallbacks.class) {
-            WebViewState existing = states.get(webView);
-            if (existing != null) {
-                existing.injected = false;
-            }
-        }
         WebViewReplayState replayState = replayStateFor(webView);
         if (replayState != null) {
             try {
@@ -555,11 +537,10 @@ public class WebViewInstrumentationCallbacks {
             log.error("Failed to run NR browser agent detection script", e);
         }
         if (!shouldCaptureWebViewReplay()) {
-            // Deliberately leaves WebViewState.injected false, so onSessionReplayReady() can come
-            // back to this WebView once replay is willing to capture. In a hybrid app whose agent
-            // starts from JavaScript this is the normal path for the first page, not an error.
-            log.debug("NR WebView replay capture not active yet for " + url
-                    + "; will retry when session replay is ready");
+            // Not an error: a hybrid app whose page loads from a local server can finish loading
+            // before the collector's connect response has settled the replay mode. Injection then
+            // happens on the next navigation, which calls back through the instrumented loadUrl.
+            log.debug("NR WebView replay capture not active for " + url + "; skipping injection");
             return;
         }
         injectBrowserAgent(webView, url);
@@ -572,7 +553,6 @@ public class WebViewInstrumentationCallbacks {
     private static synchronized void injectBrowserAgent(WebView webView, String url) {
         try {
             webView.evaluateJavascript(INJECTION_SCRIPT, null);
-            stateFor(webView).injected = true;
             log.debug("NR browser agent injection script evaluated for " + url);
         } catch (Exception e) {
             log.error("Failed to run the NR browser agent injection script", e);
@@ -592,55 +572,6 @@ public class WebViewInstrumentationCallbacks {
         }
     }
 
-    /**
-     * Second chance at injection, for every WebView whose page finished loading before session replay
-     * was willing to capture.
-     *
-     * <p>Needs no page reload, which is the point. Only {@code addJavascriptInterface} has to happen
-     * before a navigation, and that already did — {@link #prepare} runs from the instrumented
-     * {@code loadUrl} call site, ahead of the real call, whether or not the agent has started. So the
-     * bridge is already in the page and all that is left is to evaluate the injection script, which
-     * {@code evaluateJavascript} will do against an already-loaded document.</p>
-     *
-     * <p>Posted to each WebView rather than run inline: this arrives on whichever thread completed the
-     * mode transition, and touching a WebView off its own thread is not allowed.</p>
-     */
-    static void onSessionReplayReady() {
-        List<WebView> pending = new ArrayList<>();
-        synchronized (WebViewInstrumentationCallbacks.class) {
-            for (Map.Entry<WebView, WebViewState> entry : states.entrySet()) {
-                WebView webView = entry.getKey();
-                if (webView != null && !entry.getValue().injected) {
-                    pending.add(webView);
-                }
-            }
-        }
-        if (pending.isEmpty()) {
-            return;
-        }
-        log.debug("Session replay is ready; retrying browser agent injection on "
-                + pending.size() + " WebView(s)");
-        for (final WebView webView : pending) {
-            try {
-                webView.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!shouldCaptureWebViewReplay()) {
-                            return;         // mode moved again before this ran
-                        }
-                        try {
-                            webView.evaluateJavascript(DETECTION_SCRIPT, null);
-                        } catch (Exception e) {
-                            log.error("Failed to run NR browser agent detection script on retry", e);
-                        }
-                        injectBrowserAgent(webView, "retry-after-session-replay-ready");
-                    }
-                });
-            } catch (Throwable t) {
-                log.error("Failed to schedule the NR browser agent injection retry", t);
-            }
-        }
-    }
 
     public static void onPageFinishedCalled(WebViewClient var0, WebView var1, String var2) {
         if (hasNRClient(var1)) {
