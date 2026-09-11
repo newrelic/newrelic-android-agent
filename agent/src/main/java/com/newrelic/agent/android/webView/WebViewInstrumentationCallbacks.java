@@ -13,6 +13,7 @@ import android.widget.AdapterView;
 import android.widget.CompoundButton;
 import android.widget.RadioGroup;
 
+import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -20,6 +21,8 @@ import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.SessionReplayMode;
 import com.newrelic.agent.android.stats.StatsEngine;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -41,6 +44,15 @@ public class WebViewInstrumentationCallbacks {
          * that lives on it.
          */
         WebViewJSInterface jsInterface;
+
+        /**
+         * Whether the browser agent injection script has run for the document currently loaded.
+         *
+         * Distinguishes "injected" from "page load happened but we declined to inject", which is the
+         * state a hybrid app lands in when its agent starts after the page has loaded. Reset on
+         * navigation, since the next document needs its own injection.
+         */
+        boolean injected;
     }
 
     private static synchronized WebViewState stateFor(WebView webView) {
@@ -425,6 +437,30 @@ public class WebViewInstrumentationCallbacks {
         ensureNRClientInstalled(webView);
     }
 
+    /**
+     * Bytecode entry point injected before every {@code return} of every constructor in a
+     * {@code WebView} subclass.
+     *
+     * <p>This is how the bridge reaches WebViews the call-site instrumentation cannot see. Bytecode
+     * records the receiver's <em>declared</em> type at a call site, so a framework that holds its
+     * WebView in a subclass-typed field — Cordova's {@code SystemWebViewEngine.webView} is a
+     * {@code SystemWebView} — emits {@code loadUrl} with owner {@code SystemWebView} rather than
+     * {@code android/webkit/WebView}, and is skipped. Hooking construction sidesteps the question
+     * entirely: it needs no knowledge of any call site, and covers every entry path into the page —
+     * {@code loadUrl}, {@code loadData}, {@code loadDataWithBaseURL}, {@code restoreState} — rather
+     * than an enumerated few.</p>
+     *
+     * <p>Construction is also the only correct moment. {@code addJavascriptInterface} takes effect on
+     * the <em>next</em> navigation, so an interface added once a page has loaded is invisible to it;
+     * injecting at the end of the constructor guarantees the bridge exists before the first load.</p>
+     *
+     * <p>Public because the injected call site lives in the host app's or a library's package, where a
+     * package-private {@link #prepare} would fail with {@code IllegalAccessError} at runtime.</p>
+     */
+    public static void webViewCreated(WebView var0) {
+        prepare(var0);
+    }
+
     public static void loadUrlCalled(WebView var0) {
         prepare(var0);
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_LOAD_URL);
@@ -450,7 +486,7 @@ public class WebViewInstrumentationCallbacks {
      */
     private static boolean shouldCaptureWebViewReplay() {
         try {
-            return SessionReplay.getCurrentMode() == SessionReplayMode.FULL;
+            return SessionReplay.getCurrentMode() == SessionReplayMode.FULL || AgentConfiguration.getInstance().getSessionReplayConfiguration().isEnabled();
         } catch (Throwable t) {
             log.debug("Could not read the session replay mode; skipping WebView replay capture");
             return false;
@@ -477,6 +513,13 @@ public class WebViewInstrumentationCallbacks {
         }
         // Runs before the mode check, so the channel is notified of the navigation even while replay
         // is off and would otherwise miss it if replay were switched back on mid-session.
+        // The next document needs its own injection, so stop treating this WebView as injected.
+        synchronized (WebViewInstrumentationCallbacks.class) {
+            WebViewState existing = states.get(webView);
+            if (existing != null) {
+                existing.injected = false;
+            }
+        }
         WebViewReplayState replayState = replayStateFor(webView);
         if (replayState != null) {
             try {
@@ -512,10 +555,24 @@ public class WebViewInstrumentationCallbacks {
             log.error("Failed to run NR browser agent detection script", e);
         }
         if (!shouldCaptureWebViewReplay()) {
+            // Deliberately leaves WebViewState.injected false, so onSessionReplayReady() can come
+            // back to this WebView once replay is willing to capture. In a hybrid app whose agent
+            // starts from JavaScript this is the normal path for the first page, not an error.
+            log.debug("NR WebView replay capture not active yet for " + url
+                    + "; will retry when session replay is ready");
             return;
         }
+        injectBrowserAgent(webView, url);
+    }
+
+    /**
+     * Evaluates the injection script and registers the replay channel. Must run on the WebView's
+     * thread: {@code evaluateJavascript} requires it, and {@code onRegistered()} reads a View tag.
+     */
+    private static synchronized void injectBrowserAgent(WebView webView, String url) {
         try {
             webView.evaluateJavascript(INJECTION_SCRIPT, null);
+            stateFor(webView).injected = true;
             log.debug("NR browser agent injection script evaluated for " + url);
         } catch (Exception e) {
             log.error("Failed to run the NR browser agent injection script", e);
@@ -531,6 +588,56 @@ public class WebViewInstrumentationCallbacks {
                 replayState.onRegistered();
             } catch (Throwable t) {
                 log.error("Failed to register the NR WebView replay channel", t);
+            }
+        }
+    }
+
+    /**
+     * Second chance at injection, for every WebView whose page finished loading before session replay
+     * was willing to capture.
+     *
+     * <p>Needs no page reload, which is the point. Only {@code addJavascriptInterface} has to happen
+     * before a navigation, and that already did — {@link #prepare} runs from the instrumented
+     * {@code loadUrl} call site, ahead of the real call, whether or not the agent has started. So the
+     * bridge is already in the page and all that is left is to evaluate the injection script, which
+     * {@code evaluateJavascript} will do against an already-loaded document.</p>
+     *
+     * <p>Posted to each WebView rather than run inline: this arrives on whichever thread completed the
+     * mode transition, and touching a WebView off its own thread is not allowed.</p>
+     */
+    static void onSessionReplayReady() {
+        List<WebView> pending = new ArrayList<>();
+        synchronized (WebViewInstrumentationCallbacks.class) {
+            for (Map.Entry<WebView, WebViewState> entry : states.entrySet()) {
+                WebView webView = entry.getKey();
+                if (webView != null && !entry.getValue().injected) {
+                    pending.add(webView);
+                }
+            }
+        }
+        if (pending.isEmpty()) {
+            return;
+        }
+        log.debug("Session replay is ready; retrying browser agent injection on "
+                + pending.size() + " WebView(s)");
+        for (final WebView webView : pending) {
+            try {
+                webView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!shouldCaptureWebViewReplay()) {
+                            return;         // mode moved again before this ran
+                        }
+                        try {
+                            webView.evaluateJavascript(DETECTION_SCRIPT, null);
+                        } catch (Exception e) {
+                            log.error("Failed to run NR browser agent detection script on retry", e);
+                        }
+                        injectBrowserAgent(webView, "retry-after-session-replay-ready");
+                    }
+                });
+            } catch (Throwable t) {
+                log.error("Failed to schedule the NR browser agent injection retry", t);
             }
         }
     }

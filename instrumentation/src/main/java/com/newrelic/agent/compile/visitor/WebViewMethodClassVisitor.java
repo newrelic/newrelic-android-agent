@@ -20,7 +20,9 @@ import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
 import org.slf4j.Logger;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class visitor instruments WebView subclasses by injecting tracking code at the START
@@ -154,9 +156,28 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
         this.access = 0;
     }
 
+    /**
+     * Internal name of the direct superclass, needed to emit the {@code super.xxx()} call inside a
+     * synthesized override. Captured here because {@link #visitEnd()} has no other access to it.
+     */
+    private String superName;
+
+    /** Internal name of the class being visited, for logging. */
+    private String visitedClassName;
+
+    /**
+     * {@code name + desc} of every target method the class actually declares.
+     *
+     * {@link #visitEnd()} synthesizes the ones that are absent. Tracking what was declared is what
+     * keeps that from emitting a duplicate method, which would make the class fail to load.
+     */
+    private final Set<String> declaredTargets = new HashSet<>();
+
     @Override
     public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
         this.access = access;
+        this.superName = superName;
+        this.visitedClassName = name;
         // Don't mark as modified here - only mark when we actually instrument a method
         super.visit(version, access, name, signature, superName, interfaces);
     }
@@ -190,6 +211,9 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
         if (!instrument) {
             return mv;
         }
+
+        // Remember that the class declares this one, so visitEnd() does not synthesize a duplicate.
+        declaredTargets.add(methodName + desc);
 
         // ========================================================================
         // Instrument WebViewClient.onPageFinished(WebView view, String url)
@@ -338,9 +362,168 @@ public class WebViewMethodClassVisitor extends AgentDelegateClassVisitor {
         return mv;
     }
 
+    /**
+     * Synthesizes the WebView entry points this class inherits but does not declare.
+     *
+     * <h2>Why this is needed</h2>
+     * Neither of the two existing mechanisms covers a WebView subclass that simply does not override
+     * the method:
+     * <ul>
+     *   <li>{@link WebViewCallSiteVisitor} keys on the call site's owner being exactly
+     *       {@code android/webkit/WebView}. Bytecode records the receiver's <em>declared</em> type, so
+     *       {@code SystemWebView wv = ...; wv.loadUrl(url)} emits owner
+     *       {@code org/apache/cordova/engine/SystemWebView} and is skipped.</li>
+     *   <li>This visitor instruments the method only where the subclass overrides it.</li>
+     * </ul>
+     * Cordova falls in the gap: {@code SystemWebView extends WebView} directly and declares no
+     * {@code loadUrl}, {@code postUrl} or {@code setWebViewClient}. Nothing was instrumented, so
+     * {@code prepare()} never ran, the {@code NRWebViewBridge} JS interface was never added, and the
+     * injected detection and injection scripts had no bridge object to call — silent, total failure.
+     * The same hole applies to any app that reaches {@code loadUrl} through a subclass reference.
+     *
+     * <h2>Why synthesize an override rather than widen the call-site matcher</h2>
+     * Widening the matcher would need the class hierarchy of an <em>arbitrary</em> owner, which is not
+     * available here: {@link InstrumentationContext} carries only the class currently being visited,
+     * and there is no classpath to resolve against. Matching on method name and descriptor alone
+     * would instrument any unrelated {@code loadUrl(String)} — the false positive the call-site
+     * visitor's own documentation warns about.
+     *
+     * <p>A synthesized override needs nothing but this class's own superclass name, which is already
+     * in hand and already the basis for {@code isInstrumentable}. It is also strictly more effective:
+     * virtual dispatch routes <em>every</em> call site to it regardless of the receiver's declared
+     * type, so one generated method covers call sites this visitor never sees.</p>
+     *
+     * <h2>Bounds</h2>
+     * Only direct subclasses are reached, because {@code isInstrumentable} matches the superclass
+     * name with {@code Matcher#matches()} — a full match, which makes the unanchored
+     * {@code "^android/webkit/WebView"} pattern behave exactly like the anchored one. A class extending
+     * {@code SystemWebView} is therefore not instrumented. That bound is load-bearing here rather than
+     * merely tolerated: it is what prevents a generated override from calling {@code super} into
+     * another generated override and reporting the same navigation twice.
+     */
     @Override
     public void visitEnd() {
+        if (instrument && superName != null) {
+            if (Constants.ANDROID_WEBKIT_WEBVIEW_CLASS.equals(superName)) {
+                // void loadUrl(String)
+                synthesize("loadUrl", "(Ljava/lang/String;)V", "loadUrlCalled", 1);
+                // void loadUrl(String, Map)
+                synthesize("loadUrl", "(Ljava/lang/String;Ljava/util/Map;)V", "loadUrlCalled", 2);
+                // void postUrl(String, byte[])
+                synthesize("postUrl", "(Ljava/lang/String;[B)V", "postUrlCalled", 2);
+                // void setWebViewClient(WebViewClient) — wraps rather than pre-notifies, so it has
+                // its own emitter below.
+                synthesizeSetWebViewClient();
+            } else if (Constants.ANDROID_WEBKIT_WEBVIEWCLIENT_CLASS.equals(superName)) {
+                synthesizeOnPageFinished();
+            }
+        }
         super.visitEnd();
     }
+
+    /**
+     * Emits {@code public void <name>(args) { Callbacks.<callback>(this); super.<name>(args); } }.
+     *
+     * @param argCount number of reference arguments to forward to {@code super}
+     */
+    private void synthesize(String name, String desc, String callback, int argCount) {
+        if (declaredTargets.contains(name + desc)) {
+            return;             // the class overrides it; visitMethod already instrumented that
+        }
+        MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC, name, desc, null, null);
+        if (mv == null) {
+            return;
+        }
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC, WEBVIEW_CALLBACKS, callback,
+                "(Landroid/webkit/WebView;)V", false);
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        for (int i = 1; i <= argCount; i++) {
+            mv.visitVarInsn(Opcodes.ALOAD, i);
+        }
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superName, name, desc, false);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(1 + argCount, 1 + argCount);
+        mv.visitEnd();
+        onSynthesized(name, desc);
+    }
+
+    /**
+     * Emits {@code public void setWebViewClient(WebViewClient c) {
+     * super.setWebViewClient(Callbacks.setWebViewClientCalled(this, c)); } }.
+     *
+     * The callback returns the client to install — it wraps the app's client in an
+     * {@code NRWebViewClient} — so unlike the others its result is consumed rather than discarded.
+     * It returns early when handed a client that is already ours, which is what keeps the agent's own
+     * {@code ensureNRClientInstalled} call from recursing back through this override.
+     */
+    private void synthesizeSetWebViewClient() {
+        final String name = "setWebViewClient";
+        final String desc = "(Landroid/webkit/WebViewClient;)V";
+        if (declaredTargets.contains(name + desc)) {
+            return;
+        }
+        MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC, name, desc, null, null);
+        if (mv == null) {
+            return;
+        }
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);      // receiver for the super call
+        mv.visitVarInsn(Opcodes.ALOAD, 0);      // arg 1: this
+        mv.visitVarInsn(Opcodes.ALOAD, 1);      // arg 2: the app's client
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC, WEBVIEW_CALLBACKS, "setWebViewClientCalled",
+                "(Landroid/webkit/WebView;Landroid/webkit/WebViewClient;)Landroid/webkit/WebViewClient;",
+                false);
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superName, name, desc, false);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(3, 2);
+        mv.visitEnd();
+        onSynthesized(name, desc);
+    }
+
+    /**
+     * Emits {@code public void onPageFinished(WebView v, String url) {
+     * Callbacks.onPageFinishedCalled(this, v, url); super.onPageFinished(v, url); } } for a
+     * {@code WebViewClient} subclass that does not override it.
+     *
+     * Cordova's own client does override it, so this is not what unblocks Cordova — it closes the
+     * same gap on the client side, where a subclass that never overrides {@code onPageFinished}
+     * would otherwise report no page loads at all.
+     */
+    private void synthesizeOnPageFinished() {
+        final String name = "onPageFinished";
+        final String desc = "(Landroid/webkit/WebView;Ljava/lang/String;)V";
+        if (declaredTargets.contains(name + desc)) {
+            return;
+        }
+        MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC, name, desc, null, null);
+        if (mv == null) {
+            return;
+        }
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitVarInsn(Opcodes.ALOAD, 1);
+        mv.visitVarInsn(Opcodes.ALOAD, 2);
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC, WEBVIEW_CALLBACKS, "onPageFinishedCalled",
+                "(Landroid/webkit/WebViewClient;Landroid/webkit/WebView;Ljava/lang/String;)V", false);
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitVarInsn(Opcodes.ALOAD, 1);
+        mv.visitVarInsn(Opcodes.ALOAD, 2);
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superName, name, desc, false);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(3, 3);
+        mv.visitEnd();
+        onSynthesized(name, desc);
+    }
+
+    private void onSynthesized(String name, String desc) {
+        context.markModified();
+        log.debug("[WebViewMethodClassVisitor] Synthesized inherited " + name + desc
+                + " override in " + visitedClassName + " (extends " + superName + ")");
+    }
+
+    private static final String WEBVIEW_CALLBACKS =
+            "com/newrelic/agent/android/webView/WebViewInstrumentationCallbacks";
 
 }

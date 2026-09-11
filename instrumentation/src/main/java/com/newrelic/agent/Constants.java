@@ -25,6 +25,14 @@ public class Constants {
     public static final String SKIP_TRACE_ANNOTATION_CLASS_NAME = "Lcom/newrelic/agent/android/instrumentation/SkipTrace;";
     public static final String REPLACE_CALLSITE_CLASS_NAME = "Lcom/newrelic/agent/android/instrumentation/ReplaceCallSite;";
     public static final String TRACE_FIELD_INTERFACE_CLASS_NAME = "com/newrelic/agent/android/api/v2/TraceFieldInterface";
+
+    /**
+     * Internal names of the two framework classes whose direct subclasses carry the WebView entry
+     * points the agent hooks. Used by {@code WebViewMethodClassVisitor} to decide which inherited
+     * overrides to synthesize, and to emit the {@code super} call inside them.
+     */
+    public static final String ANDROID_WEBKIT_WEBVIEW_CLASS = "android/webkit/WebView";
+    public static final String ANDROID_WEBKIT_WEBVIEWCLIENT_CLASS = "android/webkit/WebViewClient";
     public static final String INSTRUMENTED_CLASS_NAME = "Lcom/newrelic/agent/android/instrumentation/Instrumented;";
 
     public static final String TRACE_CLASS_NAME = "Lcom/newrelic/agent/android/tracing/Trace;";
