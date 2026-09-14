@@ -69,7 +69,7 @@ public class MainActivity extends AppCompatActivity
         NewRelic.enableFeature(FeatureFlag.BackgroundReporting);
 
 
-        NewRelic.withApplicationToken("AA98d0bba8eecd0aa92f34e3dc9f4eb26c2fec2603-NRMA")    // ## Provide application ID to test map uploads
+        NewRelic.withApplicationToken("<APP-ID>")    // ## Provide application ID to test map uploads
                 .withLogLevel(AgentLog.DEBUG)
                 .withLaunchActivityName("agent-test-app")
                 .start(this);
