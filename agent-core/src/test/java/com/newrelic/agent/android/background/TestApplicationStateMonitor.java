@@ -122,6 +122,45 @@ public class TestApplicationStateMonitor {
     }
 
     @Test
+    public void foregroundedFlagIsFlippedBeforeBackgroundListenerFires() {
+        final AtomicBoolean flagWasFlippedAtCallbackTime = new AtomicBoolean(false);
+
+        asm.addApplicationStateListener(new ApplicationStateListener() {
+            @Override
+            public void applicationBackgrounded(ApplicationStateEvent e) {
+                flagWasFlippedAtCallbackTime.set(!asm.getForgroundState().get());
+            }
+
+            @Override
+            public void applicationForegrounded(ApplicationStateEvent e) {
+            }
+        });
+
+        asm.activityStarted();
+        asm.uiHidden();
+        asm.shutdownExecutor();
+
+        assertTrue("foregrounded must be false before applicationBackgrounded listener fires",
+                flagWasFlippedAtCallbackTime.get());
+    }
+
+    @Test
+    public void rapidCyclingSettlesOnCorrectFinalState() {
+        asm.activityStarted();  // count=1, already foregrounded
+
+        for (int i = 0; i < 5; i++) {
+            asm.uiHidden();              // queues: foregrounded=false, notify background
+            asm.activityStopped(true);   // queues: count→0, no chained uiHidden
+            asm.activityStarted();       // queues: count→1, foregrounded=false → true, notify foreground
+        }
+
+        asm.shutdownExecutor();
+
+        assertTrue("foregrounded flag must reflect the last queued transition after rapid cycling",
+                asm.getForgroundState().get());
+    }
+
+    @Test
     public void rotationSimulationKeepsCounterConsistentAndEmitsNoEvents() throws InterruptedException {
         // Initial: counter=0, foregrounded=true
         asm.activityStarted();    // OLD activity started: counter=1
