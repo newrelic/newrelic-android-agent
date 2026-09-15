@@ -396,7 +396,7 @@ public class HttpURLConnectionExtensionTest {
             Assert.assertNotNull(transactionState.getTrace());
 
             Map<String, List<String>> requestPayload = instrumentedConnection.getRequestProperties();
-            Assert.assertTrue(requestPayload.containsKey(TracePayload.TRACE_PAYLOAD_HEADER));
+            Assert.assertFalse(requestPayload.containsKey(TracePayload.TRACE_PAYLOAD_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceState.TRACE_STATE_HEADER));
             Assert.assertTrue(requestPayload.containsKey(TraceParent.TRACE_PARENT_HEADER));
         } catch (IllegalStateException e) {
