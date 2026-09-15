@@ -145,11 +145,13 @@ public abstract class TraceContext {
     }
 
     public Map<String, Object> asTraceAttributes() {
-        return new HashMap<String, Object>() {{
-            put(DistributedTracing.NR_ID_ATTRIBUTE, tracePayload.spanId);
-            put(DistributedTracing.NR_GUID_ATTRIBUTE, tracePayload.spanId);  // deprecated, but include for now
-            put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, traceId);
-        }};
+        HashMap<String, Object> attributes = new HashMap<>();
+
+        attributes.put(DistributedTracing.NR_ID_ATTRIBUTE, tracePayload.spanId);
+        attributes.put(DistributedTracing.NR_GUID_ATTRIBUTE, tracePayload.spanId);  // deprecated, but include for now
+        attributes.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, traceId);
+
+        return attributes;
     }
 
     public void putRequestContext(Map<String, String> requestContextAsMap) {
