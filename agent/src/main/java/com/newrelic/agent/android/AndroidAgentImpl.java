@@ -929,6 +929,15 @@ public class AndroidAgentImpl implements
     private static void startSessionReplayRecorderWithMode(Context context, AgentConfiguration agentConfiguration,
                                                            SessionReplayConfiguration sessionReplayConfiguration,
                                                            SessionReplayMode mode) {
+        if (ApplicationStateMonitor.isAppInBackground()) {
+            // NR-614098: a session that begins (or is re-evaluated, e.g. on harvest-connect or
+            // session restart) while the app is backgrounded can never capture a frame - there's
+            // no resumed Activity, no attached window. Don't set hasReplay or start the recorder.
+            log.debug("Skipping Session Replay bootstrap: application is in the background.");
+            AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED);
+            return;
+        }
+
         if(sessionReplayConfiguration.isEnabled()) {
             sessionReplayConfiguration.processCustomMaskingRules();
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
