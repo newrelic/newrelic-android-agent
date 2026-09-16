@@ -118,7 +118,7 @@ tasks.withType(Test).configureEach {
     maxHeapSize = "4g"
     ["newrelic.agent.args", "newrelic.agent.version", "integrations", "regressions"].each {
         if (project.hasProperty(it)) {
-            systemProperty it, project.property(it)
+            systemProperty it, project.property(it).toString().split('#')[0].trim()
         }
     }
 
