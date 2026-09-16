@@ -126,8 +126,13 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                 logDataMap.put(LogReporting.LOG_TIMESTAMP_ATTRIBUTE, String.valueOf(System.currentTimeMillis()));
                 logDataMap.put(LogReporting.LOG_LEVEL_ATTRIBUTE, logLevel.name().toUpperCase());
 
-                // set data with reserved attribute values
-//                logDataMap.putAll(getCommonBlockAttributes());
+                // Stamp the *originating* session id per entry. The payload's shared common
+                // block resolves the session id lazily at rollup time, which for a file
+                // recovered on a later launch is the wrong (new) session (NR-616897).
+                // Per-entry attributes override the common block. Only the session id is
+                // copied here - putAll(getCommonBlockAttributes()) would duplicate
+                // entity.guid and every session attribute onto every line.
+                logDataMap.put(LogReporting.LOG_SESSION_ID, AgentConfiguration.getInstance().getSessionID());
 
                 // translate a passed message to attributes
                 if (message != null) {
