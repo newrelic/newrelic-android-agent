@@ -255,7 +255,10 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                         if (remainingNs <= 0) {
                             break;
                         }
-                        waitMs = Math.min(QUEUE_THREAD_TTL, TimeUnit.NANOSECONDS.toMillis(remainingNs) + 1);
+                        // wait(0) blocks forever, so never let the computed budget reach 0 —
+                        // that would turn this bounded drain into an indefinite one on the
+                        // crash path (reachable if QUEUE_THREAD_TTL were ever set to 0).
+                        waitMs = Math.max(1, Math.min(QUEUE_THREAD_TTL, TimeUnit.NANOSECONDS.toMillis(remainingNs) + 1));
                     }
                     executor.wait(waitMs, 0);
                 }

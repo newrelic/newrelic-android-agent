@@ -454,22 +454,28 @@ public class RemoteLoggerTest extends LoggingTests {
 
     @Test
     public void testBoundedFlushReturnsWithinBudgetWhenQueueIsBlocked() throws Exception {
-        // Occupy every worker and leave the queue non-empty for several seconds, so an
-        // unbounded drain would block for the full duration of these tasks.
-        for (int i = 0; i < 8; i++) {
-            logger.executor.submit(() -> {
-                Thread.sleep(2_000);
-                return null;
-            });
+        try {
+            // Occupy every worker and leave the queue non-empty for several seconds, so an
+            // unbounded drain would block for the full duration of these tasks.
+            for (int i = 0; i < 8; i++) {
+                logger.executor.submit(() -> {
+                    Thread.sleep(2_000);
+                    return null;
+                });
+            }
+            Assert.assertTrue("queue should be non-empty", logger.getPendingTaskCountForTest() > 0);
+
+            final long startMs = System.currentTimeMillis();
+            logger.flush(150);
+            final long elapsedMs = System.currentTimeMillis() - startMs;
+
+            Assert.assertTrue("bounded flush must respect its deadline, took " + elapsedMs + "ms",
+                    elapsedMs < 1_500);
+        } finally {
+            // The sleeping tasks run on non-daemon threads and would otherwise keep the
+            // test JVM alive for ~8s after this test returns.
+            logger.executor.shutdownNow();
         }
-        Assert.assertTrue("queue should be non-empty", logger.getPendingTaskCountForTest() > 0);
-
-        final long startMs = System.currentTimeMillis();
-        logger.flush(150);
-        final long elapsedMs = System.currentTimeMillis() - startMs;
-
-        Assert.assertTrue("bounded flush must respect its deadline, took " + elapsedMs + "ms",
-                elapsedMs < 1_500);
     }
 
     @Test
