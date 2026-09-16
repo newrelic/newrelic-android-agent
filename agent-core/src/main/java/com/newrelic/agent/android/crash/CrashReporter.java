@@ -32,7 +32,6 @@ public class CrashReporter extends PayloadReporter {
 
     private final UncaughtExceptionHandler uncaughtExceptionHandler;
     protected final CrashStore crashStore;
-    private final CrashSessionReplayHandler sessionReplayHandler;
 
     public static CrashReporter getInstance() {
         return instance.get();
@@ -76,7 +75,6 @@ public class CrashReporter extends PayloadReporter {
         super(agentConfiguration);
         this.uncaughtExceptionHandler = new UncaughtExceptionHandler(this);
         this.crashStore = agentConfiguration.getCrashStore();
-        this.sessionReplayHandler = new CrashSessionReplayHandler(agentConfiguration);
         this.isEnabled.set(FeatureFlag.featureEnabled(FeatureFlag.CrashReporting));
     }
 
@@ -120,8 +118,13 @@ public class CrashReporter extends PayloadReporter {
     protected Future reportCrash(final Crash crash) {
         if (crash != null) {
 
+            // Constructed lazily inside the gate rather than held in a field: a field of an
+            // SR type, and an unconditional allocation, both anchor the sessionReplay package
+            // for R8 even when the gate folds to false (NR-587343 tree-shaking). The handler
+            // is stateless apart from agentConfiguration, so per-crash construction is
+            // equivalent to the previous long-lived instance.
             if (agentConfiguration.getSessionReplayConfiguration().isEnabled()) {
-                sessionReplayHandler.handleCrashSessionReplay(crash);
+                new CrashSessionReplayHandler(agentConfiguration).handleCrashSessionReplay(crash);
             }
 
             final boolean hasValidDataToken = crash.getDataToken().isValid();

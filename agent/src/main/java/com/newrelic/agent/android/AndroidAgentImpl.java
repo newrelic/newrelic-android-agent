@@ -178,10 +178,7 @@ public class AndroidAgentImpl implements
         agentConfiguration.setEventStore(new FileEventStore(context, agentConfiguration));
         context.deleteSharedPreferences("NREventStore");
 
-        agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
         context.deleteSharedPreferences("NRSessionReplayStore");
-
-        agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
 
         agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
         context.deleteSharedPreferences("NRJSErrorStore");
@@ -240,6 +237,9 @@ public class AndroidAgentImpl implements
     }
 
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
+            if (!LogReporting.isRemoteLoggingEnabled()) {
+                return;
+            }
             LogReportingConfiguration logReportingConfiguration = agentConfiguration.getLogReportingConfiguration();
             LogReportingConfiguration.reseed();
              if (logReportingConfiguration.isSampled()) {
@@ -731,7 +731,9 @@ public class AndroidAgentImpl implements
         Harvest.shutdown();
         Measurements.shutdown();
         PayloadController.shutdown();
-        SessionReplay.deInitialize();
+        if (AgentConfiguration.getInstance().getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.deInitialize();
+        }
 
         if (LogReporting.isRemoteLoggingEnabled()) {
             LogReporting.shutdown();
@@ -794,6 +796,9 @@ public class AndroidAgentImpl implements
      * @return true if recording started/transitioned to FULL, false if disabled
      */
     protected static boolean recordReplay() {
+        if (!AgentConfiguration.getInstance().getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            return false;
+        }
         // Check current mode - single call instead of two
         SessionReplayMode currentMode = SessionReplay.getCurrentMode();
 
@@ -839,6 +844,9 @@ public class AndroidAgentImpl implements
     }
 
     protected static boolean pauseReplay() {
+        if (!AgentConfiguration.getInstance().getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            return false;
+        }
         // If SessionReplay is already recording (ERROR or FULL mode)
         if (SessionReplay.isReplayRecording()) {
                 SessionReplay.pauseReplay();
@@ -930,6 +938,13 @@ public class AndroidAgentImpl implements
                                                            SessionReplayConfiguration sessionReplayConfiguration,
                                                            SessionReplayMode mode) {
         if(sessionReplayConfiguration.isEnabled()) {
+            agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
+            // Relocated out of the constructor: an unconditional allocation keeps
+            // FileOfflineSessionReplayStore reachable, which anchors OfflineSessionReplayStore
+            // and OfflineSessionReplayPayload in the sessionReplay package (NR-587343).
+            // Only SessionReplayReporter reads this store, and that is itself gated now.
+            agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
+
             sessionReplayConfiguration.processCustomMaskingRules();
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
             Handler uiHandler = new Handler(Looper.getMainLooper());
@@ -1238,7 +1253,9 @@ public class AndroidAgentImpl implements
     @Override
     public void onSessionRestarted() {
         // Shut down previous session's reporters before re-evaluating sampling
-        SessionReplay.deInitialize();
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.deInitialize();
+        }
 
         if (LogReporting.isRemoteLoggingEnabled()) {
             LogReporting.shutdown();
