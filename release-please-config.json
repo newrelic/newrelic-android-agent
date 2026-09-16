@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "java",
+  "include-component-in-tag": false,
+  "include-v-in-tag": false,
+  "draft": false,
+  "prerelease": false,
+  "release-search-depth": 150,
+  "packages": {
+    ".": {
+      "package-name": "newrelic-android-agent",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        "gradle.properties"
+      ]
+    }
+  }
+}
