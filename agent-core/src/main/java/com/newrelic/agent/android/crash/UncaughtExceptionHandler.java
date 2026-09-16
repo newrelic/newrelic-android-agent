@@ -33,9 +33,10 @@ public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler
 
     static Thread.UncaughtExceptionHandler previousExceptionHandler = null;
 
-    // Max time to spend draining queued log entries on the crash path. Buffered appends cost
-    // ~0.84us/line (~1.2M lines/sec), so even 10k queued entries drain in ~10ms; this is a
-    // generous ceiling, not a tuned value.
+    // Max time to spend draining queued log entries on the crash path. A buffered append
+    // measured ~0.84us/line (~1.2M lines/sec) on a development host -- not on device, so treat
+    // it as an order of magnitude only -- meaning even 10k queued entries drain in ~10ms. This
+    // is a generous ceiling chosen to bound the crash path, not a tuned value.
     static final long LOG_DRAIN_BUDGET_MS = 250;
 
     public UncaughtExceptionHandler(CrashReporter crashReporter) {
