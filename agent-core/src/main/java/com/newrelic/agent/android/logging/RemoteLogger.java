@@ -214,17 +214,55 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
         return (executor.getQueue().size() + executor.getActiveCount());
     }
 
-    // Block until the in-progress tasks have completed
+    // Block until the in-progress tasks have completed. Unbounded: retained for existing callers.
     protected void flush() {
+        drain(0);
+    }
+
+    /**
+     * Bounded drain, for callers that cannot afford to block indefinitely — notably the
+     * fatal-exception path, where blocking would delay chaining to the previous handler
+     * (NR-616897). Concurrent submissions can keep the queue non-empty, so an unbounded
+     * drain has no guaranteed exit.
+     *
+     * @param timeoutMs maximum total time to wait, in milliseconds
+     */
+    @Override
+    public void flush(long timeoutMs) {
+        drain(Math.max(1, timeoutMs));
+    }
+
+    /**
+     * @param timeoutMs total wait budget in milliseconds, or 0 for no deadline
+     */
+    private void drain(long timeoutMs) {
+        final boolean bounded = timeoutMs > 0;
+        final long deadlineNs = bounded
+                ? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs)
+                : 0L;
+
         synchronized (executor) {
             try {
                 while (getPendingTaskCount() > 0 && !executor.isTerminating() && !executor.isTerminated()) {
-                    executor.wait(QUEUE_THREAD_TTL, 0);
+                    long waitMs = QUEUE_THREAD_TTL;
+                    if (bounded) {
+                        final long remainingNs = deadlineNs - System.nanoTime();
+                        if (remainingNs <= 0) {
+                            break;
+                        }
+                        waitMs = Math.min(QUEUE_THREAD_TTL, TimeUnit.NANOSECONDS.toMillis(remainingNs) + 1);
+                    }
+                    executor.wait(waitMs, 0);
                 }
             } catch (InterruptedException e) {
-                // super.log(LogLevel.ERROR, e.toString());
+                Thread.currentThread().interrupt();
             }
         }
+    }
+
+    // Package-visible for tests
+    int getPendingTaskCountForTest() {
+        return getPendingTaskCount();
     }
 
     void shutdown() {
