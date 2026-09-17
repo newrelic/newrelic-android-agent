@@ -15,7 +15,6 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    environment: dev
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4 -- using sha to avoid malicious changes
         with:
