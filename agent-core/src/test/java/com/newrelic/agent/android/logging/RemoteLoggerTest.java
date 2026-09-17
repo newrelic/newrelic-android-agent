@@ -453,10 +453,61 @@ public class RemoteLoggerTest extends LoggingTests {
     }
 
     @Test
+    public void testBoundedFlushReturnsWithinBudgetWhenQueueIsBlocked() throws Exception {
+        try {
+            // Occupy every worker and leave the queue non-empty for several seconds, so an
+            // unbounded drain would block for the full duration of these tasks.
+            for (int i = 0; i < 8; i++) {
+                logger.executor.submit(() -> {
+                    Thread.sleep(2_000);
+                    return null;
+                });
+            }
+            Assert.assertTrue("queue should be non-empty", logger.getPendingTaskCountForTest() > 0);
+
+            final long startMs = System.currentTimeMillis();
+            logger.flush(150);
+            final long elapsedMs = System.currentTimeMillis() - startMs;
+
+            Assert.assertTrue("bounded flush must respect its deadline, took " + elapsedMs + "ms",
+                    elapsedMs < 1_500);
+        } finally {
+            // The sleeping tasks run on non-daemon threads and would otherwise keep the
+            // test JVM alive for ~8s after this test returns.
+            logger.executor.shutdownNow();
+        }
+    }
+
+    @Test
     public void testExecutor() {
         Assert.assertFalse(logger.executor.isShutdown());
         logger.shutdown();
         Assert.assertTrue(logger.executor.isShutdown());
+    }
+
+    @Test
+    public void testLogEntryCarriesItsOwnSessionId() throws Exception {
+        final String sessionId = AgentConfiguration.getInstance().getSessionID();
+        Assert.assertNotNull("test needs a session id", sessionId);
+
+        logger.log(LogLevel.INFO, "NR-616897 sessionId stamp probe");
+        logger.flush();
+
+        LogReporter.getInstance().finalizeWorkingLogfile();
+        JsonArray jsonArray = LogReporter.logfileToJsonArray(LogReporter.getInstance().workingLogfile);
+        JsonArray logs = jsonArray.get(0).getAsJsonObject().get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray();
+
+        boolean found = false;
+        for (JsonElement element : logs) {
+            JsonObject record = element.getAsJsonObject();
+            if (record.has(LogReporting.LOG_MESSAGE_ATTRIBUTE)
+                    && record.get(LogReporting.LOG_MESSAGE_ATTRIBUTE).getAsString().contains("sessionId stamp probe")) {
+                Assert.assertTrue("entry must carry its own sessionId", record.has(LogReporting.LOG_SESSION_ID));
+                Assert.assertEquals(sessionId, record.get(LogReporting.LOG_SESSION_ID).getAsString());
+                found = true;
+            }
+        }
+        Assert.assertTrue("probe record must be present", found);
     }
 
 }

@@ -101,6 +101,10 @@ public class WebViewCallSiteVisitor extends ClassVisitor {
                     // Instrument postUrl(String url, byte[] postData)
                     instrumentPostUrl(owner, name, descriptor, isInterface);
                     return;
+                } else if (name.equals("setWebViewClient") && descriptor.equals("(Landroid/webkit/WebViewClient;)V")) {
+                    // Wrap the client so the agent's onPageFinished runs without dropping the app's
+                    instrumentSetWebViewClient(owner, name, descriptor, isInterface);
+                    return;
                 }
             }
 
@@ -182,6 +186,42 @@ public class WebViewCallSiteVisitor extends ClassVisitor {
             mv.visitVarInsn(Opcodes.ALOAD, 100);   // Stack: [webView, url, headers]
 
             // Call original method
+            super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, owner, name, descriptor, isInterface);
+
+            context.markModified();
+        }
+
+        /**
+         * Instruments setWebViewClient(WebViewClient) by replacing the argument with an
+         * NRWebViewClient that delegates to it. Unlike the other interceptions in this class,
+         * which only observe, this one rewrites the call's argument.
+         *
+         * Stack before: [webView, client]
+         *
+         * Injected bytecode:
+         * ASTORE 100       // [webView]                    stash client
+         * DUP              // [webView, webView]
+         * ALOAD 100        // [webView, webView, client]
+         * INVOKESTATIC     // [webView, clientToSet]       wrap + record
+         * INVOKEVIRTUAL    // []                           call original with the wrapper
+         */
+        private void instrumentSetWebViewClient(String owner, String name, String descriptor, boolean isInterface) {
+            log.debug("[WebViewCallSiteVisitor] Instrumenting setWebViewClient(WebViewClient) call in class: " + className);
+
+            // Stack: [webView, client]
+            mv.visitVarInsn(Opcodes.ASTORE, 100);   // Stack: [webView]
+            mv.visitInsn(Opcodes.DUP);              // Stack: [webView, webView]
+            mv.visitVarInsn(Opcodes.ALOAD, 100);    // Stack: [webView, webView, client]
+
+            mv.visitMethodInsn(
+                    Opcodes.INVOKESTATIC,
+                    "com/newrelic/agent/android/webView/WebViewInstrumentationCallbacks",
+                    "setWebViewClientCalled",
+                    "(Landroid/webkit/WebView;Landroid/webkit/WebViewClient;)Landroid/webkit/WebViewClient;",
+                    false
+            );
+            // Stack: [webView, clientToSet]
+
             super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, owner, name, descriptor, isInterface);
 
             context.markModified();
