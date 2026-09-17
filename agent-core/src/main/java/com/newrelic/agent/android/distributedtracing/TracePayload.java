@@ -13,8 +13,8 @@ import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 
 /**
- * The original, proprietary header that is still sent to maintain backward compatibility
- * with prior New Relic agents.
+ * The original, proprietary "newrelic" header. No longer added to {@link TraceContext#getHeaders()}
+ * (NR-382848) — retained here only because its span ID backs {@link TraceContext#asTraceAttributes()}.
  */
 public class TracePayload implements TraceHeader {
     private static final AgentLog log = AgentLogManager.getAgentLog();
