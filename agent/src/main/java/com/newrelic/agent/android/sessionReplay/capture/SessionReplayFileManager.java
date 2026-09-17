@@ -225,31 +225,38 @@ public class SessionReplayFileManager {
 
     /**
      * Clears the current working session replay file and creates a new one.
-     * This is called after a successful harvest to ensure we start with a fresh file.
+     * This is called on application background to ensure we start with a fresh file.
      */
     public void clearWorkingFile() {
         Callable<Void> clearFileTask = new Callable<Void>() {
             @Override
             public Void call() throws Exception {
-                try {
-                    // Close the current writer if it exists
-                    BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
-                    if (currentWriter != null) {
-                        currentWriter.flush();
-                        currentWriter.close();
-                    }
+                // Guard on the same lock as every other writer/file path so this cannot
+                // close the writer out from under an in-flight frame or touch write
+                // running on another pool thread.
+                synchronized (fileSyncLock) {
+                    try {
+                        // Close the current writer and clear the reference. Clearing matters:
+                        // leaving a closed writer published makes every later write fail with
+                        // "Stream closed", silently ending capture for the process lifetime.
+                        closeWorkingSessionReplayFileWriter();
 
-                    // Delete the current file
-                    if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
-                        boolean deleted = workingSessionReplayFile.delete();
-                        if (!deleted) {
-                            log.warn("Failed to delete working session replay file");
+                        // Delete the current file
+                        if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
+                            boolean deleted = workingSessionReplayFile.delete();
+                            if (!deleted) {
+                                log.warn("Failed to delete working session replay file");
+                            }
                         }
-                    }
 
-                    log.debug("Created new session replay file: " + workingSessionReplayFile.getAbsolutePath());
-                } catch (IOException e) {
-                    log.error("Error clearing working session replay file", e);
+                        // Re-create the file and its writer for the current session so capture
+                        // resumes when the app is foregrounded again. Nothing else re-initializes
+                        // the writer: initialize() is gated by SessionReplay.isInitialized, and
+                        // applicationForegrounded() is a no-op.
+                        initializeFileWriter();
+                    } catch (IOException e) {
+                        log.error("Error clearing working session replay file", e);
+                    }
                 }
                 return null;
             }
@@ -459,13 +466,10 @@ public class SessionReplayFileManager {
      */
     public static void shutdown() {
         try {
-            // Close the current writer if it exists
-            BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
-            if (currentWriter != null) {
-                currentWriter.flush();
-                currentWriter.close();
-                workingSessionReplayFileWriter.set(null);
-            }
+            // Close the current writer and clear the reference. Uses getAndSet(null) so the
+            // reference is cleared even if flush()/close() throws — otherwise a failed close
+            // would leave a dead writer published for the next session to write into.
+            closeWorkingSessionReplayFileWriter();
         } catch (Exception e) {
             log.error("Error during shutdown", e);
         }
