@@ -22,9 +22,19 @@ jobs:
           fetch-depth: 0
 
       - id: release-please
+        if: ${{ secrets.RELEASE_BOT_PAT != '' }}
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 #v5 -- using sha to avoid malicious changes
         with:
-          token: ${{ secrets.RELEASE_BOT_PAT || github.token }}
+          token: ${{ secrets.RELEASE_BOT_PAT }}
+          target-branch: develop
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - id: release-please-fallback
+        if: ${{ secrets.RELEASE_BOT_PAT == '' }}
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 #v5 -- using sha to avoid malicious changes
+        with:
+          token: ${{ github.token }}
           target-branch: develop
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
