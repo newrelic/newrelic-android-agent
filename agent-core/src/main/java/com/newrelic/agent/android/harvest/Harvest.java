@@ -7,6 +7,7 @@ package com.newrelic.agent.android.harvest;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.activity.config.ActivityTraceConfiguration;
+import com.newrelic.agent.android.ai.SessionSummaryProvider;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.SessionEvent;
@@ -20,6 +21,7 @@ import com.newrelic.agent.android.tracing.ActivityTrace;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Set;
 
 public class Harvest implements HarvestConfigurable {
     private static final AgentLog log = AgentLogManager.getAgentLog();
@@ -476,7 +478,20 @@ public class Harvest implements HarvestConfigurable {
             analyticsController.setAttribute(AnalyticsAttribute.SESSION_DURATION_ATTRIBUTE, sessionDurationAsSeconds, false);
 
             log.debug("Harvest: Generating session event.");
-            SessionEvent sessionEvent = new SessionEvent();
+
+            // Attributes from the on-device session summarizer, when that feature is enabled and a
+            // summary was produced. Defaults to an empty set, which makes the session event
+            // identical to what it was before that feature existed. Deliberately attached to this
+            // event rather than set as a session attribute: session attributes are copied onto
+            // every event in the harvest payload, and a ~1KB summary string multiplied across them
+            // would cost far more to ingest than it is worth.
+            Set<AnalyticsAttribute> summaryAttributes =
+                    SessionSummaryProvider.Registry.get().getSessionEventAttributes();
+
+            SessionEvent sessionEvent = (summaryAttributes == null || summaryAttributes.isEmpty())
+                    ? new SessionEvent()
+                    : new SessionEvent(summaryAttributes);
+
             analyticsController.addEvent(sessionEvent);
         } catch (Exception e) {
             log.debug("Harvest: Finalize session failed with exception: " + e.getMessage());

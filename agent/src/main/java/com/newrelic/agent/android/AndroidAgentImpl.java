@@ -24,6 +24,11 @@ import android.os.StatFs;
 import android.text.TextUtils;
 
 import com.newrelic.agent.android.aei.ApplicationExitMonitor;
+import com.newrelic.agent.android.ai.SessionSummarizer;
+import com.newrelic.agent.android.ai.SessionSummarizerFactory;
+import com.newrelic.agent.android.ai.SessionSummaryController;
+import com.newrelic.agent.android.ai.SessionSummaryFileStore;
+import com.newrelic.agent.android.ai.SessionSummaryProvider;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
@@ -143,6 +148,9 @@ public class AndroidAgentImpl implements
     // Producers and consumers that are tightly coupled to Android implementations
     private MachineMeasurementConsumer machineMeasurementConsumer;
     private OfflineStorage offlineStorageInstance;
+
+    // On-device session summarization. Null unless the feature flag is on.
+    private SessionSummaryController sessionSummaryController;
     public AndroidAgentImpl(final Context context, final AgentConfiguration agentConfiguration) throws AgentInitializationException {
         // We want an Application context, not an Activity context.
         this.context = appContext(context);
@@ -320,6 +328,42 @@ public class AndroidAgentImpl implements
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_HYBRID_PLATFORM_KMP);
         }
 
+        initializeSessionSummarization();
+    }
+
+    /**
+     * Stands up on-device session summarization. Opt-in via {@link FeatureFlag#SessionSummarization}
+     * and a no-op on any device without an on-device model SDK, which is most of them.
+     *
+     * Registered last, and wrapped, because this feature must never be able to prevent the agent
+     * from starting.
+     */
+    protected void initializeSessionSummarization() {
+        if (!FeatureFlag.featureEnabled(FeatureFlag.SessionSummarization)) {
+            return;
+        }
+
+        try {
+            final SessionSummarizer summarizer = SessionSummarizerFactory.create(context);
+
+            sessionSummaryController = new SessionSummaryController(
+                    summarizer,
+                    new SessionSummaryFileStore(context),
+                    agentConfiguration);
+
+            Harvest.addHarvestListener(sessionSummaryController);
+            SessionSummaryProvider.Registry.set(sessionSummaryController);
+
+            // A digest left behind by a previous session gets summarized here, where the process is
+            // warm and nothing is time-critical.
+            sessionSummaryController.processPendingDigest();
+
+            log.debug("SessionSummary: initialized with " + summarizer.getModelName());
+        } catch (Throwable t) {
+            log.debug("SessionSummary: initialization failed, feature disabled: " + t);
+            sessionSummaryController = null;
+            SessionSummaryProvider.Registry.reset();
+        }
     }
 
     protected void setupSession() {
@@ -724,6 +768,18 @@ public class AndroidAgentImpl implements
             } catch (NoClassDefFoundError e) {
                 // ignored
             }
+        }
+
+        // Order is load-bearing. This runs after the final harvest above, so the controller already
+        // knows whether its summary was attached to the session event, and it will only persist a
+        // digest for deferred summarization if it was not. It must also run before shutdown(), which
+        // stops accepting work. start() re-creates the controller on the next foreground, and the
+        // digest persisted here is picked up there by processPendingDigest().
+        if (sessionSummaryController != null) {
+            sessionSummaryController.persistPendingDigest();
+            sessionSummaryController.shutdown();
+            sessionSummaryController = null;
+            SessionSummaryProvider.Registry.reset();
         }
 
         AnalyticsControllerImpl.shutdown();

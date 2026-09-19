@@ -27,7 +27,14 @@ public enum FeatureFlag {
     LogReporting,
     ApplicationExitReporting,
     BackgroundReporting,
-    EventPersistence;
+    EventPersistence,
+
+    /**
+     * On-device AI session summarization. Opt-in only, and deliberately absent from
+     * {@link #resetFeatures()}: it depends on a model that exists on a small fraction of devices,
+     * and enabling it by default would add an egress path nobody asked for.
+     */
+    SessionSummarization;
 
     public static final Set<FeatureFlag> enabledFeatures = new HashSet<FeatureFlag>();
 

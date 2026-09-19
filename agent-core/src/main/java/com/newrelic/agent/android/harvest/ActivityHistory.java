@@ -25,6 +25,14 @@ public class ActivityHistory extends HarvestableArray {
         return activityHistory.size();
     }
 
+    /**
+     * @return the sightings, each carrying the screen name and the duration the user actually spent
+     * there. Read-only: sightings are owned by TraceMachine and mutated as the user navigates.
+     */
+    public List<ActivitySighting> getActivitySightings() {
+        return activityHistory;
+    }
+
     @Override
     public JsonArray asJsonArray() {
         final JsonArray data = new JsonArray();
