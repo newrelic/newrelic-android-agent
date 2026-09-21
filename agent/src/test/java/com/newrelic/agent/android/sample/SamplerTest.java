@@ -130,6 +130,41 @@ public class SamplerTest {
         Assert.assertTrue("Should contain 0 CPU memory sample", cpuSamples.isEmpty());
     }
 
+    /**
+     * The platform rate-limits {@code ActivityManager.getProcessMemoryInfo} (measured at 300s), so
+     * the periodic loop must not take a memory sample on every tick -- doing so only produced
+     * duplicate values and needless Binder traffic.
+     */
+    @Test
+    public void testMemorySamplingIsThrottledWithinWindow() throws Exception {
+        Sampler.sampler.clear();
+
+        for (int i = 0; i < 10; i++) {
+            Sampler.sampler.sample();
+        }
+
+        Collection<Sample> memorySamples = TestSampler.copySamples().get(Sample.SampleType.MEMORY);
+        Assert.assertEquals("Should take exactly one memory sample per throttle window",
+                1, memorySamples.size());
+    }
+
+    /**
+     * clear() must reset the throttle, otherwise a short interaction beginning inside the previous
+     * trace's window would report no memory vitals at all.
+     */
+    @Test
+    public void testClearResetsMemorySampleThrottle() throws Exception {
+        Sampler.sampler.clear();
+        Sampler.sampler.sample();
+        Assert.assertEquals("First sample after clear should be taken",
+                1, TestSampler.copySamples().get(Sample.SampleType.MEMORY).size());
+
+        Sampler.sampler.clear();
+        Sampler.sampler.sample();
+        Assert.assertEquals("Sample after clear should be taken even though the window has not elapsed",
+                1, TestSampler.copySamples().get(Sample.SampleType.MEMORY).size());
+    }
+
     @Test
     public void testOnEnterMethod() throws Exception {
         samplerSpy.onEnterMethod();
