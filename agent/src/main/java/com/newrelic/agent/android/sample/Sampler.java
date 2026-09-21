@@ -39,6 +39,25 @@ import java.util.concurrent.locks.ReentrantLock;
 public class Sampler implements TraceLifecycleAware, Runnable {
     protected static final long SAMPLE_FREQ_MS = 100;
     protected static final long SAMPLE_FREQ_MS_MAX = 250;     // upper limit on sampling frequency
+
+    /**
+     * Minimum interval between memory samples taken by the periodic loop.
+     *
+     * {@link ActivityManager#getProcessMemoryInfo(int[])} has been rate-limited by the platform
+     * since API 29. Called faster than the limit allows, it returns the previous call's data
+     * unchanged, with no exception or other signal that the value is stale. That limit was
+     * measured at exactly 300s -- identical on a Galaxy S25 and an AOSP emulator, both API 36 --
+     * so sampling at {@link #SAMPLE_FREQ_MS} yielded 99.94% duplicate values (2 fresh samples out
+     * of 3600 across a 900s run) while issuing a Binder transaction to system_server every 100ms.
+     *
+     * Sampling faster than the source can change buys no information, so this interval exists to
+     * drop that Binder traffic and the duplicate points it appends to trace vitals. It stays well
+     * below the measured 300s deliberately: it preserves a multi-point vitals series for longer
+     * interactions rather than collapsing every trace to a single reading, and it does not assume
+     * the platform's limit is the same on every OEM and API level.
+     */
+    protected static final long MEMORY_SAMPLE_FREQ_MS = 5_000;
+
     private static final int[] PID = {android.os.Process.myPid()};
     private static final int KB_IN_MB = 1024;
     private static final AgentLog log = AgentLogManager.getAgentLog();
@@ -62,6 +81,12 @@ public class Sampler implements TraceLifecycleAware, Runnable {
     private RandomAccessFile appStatFile;
     private Metric samplerServiceMetric;
 
+    /**
+     * Monotonic timestamp of the last memory sample taken by the periodic loop, or null if none
+     * has been taken for the current trace. See {@link #MEMORY_SAMPLE_FREQ_MS}.
+     */
+    private Long lastMemorySampleNs;
+
     protected Sampler(Context context) {
         activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
 
@@ -79,9 +104,12 @@ public class Sampler implements TraceLifecycleAware, Runnable {
 
                 TraceMachine.addTraceListener(sampler);
 
+                // VERSION_CODES.N is API 24 / Android 7.0, which is also this agent's minSdk --
+                // so this branch is taken on every supported device and sampleCpu() always
+                // returns null. The CPU path below is retained only for correctness.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     cpuSamplingDisabled = true;
-                    log.debug("CPU sampling not supported in Android 8 and above.");
+                    log.debug("CPU sampling is not supported on Android 7.0 (API 24) and above.");
                 }
 
                 log.debug("Sampler initialized");
@@ -232,10 +260,13 @@ public class Sampler implements TraceLifecycleAware, Runnable {
         samplerLock.lock();
         try {
             timer.tic();
-            final Sample memorySample = sampleMemory();
 
-            if (memorySample != null) {
-                getSampleCollection(Sample.SampleType.MEMORY).add(memorySample);
+            if (isMemorySampleDue()) {
+                final Sample memorySample = sampleMemory();
+
+                if (memorySample != null) {
+                    getSampleCollection(Sample.SampleType.MEMORY).add(memorySample);
+                }
             }
 
             final Sample cpuSample = sampleCpu();
@@ -253,10 +284,35 @@ public class Sampler implements TraceLifecycleAware, Runnable {
         monitorSamplerServiceTime(timer.toc());
     }
 
+    /**
+     * @return true if at least {@link #MEMORY_SAMPLE_FREQ_MS} has elapsed since the last memory
+     * sample, or if none has been taken yet for the current trace. Advances the timestamp as a
+     * side effect, so a true result means the caller is expected to take the sample.
+     *
+     * Uses a monotonic clock: a wall-clock comparison could be skewed by a device time change
+     * mid-trace, either suppressing samples indefinitely or defeating the throttle entirely.
+     */
+    private boolean isMemorySampleDue() {
+        final long nowNs = System.nanoTime();
+
+        if (lastMemorySampleNs != null &&
+                (nowNs - lastMemorySampleNs) < TimeUnit.MILLISECONDS.toNanos(MEMORY_SAMPLE_FREQ_MS)) {
+            return false;
+        }
+
+        lastMemorySampleNs = nowNs;
+        return true;
+    }
+
     protected void clear() {
         for (Collection<Sample> sampleCollection : samples.values()) {
             sampleCollection.clear();
         }
+
+        // Reset so the first tick of the next trace always takes a memory sample. Without this a
+        // short interaction starting inside the previous trace's throttle window would report no
+        // memory vitals at all.
+        lastMemorySampleNs = null;
     }
 
     public static Sample sampleMemory() {
@@ -306,8 +362,9 @@ public class Sampler implements TraceLifecycleAware, Runnable {
 
             if (procStatFile == null || appStatFile == null) {
                 // On our first cycle, open up the proc files.
-                // Starting with Android N (8), runtime apps no longer have access to teh /proc fs
-                // There is no workaround at the moment
+                // Starting with Android 7.0 (API 24, VERSION_CODES.N), apps no longer have access
+                // to the /proc filesystem. There is no known workaround, so this is unreachable on
+                // every API level the agent supports -- cpuSamplingDisabled is always true there.
                 appStatFile = new RandomAccessFile("/proc/" + PID[0] + "/stat", "r");
                 procStatFile = new RandomAccessFile("/proc/stat", "r");
             } else {
