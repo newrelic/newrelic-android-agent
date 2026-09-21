@@ -5,10 +5,18 @@
 
 package com.newrelic.agent.android.rum;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.robolectric.Shadows.shadowOf;
 
 import android.app.Activity;
+import android.os.Looper;
+import android.view.View;
+import android.view.Window;
 
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -151,6 +159,45 @@ public class AppApplicationLifeCycleTest {
 
         Assert.assertFalse("stopping after the first frame is a normal background, not a cold-start invalidation",
                 getStaticBoolean("backgroundedBeforeFirstDraw"));
+    }
+
+    // --- first-frame listener registration must not force the window to build its decor view ---
+
+    @Test
+    public void onActivityCreated_neverForcesDecorViewCreation() {
+        // onActivityCreated is dispatched from inside the activity's super.onCreate(), before it
+        // has called setContentView(). getDecorView() there forces installDecor()/generateLayout(),
+        // which on some frameworks makes a synchronous binder call to the system server and stalls
+        // the main thread mid cold start.
+        Window window = mock(Window.class);
+        when(window.peekDecorView()).thenReturn(null);
+        Activity activity = activityNamed("MainActivity");
+        when(activity.getWindow()).thenReturn(window);
+
+        lifecycle.onActivityCreated(activity, null);
+
+        verify(window, never()).getDecorView();
+    }
+
+    @Test
+    public void onActivityCreated_registersFirstFrameListenerOnceContentIsInstalled() {
+        View decorView = mock(View.class);
+        when(decorView.isAttachedToWindow()).thenReturn(false);
+        Window window = mock(Window.class);
+        // No decor view during super.onCreate(); the activity installs one before the retry runs.
+        when(window.peekDecorView()).thenReturn(null, decorView);
+        Activity activity = activityNamed("MainActivity");
+        when(activity.getWindow()).thenReturn(window);
+
+        lifecycle.onActivityCreated(activity, null);
+        shadowOf(Looper.getMainLooper()).idle();   // run the posted retry
+
+        verify(window, times(2)).peekDecorView();
+        verify(window, never()).getDecorView();
+        // Decor view is not attached until the first traversal, and before API 26 an OnDrawListener
+        // added to a detached view's floating observer is silently dropped, so registration has to
+        // wait for the attach callback.
+        verify(decorView).addOnAttachStateChangeListener(any(View.OnAttachStateChangeListener.class));
     }
 
     // --- hot start behavior (unchanged) ---

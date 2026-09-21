@@ -16,6 +16,7 @@ import android.os.Process;
 import android.os.SystemClock;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.view.Window;
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
@@ -208,8 +209,67 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
      * is drawn, marking the end of the cold-start (TTID) window.
      */
     private void registerFirstFrameListener(final Activity activity) {
+        registerFirstFrameListener(activity, true);
+    }
+
+    /**
+     * @param mayRetry when the activity has not installed its content yet, retry once on the next
+     *                 main-thread message rather than forcing the window to build its decor view.
+     */
+    private void registerFirstFrameListener(final Activity activity, final boolean mayRetry) {
         try {
-            final View decorView = activity.getWindow().getDecorView();
+            final Window window = activity.getWindow();
+            // peekDecorView(), never getDecorView(): the framework dispatches onActivityCreated
+            // from inside the activity's super.onCreate(), before it has called setContentView().
+            // getDecorView() would force installDecor()/generateLayout() at that point, and that
+            // path can make a synchronous binder call to the system server to resolve the
+            // activity's windowing mode - a main-thread IPC in the middle of the cold start this
+            // code exists to measure.
+            final View decorView = window == null ? null : window.peekDecorView();
+            if (decorView == null) {
+                if (mayRetry) {
+                    // Content is not installed yet. Retry after the current lifecycle transaction,
+                    // by which point setContentView() has run and peekDecorView() is a field read.
+                    // Still well ahead of the first frame.
+                    new Handler(Looper.getMainLooper()).post(() -> registerFirstFrameListener(activity, false));
+                } else {
+                    log.debug("App launch time: activity has no decor view, cold start not measured.");
+                }
+                return;
+            }
+            if (decorView.isAttachedToWindow()) {
+                addFirstDrawListener(decorView);
+            } else {
+                // The decor view is not attached to the window until the first traversal. Before
+                // API 26, ViewTreeObserver.merge() does not carry OnDrawListeners over from a
+                // detached view's floating observer, so a listener added now would silently never
+                // fire. onViewAttachedToWindow() runs at the start of that first traversal, still
+                // ahead of its draw pass.
+                decorView.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+                    @Override
+                    public void onViewAttachedToWindow(View view) {
+                        view.removeOnAttachStateChangeListener(this);
+                        addFirstDrawListener(view);
+                    }
+
+                    @Override
+                    public void onViewDetachedFromWindow(View view) {
+                        view.removeOnAttachStateChangeListener(this);
+                    }
+                });
+            }
+        } catch (Exception ex) {
+            log.error("App launch time exception registering first-frame listener: " + ex);
+        }
+    }
+
+    /**
+     * Adds the one-shot draw listener that closes the cold-start (TTID) window on the first frame.
+     * Separate from registration because it may run later, from the decor view's attach callback,
+     * outside the caller's try/catch.
+     */
+    private void addFirstDrawListener(final View decorView) {
+        try {
             final ViewTreeObserver viewTreeObserver = decorView.getViewTreeObserver();
             if (!viewTreeObserver.isAlive()) {
                 return;
@@ -240,7 +300,7 @@ public class AppApplicationLifeCycle implements Application.ActivityLifecycleCal
                 }
             });
         } catch (Exception ex) {
-            log.error("App launch time exception registering first-frame listener: " + ex);
+            log.error("App launch time exception adding first-frame draw listener: " + ex);
         }
     }
 
