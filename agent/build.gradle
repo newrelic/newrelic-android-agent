@@ -130,6 +130,9 @@ dependencies {
     implementation project(path: ':agent-core', configuration: 'fat')
     implementation( 'com.squareup.curtains:curtains:1.2.5')
     implementation("org.jetbrains.kotlin:kotlin-stdlib:${versions.java.kotlin}")
+    // Zero-dependency (32KB) decoder for the native-crash tombstone protobuf
+    // returned by ApplicationExitInfo.getTraceInputStream(). MIT licensed.
+    implementation('com.abovevacant:epitaph:0.2.0')
 
     compileOnly fileTree(dir: 'libs', include: '*.jar')
     compileOnly newrelic.deps.ndk
@@ -201,6 +204,9 @@ def toFatJarTask(def variant) {
             exclude("com.newrelic.agent.android.instrumentation.GsonInstrumentation")
         }
         relocate("com.google.flatbuffers", "com.newrelic.com.google.flatbuffers")
+        // Relocated for the same reason as gson/flatbuffers: a host app that also depends on
+        // epitaph would otherwise hit duplicate classes when merging our fat jar.
+        relocate("com.abovevacant.epitaph", "com.newrelic.com.abovevacant.epitaph")
         mergeServiceFiles()
     }
 

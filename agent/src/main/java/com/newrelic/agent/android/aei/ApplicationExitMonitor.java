@@ -181,12 +181,31 @@ public class ApplicationExitMonitor {
                 // write a marker so we don't inspect this record again (over-reporting)
                 try (OutputStream artifactOs = new FileOutputStream(artifact, false)) {
 
-                    if (null != exitInfo.getTraceInputStream()) {
-                        try (InputStream traceIs = exitInfo.getTraceInputStream()) {
-                            traceReport = Streams.slurpString(traceIs);
-                        } catch (IOException e) {
-                            log.info("ApplicationExitMonitor: " + e);
+                    // Open the trace stream once. Every getTraceInputStream() call returns a new
+                    // stream over a fresh fd, so null-checking with one call and reading from a
+                    // second leaked the first.
+                    try (InputStream traceIs = exitInfo.getTraceInputStream()) {
+                        if (null != traceIs) {
+                            if (AEITombstone.isNativeTombstone(exitInfo.getReason())) {
+                                // A native crash delivers a binary protobuf tombstone, not text.
+                                // It has to be decoded here rather than downstream, because
+                                // slurpString() would lossily UTF-8 decode and destroy the bytes.
+                                try {
+                                    traceReport = AEITombstone.decodeToString(traceIs, exitInfo.getPid());
+                                    AEITombstone.logReport(traceReport);
+                                } catch (IOException | RuntimeException e) {
+                                    // A tombstone we can't read must not stop the remaining records
+                                    // from being harvested; traceReport keeps the exitInfo.toString()
+                                    // default assigned above.
+                                    log.warn("ApplicationExitMonitor: could not decode native crash tombstone for pid["
+                                            + exitInfo.getPid() + "]: " + e);
+                                }
+                            } else {
+                                traceReport = Streams.slurpString(traceIs);
+                            }
                         }
+                    } catch (IOException e) {
+                        log.info("ApplicationExitMonitor: " + e);
                     }
 
                     artifactOs.write(traceReport.getBytes(StandardCharsets.UTF_8));
