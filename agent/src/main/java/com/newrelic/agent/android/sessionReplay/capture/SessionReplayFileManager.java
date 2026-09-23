@@ -106,7 +106,7 @@ public class SessionReplayFileManager {
         Callable<Void> initTask = () -> {
             try {
                 workingSessionReplayFile = getWorkingSessionReplayFile();
-                workingSessionReplayFileWriter.set(new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile)));
+                replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, false);
                 log.debug("Initialized session replay file: " + workingSessionReplayFile.getAbsolutePath());
             } catch (IOException e) {
                 log.error("Error initializing session replay file", e);
@@ -199,11 +199,7 @@ public class SessionReplayFileManager {
                 synchronized (fileSyncLock) {
                     try {
                         // Close the current writer if it exists
-                        BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
-                        if (currentWriter != null) {
-                            currentWriter.flush();
-                            workingSessionReplayFileWriter.set(null);
-                        }
+                        closeWorkingSessionReplayFileWriter();
 
                         // Clear the file contents by creating a new empty file
                         if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
@@ -214,7 +210,7 @@ public class SessionReplayFileManager {
                         }
                         // Reinitialize the writer for new content
                         if (workingSessionReplayFile != null) {
-                            workingSessionReplayFileWriter.set(new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile, true)));
+                            replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, true);
                         }
                     } catch (IOException e) {
                         log.error("Error clearing working session replay file", e);
@@ -229,31 +225,38 @@ public class SessionReplayFileManager {
 
     /**
      * Clears the current working session replay file and creates a new one.
-     * This is called after a successful harvest to ensure we start with a fresh file.
+     * This is called on application background to ensure we start with a fresh file.
      */
     public void clearWorkingFile() {
         Callable<Void> clearFileTask = new Callable<Void>() {
             @Override
             public Void call() throws Exception {
-                try {
-                    // Close the current writer if it exists
-                    BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
-                    if (currentWriter != null) {
-                        currentWriter.flush();
-                        currentWriter.close();
-                    }
+                // Guard on the same lock as every other writer/file path so this cannot
+                // close the writer out from under an in-flight frame or touch write
+                // running on another pool thread.
+                synchronized (fileSyncLock) {
+                    try {
+                        // Close the current writer and clear the reference. Clearing matters:
+                        // leaving a closed writer published makes every later write fail with
+                        // "Stream closed", silently ending capture for the process lifetime.
+                        closeWorkingSessionReplayFileWriter();
 
-                    // Delete the current file
-                    if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
-                        boolean deleted = workingSessionReplayFile.delete();
-                        if (!deleted) {
-                            log.warn("Failed to delete working session replay file");
+                        // Delete the current file
+                        if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
+                            boolean deleted = workingSessionReplayFile.delete();
+                            if (!deleted) {
+                                log.warn("Failed to delete working session replay file");
+                            }
                         }
-                    }
 
-                    log.debug("Created new session replay file: " + workingSessionReplayFile.getAbsolutePath());
-                } catch (IOException e) {
-                    log.error("Error clearing working session replay file", e);
+                        // Re-create the file and its writer for the current session so capture
+                        // resumes when the app is foregrounded again. Nothing else re-initializes
+                        // the writer: initialize() is gated by SessionReplay.isInitialized, and
+                        // applicationForegrounded() is a no-op.
+                        initializeFileWriter();
+                    } catch (IOException e) {
+                        log.error("Error clearing working session replay file", e);
+                    }
                 }
                 return null;
             }
@@ -283,6 +286,32 @@ public class SessionReplayFileManager {
         sessionReplayFile.setLastModified(System.currentTimeMillis());
 
         return sessionReplayFile;
+    }
+
+    static void closeWorkingSessionReplayFileWriter() throws IOException {
+        BufferedWriter currentWriter = workingSessionReplayFileWriter.getAndSet(null);
+        if (currentWriter != null) {
+            currentWriter.flush();
+            currentWriter.close();
+        }
+    }
+
+    static void replaceWorkingSessionReplayFileWriter(File file, boolean append) throws IOException {
+        closeWorkingSessionReplayFileWriter();
+        BufferedWriter newWriter = null;
+        try {
+            newWriter = new BufferedWriter(new java.io.FileWriter(file, append));
+            workingSessionReplayFileWriter.set(newWriter);
+        } catch (IOException e) {
+            if (newWriter != null) {
+                try {
+                    newWriter.close();
+                } catch (IOException closeException) {
+                    log.error("Error closing newly created session replay file writer", closeException);
+                }
+            }
+            throw e;
+        }
     }
 
     /**
@@ -405,12 +434,7 @@ public class SessionReplayFileManager {
                         log.debug("Pruning: removed " + (allEvents.size() - recentEvents.size()) + " old events, kept " + recentEvents.size() + " recent events");
 
                         // Close current writer before rewriting file
-                        BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
-                        if (currentWriter != null) {
-                            currentWriter.flush();
-                            currentWriter.close();
-                            workingSessionReplayFileWriter.set(null);
-                        }
+                        closeWorkingSessionReplayFileWriter();
 
                         // Rewrite file with only recent events
                         try (BufferedWriter writer = new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile, false))) {
@@ -422,7 +446,7 @@ public class SessionReplayFileManager {
                         }
 
                         // Reinitialize the writer for new content
-                        workingSessionReplayFileWriter.set(new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile, true)));
+                        replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, true);
                         log.debug("Successfully pruned events older than " + thresholdMs + "ms");
 
                     } catch (IOException e) {
@@ -442,13 +466,10 @@ public class SessionReplayFileManager {
      */
     public static void shutdown() {
         try {
-            // Close the current writer if it exists
-            BufferedWriter currentWriter = workingSessionReplayFileWriter.get();
-            if (currentWriter != null) {
-                currentWriter.flush();
-                currentWriter.close();
-                workingSessionReplayFileWriter.set(null);
-            }
+            // Close the current writer and clear the reference. Uses getAndSet(null) so the
+            // reference is cleared even if flush()/close() throws — otherwise a failed close
+            // would leave a dead writer published for the next session to write into.
+            closeWorkingSessionReplayFileWriter();
         } catch (Exception e) {
             log.error("Error during shutdown", e);
         }
