@@ -106,7 +106,6 @@ private class MeasureNavigationObserver(
                 AnalyticsControllerImpl.getInstance().recordBreadcrumb("screen_name: $to", attributes)
 
                 if (FeatureFlag.featureEnabled(FeatureFlag.AutomaticMobileViewTracing) && to != lastMobileViewRoute) {
-                    lastMobileViewRoute = to
                     try {
                         // No distinct "created" moment exists for a Compose destination (only
                         // this destination-changed callback firing) - loadTime is left
@@ -116,6 +115,10 @@ private class MeasureNavigationObserver(
                         MobileViewContext.getInstance().onViewAppeared(
                             MobileViewAppearance(to, UiPlatform.COMPOSE)
                         )
+                        // Only mark the route as reported once onViewAppeared has actually
+                        // succeeded - if it threw, this route's appearance was never recorded,
+                        // so a later re-fire for the same route must not be silently deduped.
+                        lastMobileViewRoute = to
                     } catch (e: Exception) {
                         log.error("ComposeNavigationInstrumentation.destinationChangedListener: ", e)
                     }
