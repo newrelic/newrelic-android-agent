@@ -11,3 +11,5 @@ local.properties
 *.class
 Test Harness
 infer-out
+.env
+.secrets
