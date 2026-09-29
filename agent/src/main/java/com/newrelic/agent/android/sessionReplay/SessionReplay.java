@@ -90,9 +90,44 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private static final AtomicBoolean externalCaptureSource = new AtomicBoolean(false);
 
     public static void setExternalCaptureSource(boolean external) {
-        externalCaptureSource.set(external);
+        boolean previous = externalCaptureSource.getAndSet(external);
         log.debug("SessionReplay: externalCaptureSource set to " + external);
+
+        // TEST-ONLY (2026-09-29, hybrid-app Option C PoC — revert before merge):
+        // make the flag bidirectional so native capture can hand off to/from an
+        // external source mid-session without touching the recording mode (the
+        // shared mode also gates external ingest, so recordReplay()/pauseReplay()
+        // can't be used for this). Only acts after initialization; before that,
+        // initialize()/startRecording() read the flag as before.
+        if (previous == external || modeManager == null || !isInitialized.get()) {
+            return;
+        }
+        SessionReplayMode mode = modeManager.getCurrentMode();
+        if (mode == SessionReplayMode.OFF) {
+            return;
+        }
+        if (external) {
+            android.util.Log.e("HYBRID-POC", "setExternalCaptureSource(true) — stopping native capture and harvesting its frames");
+            stopRecording();
+            if (callbacksRegistered.compareAndSet(true, false)) {
+                unregisterCallbacks();
+            }
+            // Upload native's segment now so it isn't sent after the external
+            // source's next chunk.
+            if (mode == SessionReplayMode.FULL) {
+                uiThreadHandler.post(instance::onHarvest);
+            }
+        } else {
+            android.util.Log.e("HYBRID-POC", "setExternalCaptureSource(false) — starting native capture in " + mode);
+            if (callbacksRegistered.compareAndSet(false, true)) {
+                registerCallbacks();
+            }
+            startRecording(mode);
+        }
     }
+
+    // TEST-ONLY (2026-09-29, hybrid-app Option C PoC — revert before merge).
+    private static final AtomicBoolean callbacksRegistered = new AtomicBoolean(false);
 
     public static boolean isExternalCaptureSourceEnabled() {
         return externalCaptureSource.get();
@@ -169,6 +204,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Skip native touch/activity capture when an external source supplies frames.
         if (!externalCaptureSource.get()) {
             registerCallbacks();
+            callbacksRegistered.set(true); // TEST-ONLY (Option C PoC)
         }
 
         if (listenerRegistered.compareAndSet(false, true)) {
@@ -277,6 +313,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         log.info("SessionReplay harvest: " + jsonArray.size() + " events, timestamps [" + firstTimestamp + " - " + lastTimestamp + "], isFirstChunk=" + isFirstChunk);
 
+        // TEST-ONLY (2026-09-29, hybrid-app Option C PoC — revert before merge).
+        android.util.Log.e("HYBRID-POC", "NATIVE-OWN-CAPTURE (onHarvest) upload — events=" + jsonArray.size() + " isFirstChunk=" + isFirstChunk);
         // Convert JsonArray to JSON string and report
         String jsonArrayString = new Gson().toJson(jsonArray);
         SessionReplayReporter.reportSessionReplayData(jsonArrayString.getBytes(), attributes);
@@ -351,6 +389,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             attributes.put(Constants.SessionReplay.LAST_TIMESTAMP, lastTimestamp);
             attributes.put(Constants.SessionReplay.IS_FIRST_CHUNK, isFirstChunk);
 
+            // TEST-ONLY (2026-09-29, hybrid-app Option C PoC — revert before merge).
+            android.util.Log.e("HYBRID-POC", "FLUTTER-BRIDGE upload — events=" + jsonArray.size() + " isFirstChunk=" + isFirstChunk);
             boolean reported = SessionReplayReporter.reportSessionReplayData(eventsJSON.getBytes(), attributes);
             if (reported) {
                 isFirstChunk = false;
@@ -415,6 +455,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @param mode The SessionReplayMode to use for recording (FULL or ERROR)
      */
     public static void startRecording(SessionReplayMode mode) {
+        // TEST-ONLY (2026-09-29, hybrid-app Option C PoC — revert before merge).
+        // Log.e bypasses the agent's own log-level gating so it stays visible
+        // even when normal agent log output is throttled/filtered.
+        android.util.Log.e("HYBRID-POC", "startRecording(" + mode + ") — externalCaptureSource=" + externalCaptureSource.get());
         log.debug("Starting SessionReplay recording with mode: " + mode);
         Harvest.addHarvestListener(instance);
         takeFullSnapshot.set(true); // Force full snapshot when starting recording
@@ -431,8 +475,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // and onSessionRestarted still run for external ingest.
         if (externalCaptureSource.get()) {
             log.debug("SessionReplay: external capture source active — skipping native capture setup.");
+            android.util.Log.e("HYBRID-POC", "startRecording() returning early — externalCaptureSource still true");
             return;
         }
+        android.util.Log.e("HYBRID-POC", "startRecording() proceeding — hooking real view hierarchy");
 
         // curtains.Curtains is a main-thread-only, non-thread-safe API (NR-608999): every
         // access must happen inside this single post() so the calling thread never races
@@ -474,6 +520,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     @Override
     public void onFrameTaken(@NonNull SessionReplayFrame newFrame) {
+        // TEST-ONLY (2026-09-29, hybrid-app Option C PoC — revert before merge).
+        android.util.Log.e("HYBRID-POC", "onFrameTaken — native own capture took a frame");
         List<RRWebEvent> events = processor.processFrames(new ArrayList<>(List.of(newFrame)),takeFullSnapshot.get());
 
         // If harvest is in progress, buffer frames for later writing

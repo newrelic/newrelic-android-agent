@@ -48,6 +48,8 @@ public class ViewDrawInterceptor {
 
             // Create NEW unique listener for THIS view
             ViewTreeObserver.OnDrawListener listener = () -> {
+                // TEST-ONLY (2026-09-29, hybrid-app Option C PoC — revert before merge).
+                android.util.Log.e("HYBRID-POC", "ViewTreeObserver onDraw fired (" + decorView.getClass().getSimpleName() + ")");
                 long currentTime = System.currentTimeMillis();
                 log.debug("onDraw() called" + " at " + currentTime + " lastCaptureTime: " + lastCaptureTime + " interval: " + CAPTURE_INTERVAL);
 
