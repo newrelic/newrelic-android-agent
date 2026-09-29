@@ -93,10 +93,13 @@ public final class Connectivity {
             if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
                 return WanType.WIFI;
             } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                // Transport is known to be cellular; degrade to a generic type if the subtype can't be resolved
                 TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-                if (telephonyManager != null) {
-                    return connectionNameFromNetworkSubtype(getNetworkType(telephonyManager));
+                if (telephonyManager == null) {
+                    return WanType.CELLULAR;
                 }
+                final String wanType = connectionNameFromNetworkSubtype(getNetworkType(telephonyManager));
+                return WanType.UNKNOWN.equals(wanType) ? WanType.CELLULAR : wanType;
             } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
                 return WanType.ETHERNET;
             }
@@ -170,6 +173,8 @@ public final class Connectivity {
                 return WanType.HRPD;
             case 13:// TelephonyManager.NETWORK_TYPE_LTE: (API level 11)
                 return WanType.LTE;
+            case 20:// TelephonyManager.NETWORK_TYPE_NR: (API level 29)
+                return WanType.NR;
             case TelephonyManager.NETWORK_TYPE_UNKNOWN:
             default:
                 return WanType.UNKNOWN;
@@ -192,7 +197,11 @@ public final class Connectivity {
             } catch (SecurityException e) {
                 // Fall back to deprecated method if permission is not granted
                 log.audit("Cannot determine network type. Enable android.permission.READ_PHONE_STATE in your manifest.");
-                return telephonyManager.getNetworkType();
+                try {
+                    return telephonyManager.getNetworkType();
+                } catch (SecurityException se) {
+                    return TelephonyManager.NETWORK_TYPE_UNKNOWN;
+                }
             }
     }
 }

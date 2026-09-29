@@ -9,6 +9,8 @@ public interface WanType {
     String NONE = "none";
     String WIFI = "wifi";
     String UNKNOWN = "unknown";
+    // Transport is confirmed cellular, but the subtype could not be resolved
+    String CELLULAR = "cellular";
 
     String CDMA = "CDMA";
     String EDGE = "EDGE";
@@ -23,6 +25,7 @@ public interface WanType {
     String HSUPA = "HSUPA";
     String IDEN = "IDEN";
     String LTE = "LTE";
+    String NR = "5G";
     String RTT = "1xRTT";
     String UMTS = "UMTS";
     String ETHERNET = "ETHERNET";
