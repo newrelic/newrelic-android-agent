@@ -7,6 +7,8 @@ package com.newrelic.agent.android;
 
 import static com.newrelic.agent.android.analytics.AnalyticsAttribute.ACTION_TYPE_ATTRIBUTE;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -41,6 +43,8 @@ import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricStore;
+import com.newrelic.agent.android.sessionReplay.SessionReplay;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.tracing.TraceMachine;
@@ -55,9 +59,11 @@ import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.robolectric.RobolectricTestRunner;
 
+import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RunWith(RobolectricTestRunner.class)
 public class AndroidAgentImplTest {
@@ -103,6 +109,8 @@ public class AndroidAgentImplTest {
     public void tearDown() throws Exception {
         Agent.stop();
         Agent.setBuildId(null);
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+        setForegrounded(true);
     }
 
     @Test
@@ -321,6 +329,57 @@ public class AndroidAgentImplTest {
                 environmentInformation.getMemoryUsage() > 0);
         Assert.assertEquals("Memory usage should match expected value",
                 (int) (SpyContext.APP_MEMORY / 1024), environmentInformation.getMemoryUsage());
+    }
+
+    @Test
+    public void applicationBackgrounded_withBackgroundReportingEnabled_doesNotStartSessionReplay() throws Exception {
+        // NR-614098: a session that begins while the app is backgrounded can never capture a
+        // frame (no resumed Activity, no window). The BackgroundReporting bootstrap must not set
+        // hasReplay or spin up Session Replay for it.
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        enableSessionReplayDeterministically();
+
+        agentStart();
+        setForegrounded(false);
+
+        agentImpl.applicationBackgrounded(new ApplicationStateEvent(ApplicationStateMonitor.getInstance()));
+
+        Assert.assertNull("hasReplay must not be set for a background-only session",
+                AnalyticsControllerImpl.getInstance().getAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED));
+        Assert.assertFalse("Session Replay must not be recording for a background-only session",
+                SessionReplay.isReplayRecording());
+    }
+
+    @Test
+    public void applicationForegrounded_afterBackgroundOnlySession_reinitializesSessionReplay() throws Exception {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        enableSessionReplayDeterministically();
+
+        agentStart();
+        setForegrounded(false);
+        agentImpl.applicationBackgrounded(new ApplicationStateEvent(ApplicationStateMonitor.getInstance()));
+
+        setForegrounded(true);
+        agentImpl.applicationForegrounded(new ApplicationStateEvent(ApplicationStateMonitor.getInstance()));
+
+        Assert.assertNotNull("hasReplay must be set once the app returns to the foreground",
+                AnalyticsControllerImpl.getInstance().getAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED));
+        Assert.assertTrue("Session Replay must resume recording once foregrounded",
+                SessionReplay.isReplayRecording());
+    }
+
+    /**
+     * Installs a Session Replay config that is enabled/100%-sampled and immune to being reset
+     * back to defaults by a real (and, in this Robolectric env, always-failing) harvest-connect
+     * attempt racing with the test on a background thread (AgentConfiguration.updateConfiguration
+     * copies the harvest response's SessionReplayConfiguration over the live one in place).
+     */
+    private void enableSessionReplayDeterministically() {
+        SessionReplayConfiguration srConfig = spy(agentConfig.getSessionReplayConfiguration());
+        doNothing().when(srConfig).setConfiguration(any());
+        srConfig.setEnabled(true);
+        srConfig.setSamplingRate(100.0);
+        agentConfig.setSessionReplayConfiguration(srConfig);
     }
 
     @Ignore
@@ -555,6 +614,12 @@ public class AndroidAgentImplTest {
     private void agentStart() throws InterruptedException {
         Agent.start();
         Thread.sleep(1 * 500);
+    }
+
+    private static void setForegrounded(boolean foregrounded) throws Exception {
+        Field f = ApplicationStateMonitor.class.getDeclaredField("foregrounded");
+        f.setAccessible(true);
+        ((AtomicBoolean) f.get(ApplicationStateMonitor.getInstance())).set(foregrounded);
     }
 
     private static AnalyticsEvent getEventByActionType(Collection<AnalyticsEvent> events, UserActionType actionType) {

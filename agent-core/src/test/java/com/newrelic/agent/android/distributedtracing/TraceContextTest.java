@@ -49,11 +49,13 @@ public class TraceContextTest  {
 
     @Test
     public void testGetHeaders() {
-        Assert.assertNotNull(traceContext.tracePayload);
         Assert.assertFalse(traceContext.getHeaders().isEmpty());
-
-        traceContext.legacyHeadersEnabled = false;
-        Assert.assertFalse(traceContext.getHeaders().isEmpty());
+        for (Object tc : traceContext.getHeaders()) {
+            if (tc instanceof TraceState) {
+                Map<String, String> entries = ((TraceState) tc).entries;
+                Assert.assertFalse(entries.get("@nr").contains(TracePayload.TRACE_PAYLOAD_HEADER));
+            }
+        }
     }
 
     @Test
@@ -130,6 +132,14 @@ public class TraceContextTest  {
         TraceHeader traceHeader = traceContext.getTracePayload();
         Assert.assertEquals(TracePayload.TRACE_PAYLOAD_HEADER, traceHeader.getHeaderName());
         Assert.assertNotNull(traceHeader.getHeaderValue());
+
+        //Test against regression
+        for (Object tc : traceContext.getHeaders()) {
+            if (tc instanceof TraceState) {
+                Map<String, String> entries = ((TraceState) tc).entries;
+                Assert.assertFalse(entries.get("@nr").contains(TracePayload.TRACE_PAYLOAD_HEADER));
+            }
+        }
     }
 
     @Test

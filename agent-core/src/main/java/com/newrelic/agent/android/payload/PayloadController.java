@@ -88,12 +88,7 @@ public class PayloadController implements HarvestLifecycleAware {
                 log.warn("PayloadController: No payload reporter - payload reporting will be disabled");
             }
 
-            SessionReplayReporter sessionReplayReporter = SessionReplayReporter.initialize(agentConfiguration);
-            if(sessionReplayReporter != null){
-                sessionReplayReporter.start();
-            }else{
-                log.warn("SessionReplayController: No session replay reporter - session replay reporting will be disabled");
-            }
+            ensureSessionReplayReporterInitialized(agentConfiguration);
 
             JSErrorDataReporter jsErrorDataReporter = JSErrorDataReporter.initialize(agentConfiguration);
             if (jsErrorDataReporter != null) {
@@ -106,6 +101,32 @@ public class PayloadController implements HarvestLifecycleAware {
         }
 
         return instance.get();
+    }
+
+    /**
+     * Idempotently creates the SessionReplayReporter if Session Replay is enabled but the
+     * reporter hasn't been created yet. Session Replay's own enablement is re-evaluated on
+     * every harvest-connect (AndroidAgentImpl.onHarvestConnected() -> startSessionReplayRecorder()),
+     * independent of the one-shot check in initialize() above. If SR was disabled in whatever
+     * config initialize() saw at boot (e.g. no cached config yet on a fresh install) and only
+     * becomes enabled once the server's connect response is applied, the reporter would
+     * otherwise never get created, and SessionReplay.onHarvest() would silently drop every
+     * captured chunk with a "not initialized" error. Call this before starting the recorder.
+     *
+     * Gated so R8 can strip the sessionReplay package when SR is disabled at build time
+     * (NR-587343). This was the largest ungated entry point into the package:
+     * SessionReplayReporter transitively reaches the sender and capture pipeline.
+     */
+    public static void ensureSessionReplayReporterInitialized(AgentConfiguration agentConfiguration) {
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()
+                && SessionReplayReporter.getInstance() == null) {
+            SessionReplayReporter sessionReplayReporter = SessionReplayReporter.initialize(agentConfiguration);
+            if (sessionReplayReporter != null) {
+                sessionReplayReporter.start();
+            } else {
+                log.warn("SessionReplayController: No session replay reporter - session replay reporting will be disabled");
+            }
+        }
     }
 
     public static void shutdown() {
@@ -131,7 +152,9 @@ public class PayloadController implements HarvestLifecycleAware {
                         }
                         AgentDataReporter.shutdown();
                         CrashReporter.shutdown();
-                        SessionReplayReporter.shutdown();
+                        if (AgentConfiguration.getInstance().getSessionReplayConfiguration().isSessionReplayEnabled()) {
+                            SessionReplayReporter.shutdown();
+                        }
                         JSErrorDataReporter.shutdown();
 
                     } catch (InterruptedException e) {

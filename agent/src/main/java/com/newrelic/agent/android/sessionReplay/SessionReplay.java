@@ -21,6 +21,7 @@ import com.newrelic.agent.android.analytics.EventManager;
 import com.newrelic.agent.android.analytics.EventManagerImpl;
 import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.background.ApplicationStateListener;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.logging.AgentLog;
@@ -75,6 +76,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     // per cycle). Cleared in deInitialize() so onSessionRestarted can re-init normally.
     private static final AtomicBoolean isInitialized = new AtomicBoolean(false);
     private static final AtomicBoolean orphanRecoveryDone = new AtomicBoolean(false);
+
+    // Registers `instance` with ApplicationStateMonitor exactly once for the process lifetime
+    // (never unregistered, matching AndroidAgentImpl's own registration), so the
+    // applicationBackgrounded()/applicationForegrounded() handlers below actually run.
+    private static final AtomicBoolean listenerRegistered = new AtomicBoolean(false);
 
     // Buffer for queuing frames and touch data that arrive during harvest
     private static final AtomicBoolean isHarvesting = new AtomicBoolean(false);
@@ -145,6 +151,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application,modeManager);
         registerCallbacks();
+
+        if (listenerRegistered.compareAndSet(false, true)) {
+            ApplicationStateMonitor.getInstance().addApplicationStateListener(instance);
+        }
     }
 
     /**
@@ -163,6 +173,16 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
         // Shutdown file manager
         SessionReplayFileManager.shutdown();
+
+        // Release the ~8 MB (4 MB View + 4 MB Compose) of cached base64 image data. This path
+        // (shutdown, session restart) doesn't necessarily coincide with the app being
+        // backgrounded, so it can't rely on applicationBackgrounded() alone to free these.
+        SessionReplayImageViewThingy.clearImageCache();
+        ComposeImageThingy.clearImageCache();
+
+        // Otherwise getCurrentMode()/isReplayRecording() would keep reporting the prior
+        // session's mode until the next initialize() re-assigns it.
+        modeManager = null;
 
         isInitialized.set(false);
         log.debug("Session replay deinitialized");
@@ -314,7 +334,20 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             persistSrState(true, true);
         }
 
+        // curtains.Curtains is a main-thread-only, non-thread-safe API (NR-608999): every
+        // access must happen inside this single post() so the calling thread never races
+        // the main thread on Curtains' internal LazyThreadSafetyMode.NONE delegate. The
+        // listener must be registered before the decorViews.length == 0 early return,
+        // otherwise cold start (no root view yet) never registers a listener at all.
         uiThreadHandler.post(() -> {
+            Curtains.getOnRootViewsChangedListeners().add((view, added) -> {
+                if (added) {
+                    viewDrawInterceptor.Intercept(new View[]{view});
+                } else {
+                    viewDrawInterceptor.removeIntercept(new View[]{view});
+                }
+            });
+
             View[] decorViews = Curtains.getRootViews().toArray(new View[0]);//WindowManagerSpy.windowManagerMViewsArray();
 
             // Check if decorViews is not empty before accessing
@@ -326,24 +359,17 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             viewDrawInterceptor.Intercept(decorViews);
             sessionReplayActivityLifecycleCallbacks.setupTouchInterceptorForWindow(decorViews[0]);
         });
-
-        Curtains.getOnRootViewsChangedListeners().add((view, added) -> {
-            if (added) {
-                viewDrawInterceptor.Intercept(new View[]{view});
-            } else {
-                viewDrawInterceptor.removeIntercept(new View[]{view});
-            }
-        });
     }
 
 
     public static void stopRecording() {
-        if(viewDrawInterceptor != null) {
-            uiThreadHandler.post(() -> {
+        // See NR-608999: Curtains access must stay confined to the main thread.
+        uiThreadHandler.post(() -> {
+            if (viewDrawInterceptor != null) {
                 viewDrawInterceptor.stopIntercept();
-            });
-        }
-        Curtains.getOnRootViewsChangedListeners().clear();
+            }
+            Curtains.getOnRootViewsChangedListeners().clear();
+        });
     }
 
     @Override
@@ -629,6 +655,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @return true if recording was stopped and harvest triggered, false if already stopped/disabled
      */
     public static boolean pauseReplay() {
+        if (modeManager == null) {
+            return false;
+        }
         boolean modeChanged = modeManager.transitionTo(SessionReplayMode.OFF, "APIPauseReplay");
         if (modeChanged) {
             stopSlidingWindowTimer();
@@ -658,10 +687,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @return true if recording in any mode (ERROR or FULL), false if OFF or not initialized
      */
     public static boolean isReplayRecording() {
-        if (modeManager == null && modeManager.getCurrentMode() == SessionReplayMode.OFF) {
-            return false;
-        }
-        return modeManager.isRecording();
+        return modeManager != null && modeManager.isRecording();
     }
 
     /**

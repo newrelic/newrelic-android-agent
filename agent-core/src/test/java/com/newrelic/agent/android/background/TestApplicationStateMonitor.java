@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class TestApplicationStateMonitor {
@@ -54,6 +55,33 @@ public class TestApplicationStateMonitor {
 
         assertEquals(1, listener.getEvents().size());
         assertEquals("background", listener.getEvents().get(0));
+    }
+
+    @Test
+    public void foregroundFlagIsAlreadyFalseDuringBackgroundedCallback() {
+        // NR-614098: listeners (e.g. AndroidAgentImpl.applicationBackgrounded()) rely on the
+        // foreground flag already reflecting "backgrounded" while they run, so they can gate
+        // their own behavior on ApplicationStateMonitor.isAppInBackground(). If the flag flips
+        // after notification instead of before, that check would see stale "foregrounded" state.
+        final List<Boolean> observedForegroundedDuringCallback = new ArrayList<>();
+        asm.addApplicationStateListener(new ApplicationStateListener() {
+            @Override
+            public void applicationForegrounded(ApplicationStateEvent e) {
+            }
+
+            @Override
+            public void applicationBackgrounded(ApplicationStateEvent e) {
+                observedForegroundedDuringCallback.add(asm.getForgroundState().get());
+            }
+        });
+
+        asm.activityStarted();
+        asm.uiHidden();
+        asm.shutdownExecutor();
+
+        assertEquals(1, observedForegroundedDuringCallback.size());
+        assertFalse("foregrounded flag must already be false while applicationBackgrounded() listeners run",
+                observedForegroundedDuringCallback.get(0));
     }
 
     @Test

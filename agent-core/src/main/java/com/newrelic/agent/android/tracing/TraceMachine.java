@@ -187,20 +187,31 @@ public class TraceMachine extends HarvestAdapter {
     }
 
     public static void endTrace() {
-        if (isTracingActive()) {
-            traceMachine.completeActivityTrace();
-        } else {
-            log.debug("Attempted to end trace with no trace machine!");
+        synchronized (TRACE_MACHINE_LOCK) {
+            final TraceMachine machine = traceMachine;
+            if (machine == null) {
+                log.debug("Attempted to end trace with no trace machine!");
+                return;
+            }
+            machine.completeActivityTrace();
         }
     }
 
     public static void endTrace(String id) {
         try {
-            if (getActivityTrace().rootTrace.myUUID.toString().equals(id) && isTracingActive()) {
-                traceMachine.completeActivityTrace();
+            synchronized (TRACE_MACHINE_LOCK) {
+                final TraceMachine machine = traceMachine;
+                if (machine == null) {
+                    log.debug("Attempted to end trace with no trace machine!");
+                    return;
+                }
+                if (machine.activityTrace.rootTrace.myUUID.toString().equals(id)) {
+                    machine.completeActivityTrace();
+                }
             }
-        } catch (TracingInactiveException e) {
-            log.error("Tried to end trace with no trace machine!");
+        } catch (Exception e) {
+            log.error("Caught error while calling endTrace(String)", e);
+            AgentHealth.noticeException(e);
         }
     }
 

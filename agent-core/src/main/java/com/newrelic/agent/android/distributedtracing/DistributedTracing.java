@@ -18,18 +18,15 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * The latest W3C New Relic agents send two required headers, and by default, the header of the
- * prior New Relic agent:
+ * The latest New Relic agents send the two required W3C Trace Context headers:
  *
  * W3C (traceparent): The primary header that identifies the entire trace (trace ID) and the calling
  * service (span id).
  * W3C (tracestate): A required header that carries vendor-specific information and tracks where a
  * trace has been.
- * New Relic (newrelic): The original, proprietary header that is still sent to maintain backward
- * compatibility with prior New Relic agents.
  *
- * This combination of three headers allows traces to be propagated across services instrumented with
- * these types of agents:
+ * The original, proprietary "newrelic" header is no longer sent (NR-382848) — traceparent/tracestate
+ * alone are sufficient to propagate traces across services instrumented with these types of agents:
  *  * W3C New Relic agents
  *  * Non-W3C New Relic agents
  *  * W3C Trace Context-compatible agents
