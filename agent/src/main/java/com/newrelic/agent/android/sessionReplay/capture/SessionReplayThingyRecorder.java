@@ -14,9 +14,11 @@ import androidx.compose.ui.semantics.SemanticsNode;
 import androidx.compose.ui.semantics.SemanticsProperties;
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.sessionReplay.util.MapViewDetectionUtils;
 import com.newrelic.agent.android.sessionReplay.compose.ComposeBlockedViewThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeEditTextThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeImageThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeMapViewThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeRadioButtonThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeSwitchThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.ComposeSliderThingy;
@@ -28,6 +30,7 @@ import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayBlockedV
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayCompoundButtonThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayEditTextThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayImageViewThingy;
+import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayMapViewThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplayProgressBarThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplaySeekBarThingy;
 import com.newrelic.agent.android.sessionReplay.viewMapper.SessionReplaySliderThingy;
@@ -48,6 +51,7 @@ public class SessionReplayThingyRecorder {
         return new SessionReplayBlockedViewThingy(viewDetails);
     }
 
+
     public SessionReplayViewThingyInterface recordView(View view) {
         ViewDetails viewDetails = new ViewDetails(view);
 
@@ -61,6 +65,8 @@ public class SessionReplayThingyRecorder {
             return new SessionReplayProgressBarThingy(viewDetails, (ProgressBar) view);
         }else if (SessionReplaySliderThingy.isSlider(view)) {
             return new SessionReplaySliderThingy(viewDetails, view);
+        }else if (MapViewDetectionUtils.isMapView(view)) {
+            return new SessionReplayMapViewThingy(viewDetails, view, agentConfiguration);
         }else if (view instanceof ImageView) {
             return new SessionReplayImageViewThingy(viewDetails, (ImageView) view, agentConfiguration);
         } else  if (view instanceof TextView) {
@@ -81,7 +87,11 @@ public class SessionReplayThingyRecorder {
         }
 
         ComposeViewDetails composeViewDetails = new ComposeViewDetails(node, density);
-         if(node.getConfig().contains(SemanticsProperties.INSTANCE.getEditableText())) {
+
+        // Check for MapView first, before other component checks
+        if(MapViewDetectionUtils.isMapView(node)) {
+            return new ComposeMapViewThingy(composeViewDetails, node, agentConfiguration);
+        } else if(node.getConfig().contains(SemanticsProperties.INSTANCE.getEditableText())) {
              return new ComposeEditTextThingy(composeViewDetails, node, agentConfiguration);
         } else if(node.getConfig().contains(SemanticsProperties.INSTANCE.getText())) {
             return new ComposeTextViewThingy(composeViewDetails, node, agentConfiguration);

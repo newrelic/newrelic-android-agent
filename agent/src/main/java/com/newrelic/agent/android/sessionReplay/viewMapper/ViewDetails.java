@@ -6,12 +6,13 @@ import android.graphics.drawable.GradientDrawable;
 import android.view.View; // Use Android's View class
 import android.view.ViewGroup;
 import com.newrelic.agent.android.sessionReplay.internal.ViewBackgroundHelper;
+import com.newrelic.agent.android.sessionReplay.util.MapViewDetectionUtils;
 
 import java.util.Objects; // For hashCode and equals
 
 public class ViewDetails {
     public final int viewId;
-    public Rect frame; // Changed from final to support testing
+    public Rect frame;
     public final String backgroundColor;
     public final float alpha;
     public final boolean isHidden;
@@ -19,6 +20,8 @@ public class ViewDetails {
     public final int parentId;
     public final String viewName;
     public final float density;
+    public final int zIndex;
+    public final boolean isMapView;
 
 
     // Computed property: cssSelector
@@ -40,15 +43,26 @@ public class ViewDetails {
 
     // Equivalent of Swift's init(view: UIView)
     public ViewDetails(View view) {
+        // Validate view parameter
+        if (view == null) {
+            throw new IllegalArgumentException("View cannot be null");
+        }
+
         // Getting the global visible rectangle of the view
-        this.density = view.getContext().getResources().getDisplayMetrics().density;
+        float rawDensity = view.getContext().getResources().getDisplayMetrics().density;
+
+        // Protect against division by zero - use fallback density if needed
+        this.density = rawDensity <= 0 ? 1.0f : rawDensity;
+
         int[] location = new int[2];
         view.getLocationOnScreen(location);
+
+        // Safe division with validated density
         float x = location[0] / density;
         float y = location[1] / density;
         float width = view.getWidth() / density;
         float height = view.getHeight() / density;
-        this.frame = new Rect((int) x, (int) y, (int) ((int)  x+width), (int) ((int) y+height));
+        this.frame = new Rect((int) x, (int) y, (int) (x + width), (int) (y + height));
 
 
 
@@ -75,7 +89,18 @@ public class ViewDetails {
             parentId = 0;
         }
 
+        // Capture z-index only for React Native views, which use view.getZ() (elevation + translationZ)
+        // to implement CSS z-index. Non-RN views get 0 (no z-index emitted) to preserve existing behavior.
+       this.zIndex = isReactNativeView(view) ? Math.round(view.getZ()) : 0;
+
+        // Determine if this view is a MapView using centralized detection logic
+        this.isMapView = MapViewDetectionUtils.isMapView(view);
     }
+
+    private static boolean isReactNativeView(View view) {
+        return view.getClass().getName().startsWith("com.facebook.react");
+    }
+
 
     // Getters for the final properties
     public int getViewId() {
@@ -100,6 +125,10 @@ public class ViewDetails {
 
     public String getViewName() {
         return viewName;
+    }
+
+    public boolean isMapView() {
+        return isMapView;
     }
 
     public String getCSSSelector() {
@@ -175,6 +204,7 @@ public class ViewDetails {
         return viewId == that.viewId &&
                 Float.compare(that.alpha, alpha) == 0 &&
                 isHidden == that.isHidden &&
+                isMapView == that.isMapView &&
                 Objects.equals(frame, that.frame) &&
                 Objects.equals(backgroundColor, that.backgroundColor) &&
                 Objects.equals(viewName, that.viewName);
@@ -182,7 +212,7 @@ public class ViewDetails {
 
     @Override
     public int hashCode() {
-        return Objects.hash(viewId, frame, backgroundColor, alpha, isHidden, viewName);
+        return Objects.hash(viewId, frame, backgroundColor, alpha, isHidden, viewName, isMapView);
     }
 
     private int getStableId(View view) {
