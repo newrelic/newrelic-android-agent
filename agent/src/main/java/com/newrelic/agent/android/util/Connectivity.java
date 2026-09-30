@@ -93,13 +93,10 @@ public final class Connectivity {
             if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
                 return WanType.WIFI;
             } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-                // Transport is known to be cellular; degrade to a generic type if the subtype can't be resolved
                 TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-                if (telephonyManager == null) {
-                    return WanType.CELLULAR;
+                if (telephonyManager != null) {
+                    return connectionNameFromNetworkSubtype(getNetworkType(telephonyManager));
                 }
-                final String wanType = connectionNameFromNetworkSubtype(getNetworkType(telephonyManager));
-                return WanType.UNKNOWN.equals(wanType) ? WanType.CELLULAR : wanType;
             } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
                 return WanType.ETHERNET;
             }
@@ -197,11 +194,7 @@ public final class Connectivity {
             } catch (SecurityException e) {
                 // Fall back to deprecated method if permission is not granted
                 log.audit("Cannot determine network type. Enable android.permission.READ_PHONE_STATE in your manifest.");
-                try {
-                    return telephonyManager.getNetworkType();
-                } catch (SecurityException se) {
-                    return TelephonyManager.NETWORK_TYPE_UNKNOWN;
-                }
+                return telephonyManager.getNetworkType();
             }
     }
 }

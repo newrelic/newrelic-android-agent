@@ -85,20 +85,6 @@ public class ConnectivityTest {
         TelephonyManager telephonyManager = useCellularTransport();
         when(telephonyManager.getDataNetworkType()).thenThrow(new SecurityException("READ_PHONE_STATE"));
         when(telephonyManager.getNetworkType()).thenThrow(new SecurityException("READ_PHONE_STATE"));
-        Assert.assertEquals(WanType.CELLULAR, Connectivity.wanType(context));
-    }
-
-    @Test
-    public void testWanTypeCellularUnmappedSubtype() {
-        TelephonyManager telephonyManager = useCellularTransport();
-        when(telephonyManager.getDataNetworkType()).thenReturn(TelephonyManager.NETWORK_TYPE_UNKNOWN);
-        Assert.assertEquals(WanType.CELLULAR, Connectivity.wanType(context));
-    }
-
-    @Test
-    public void testWanTypeCellularNoTelephonyManager() {
-        useCellularTransport();
-        when(context.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(null);
-        Assert.assertEquals(WanType.CELLULAR, Connectivity.wanType(context));
+        Assert.assertEquals(WanType.UNKNOWN, Connectivity.wanType(context));
     }
 }
