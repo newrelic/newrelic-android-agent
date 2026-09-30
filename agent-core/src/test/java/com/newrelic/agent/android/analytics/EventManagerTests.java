@@ -452,13 +452,49 @@ public class EventManagerTests implements EventListener {
         manager.setMaxEventBufferTime(1);
         Assert.assertEquals("Should protect from too low a trigger", manager.getMaxEventBufferTime(), EventManagerImpl.DEFAULT_MIN_EVENT_BUFFER_TIME);
         manager.setMaxEventBufferTime(Integer.MAX_VALUE);
-        Assert.assertEquals("Should protect from too high a trigger", manager.getMaxEventBufferTime(), EventManagerImpl.DEFAULT_MAX_EVENT_BUFFER_TIME);
+        Assert.assertEquals("Should protect from too high a trigger", manager.getMaxEventBufferTime(), EventManagerImpl.MAX_EVENT_BUFFER_TIME_LIMIT);
+        manager.setMaxEventBufferTime(300);
+        Assert.assertEquals("Should allow values within range", 300, manager.getMaxEventBufferTime());
 
         manager.setMaxEventPoolSize(1);
         Assert.assertEquals("Should protect from too small an event buffer", manager.getMaxEventPoolSize(), EventManagerImpl.DEFAULT_MIN_EVENT_BUFFER_SIZE);
         manager.setMaxEventPoolSize(Integer.MAX_VALUE);
         Assert.assertTrue("Should allow (for now) too large an event buffer", manager.getMaxEventPoolSize() > EventManagerImpl.DEFAULT_MAX_EVENT_BUFFER_SIZE);
 
+    }
+
+    @Test
+    public void testEventBufferTimeBoundaries() {
+        manager = Mockito.spy(new EventManagerImpl());
+        manager.initialize(agentConfiguration);
+
+        manager.setMaxEventBufferTime(59);
+        Assert.assertEquals(60, manager.getMaxEventBufferTime());
+        manager.setMaxEventBufferTime(60);
+        Assert.assertEquals(60, manager.getMaxEventBufferTime());
+        manager.setMaxEventBufferTime(61);
+        Assert.assertEquals(61, manager.getMaxEventBufferTime());
+        manager.setMaxEventBufferTime(600);
+        Assert.assertEquals(600, manager.getMaxEventBufferTime());
+        manager.setMaxEventBufferTime(601);
+        Assert.assertEquals(600, manager.getMaxEventBufferTime());
+        manager.setMaxEventBufferTime(-1);
+        Assert.assertEquals(60, manager.getMaxEventBufferTime());
+    }
+
+    @Test
+    public void testEventPoolSizeBoundaries() {
+        manager = Mockito.spy(new EventManagerImpl());
+        manager.initialize(agentConfiguration);
+
+        manager.setMaxEventPoolSize(63);
+        Assert.assertEquals(64, manager.getMaxEventPoolSize());
+        manager.setMaxEventPoolSize(64);
+        Assert.assertEquals(64, manager.getMaxEventPoolSize());
+        manager.setMaxEventPoolSize(1000);
+        Assert.assertEquals(1000, manager.getMaxEventPoolSize());
+        manager.setMaxEventPoolSize(1001);
+        Assert.assertEquals("Above 1000 is allowed with a warning", 1001, manager.getMaxEventPoolSize());
     }
 
     @Test
