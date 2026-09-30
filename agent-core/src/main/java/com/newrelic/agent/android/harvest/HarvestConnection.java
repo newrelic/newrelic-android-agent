@@ -97,7 +97,7 @@ public class HarvestConnection implements HarvestErrorCodes, HarvestConfigurable
             }
 
         } catch (Exception e) {
-            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "Connection/Errors");
+            StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR_CONNECTION_ERRORS);
             log.error("Failed to create data POST: " + e.getMessage());
         }
 
@@ -202,7 +202,7 @@ public class HarvestConnection implements HarvestErrorCodes, HarvestConfigurable
 
         HarvestResponse response = send(connectPost, connectInformation.toJsonString());
 
-        StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR + "Connect", timer.toc());
+        StatsEngine.get().sampleTimeMs(MetricNames.SUPPORTABILITY_COLLECTOR_CONNECT, timer.toc());
         return response;
     }
 
@@ -281,7 +281,7 @@ public class HarvestConnection implements HarvestErrorCodes, HarvestConfigurable
 
     private void recordCollectorError(Exception e) {
         log.error("HarvestConnection: Attempting to convert network exception " + e.getClass().getName() + " to error code.");
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR + "ResponseErrorCodes/" + ExceptionHelper.exceptionToErrorCode(e));
+        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_COLLECTOR_RESPONSE_ERROR_CODES + ExceptionHelper.exceptionToErrorCode(e));
     }
 
     private String getCollectorUri(String resource) {
