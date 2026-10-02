@@ -66,7 +66,12 @@ public class EventManagerImpl implements EventManager, EventListener {
         eventStore = agentConfiguration.getEventStore();
         List<AnalyticsEvent> storedEvents = new ArrayList<AnalyticsEvent>();
         if (eventStore != null) {
-            storedEvents = eventStore.fetchAll();
+            if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence)) {
+                storedEvents = eventStore.fetchAll();
+            } else {
+                // Persistence is off: don't resurrect old events, and drop orphans so they aren't re-sent every launch
+                eventStore.clear();
+            }
         }
 
         if (!initialized.compareAndSet(false, true)) {
