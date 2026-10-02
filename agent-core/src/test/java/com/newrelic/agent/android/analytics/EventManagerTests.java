@@ -555,6 +555,24 @@ public class EventManagerTests implements EventListener {
         Assert.assertEquals(2, manager.getEventsRecorded());
     }
 
+    @Test
+    public void testEventManagerInitDoesNotReloadWhenEventPersistenceDisabled() {
+        eventStore.clear();
+        eventStore.store(new AnalyticsEvent("event1"));
+        eventStore.store(new AnalyticsEvent("event2"));
+        Assert.assertEquals(2, eventStore.fetchAll().size());
+
+        FeatureFlag.disableFeature(FeatureFlag.EventPersistence);
+        try {
+            manager.initialize(agentConfiguration);
+
+            Assert.assertEquals("Persisted events must not be resurrected", 0, manager.getQueuedEvents().size());
+            Assert.assertEquals("Orphaned persisted events must be cleared", 0, eventStore.fetchAll().size());
+        } finally {
+            FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
+        }
+    }
+
     @Override
     public boolean onEventAdded(AnalyticsEvent eventToBeAdded) {
         return true;
