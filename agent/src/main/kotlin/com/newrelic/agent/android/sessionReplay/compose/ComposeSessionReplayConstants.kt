@@ -104,7 +104,7 @@ object ComposeSessionReplayConstants {
         const val DEFAULT_FONT_SIZE = 14.0f
         const val DEFAULT_FONT_NAME = "default"
         const val DEFAULT_TEXT_COLOR = "000000"
-        const val DEFAULT_BACKGROUND_COLOR = "FFFFFF"
+        const val DEFAULT_BACKGROUND_COLOR = "transparent"
         const val DEFAULT_ICON_SIZE = 24
         const val DEFAULT_PLACEHOLDER_SIZE = 100
         const val EM_TO_PX_MULTIPLIER = 16.0f
