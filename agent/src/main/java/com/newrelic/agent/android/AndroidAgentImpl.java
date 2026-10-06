@@ -279,6 +279,16 @@ public class AndroidAgentImpl implements
         Harvest.addHarvestListener(this);
 
         savedContext = context.getApplicationContext();
+
+        // Capture the pre-existing uncaught exception handler (e.g. another crash SDK) before
+        // PayloadController.initialize() below installs CrashReporter as the handler.
+        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_UNCAUGHT_HANDLER
+                .replace(MetricNames.TAG_NAME, getUnhandledExceptionHandlerName()));
+        // Must run before initializeFeaturesWithCoordination(): that call starts Session Replay
+        // recording, which needs SessionReplayReporter - created by PayloadController.initialize() -
+        // already up, or it silently drops every captured chunk (NR-614098 follow-up).
+        PayloadController.initialize(agentConfiguration);
+
         initializeFeaturesWithCoordination(context, agentConfiguration);
         Measurements.initialize();
         log.info(MessageFormat.format("New Relic Agent v{0}", Agent.getVersion()));
@@ -286,10 +296,6 @@ public class AndroidAgentImpl implements
 
         machineMeasurementConsumer = new MachineMeasurementConsumer();
         Measurements.addMeasurementConsumer(machineMeasurementConsumer);
-
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_UNCAUGHT_HANDLER
-                .replace(MetricNames.TAG_NAME, getUnhandledExceptionHandlerName()));
-        PayloadController.initialize(agentConfiguration);
 
         SessionContextManager.initialize();
 
@@ -960,6 +966,13 @@ public class AndroidAgentImpl implements
             SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler, agentConfiguration, mode);
 
             if(mode != SessionReplayMode.OFF) {
+                // PayloadController.initialize() (called earlier in AndroidAgentImpl.initialize(),
+                // before this boot-time call) only creates SessionReplayReporter if SR was already
+                // enabled in whatever config existed at that moment. SR's own enablement is
+                // re-checked here on every harvest-connect too, so if SR turns on only after that
+                // point (e.g. a fresh install with no cached config yet), lazily create the
+                // reporter now - otherwise recording starts with nothing to report to.
+                PayloadController.ensureSessionReplayReporterInitialized(agentConfiguration);
                 SessionReplay.initSessionReplay(mode);
             }
         } else {
