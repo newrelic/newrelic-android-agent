@@ -21,6 +21,7 @@ import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(JUnit4.class)
 public class TraceMachineTests {
@@ -321,6 +322,78 @@ public class TraceMachineTests {
             Assert.fail();
         }
         latch.await();
+    }
+
+    @Test
+    public void testEndTraceWhenInactiveIsNoOp() throws Exception {
+        Assert.assertTrue(TraceMachine.isTracingInactive());
+
+        TraceMachine.endTrace();
+        TraceMachine.endTrace("some-id-that-does-not-exist");
+
+        Assert.assertTrue(TraceMachine.isTracingInactive());
+    }
+
+    @Test
+    public void testEndTraceSynchronization() throws Exception {
+        /*
+         * Reproduces NR-615041: TraceMachine.endTrace(String)/endTrace() dereference the static
+         * traceMachine field after a null check without holding TRACE_MACHINE_LOCK. If another thread
+         * (haltTracing() / completeActivityTrace(), which null the field under the lock) wins the race
+         * between the check and the dereference, the resulting NPE must not escape to the caller.
+         *
+         * The window between the check and the dereference is a couple of bytecode instructions, so
+         * spawning fresh threads per attempt (thread creation overhead dwarfs the window) essentially
+         * never lands inside it. Instead, run two threads in tight loops for a few seconds so real
+         * scheduler preemption has many, many chances to interleave exactly there.
+         */
+        final AtomicBoolean stop = new AtomicBoolean(false);
+        final AtomicBoolean gotNpe = new AtomicBoolean(false);
+        final AtomicReference<String> currentId = new AtomicReference<>(null);
+
+        Thread halter = new Thread() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    try {
+                        TraceMachine.startTracing("raceTrace");
+                        currentId.set(TraceMachine.getRootTrace().myUUID.toString());
+                        TraceMachine.haltTracing();
+                    } catch (Exception ignored) {
+                        // tracing may already be inactive/racing with the ender thread - that's fine.
+                    }
+                }
+            }
+        };
+
+        Thread ender = new Thread() {
+            @Override
+            public void run() {
+                while (!stop.get()) {
+                    try {
+                        String id = currentId.get();
+                        if (id != null) {
+                            TraceMachine.endTrace(id);
+                        }
+                        TraceMachine.endTrace();
+                    } catch (NullPointerException e) {
+                        gotNpe.set(true);
+                        stop.set(true);
+                    }
+                }
+            }
+        };
+
+        halter.start();
+        ender.start();
+
+        Thread.sleep(3000);
+        stop.set(true);
+
+        halter.join();
+        ender.join();
+
+        Assert.assertFalse("NPE escaped from TraceMachine.endTrace()/endTrace(String) due to an unsynchronized check-then-use race on the static traceMachine field", gotNpe.get());
     }
 
     // Utility stubs

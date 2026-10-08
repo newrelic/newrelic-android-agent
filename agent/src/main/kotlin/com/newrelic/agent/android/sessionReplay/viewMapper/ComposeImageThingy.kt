@@ -18,6 +18,7 @@ import com.newrelic.agent.android.sessionReplay.SessionReplayConfiguration
 import com.newrelic.agent.android.sessionReplay.compose.ComposePrivacyUtils
 import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants
 import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails
+import com.newrelic.agent.android.sessionReplay.compose.SemanticsNodeUtil
 import com.newrelic.agent.android.sessionReplay.internal.ComposePainterReflectionUtils
 import com.newrelic.agent.android.sessionReplay.internal.ImageCompressionUtils
 import com.newrelic.agent.android.sessionReplay.models.Attributes
@@ -427,7 +428,7 @@ open class ComposeImageThingy(
             // This shows behind transparent images or as fallback during load
             if (backgroundColor.isNotEmpty() && backgroundColor != "transparent") {
                 cssBuilder.append("background-color: ")
-                cssBuilder.append(backgroundColor)
+                cssBuilder.append(SemanticsNodeUtil.toCssColor(backgroundColor))
                 cssBuilder.append("; ")
             }
 
@@ -478,7 +479,7 @@ open class ComposeImageThingy(
         }
 
         if (viewDetails.backgroundColor != otherViewDetails.backgroundColor) {
-            styleDifferences["background-color"] = otherViewDetails.backgroundColor ?: "transparent"
+            styleDifferences["background-color"] = SemanticsNodeUtil.toCssColor(otherViewDetails.backgroundColor)
         }
 
         if (!imageData.equals(other.imageData) ){

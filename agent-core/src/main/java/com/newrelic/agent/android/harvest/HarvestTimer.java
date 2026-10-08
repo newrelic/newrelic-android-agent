@@ -62,6 +62,16 @@ public class HarvestTimer implements Runnable {
             return;
         }
 
+        // Guards the periodic scheduled tick only. An explicit tickNow() flush (e.g. the one
+        // AndroidAgentImpl.stop() issues to drain remaining events before shutdown) must not be
+        // blocked by this: it already disregards the "time since last tick" limit above for the
+        // same reason - it's a deliberate one-time harvest, not the recurring scheduled one this
+        // guard exists to suppress.
+        if (!FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting) && ApplicationStateMonitor.isAppInBackground()) {
+            log.error("HarvestTimer: Attempting to harvest while app is in background");
+            return;
+        }
+
         log.debug("HarvestTimer: time since last tick: " + lastTickDelta);
 
         // Perform the actual tick logic
@@ -80,18 +90,10 @@ public class HarvestTimer implements Runnable {
         TicToc t = new TicToc().tic();
 
         try {
-
+            harvester.execute();
+            log.debug("Harvest: executed");
             if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-                harvester.execute();
-                log.debug("Harvest: executed");
                 log.debug("Harvest: executed in the background");
-            } else {
-                if (ApplicationStateMonitor.isAppInBackground()) {
-                    log.error("HarvestTimer: Attempting to harvest while app is in background");
-                } else {
-                    harvester.execute();
-                    log.debug("Harvest: executed");
-                }
             }
             lastTickTime = now();
         } catch (Exception e) {

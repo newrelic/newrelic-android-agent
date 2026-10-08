@@ -178,10 +178,7 @@ public class AndroidAgentImpl implements
         agentConfiguration.setEventStore(new FileEventStore(context, agentConfiguration));
         context.deleteSharedPreferences("NREventStore");
 
-        agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
         context.deleteSharedPreferences("NRSessionReplayStore");
-
-        agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
 
         agentConfiguration.setJsErrorStore(new FileJSErrorStore(context, agentConfiguration));
         context.deleteSharedPreferences("NRJSErrorStore");
@@ -240,6 +237,9 @@ public class AndroidAgentImpl implements
     }
 
     private static void startLogReporter(Context context, AgentConfiguration agentConfiguration) {
+            if (!LogReporting.isRemoteLoggingEnabled()) {
+                return;
+            }
             LogReportingConfiguration logReportingConfiguration = agentConfiguration.getLogReportingConfiguration();
             LogReportingConfiguration.reseed();
              if (logReportingConfiguration.isSampled()) {
@@ -279,6 +279,16 @@ public class AndroidAgentImpl implements
         Harvest.addHarvestListener(this);
 
         savedContext = context.getApplicationContext();
+
+        // Capture the pre-existing uncaught exception handler (e.g. another crash SDK) before
+        // PayloadController.initialize() below installs CrashReporter as the handler.
+        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_UNCAUGHT_HANDLER
+                .replace(MetricNames.TAG_NAME, getUnhandledExceptionHandlerName()));
+        // Must run before initializeFeaturesWithCoordination(): that call starts Session Replay
+        // recording, which needs SessionReplayReporter - created by PayloadController.initialize() -
+        // already up, or it silently drops every captured chunk (NR-614098 follow-up).
+        PayloadController.initialize(agentConfiguration);
+
         initializeFeaturesWithCoordination(context, agentConfiguration);
         Measurements.initialize();
         log.info(MessageFormat.format("New Relic Agent v{0}", Agent.getVersion()));
@@ -286,10 +296,6 @@ public class AndroidAgentImpl implements
 
         machineMeasurementConsumer = new MachineMeasurementConsumer();
         Measurements.addMeasurementConsumer(machineMeasurementConsumer);
-
-        StatsEngine.get().inc(MetricNames.SUPPORTABILITY_CRASH_UNCAUGHT_HANDLER
-                .replace(MetricNames.TAG_NAME, getUnhandledExceptionHandlerName()));
-        PayloadController.initialize(agentConfiguration);
 
         SessionContextManager.initialize();
 
@@ -731,7 +737,9 @@ public class AndroidAgentImpl implements
         Harvest.shutdown();
         Measurements.shutdown();
         PayloadController.shutdown();
-        SessionReplay.deInitialize();
+        if (AgentConfiguration.getInstance().getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.deInitialize();
+        }
 
         if (LogReporting.isRemoteLoggingEnabled()) {
             LogReporting.shutdown();
@@ -794,6 +802,9 @@ public class AndroidAgentImpl implements
      * @return true if recording started/transitioned to FULL, false if disabled
      */
     protected static boolean recordReplay() {
+        if (!AgentConfiguration.getInstance().getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            return false;
+        }
         // Check current mode - single call instead of two
         SessionReplayMode currentMode = SessionReplay.getCurrentMode();
 
@@ -839,6 +850,9 @@ public class AndroidAgentImpl implements
     }
 
     protected static boolean pauseReplay() {
+        if (!AgentConfiguration.getInstance().getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            return false;
+        }
         // If SessionReplay is already recording (ERROR or FULL mode)
         if (SessionReplay.isReplayRecording()) {
                 SessionReplay.pauseReplay();
@@ -929,13 +943,36 @@ public class AndroidAgentImpl implements
     private static void startSessionReplayRecorderWithMode(Context context, AgentConfiguration agentConfiguration,
                                                            SessionReplayConfiguration sessionReplayConfiguration,
                                                            SessionReplayMode mode) {
+        if (ApplicationStateMonitor.isAppInBackground()) {
+            // NR-614098: a session that begins (or is re-evaluated, e.g. on harvest-connect or
+            // session restart) while the app is backgrounded can never capture a frame - there's
+            // no resumed Activity, no attached window. Don't set hasReplay or start the recorder.
+            log.debug("Skipping Session Replay bootstrap: application is in the background.");
+            AnalyticsControllerImpl.getInstance().removeAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED);
+            return;
+        }
+
         if(sessionReplayConfiguration.isEnabled()) {
+            agentConfiguration.setSessionReplayStore(new FileSessionReplayStore(context));
+            // Relocated out of the constructor: an unconditional allocation keeps
+            // FileOfflineSessionReplayStore reachable, which anchors OfflineSessionReplayStore
+            // and OfflineSessionReplayPayload in the sessionReplay package (NR-587343).
+            // Only SessionReplayReporter reads this store, and that is itself gated now.
+            agentConfiguration.setOfflineSessionReplayStore(new FileOfflineSessionReplayStore(context));
+
             sessionReplayConfiguration.processCustomMaskingRules();
             AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
             Handler uiHandler = new Handler(Looper.getMainLooper());
             SessionReplay.initialize(((Application) context.getApplicationContext()), uiHandler, agentConfiguration, mode);
 
             if(mode != SessionReplayMode.OFF) {
+                // PayloadController.initialize() (called earlier in AndroidAgentImpl.initialize(),
+                // before this boot-time call) only creates SessionReplayReporter if SR was already
+                // enabled in whatever config existed at that moment. SR's own enablement is
+                // re-checked here on every harvest-connect too, so if SR turns on only after that
+                // point (e.g. a fresh install with no cached config yet), lazily create the
+                // reporter now - otherwise recording starts with nothing to report to.
+                PayloadController.ensureSessionReplayReporterInitialized(agentConfiguration);
                 SessionReplay.initSessionReplay(mode);
             }
         } else {
@@ -1238,7 +1275,9 @@ public class AndroidAgentImpl implements
     @Override
     public void onSessionRestarted() {
         // Shut down previous session's reporters before re-evaluating sampling
-        SessionReplay.deInitialize();
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
+            SessionReplay.deInitialize();
+        }
 
         if (LogReporting.isRemoteLoggingEnabled()) {
             LogReporting.shutdown();

@@ -23,6 +23,7 @@ public interface WanType {
     String HSUPA = "HSUPA";
     String IDEN = "IDEN";
     String LTE = "LTE";
+    String NR = "5G";
     String RTT = "1xRTT";
     String UMTS = "UMTS";
     String ETHERNET = "ETHERNET";

@@ -26,11 +26,17 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import okhttp3.Headers;
+import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
+
+    // Bound on how much of an unknown-length body we'll peek to determine its size.
+    // Keeps memory use bounded for large responses (e.g. images) that omit Content-Length.
+    private static final long MAX_BODY_PEEK = 512 * 1024L;
 
     public static void inspectAndInstrument(final TransactionState transactionState, final Request request) {
         if (request == null) {
@@ -127,11 +133,37 @@ public class OkHttp3TransactionStateUtil extends TransactionStateUtil {
             }
         }
 
-        // NOTE: Do NOT use peekBody() to determine content length for responses with unknown length.
-        // peekBody() can block indefinitely for streaming responses (SSE, chunked transfers, etc.)
-        // causing ~100 second delays. It's acceptable for content length to remain unknown (-1).
+        // If still unknown (e.g. HTTP/2 responses, which omit Content-Length entirely), fall
+        // back to a bounded peekBody() read. Skip this for streaming (SSE) and WebSocket
+        // upgrade responses: peekBody() blocks until MAX_BODY_PEEK bytes arrive or the stream
+        // ends, which can take ~100 seconds on a live, slow-trickling stream.
+        if (contentLength < 0L && response != null && !isStreamingOrWebSocketResponse(response)) {
+            try {
+                contentLength = response.peekBody(MAX_BODY_PEEK).contentLength();
+            } catch (IOException e) {
+                log.debug("Failed to peek response body to determine content length: " + e);
+            } catch (IllegalStateException e) {
+                log.debug("Could not peek response body: " + e);
+            }
+        }
 
         return contentLength;
+    }
+
+    private static boolean isStreamingOrWebSocketResponse(Response response) {
+        ResponseBody body = response.body();
+        if (body != null) {
+            MediaType mediaType = body.contentType();
+            if (mediaType != null) {
+                String mimeType = mediaType.type() + "/" + mediaType.subtype();
+                if (Constants.Network.ContentType.EVENT_STREAM.equalsIgnoreCase(mimeType)) {
+                    return true;
+                }
+            }
+        }
+
+        String webSocketAccept = response.header(Constants.Network.WEBSOCKET_ACCEPT_HEADER);
+        return webSocketAccept != null && !webSocketAccept.trim().isEmpty();
     }
 
     protected static Response addTransactionAndErrorData(TransactionState transactionState, Response response) {
