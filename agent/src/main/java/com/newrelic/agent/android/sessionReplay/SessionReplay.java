@@ -133,6 +133,69 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         return externalCaptureSource.get();
     }
 
+    // --- POC (2026-10-08): native error buffer + config push for external rrweb. Not reviewed. ---
+
+    /** Notified when the session replay config or recording mode changes (initialize, error→full, pause). */
+    public interface ConfigListener {
+        void onSessionReplayConfigChanged();
+    }
+
+    private static final java.util.concurrent.CopyOnWriteArrayList<ConfigListener> configListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void addConfigListener(ConfigListener listener) {
+        if (listener != null) {
+            configListeners.addIfAbsent(listener);
+        }
+    }
+
+    public static void removeConfigListener(ConfigListener listener) {
+        configListeners.remove(listener);
+    }
+
+    private static void notifyConfigListeners() {
+        for (ConfigListener listener : configListeners) {
+            try {
+                listener.onSessionReplayConfigChanged();
+            } catch (Exception e) {
+                log.error("SessionReplay: config listener failed: " + e);
+            }
+        }
+    }
+
+    // Single thread so external appends, the error flush and post-flush uploads keep their order
+    // (the file manager's own executor has more than one thread).
+    private static final java.util.concurrent.ExecutorService externalIngestExecutor =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "SessionReplayExternalIngest");
+                t.setDaemon(true);
+                return t;
+            });
+    private static final AtomicBoolean externalFlushPending = new AtomicBoolean(false);
+
+    /** Uploads the buffered external events (error → full), then lets direct uploads resume. */
+    private static void flushExternalErrorBuffer() {
+        try {
+            JsonArray buffered = SessionReplayFileManager.readEventsAsJsonArray();
+            SessionReplayFileManager.clearWorkingFileSync();
+            android.util.Log.e("SR-NATIVE-BUFFER", "flush on error — buffered events=" + buffered.size() + " isFirstChunk=" + isFirstChunk);
+            StringBuilder types = new StringBuilder();
+            for (int i = 0; i < buffered.size(); i++) {
+                JsonObject e = buffered.get(i).getAsJsonObject();
+                types.append(e.has("type") ? e.get("type").getAsInt() : -1)
+                        .append('@')
+                        .append(e.has("timestamp") ? e.get("timestamp").getAsLong() % 100000 : -1)
+                        .append(' ');
+            }
+            android.util.Log.e("SR-NATIVE-BUFFER", "flushed types@ts(mod 1e5): " + types + "now=" + System.currentTimeMillis() % 100000);
+            if (!buffered.isEmpty()) {
+                reportExternalEvents(buffered, new Gson().toJson(buffered));
+            }
+        } finally {
+            externalFlushPending.set(false);
+        }
+    }
+
     // Buffer for queuing frames and touch data that arrive during harvest
     private static final AtomicBoolean isHarvesting = new AtomicBoolean(false);
     private final List<List<RRWebEvent>> frameBufferDuringHarvest =
@@ -210,6 +273,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         if (listenerRegistered.compareAndSet(false, true)) {
             ApplicationStateMonitor.getInstance().addApplicationStateListener(instance);
         }
+        notifyConfigListeners(); // POC: config push
     }
 
     /**
@@ -258,6 +322,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Only harvest when in FULL mode
         if (modeManager == null || modeManager.getCurrentMode() == SessionReplayMode.ERROR) {
             log.debug("SessionReplay: Skipping harvest - in Error mode (buffered data not ready)");
+            return;
+        }
+        // POC: with an external source the working file only holds its error-mode buffer,
+        // which flushExternalErrorBuffer() uploads in order; don't harvest it twice.
+        if (externalCaptureSource.get()) {
             return;
         }
 
@@ -367,6 +436,28 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
                 return false;
             }
 
+            // POC: error mode buffers external events in the native working file instead of
+            // uploading; switchModeOnError() flushes them. After the switch, uploads queue
+            // behind the flush so the buffered window goes first.
+            if (externalCaptureSource.get()) {
+                if (modeManager.getCurrentMode() == SessionReplayMode.ERROR) {
+                    externalIngestExecutor.execute(() -> SessionReplayFileManager.appendJsonEvents(jsonArray));
+                    return true;
+                }
+                if (externalFlushPending.get()) {
+                    externalIngestExecutor.execute(() -> reportExternalEvents(jsonArray, eventsJSON));
+                    return true;
+                }
+            }
+            return reportExternalEvents(jsonArray, eventsJSON);
+        } catch (Exception e) {
+            log.error("recordSessionReplayEvents: " + e);
+            return false;
+        }
+    }
+
+    private static boolean reportExternalEvents(JsonArray jsonArray, String eventsJSON) {
+        try {
             long firstTimestamp = System.currentTimeMillis();
             long lastTimestamp = firstTimestamp;
             try {
@@ -397,7 +488,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             }
             return reported;
         } catch (Exception e) {
-            log.error("recordSessionReplayEvents: " + e);
+            log.error("reportExternalEvents: " + e);
             return false;
         }
     }
@@ -702,8 +793,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             log.debug("SessionReplay: Sliding window tick - forcing full snapshot and pruning old data");
             // Force full snapshot for next frame
             setTakeFullSnapshot(true);
-            // Prune events older than 15 seconds
-            SessionReplayFileManager.pruneEventsOlderThan(SLIDING_WINDOW_MS);
+            // Prune events older than 15 seconds. POC: for an external source, keep the
+            // slice starting at a Meta so a flushed window is always renderable.
+            SessionReplayFileManager.pruneEventsOlderThan(SLIDING_WINDOW_MS, externalCaptureSource.get());
         } catch (Exception e) {
             log.error("Error during sliding window tick", e);
         }
@@ -724,6 +816,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
                 // Force a full snapshot to ensure we have complete data from this point forward
                 setTakeFullSnapshot(true);
                 persistSrState(true, true);
+                if (externalCaptureSource.get()) {
+                    // POC: upload the external error-mode buffer before any direct upload.
+                    externalFlushPending.set(true);
+                    externalIngestExecutor.execute(SessionReplay::flushExternalErrorBuffer);
+                }
+                notifyConfigListeners(); // POC: config push (mode is now full)
                 return true;
             }
         }
@@ -810,6 +908,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         if (modeChanged) {
             stopSlidingWindowTimer();
             stopRecording();
+            notifyConfigListeners(); // POC: config push
             return true;
         }
         return false;

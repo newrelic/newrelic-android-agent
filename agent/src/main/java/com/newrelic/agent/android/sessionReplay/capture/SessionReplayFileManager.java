@@ -381,6 +381,64 @@ public class SessionReplayFileManager {
      * @param thresholdMs The time threshold in milliseconds (e.g., 15000 for 15 seconds)
      */
     public static void pruneEventsOlderThan(long thresholdMs) {
+        pruneEventsOlderThan(thresholdMs, false);
+    }
+
+    /**
+     * Synchronously appends already-serialized rrweb events (e.g. from an external
+     * capture source such as the Flutter agent) to the working file.
+     *
+     * POC (2026-10-08, native error buffer for external rrweb — not reviewed).
+     */
+    public static void appendJsonEvents(JsonArray events) {
+        synchronized (fileSyncLock) {
+            BufferedWriter writer = workingSessionReplayFileWriter.get();
+            if (writer == null) {
+                return;
+            }
+            try {
+                for (int i = 0; i < events.size(); i++) {
+                    writer.write(gson.toJson(events.get(i)));
+                    writer.newLine();
+                }
+                writer.flush();
+            } catch (IOException e) {
+                log.error("Error appending " + events.size() + " external event(s) to file: " + e.getMessage(), e);
+            }
+        }
+    }
+
+    /**
+     * Synchronously truncates the working file and reopens its writer.
+     *
+     * POC (2026-10-08, native error buffer for external rrweb — not reviewed).
+     */
+    public static void clearWorkingFileSync() {
+        synchronized (fileSyncLock) {
+            try {
+                closeWorkingSessionReplayFileWriter();
+                if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
+                    try (java.io.FileWriter fw = new java.io.FileWriter(workingSessionReplayFile, false)) {
+                        // truncate
+                    }
+                }
+                if (workingSessionReplayFile != null) {
+                    replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, true);
+                }
+            } catch (IOException e) {
+                log.error("Error clearing working session replay file", e);
+            }
+        }
+    }
+
+    /**
+     * Prunes events older than {@code thresholdMs}. When {@code keepFromLastMeta} is set, the
+     * kept slice is widened back to the last Meta event at or before the cutoff (or, if there is
+     * none, starts at the first Meta), so a flushed slice always starts with a renderable
+     * Meta + FullSnapshot. Used for externally supplied rrweb, whose source emits a periodic
+     * Meta + FullSnapshot in error mode.
+     */
+    public static void pruneEventsOlderThan(long thresholdMs, boolean keepFromLastMeta) {
         Callable<Void> pruneTask = new Callable<Void>() {
             @Override
             public Void call() throws Exception {
@@ -409,6 +467,21 @@ public class SessionReplayFileManager {
                                     log.warn("Failed to parse event JSON during pruning: " + line);
                                 }
                             }
+                        }
+
+                        if (keepFromLastMeta) {
+                            JsonArray kept = keepFromCheckpoint(allEvents, cutoffTimeMs);
+                            log.debug("Pruning (checkpoint): removed " + (allEvents.size() - kept.size()) + " old events, kept " + kept.size());
+                            closeWorkingSessionReplayFileWriter();
+                            try (BufferedWriter writer = new BufferedWriter(new java.io.FileWriter(workingSessionReplayFile, false))) {
+                                for (int i = 0; i < kept.size(); i++) {
+                                    writer.write(gson.toJson(kept.get(i)));
+                                    writer.newLine();
+                                }
+                                writer.flush();
+                            }
+                            replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, true);
+                            return null;
                         }
 
                         // Filter events to keep only those within the threshold
@@ -458,6 +531,37 @@ public class SessionReplayFileManager {
         };
 
         submitFileWriteTask(pruneTask);
+    }
+
+    private static final int RRWEB_TYPE_META = 4;
+
+    static JsonArray keepFromCheckpoint(JsonArray events, long cutoffTimeMs) {
+        int firstRecent = events.size();
+        int lastMetaAtOrBefore = -1;
+        int firstMeta = -1;
+        for (int i = 0; i < events.size(); i++) {
+            JsonObject event = events.get(i).getAsJsonObject();
+            long ts = event.has("timestamp") ? event.get("timestamp").getAsLong() : Long.MAX_VALUE;
+            boolean isMeta = event.has("type") && event.get("type").getAsInt() == RRWEB_TYPE_META;
+            if (isMeta && firstMeta < 0) {
+                firstMeta = i;
+            }
+            if (ts >= cutoffTimeMs && firstRecent == events.size()) {
+                firstRecent = i;
+            }
+            if (isMeta && i <= firstRecent && ts < cutoffTimeMs) {
+                lastMetaAtOrBefore = i;
+            }
+            if (isMeta && i == firstRecent) {
+                lastMetaAtOrBefore = i;
+            }
+        }
+        int start = lastMetaAtOrBefore >= 0 ? lastMetaAtOrBefore : (firstMeta >= 0 ? firstMeta : 0);
+        JsonArray kept = new JsonArray();
+        for (int i = start; i < events.size(); i++) {
+            kept.add(events.get(i));
+        }
+        return kept;
     }
 
     /**
