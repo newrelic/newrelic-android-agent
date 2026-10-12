@@ -1,0 +1,27 @@
+name: Docs release notes tests
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/**"
+      - ".github/workflows/*docs-release-notes*.yml"
+      - ".github/workflows/check-pr-release-notes.yml"
+      - "android-agent-next.mdx"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Script tests
+        run: bash .github/scripts/test/run.sh
+      - name: shellcheck
+        run: shellcheck --severity=warning -x .github/scripts/*.sh .github/scripts/test/*.sh
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color .github/workflows/append-docs-release-notes.yml .github/workflows/generate-docs-release-notes.yml .github/workflows/check-pr-release-notes.yml .github/workflows/docs-release-notes-tests.yml
