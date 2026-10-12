@@ -1,0 +1,83 @@
+name: Check PR release notes
+
+# Tells the author, while the PR is open, what the release-notes automation will do with it:
+# which section it lands in and the bullet it will become. Fails (red check) when the PR has no
+# single release-note:* label, because the label decides the section. Everything else is a
+# suggestion. The check is advisory until someone adds it as a required check in the repository
+# ruleset; the automation still handles unlabelled PRs after merge (see append-docs-release-notes.yml).
+# It only runs for PRs into develop. If it is ever made a required check, do not apply that rule to
+# other branches (main, release/*): the check would never report there and would block merges.
+# Exit codes of check-pr.sh: 0 pass, 1 needs a label (red check), 2+ the check itself broke.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+    branches: [develop]
+
+permissions:
+  contents: read
+  pull-requests: write # the report comment
+
+concurrency:
+  group: release-notes-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: false # a cancelled run could leave its comment half-posted and cause a duplicate
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Check the PR
+        id: check
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          PR_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+          PR_LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -uo pipefail
+          PR_LABELS=$(jq -r '.[]' <<<"$PR_LABELS_JSON") || { echo "::error::Could not read the PR labels"; exit 1; }
+          export PR_LABELS
+          rc=0
+          .github/scripts/check-pr.sh > "$RUNNER_TEMP/report.md" || rc=$?
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Post or update the PR comment
+        # Only for a finished check (exit 0 or 1): a crash must not be posted as a result.
+        # Fork PRs get a read-only token and cannot comment; the job summary still has the report.
+        if: steps.check.outputs.rc == '0' || steps.check.outputs.rc == '1'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          ids=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("<!-- release-notes-check -->")) | .id')
+          id=${ids%%$'\n'*}
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@"$RUNNER_TEMP/report.md" > /dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -F body=@"$RUNNER_TEMP/report.md" > /dev/null
+          fi
+
+      - name: Fail when the PR needs a label
+        if: steps.check.outputs.rc == '1'
+        run: |
+          echo "::error::Add exactly one release-note:* label (feature, enhancement, bug or security), or put [skip-docs] in the description. See the PR comment or job summary."
+          exit 1
+
+      - name: Fail when the check itself broke
+        if: steps.check.outputs.rc != '0' && steps.check.outputs.rc != '1'
+        env:
+          CHECK_RC: ${{ steps.check.outputs.rc }}
+        run: |
+          echo "::error::The release-notes check crashed (exit $CHECK_RC); this is not a problem with the PR. See the log of the previous step."
+          exit 1

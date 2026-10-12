@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+. "$(dirname "$0")/helpers.sh"
+tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+u=https://github.com/newrelic/newrelic-android-agent/pull
+n="$tmp/next.mdx"; o="$tmp/out.mdx"; fl="$tmp/flags.txt"
+cp "$REPO_ROOT/android-agent-next.mdx" "$n"
+a() { "$SCRIPTS/append-bullet.sh" "$n" "$@"; }
+gen() { "$SCRIPTS/generate-docs.sh" --next "$n" --version 7.8.4 --date 2026-10-20 --out "$o" "$@" 2>/dev/null; }
+
+a bug "* Fixed a crash on \`Foo\` startup. ([#1]($u/1)) {/* short: Fixed a crash on Foo startup */}"
+a bug "* Fixed Bob's bug. ([#2]($u/2)) {/* short: Fixed Bob's bug */} {/* flag: unlabelled */}"
+a feature "* Added offline storage. ([#3]($u/3)) {/* short: Added offline storage */}"
+# a person adds this one by editing the file, which is why it bypasses append-bullet.sh (that refuses link-less bullets)
+awk '{ print } /^## Improvements and enhancements$/ { print ""; print "* Hand written bullet with no link or short." }' "$n" > "$n.tmp" && mv "$n.tmp" "$n"
+
+gen --download-link https://central.sonatype.com/artifact/com.newrelic.agent.android/android-agent --flags-out "$fl"
+out=$(cat "$o")
+
+assert_contains "frontmatter has blank category" "$out" "
+category:
+"
+assert_contains "downloadLink emitted" "$out" "downloadLink: 'https://central.sonatype.com/artifact/com.newrelic.agent.android/android-agent'"
+assert_contains "features array populated" "$out" "features:
+  - 'Added offline storage'"
+assert_contains "bugs array populated and YAML-quoted" "$out" "bugs:
+  - 'Fixed a crash on Foo startup'
+  - 'Fixed Bob''s bug'"
+assert_contains "short derived for hand-written bullet" "$out" "  - 'Hand written bullet with no link or short.'"
+assert_contains "empty security array present" "$out" "security: []"
+assert_not_contains "empty security section deleted" "$out" "## Security updates"
+assert_not_contains "comments stripped from body" "$out" "{/*"
+assert_contains "bug bullet in body with dash and link" "$out" "- Fixed a crash on \`Foo\` startup. ([#1]($u/1))"
+assert_contains "support statement preserved" "$out" "## Support statement"
+assert_contains "eol link preserved" "$out" "mobile-agents-eol-policy/#android-eol"
+assert_eq "flags file lists flagged PRs" "#2 unlabelled" "$(cat "$fl")"
+assert_eq "section order feature before bug" "1" "$(printf '%s\n' "$out" | grep -n -e '^## ' | sed -n '1p;2p;3p;4p' | awk -F: '/New features/{f=$1} /Bug fixes/{b=$1} END{print (f<b)}')"
+
+gen; assert_not_contains "downloadLink key omitted when no link" "$(cat "$o")" "downloadLink"
+
+# nothing to publish
+cp "$REPO_ROOT/android-agent-next.mdx" "$n"
+"$SCRIPTS/generate-docs.sh" --next "$n" --version 7.8.4 --date 2026-10-20 --out "$o" 2>/dev/null
+assert_eq "no bullets exits 3" 3 "$?"
+
+# reconciliation: only-in-A, only-in-B, in-both appear once
+cp "$REPO_ROOT/android-agent-next.mdx" "$n"
+a bug "* Only on next branch. ([#10]($u/10)) {/* short: Only on next */}"
+a bug "* In both. ([#11]($u/11)) {/* short: In both */}"
+a bug "* In both again. ([#11]($u/11)) {/* short: Duplicate */}"
+a bug "* Only in compare. ([#12]($u/12)) {/* short: Only in compare */}"
+a bug "* Released later, not in this release. ([#99]($u/99)) {/* short: Later */}"
+"$SCRIPTS/filter-bullets.sh" "$n" keep 10 11 12 > "$tmp/release-src.mdx"
+"$SCRIPTS/generate-docs.sh" --next "$tmp/release-src.mdx" --version 7.8.4 --date 2026-10-20 --out "$o" 2>/dev/null
+out=$(cat "$o")
+assert_contains "only-in-A survives" "$out" "Only on next branch."
+assert_contains "only-in-B survives" "$out" "Only in compare."
+assert_eq "in-both appears once" 1 "$(printf '%s\n' "$out" | grep -c '^- In both')"
+assert_not_contains "PR outside the release is excluded" "$out" "Released later"
+
+# skeleton headings must match lib.sh (the generator uses lib.sh)
+. "$SCRIPTS/lib.sh"
+for s in $SECTIONS; do
+  got=$(grep -A1 -xF "$(section_marker "$s")" "$REPO_ROOT/android-agent-next.mdx" | tail -1)
+  assert_eq "skeleton heading for $s matches lib.sh" "## $(section_heading "$s")" "$got"
+done
+
+# ---- malformed input and bad arguments are refused, never silently mishandled ----
+g() { "$SCRIPTS/generate-docs.sh" "$@" 2>/dev/null; }
+ok_args=(--version 7.8.4 --date 2026-10-20)
+bul="* Fixed x. ([#1]($u/1)) {/* short: Fixed x */}"
+skel="$REPO_ROOT/android-agent-next.mdx"
+
+printf '%s\n' '---' '---' '{/* release-note:bogus */}' "$bul" '{/* release-note:end */}' 'Support' > "$tmp/bogus.mdx"
+rm -f "$o"; g --next "$tmp/bogus.mdx" "${ok_args[@]}" --out "$o"; rc=$?
+assert_eq "unknown section marker exits 2" 2 "$rc"
+[ -e "$o" ] && r=written || r=none; assert_eq "unknown section marker writes no output" none "$r"
+printf '%s\n' '{/* release-note:../../../tmp/escape */}' "$bul" '{/* release-note:end */}' > "$tmp/escape.mdx"
+g --next "$tmp/escape.mdx" "${ok_args[@]}" --out "$o"; assert_eq "path-like section marker exits 2" 2 "$?"
+printf '%s\n' "$bul" '{/* release-note:bug */}' '{/* release-note:end */}' > "$tmp/stray.mdx"
+g --next "$tmp/stray.mdx" "${ok_args[@]}" --out "$o"; assert_eq "bullet before any marker exits 2" 2 "$?"
+grep -vxF '{/* release-note:end */}' "$skel" > "$tmp/noend.mdx"
+g --next "$tmp/noend.mdx" "${ok_args[@]}" --out "$o"; assert_eq "missing end marker exits 2" 2 "$?"
+
+cp "$skel" "$tmp/crlf.mdx"; "$SCRIPTS/append-bullet.sh" "$tmp/crlf.mdx" bug "$bul"
+sed 's/$/\r/' "$tmp/crlf.mdx" > "$tmp/crlf2.mdx"
+g --next "$tmp/crlf2.mdx" "${ok_args[@]}" --out "$o"; assert_eq "CRLF input is accepted" 0 "$?"
+assert_contains "CRLF input still yields the bullet" "$(cat "$o")" "- Fixed x."
+assert_not_contains "CRLF input leaves no carriage returns in the output" "$(od -c "$o" | grep -c '\\r' || true)" "1"
+
+g --next "$tmp/crlf.mdx" --version 7.8 --date 2026-10-20 --out "$o"; assert_eq "short version exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" --version "$(printf '7.8.4\nevil: 1')" --date 2026-10-20 --out "$o"; assert_eq "version with a newline exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" --version 7.8.4 --date "2026-10-20'" --out "$o"; assert_eq "bad date exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --download-link http://x --out "$o"; assert_eq "non-https link exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --download-link "https://x/it's" --out "$o"; assert_eq "link with a quote exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --out; assert_eq "option with no value exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --bogus x --out "$o"; assert_eq "unknown option exits 2" 2 "$?"
+g --next "$tmp/missing.mdx" "${ok_args[@]}" --out "$o"; assert_eq "missing input file exits 2" 2 "$?"
+g "${ok_args[@]}" --out "$o"; assert_eq "missing --next exits 2" 2 "$?"
+
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --out "$o"
+assert_eq "output ends with exactly one newline" "2e0a" "$(tail -c2 "$o" | od -An -tx1 | tr -d ' \n')"
+
+# Frontmatter must stay valid YAML for hostile short forms (checked with a real parser when ruby exists).
+if command -v ruby >/dev/null 2>&1; then
+  : > "$tmp/hostile.txt"
+  i=100
+  for sh in '- dash' 'a: b' '# hash' 'yes' 'null' '123' "it's" 'back\slash' '[x]' '---' 'caf'$'\303\251'; do
+    i=$((i + 1))
+    printf '%s\n' "* H$i. ([#$i]($u/$i)) {/* short: $sh */}" >> "$tmp/hostile.txt"
+  done
+  awk -v h="$tmp/hostile.txt" '{ print } /^## Bug fixes$/ { print ""; while ((getline line < h) > 0) print line }' "$skel" > "$tmp/hostile.mdx"
+  g --next "$tmp/hostile.mdx" "${ok_args[@]}" --out "$o"
+  parsed=$(ruby -E UTF-8:UTF-8 -ryaml -e 'y = YAML.load(File.read(ARGV[0]).split("---\n")[1]); puts y["bugs"].join("|"); puts y["version"].class; puts y["category"].inspect' "$o")
+  assert_eq "hostile short forms round-trip through a YAML parser" "- dash|a: b|# hash|yes|null|123|it's|back\\slash|[x]|---|café
+String
+nil" "$parsed"
+else
+  echo "  skip YAML round-trip: ruby not installed"
+fi
+
+finish
