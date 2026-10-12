@@ -7,8 +7,20 @@ name: Generate docs release notes
 # A human must edit that PR before it merges. This replaces the CHANGELOG.md pass the original
 # ticket assumed; release-please was reverted in #638, so there is no CHANGELOG.md to read.
 #
+# Re-running for a version never destroys a person's edits: if the release-notes branch already
+# exists with different content the run stops, unless it is dispatched with overwrite=true.
+#
 # Requires repo secrets BOT_PAT (contents:write + pull-requests:write on newrelic/docs-website)
 # and BOT_EMAIL.
+#
+# Operational notes:
+# - A `release` event runs this file as it is at the tagged commit, so it must exist on the branch the
+#   release is tagged from (main or release/*) before the first release that should use it.
+#   workflow_dispatch appears in the Actions UI only once the file is on the default branch.
+# - A release published by GITHUB_TOKEN does not trigger workflows. Today a bot creates a draft and a
+#   person publishes it, which does. If publishing is ever automated (release-please, PR #642), use a PAT.
+# - GitHub keeps one pending run per concurrency group, so a burst of merges can in rare cases replace
+#   a queued run (shown as cancelled). If that happens to a release run, dispatch it again.
 
 on:
   release:
@@ -18,10 +30,13 @@ on:
       version:
         description: "Release version to build notes for, e.g. 7.8.4 (the tag must exist)"
         required: true
+      overwrite:
+        description: "Replace an existing release-notes branch or file for this version (discards edits made on it)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write # POST /releases/generate-notes needs push access
-  pull-requests: write
 
 env:
   # Repo variable DOCS_REPO overrides this, which is how the workflows are tested against a fork.
@@ -47,23 +62,36 @@ jobs:
         with:
           ref: develop
           fetch-depth: 0
+          persist-credentials: false # nothing here needs the token in .git/config; it would also shadow the credential helper
 
       - name: Resolve version
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
+          PUBLISHED_AT: ${{ github.event.release.published_at }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           version="${INPUT_VERSION:-$RELEASE_TAG}"
           version="${version#v}"
           if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            if ! git rev-parse -q --verify "refs/tags/$version^{commit}" > /dev/null; then
+              echo "::error::Tag $version does not exist in this repository."
+              exit 1
+            fi
+            released_on="${PUBLISHED_AT%%T*}"
+            [ -n "$released_on" ] || released_on=$(date -u +%F)
             {
               echo "valid=true"
               echo "version=$version"
               echo "slug=${version//./}"
               echo "dashed=${version//./-}"
+              echo "released_on=$released_on"
             } >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = workflow_dispatch ]; then
+            echo "::error::'$version' is not an X.Y.Z release version."
+            exit 1
           else
             echo "::notice::'$version' is not an X.Y.Z release; nothing to do."
             echo "valid=false" >> "$GITHUB_OUTPUT"
@@ -83,13 +111,44 @@ jobs:
             exit 1
           fi
 
+      # Every command in this step talks to docs-website, so it is the only place (with the two
+      # steps after it) that sees BOT_PAT. The step that handles PR text below does not.
+      - name: Fetch the accumulated bullets and docs-website
+        if: steps.version.outputs.valid == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          SLUG: ${{ steps.version.outputs.slug }}
+          OVERWRITE: ${{ inputs.overwrite }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          # Source A: bullets accumulated on docs-website (or a fresh skeleton). Only "no such branch"
+          # (git ls-remote exit 2) means start from the skeleton; any other failure (network, 5xx,
+          # auth) must stop the run, not silently drop the accumulated bullets.
+          rc=0
+          git ls-remote --exit-code --heads "https://github.com/$DOCS_REPO.git" "$DOCS_HEAD" > /dev/null 2>&1 || rc=$?
+          case "$rc" in 0 | 2) ;; *) echo "::error::Could not check for $DOCS_HEAD on $DOCS_REPO (git ls-remote exit $rc)"; exit 1 ;; esac
+          if [ "$rc" = 0 ]; then
+            gh api -H 'Accept: application/vnd.github.raw+json' \
+              "repos/$DOCS_REPO/contents/$DOCS_DIR/$DOCS_FILE_NAME?ref=$DOCS_HEAD" > "$RUNNER_TEMP/next.mdx"
+          else
+            cp android-agent-next.mdx "$RUNNER_TEMP/next.mdx"
+          fi
+          gh repo clone "$DOCS_REPO" docs-website -- --depth 1 --branch "$DOCS_BASE"
+          mkdir -p "docs-website/$DOCS_DIR"
+          # A note for this version that is already on docs-website's base branch must not be replaced silently.
+          if [ -e "docs-website/$DOCS_DIR/android-$SLUG.mdx" ] && [ "$OVERWRITE" != true ]; then
+            echo "::error::android-$SLUG.mdx already exists on $DOCS_REPO $DOCS_BASE. Re-run with overwrite=true to replace it."
+            exit 1
+          fi
+
       - name: Build the release note
         if: steps.version.outputs.valid == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
-          DOCS_TOKEN: ${{ secrets.BOT_PAT }}
+          GH_TOKEN: ${{ github.token }} # deliberately not BOT_PAT: this step runs the scripts that read PR text
           VERSION: ${{ steps.version.outputs.version }}
           SLUG: ${{ steps.version.outputs.slug }}
+          RELEASED_ON: ${{ steps.version.outputs.released_on }}
         run: |
           set -euo pipefail
           S=.github/scripts
@@ -103,35 +162,25 @@ jobs:
           gh api -X POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
             -f tag_name="$VERSION" -f previous_tag_name="$prev" --jq .body > "$RUNNER_TEMP/generated-notes.txt"
           prs=$("$S/extract-pr-numbers.sh" < "$RUNNER_TEMP/generated-notes.txt" | tr '\n' ' ')
-          echo "PRs in release: ${prs:-none}"
+          [ -n "$prs" ] || { echo "::error::No PRs found between $prev and $VERSION"; exit 1; }
+          echo "PRs in release: $prs"
 
-          # Source A: bullets accumulated on docs-website (or a fresh skeleton).
+          # Build a bullet for every release PR that has none yet (fork PRs, or any the per-PR run
+          # missed). A PR that fails is listed in the docs PR description rather than dropped quietly.
           next="$RUNNER_TEMP/next.mdx"
-          GH_TOKEN="$DOCS_TOKEN" gh auth setup-git
-          # Only "no such branch" (git ls-remote exit 2) means start from the skeleton; any other
-          # failure (network, 5xx, auth) must stop the run, not silently drop the accumulated bullets.
-          rc=0
-          GH_TOKEN="$DOCS_TOKEN" git ls-remote --exit-code --heads "https://github.com/$DOCS_REPO.git" "$DOCS_HEAD" > /dev/null 2>&1 || rc=$?
-          case "$rc" in 0 | 2) ;; *) echo "::error::Could not check for $DOCS_HEAD on $DOCS_REPO (git ls-remote exit $rc)"; exit 1 ;; esac
-          if [ "$rc" = 0 ]; then
-            GH_TOKEN="$DOCS_TOKEN" gh api -H 'Accept: application/vnd.github.raw+json' \
-              "repos/$DOCS_REPO/contents/$DOCS_DIR/$DOCS_FILE_NAME?ref=$DOCS_HEAD" > "$next"
-          else
-            cp android-agent-next.mdx "$next"
-          fi
-
-          # Build a bullet for every release PR that has none yet (fork PRs, or any the per-PR run missed).
+          : > "$RUNNER_TEMP/failed-prs.txt"
           for pr in $prs; do
-            "$S/process-pr.sh" "$pr" "$next" || echo "::warning::Could not build a bullet for PR #$pr"
+            "$S/process-pr.sh" "$pr" "$next" || {
+              echo "::warning::Could not build a bullet for PR #$pr"
+              echo "#$pr" >> "$RUNNER_TEMP/failed-prs.txt"
+            }
           done
 
           # Keep only this release's bullets, then generate the final file.
           # shellcheck disable=SC2086 # $prs is a space-separated list of PR numbers
           "$S/filter-bullets.sh" "$next" keep $prs > "$RUNNER_TEMP/release-src.mdx"
-          GH_TOKEN="$DOCS_TOKEN" gh repo clone "$DOCS_REPO" docs-website -- --depth 1 --branch "$DOCS_BASE"
-          mkdir -p "docs-website/$DOCS_DIR"
           "$S/generate-docs.sh" --next "$RUNNER_TEMP/release-src.mdx" --version "$VERSION" \
-            --date "$(date -u +%F)" --download-link "$DOWNLOAD_LINK" \
+            --date "$RELEASED_ON" --download-link "$DOWNLOAD_LINK" \
             --out "docs-website/$DOCS_DIR/android-$SLUG.mdx" --flags-out "$RUNNER_TEMP/flags.txt"
 
           printf '%s\n' "$prs" > "$RUNNER_TEMP/release-prs.txt"
@@ -145,15 +194,40 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           SLUG: ${{ steps.version.outputs.slug }}
           BRANCH: android_release_notes_${{ steps.version.outputs.dashed }}
+          OVERWRITE: ${{ inputs.overwrite }}
         working-directory: docs-website
         run: |
           set -euo pipefail
+          file="$DOCS_DIR/android-$SLUG.mdx"
           git config user.name "newrelic-mobile-agent-bot"
           git config user.email "$BOT_EMAIL"
-          git checkout -b "$BRANCH"
-          git add "$DOCS_DIR/android-$SLUG.mdx"
-          git commit -m "docs: add Android agent $VERSION release notes"
-          git push --force origin "HEAD:refs/heads/$BRANCH"
+
+          # Never overwrite a release-notes branch a person may have edited: the docs PR is where the
+          # mandatory edit pass happens. Identical content is simply reused (safe re-run after a
+          # half-finished run); different content stops the run unless overwrite=true.
+          commit_and_push() { # push-args...
+            git checkout -b "$BRANCH"
+            git add "$file"
+            git commit -m "docs: add Android agent $VERSION release notes"
+            git push "$@" origin "HEAD:refs/heads/$BRANCH"
+          }
+          rc=0
+          git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1 || rc=$?
+          case "$rc" in
+            2) commit_and_push ;;
+            0)
+              git fetch --depth 1 origin "$BRANCH"
+              if git show "FETCH_HEAD:$file" 2> /dev/null | cmp -s - "$file"; then
+                echo "$BRANCH already holds identical notes; reusing it."
+              elif [ "$OVERWRITE" = true ]; then
+                commit_and_push --force
+              else
+                echo "::error::$BRANCH already exists on $DOCS_REPO with different content (it may hold edits by a person). Delete the branch and its PR to regenerate, or dispatch this workflow with overwrite=true to discard them."
+                exit 1
+              fi
+              ;;
+            *) echo "::error::Could not check for $BRANCH on $DOCS_REPO (git ls-remote exit $rc)"; exit 1 ;;
+          esac
 
           {
             echo "Release notes for **Android agent $VERSION**, generated from the PRs merged since the previous release."
@@ -171,6 +245,12 @@ jobs:
                   *) echo "- $pr: $flag" ;;
                 esac
               done < "$RUNNER_TEMP/flags.txt"
+            fi
+            if [ -s "$RUNNER_TEMP/failed-prs.txt" ]; then
+              echo
+              echo "### Missing bullets"
+              echo "A bullet could not be built for these PRs. Add them by hand if they are user-facing:"
+              sed 's/^/- /' "$RUNNER_TEMP/failed-prs.txt"
             fi
             echo
             echo "Generated by newrelic/newrelic-android-agent .github/workflows/generate-docs-release-notes.yml (NR-620058)."
@@ -220,6 +300,10 @@ jobs:
             git config user.name "newrelic-mobile-agent-bot"
             git config user.email "$BOT_EMAIL"
             git add "$DOCS_DIR/$DOCS_FILE_NAME"
+            if git diff --staged --quiet; then
+              echo "Nothing to prune: none of this release's bullets were on $DOCS_HEAD."
+              exit 0
+            fi
             git commit -m "chore: drop android-agent $VERSION bullets from next release notes"
             git push origin "HEAD:refs/heads/$DOCS_HEAD"
           fi
