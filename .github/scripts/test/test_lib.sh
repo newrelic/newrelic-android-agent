@@ -9,7 +9,11 @@ assert_eq "mdx_escape keeps inline code verbatim" 'Call `List<String>` and &lt;b
 assert_eq "mdx_escape escapes everything when backticks are unbalanced" 'a ` &lt;b&gt;' "$(mdx_escape 'a ` <b>')"
 assert_eq "mdx_escape leaves plain text alone" 'Fixed a crash.' "$(mdx_escape 'Fixed a crash.')"
 
-assert_eq "plain_short strips markup and comment terminators" 'Fixed crash in Foo' "$(plain_short 'Fixed `crash` in <Foo> */')"
+assert_eq "plain_short strips markup and asterisks" 'Fixed crash in Foo /' "$(plain_short 'Fixed `crash` in <Foo> */')"
+case "$(plain_short 'a **// b')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
+assert_eq "plain_short cannot splice a new */ together" ok "$r"
+case "$(plain_short '*{}/ x')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
+assert_eq "plain_short cannot splice */ across removed braces" ok "$r"
 assert_eq "yaml_quote doubles single quotes" "'it''s fine'" "$(yaml_quote "it's fine")"
 
 assert_eq "section_from_title fix" bug "$(section_from_title 'fix: crash on start')"
@@ -45,7 +49,9 @@ assert_eq "title_to_bullet: existing full stop kept" "Added thing." "$(title_to_
 assert_eq "past tense: -e verbs" "Synchronized" "$(past_tense synchronize)"
 assert_eq "past tense: consonant+y" "Simplified" "$(past_tense simplify)"
 assert_eq "past tense: doubled consonant" "Skipped" "$(past_tense skip)"
-assert_eq "past tense: doubled consonant log" "Logged" "$(past_tense log)"
+assert_eq "past tense: doubled consonant stop" "Stopped" "$(past_tense stop)"
+assert_eq "past tense: nouns are not conjugated (log)" "" "$(past_tense log)"
+assert_eq "past tense: nouns are not conjugated (cache)" "" "$(past_tense cache)"
 assert_eq "past tense: irregular" "Kept" "$(past_tense keep)"
 assert_eq "past tense: unknown word is empty" "" "$(past_tense crash)"
 
@@ -80,5 +86,46 @@ assert_eq "skip_reason: release chore" "release chore" "$(skip_reason 'chore: up
 assert_eq "skip_reason: backport" "bridge or revert PR" "$(skip_reason 'Backport main to develop' '' NR-1)"
 assert_eq "skip_reason: revert" "bridge or revert PR" "$(skip_reason 'Revert "x"' '' NR-1)"
 assert_eq "skip_reason: skip-docs" "[skip-docs]" "$(skip_reason 'fix: x' 'text [skip-docs]' NR-1)"
+
+# ---- review findings: regression tests ----
+f=$(mktemp)
+printf '%s\n' '* Fixed x. ([#7](https://github.com/o/r/pull/7)) {/* short: see o/r/pull/9) */}' > "$f"
+file_has_pr "$f" 7 && r=yes || r=no; assert_eq "file_has_pr reads the real link, not the short comment (7)" yes "$r"
+file_has_pr "$f" 9 && r=yes || r=no; assert_eq "file_has_pr ignores a pull link inside the short comment (9)" no "$r"
+assert_eq "bullet_pr_number ignores comments" 7 "$(cat "$f" | bullet_pr_number)"
+rm -f "$f"
+
+assert_eq "ANR is not mistaken for a Jira key (space form)" "ANR 30 seconds timeout." "$(title_to_bullet 'fix: ANR 30 seconds timeout')"
+assert_eq "ANR is not mistaken for a Jira key (dash form)" "ANR-5 crash." "$(title_to_bullet 'fix: ANR-5 crash')"
+assert_eq "strip_title_noise: real key mid-title" "fix: crash" "$(strip_title_noise 'fix: crash NR-123')"
+assert_eq "strip_title_noise: key at the start" "remove headers" "$(strip_title_noise 'NR-123: remove headers')"
+assert_eq "title_to_bullet: only a Jira key leaves nothing" "" "$(title_to_bullet 'NR-123')"
+assert_eq "title_to_bullet: unknown prefix word is kept" "Android: crash on start." "$(title_to_bullet 'Android: crash on start')"
+assert_eq "title_to_bullet: space before the scope" "Guarded x." "$(title_to_bullet 'fix (NR-1): guard x')"
+assert_eq "title_to_bullet: noun titles are not conjugated" "Log spam on retry." "$(title_to_bullet 'fix: log spam on retry')"
+assert_eq "title_to_bullet: report as a verb" "Reported 5G for NR cellular connections." "$(title_to_bullet 'feat: report 5G for NR cellular connections')"
+
+assert_eq "skip_reason: chore(release) with a scope" "release chore" "$(skip_reason 'chore(release): 7.8.4' '' NR-1)"
+assert_eq "skip_reason: revert with a type prefix" "bridge or revert PR" "$(skip_reason 'revert: bad change' '' NR-1)"
+assert_eq "skip_reason: Merge branch" "bridge or revert PR" "$(skip_reason "Merge branch 'main' into develop" '' NR-1)"
+skip_reason 'Merge duplicate harvest requests' '' NR-1 >/dev/null && r=skip || r=keep; assert_eq "skip_reason: an ordinary title starting Merge is kept" keep "$r"
+
+assert_eq "extract_release_note: placeholder with a trailing period" "" "$(extract_release_note 'Release note: N/A.')"
+
+assert_eq "short_form: cut landing on a word end keeps the word" "aaa bbb" "$(short_form 'aaa bbb ccc' 7)"
+assert_eq "short_form: a single long word is cut" "aaaaa" "$(short_form 'aaaaaaaaaa' 5)"
+loc=$(locale -a 2>/dev/null | grep -iE '^(c|en_us)\.utf-?8$' | head -1)
+if [ -n "$loc" ]; then
+  assert_eq "short_form: multibyte text is not split mid-character ($loc)" "$(printf 'caf\xc3\xa9')" "$(LC_ALL=$loc short_form "$(printf 'caf\xc3\xa9 au lait')" 4)"
+else
+  echo "  skip short_form multibyte test: no UTF-8 locale installed"
+fi
+
+assert_eq "ensure_period adds one" "Done." "$(ensure_period 'Done')"
+assert_eq "ensure_period keeps ? and !" "Done?" "$(ensure_period 'Done?')"
+assert_eq "yaml_quote of empty" "''" "$(yaml_quote '')"
+is_valid_section bug && r=yes || r=no; assert_eq "is_valid_section accepts bug" yes "$r"
+is_valid_section nonsense && r=yes || r=no; assert_eq "is_valid_section rejects junk" no "$r"
+assert_eq "section_marker" '{/* release-note:bug */}' "$(section_marker bug)"
 
 finish

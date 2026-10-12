@@ -6,6 +6,9 @@
 
 DOCS_SUBJECT="Android agent"
 
+# Conventional Commit types recognised as a title prefix ("fix: ...", "feat(scope): ...").
+CC_TYPES="feat|fix|perf|refactor|docs|test|ci|chore|build|style|security|revert"
+
 # Section keys, in the order they appear in the published note.
 SECTIONS="feature enhancement bug security"
 
@@ -66,8 +69,9 @@ mdx_escape() {
 }
 
 # Plain text safe inside a {/* short: ... */} comment and a YAML string: no markup at all.
+# Every * is dropped (not just "*/") because removing "*/" once can splice a new one together.
 plain_short() {
-  oneline "$(printf '%s' "$1" | sed -E 's/[`{}<>]//g; s|\*/||g')"
+  oneline "$(printf '%s' "$1" | sed -E 's/[`{}<>*]//g')"
 }
 
 # YAML single-quoted scalar.
@@ -77,6 +81,7 @@ yaml_quote() {
 
 # Fallback classification from a Conventional Commits title when no label and no model answer.
 section_from_title() {
+  local lower
   lower=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
   case "$lower" in
     fix:* | fix\(* | fix!:* | fix\ * | fixes\ * | fixed\ *) echo bug ;;
@@ -88,12 +93,13 @@ section_from_title() {
 
 # Reads bullet lines on stdin, prints the PR number from the trailing "/pull/N)" link of each.
 bullet_pr_number() {
-  sed -En 's|.*/pull/([0-9]+)\).*|\1|p'
+  strip_comments | sed -En 's|.*/pull/([0-9]+)\).*|\1|p'
 }
 
 # file_has_pr FILE N -> success when a bullet for PR N is already in FILE.
+# (grep without -q: with -q an early exit can SIGPIPE the upstream stage under pipefail.)
 file_has_pr() {
-  grep -E '^\* ' "$1" 2>/dev/null | bullet_pr_number | grep -qx "$2"
+  grep -E '^\* ' "$1" 2>/dev/null | bullet_pr_number | grep -x "$2" > /dev/null
 }
 
 # Remove every {/* ... */} comment from a line (comment bodies never contain braces).
@@ -104,8 +110,10 @@ strip_comments() {
 # ---- turning PR details into a bullet (no model involved) ----
 
 # Imperative verb -> past tense for the verbs PR titles in this repo actually start with.
-# Prints nothing for any other word (noun phrases, "don't ...", etc.), so a title is never
-# conjugated wrongly: unknown words are left exactly as the author wrote them.
+# Prints nothing for any other word (noun phrases, "don't ...", etc.), and a word that is
+# usually a noun in titles (log, cache, record, default, batch, ...) is deliberately NOT listed:
+# leaving a title as written is better than conjugating a noun. "report" is the one ambiguous
+# word kept, because the repo's own titles use it as a verb ("report 5G for ...").
 past_tense() {
   case "$1" in
     keep) echo Kept; return ;;
@@ -115,16 +123,15 @@ past_tense() {
     make) echo Made; return ;;
     set) echo Set; return ;;
     read) echo Read; return ;;
-    skip | stop | drop | cap | wrap | log | defer)
-      echo "$(ucfirst "$1")$(printf '%s' "${1#"${1%?}"}")ed"; return ;;
+    skip | stop | drop | wrap | defer)
+      echo "$(ucfirst "$1")${1: -1}ed"; return ;;
     add | fix | update | remove | improve | enable | disable | handle | prevent | avoid | resolve | \
       restore | reduce | upgrade | replace | rename | ensure | allow | respect | report | guard | flush | \
       raise | synchronize | confine | derive | register | install | harden | expose | introduce | \
-      deprecate | detect | track | collect | migrate | simplify | optimize | limit | validate | \
-      normalize | include | exclude | apply | switch | rework | relax | tighten | extend | correct | \
-      clear | close | open | create | delete | generate | parse | fetch | retry | use | move | \
-      persist | capture | record | throttle | cache | batch | bump | clean | default | isolate | \
-      surface | stamp | revert | align | bound | offload | reuse | consolidate | unify) ;;
+      deprecate | detect | collect | migrate | simplify | optimize | validate | normalize | include | \
+      exclude | apply | rework | relax | tighten | extend | correct | create | delete | generate | \
+      parse | fetch | retry | use | move | persist | capture | throttle | bump | isolate | align | \
+      offload | reuse | consolidate | unify) ;;
     *) return 0 ;;
   esac
   case "$1" in
@@ -149,17 +156,20 @@ ensure_period() {
 
 # Remove noise from a title: Jira keys ("(NR-625270)", "[NR-1]", "NR-1:", "Nr 382848") and "[skip ci]".
 strip_title_noise() {
-  oneline "$(printf '%s' "$1" | sed -E 's/\[skip ci\]//Ig; s/[[(][Nn][Rr][- ][0-9]+[])]//g; s/[Nn][Rr][- ][0-9]+:?//g')"
+  oneline "$(printf '%s' "$1" | sed -E 's/\[skip ci\]//Ig; s/[[(][Nn][Rr][- ][0-9]+[])]//g; s/(^|[^[:alnum:]])[Nn][Rr][- ][0-9]+:?/\1/g')"
 }
 
-# Conventional Commits title -> bullet text. Only the leading verb is touched.
+# Conventional Commits title -> bullet text. Only the leading verb is touched. Prints nothing when
+# nothing is left after the noise is removed (the caller then falls back to the raw title).
 #   "fix: restore alpha in colors (NR-1)"  -> "Restored alpha in colors."
 #   "feat(gradle): raise AGP ceiling"      -> "Raised AGP ceiling."
 #   "Fix react native sourcemap endpoint"  -> "Fixed react native sourcemap endpoint."
 #   "fix: don't start replay"              -> "Don't start replay."   (unknown verb: left as written)
 title_to_bullet() {
+  local t rest word past
   t=$(strip_title_noise "$1")
-  rest=$(printf '%s' "$t" | sed -E 's/^[A-Za-z]+(\([^)]*\))?!?: //')
+  [ -n "$t" ] || return 0
+  rest=$(printf '%s' "$t" | sed -E "s/^($CC_TYPES)( *\([^)]*\))? *!? *: *//I")
   [ -n "$rest" ] || rest=$t
   word=$(printf '%s' "$rest" | awk '{ print tolower($1) }')
   past=$(past_tense "$word")
@@ -174,6 +184,7 @@ title_to_bullet() {
 # Conventional Commit types that are not user-facing. An unlabelled PR of one of these types is
 # left out of the release notes; a release-note:* label always includes it.
 is_internal_title() {
+  local lower
   lower=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
   case "$lower" in
     docs:* | docs\(* | test:* | test\(* | ci:* | ci\(* | chore:* | chore\(* | build:* | build\(* | style:* | style\(*) return 0 ;;
@@ -219,17 +230,24 @@ extract_release_note() {
     }
     END { print para }')
   text=$(oneline "$(printf '%s' "$text" | sed -E 's/^[-*][ ]+//')")
-  case $(printf '%s' "$text" | tr '[:upper:]' '[:lower:]') in
+  case $(printf '%s' "$text" | tr '[:upper:]' '[:lower:]' | sed -E 's/[.]+$//') in
     '' | n/a | na | none | tbd | - | 'not applicable') return 0 ;;
   esac
   printf '%s' "$text"
 }
 
 # Shorten to at most N characters, cutting at a word boundary; drops a trailing full stop.
+# Bash substring, not cut(1): cut -c is byte-based on GNU coreutils and would split UTF-8.
 short_form() { # text max
+  local s cut
   s=$(printf '%s' "$1" | sed -E 's/[.]+$//')
   if [ "${#s}" -gt "$2" ]; then
-    s=$(printf '%s' "$s" | cut -c1-"$2" | sed -E 's/ [^ ]*$//')
+    cut=${s:0:$2}
+    case "${s:$2:1}" in
+      ' ') ;;
+      *) case "$cut" in *' '*) cut=${cut% *} ;; esac ;;
+    esac
+    s=$cut
   fi
   printf '%s' "$s"
 }
@@ -239,10 +257,10 @@ short_form() { # text max
 # Shared by process-pr.sh (after merge) and check-pr.sh (on the open PR) so they cannot disagree.
 skip_reason() {
   case "$3" in release/*) echo "release branch"; return 0 ;; esac
-  if printf '%s' "$1" | grep -qiE '^chore(\(release\))?: (release|update gradle\.properties)'; then
+  if printf '%s' "$1" | grep -qiE '^chore\(release\)|^chore: (release|update gradle\.properties)'; then
     echo "release chore"; return 0
   fi
-  if printf '%s' "$1" | grep -qiE '^(back ?port|merge |revert |release v)'; then
+  if printf '%s' "$1" | grep -qiE "^(back ?port|revert|release v|merge (branch|pull request|remote|main|develop|release))"; then
     echo "bridge or revert PR"; return 0
   fi
   case "$2" in *'[skip-docs]'*) echo "[skip-docs]"; return 0 ;; esac
