@@ -18,10 +18,6 @@ permissions:
   contents: read
   pull-requests: write # label-request comment on unlabelled PRs
 
-concurrency:
-  group: docs-release-notes-next
-  cancel-in-progress: false
-
 env:
   # Repo variable DOCS_REPO overrides this, which is how the workflows are tested against a fork.
   DOCS_REPO: ${{ vars.DOCS_REPO || 'newrelic/docs-website' }}
@@ -35,9 +31,19 @@ env:
 jobs:
   append:
     # Fork PRs get no secrets; the release-time compare sweep picks those up instead.
+    # Dependabot-initiated merges get a read-only token and no BOT_PAT; Dependabot PRs are left out
+    # of the notes by default anyway (a labelled one is picked up by the release-time sweep).
     if: >-
       github.event.pull_request.merged == true
       && github.event.pull_request.head.repo.full_name == github.repository
+      && github.actor != 'dependabot[bot]'
+    # Job level, not workflow level: a skipped job (a PR closed without merging, a fork PR) must not
+    # take the slot and evict a real merge's pending run. Best effort: GitHub keeps one pending run
+    # per group, so a burst of merges can still drop a run; the release-time sweep rebuilds any
+    # bullet that is missing.
+    concurrency:
+      group: docs-release-notes-next
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -65,7 +71,12 @@ jobs:
         run: |
           set -euo pipefail
           gh auth setup-git
-          if gh api "repos/$DOCS_REPO/branches/$DOCS_HEAD" --silent 2>/dev/null; then
+          # Only "no such branch" (git ls-remote exit 2) starts a new branch; any other failure
+          # (network, 5xx, auth) must not be mistaken for it.
+          rc=0
+          git ls-remote --exit-code --heads "https://github.com/$DOCS_REPO.git" "$DOCS_HEAD" > /dev/null 2>&1 || rc=$?
+          case "$rc" in 0 | 2) ;; *) echo "::error::Could not check for $DOCS_HEAD on $DOCS_REPO (git ls-remote exit $rc)"; exit 1 ;; esac
+          if [ "$rc" = 0 ]; then
             gh repo clone "$DOCS_REPO" docs-website -- --depth 50 --branch "$DOCS_HEAD"
           else
             gh repo clone "$DOCS_REPO" docs-website -- --depth 50 --branch "$DOCS_BASE"
@@ -78,6 +89,7 @@ jobs:
           fi
 
       - name: Build and append the bullet
+        id: process
         env:
           GH_TOKEN: ${{ github.token }}
           COMMENT_ON_UNLABELLED: "1"
@@ -85,8 +97,11 @@ jobs:
         run: |
           set -euo pipefail # the default step shell has no pipefail: a failing script piped to tee would pass
           .github/scripts/process-pr.sh "$PR_NUMBER" "docs-website/$DOCS_DIR/$DOCS_FILE_NAME" | tee "$RUNNER_TEMP/status.txt"
+          # A skipped PR changes nothing: no commit (not even of a freshly bootstrapped skeleton) and no draft PR.
+          case "$(cat "$RUNNER_TEMP/status.txt")" in skipped*) echo "skipped=true" >> "$GITHUB_OUTPUT" ;; esac
 
       - name: Commit and push
+        if: steps.process.outputs.skipped != 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_PAT }}
           BOT_EMAIL: ${{ secrets.BOT_EMAIL }}
@@ -112,6 +127,7 @@ jobs:
           exit 1
 
       - name: Ensure the draft PR exists
+        if: steps.process.outputs.skipped != 'true'
         env:
           GH_TOKEN: ${{ secrets.BOT_PAT }}
         run: |
@@ -120,5 +136,5 @@ jobs:
           if [ "$open" = "0" ]; then
             gh pr create --repo "$DOCS_REPO" --base "$DOCS_BASE" --head "$DOCS_HEAD" --draft \
               --title "$DOCS_PR_TITLE" \
-              --body "Auto-accumulating release-note bullets for the next Android agent release, one per PR merged to develop in newrelic/newrelic-android-agent (built by .github/workflows/append-docs-release-notes.yml). Do not merge: when the release is published, generate-docs-release-notes.yml opens the real release-notes PR from these bullets and removes them from here."
+              --body "Auto-accumulating release-note bullets for the next Android agent release, one per PR merged to develop in newrelic/newrelic-android-agent, best effort (built by .github/workflows/append-docs-release-notes.yml). Do not merge: when the release is published, generate-docs-release-notes.yml opens the real release-notes PR from these bullets and removes them from here."
           fi
