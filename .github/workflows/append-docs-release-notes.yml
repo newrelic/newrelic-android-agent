@@ -1,0 +1,124 @@
+name: Append docs release notes
+
+# When a PR merges into develop, build its release-note bullet from the PR's title, labels and
+# description (no model involved) and append it to the accumulating
+# "android-next" branch (and draft PR) on newrelic/docs-website. The release-time workflow
+# (generate-docs-release-notes.yml) turns that branch into the published note, and a human
+# edits the docs-website PR before it merges.
+#
+# Requires repo secrets BOT_PAT (contents:write + pull-requests:write on newrelic/docs-website)
+# and BOT_EMAIL.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+permissions:
+  contents: read
+  pull-requests: write # label-request comment on unlabelled PRs
+
+concurrency:
+  group: docs-release-notes-next
+  cancel-in-progress: false
+
+env:
+  # Repo variable DOCS_REPO overrides this, which is how the workflows are tested against a fork.
+  DOCS_REPO: ${{ vars.DOCS_REPO || 'newrelic/docs-website' }}
+  DOCS_BASE: develop
+  # Not "next": the iOS agent already accumulates on that branch name in the same repo.
+  DOCS_HEAD: android-next
+  DOCS_DIR: src/content/docs/release-notes/mobile-release-notes/android-release-notes
+  DOCS_FILE_NAME: android-agent-next.mdx
+  DOCS_PR_TITLE: "Android agent: next release notes"
+
+jobs:
+  append:
+    # Fork PRs get no secrets; the release-time compare sweep picks those up instead.
+    if: >-
+      github.event.pull_request.merged == true
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout scripts and skeleton
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Preflight secrets
+        env:
+          BOT_PAT: ${{ secrets.BOT_PAT }}
+          BOT_EMAIL: ${{ secrets.BOT_EMAIL }}
+        run: |
+          missing=""
+          [ -n "$BOT_PAT" ] || missing="$missing BOT_PAT"
+          [ -n "$BOT_EMAIL" ] || missing="$missing BOT_EMAIL"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (see .github/workflows/append-docs-release-notes.yml)"
+            exit 1
+          fi
+
+      - name: Check out the docs-website next branch (or start it)
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          if gh api "repos/$DOCS_REPO/branches/$DOCS_HEAD" --silent 2>/dev/null; then
+            gh repo clone "$DOCS_REPO" docs-website -- --depth 50 --branch "$DOCS_HEAD"
+          else
+            gh repo clone "$DOCS_REPO" docs-website -- --depth 50 --branch "$DOCS_BASE"
+            git -C docs-website checkout -b "$DOCS_HEAD"
+          fi
+          mkdir -p "docs-website/$DOCS_DIR"
+          if [ ! -f "docs-website/$DOCS_DIR/$DOCS_FILE_NAME" ]; then
+            cp android-agent-next.mdx "docs-website/$DOCS_DIR/$DOCS_FILE_NAME"
+            echo "Bootstrapped $DOCS_FILE_NAME from the repo skeleton."
+          fi
+
+      - name: Build and append the bullet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_ON_UNLABELLED: "1"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail # the default step shell has no pipefail: a failing script piped to tee would pass
+          .github/scripts/process-pr.sh "$PR_NUMBER" "docs-website/$DOCS_DIR/$DOCS_FILE_NAME" | tee "$RUNNER_TEMP/status.txt"
+
+      - name: Commit and push
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+          BOT_EMAIL: ${{ secrets.BOT_EMAIL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        working-directory: docs-website
+        run: |
+          set -euo pipefail
+          git config user.name "newrelic-mobile-agent-bot"
+          git config user.email "$BOT_EMAIL"
+          git add "$DOCS_DIR/$DOCS_FILE_NAME"
+          if git diff --staged --quiet; then
+            echo "Nothing to commit ($(cat "$RUNNER_TEMP/status.txt"))."
+            exit 0
+          fi
+          git commit -m "chore: append android-agent PR #${PR_NUMBER} to next release notes"
+          for attempt in 1 2 3; do
+            git push origin "HEAD:refs/heads/$DOCS_HEAD" && exit 0
+            [ "$attempt" -lt 3 ] || break
+            echo "Push rejected (attempt $attempt); rebasing onto the remote branch."
+            git pull --rebase origin "$DOCS_HEAD"
+          done
+          echo "::error::Could not push to $DOCS_REPO:$DOCS_HEAD after 3 attempts"
+          exit 1
+
+      - name: Ensure the draft PR exists
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+        run: |
+          set -euo pipefail
+          open=$(gh pr list --repo "$DOCS_REPO" --head "$DOCS_HEAD" --state open --json number --jq 'length')
+          if [ "$open" = "0" ]; then
+            gh pr create --repo "$DOCS_REPO" --base "$DOCS_BASE" --head "$DOCS_HEAD" --draft \
+              --title "$DOCS_PR_TITLE" \
+              --body "Auto-accumulating release-note bullets for the next Android agent release, one per PR merged to develop in newrelic/newrelic-android-agent (built by .github/workflows/append-docs-release-notes.yml). Do not merge: when the release is published, generate-docs-release-notes.yml opens the real release-notes PR from these bullets and removes them from here."
+          fi
