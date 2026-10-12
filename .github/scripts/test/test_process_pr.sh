@@ -96,9 +96,11 @@ assert_eq "a hostile title adds exactly one bullet line" "$((lines_before + 1))"
 [ -e "$tmp/pwned" ] && r=executed || r=inert; assert_eq "a command substitution in a title is never executed" inert "$r"
 assert_eq "a hostile title cannot spoof a parseable flag" 0 "$(grep -c '{/\* flag: x' "$n")"
 
-# a very large body is fine
+# a very large body is fine. The body goes through a file (jq --rawfile): Linux caps a single
+# argument at 128 KiB, so building this fixture with jq --arg would fail for the wrong reason.
 big=$(awk 'BEGIN { s = "x"; for (i = 0; i < 17; i++) s = s s; print s }')
-pr_json 21 'fix: big body' "$(printf '## Release note\nFixed it.\n\n%s' "$big")" NR-13 '2026-10-01T00:00:00Z' '["release-note:bug"]'
+printf '## Release note\nFixed it.\n\n%s' "$big" > "$tmp/big-body.txt"
+jq -n --rawfile b "$tmp/big-body.txt" '{number:21,title:"fix: big body",body:$b,headRefName:"NR-13",mergedAt:"2026-10-01T00:00:00Z",url:"https://github.com/newrelic/newrelic-android-agent/pull/21",labels:[{name:"release-note:bug"}]}' > "$STUB_PR_JSON"
 assert_eq "a body over 100 KB is handled" "appended #21 -> bug []" "$(run 21)"
 
 # failures are loud and leave the file alone
