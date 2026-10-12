@@ -64,4 +64,58 @@ for s in $SECTIONS; do
   assert_eq "skeleton heading for $s matches lib.sh" "## $(section_heading "$s")" "$got"
 done
 
+# ---- malformed input and bad arguments are refused, never silently mishandled ----
+g() { "$SCRIPTS/generate-docs.sh" "$@" 2>/dev/null; }
+ok_args=(--version 7.8.4 --date 2026-10-20)
+bul="* Fixed x. ([#1]($u/1)) {/* short: Fixed x */}"
+skel="$REPO_ROOT/android-agent-next.mdx"
+
+printf '%s\n' '---' '---' '{/* release-note:bogus */}' "$bul" '{/* release-note:end */}' 'Support' > "$tmp/bogus.mdx"
+rm -f "$o"; g --next "$tmp/bogus.mdx" "${ok_args[@]}" --out "$o"; rc=$?
+assert_eq "unknown section marker exits 2" 2 "$rc"
+[ -e "$o" ] && r=written || r=none; assert_eq "unknown section marker writes no output" none "$r"
+printf '%s\n' '{/* release-note:../../../tmp/escape */}' "$bul" '{/* release-note:end */}' > "$tmp/escape.mdx"
+g --next "$tmp/escape.mdx" "${ok_args[@]}" --out "$o"; assert_eq "path-like section marker exits 2" 2 "$?"
+printf '%s\n' "$bul" '{/* release-note:bug */}' '{/* release-note:end */}' > "$tmp/stray.mdx"
+g --next "$tmp/stray.mdx" "${ok_args[@]}" --out "$o"; assert_eq "bullet before any marker exits 2" 2 "$?"
+grep -vxF '{/* release-note:end */}' "$skel" > "$tmp/noend.mdx"
+g --next "$tmp/noend.mdx" "${ok_args[@]}" --out "$o"; assert_eq "missing end marker exits 2" 2 "$?"
+
+cp "$skel" "$tmp/crlf.mdx"; "$SCRIPTS/append-bullet.sh" "$tmp/crlf.mdx" bug "$bul"
+sed 's/$/\r/' "$tmp/crlf.mdx" > "$tmp/crlf2.mdx"
+g --next "$tmp/crlf2.mdx" "${ok_args[@]}" --out "$o"; assert_eq "CRLF input is accepted" 0 "$?"
+assert_contains "CRLF input still yields the bullet" "$(cat "$o")" "- Fixed x."
+assert_not_contains "CRLF input leaves no carriage returns in the output" "$(od -c "$o" | grep -c '\\r' || true)" "1"
+
+g --next "$tmp/crlf.mdx" --version 7.8 --date 2026-10-20 --out "$o"; assert_eq "short version exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" --version "$(printf '7.8.4\nevil: 1')" --date 2026-10-20 --out "$o"; assert_eq "version with a newline exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" --version 7.8.4 --date "2026-10-20'" --out "$o"; assert_eq "bad date exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --download-link http://x --out "$o"; assert_eq "non-https link exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --download-link "https://x/it's" --out "$o"; assert_eq "link with a quote exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --out; assert_eq "option with no value exits 2" 2 "$?"
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --bogus x --out "$o"; assert_eq "unknown option exits 2" 2 "$?"
+g --next "$tmp/missing.mdx" "${ok_args[@]}" --out "$o"; assert_eq "missing input file exits 2" 2 "$?"
+g "${ok_args[@]}" --out "$o"; assert_eq "missing --next exits 2" 2 "$?"
+
+g --next "$tmp/crlf.mdx" "${ok_args[@]}" --out "$o"
+assert_eq "output ends with exactly one newline" "2e0a" "$(tail -c2 "$o" | od -An -tx1 | tr -d ' \n')"
+
+# Frontmatter must stay valid YAML for hostile short forms (checked with a real parser when ruby exists).
+if command -v ruby >/dev/null 2>&1; then
+  : > "$tmp/hostile.txt"
+  i=100
+  for sh in '- dash' 'a: b' '# hash' 'yes' 'null' '123' "it's" 'back\slash' '[x]' '---' 'caf'$'\303\251'; do
+    i=$((i + 1))
+    printf '%s\n' "* H$i. ([#$i]($u/$i)) {/* short: $sh */}" >> "$tmp/hostile.txt"
+  done
+  awk -v h="$tmp/hostile.txt" '{ print } /^## Bug fixes$/ { print ""; while ((getline line < h) > 0) print line }' "$skel" > "$tmp/hostile.mdx"
+  g --next "$tmp/hostile.mdx" "${ok_args[@]}" --out "$o"
+  parsed=$(ruby -ryaml -e 'y = YAML.load(File.read(ARGV[0]).split("---\n")[1]); puts y["bugs"].join("|"); puts y["version"].class; puts y["category"].inspect' "$o")
+  assert_eq "hostile short forms round-trip through a YAML parser" "- dash|a: b|# hash|yes|null|123|it's|back\\slash|[x]|---|café
+String
+nil" "$parsed"
+else
+  echo "  skip YAML round-trip: ruby not installed"
+fi
+
 finish
