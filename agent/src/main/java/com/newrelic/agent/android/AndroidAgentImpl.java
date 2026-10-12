@@ -82,6 +82,7 @@ import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidDecoder;
 import com.newrelic.agent.android.util.AndroidEncoder;
+import com.newrelic.agent.android.util.CellularNetworkMonitor;
 import com.newrelic.agent.android.util.ComposeChecker;
 import com.newrelic.agent.android.util.KmpChecker;
 import com.newrelic.agent.android.util.Connectivity;
@@ -631,6 +632,7 @@ public class AndroidAgentImpl implements
         if (!isDisabled()) {
             initialize();
             Harvest.start();
+            CellularNetworkMonitor.start(context);
 
             if (FeatureFlag.featureEnabled(FeatureFlag.NativeReporting)) {
                 try {
@@ -723,6 +725,9 @@ public class AndroidAgentImpl implements
                 }
             }
         }
+
+        // after the final harvest, which still reads the cellular technology
+        CellularNetworkMonitor.stop(context);
 
         if (FeatureFlag.featureEnabled(FeatureFlag.NativeReporting)) {
             try {
