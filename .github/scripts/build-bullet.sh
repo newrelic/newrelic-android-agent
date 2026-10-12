@@ -13,6 +13,8 @@ set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
 : "${PR_TITLE:?PR_TITLE is required}"
+command -v jq > /dev/null || { echo "jq is required" >&2; exit 1; }
+[ -n "$(oneline "$PR_TITLE")" ] || { echo "PR_TITLE is blank" >&2; exit 1; }
 HINT=${HINT_SECTION:-}
 if [ -n "$HINT" ] && ! is_valid_section "$HINT"; then HINT=""; fi
 
@@ -27,5 +29,5 @@ fi
 section=${HINT:-$(section_from_title "$PR_TITLE")}
 short=$(short_form "$(plain_short "$text")" 120)
 
-jq -nc --arg bullet "$(mdx_escape "$text")" --arg short "$short" --arg section "$section" \
+jq -nc --arg bullet "$(defuse_comments "$(mdx_escape "$text")")" --arg short "$short" --arg section "$section" \
   '{bullet: $bullet, short: $short, section: $section}'

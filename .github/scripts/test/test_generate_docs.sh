@@ -110,7 +110,7 @@ if command -v ruby >/dev/null 2>&1; then
   done
   awk -v h="$tmp/hostile.txt" '{ print } /^## Bug fixes$/ { print ""; while ((getline line < h) > 0) print line }' "$skel" > "$tmp/hostile.mdx"
   g --next "$tmp/hostile.mdx" "${ok_args[@]}" --out "$o"
-  parsed=$(ruby -ryaml -e 'y = YAML.load(File.read(ARGV[0]).split("---\n")[1]); puts y["bugs"].join("|"); puts y["version"].class; puts y["category"].inspect' "$o")
+  parsed=$(ruby -E UTF-8:UTF-8 -ryaml -e 'y = YAML.load(File.read(ARGV[0]).split("---\n")[1]); puts y["bugs"].join("|"); puts y["version"].class; puts y["category"].inspect' "$o")
   assert_eq "hostile short forms round-trip through a YAML parser" "- dash|a: b|# hash|yes|null|123|it's|back\\slash|[x]|---|café
 String
 nil" "$parsed"

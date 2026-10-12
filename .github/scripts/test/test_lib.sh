@@ -114,12 +114,10 @@ assert_eq "extract_release_note: placeholder with a trailing period" "" "$(extra
 
 assert_eq "short_form: cut landing on a word end keeps the word" "aaa bbb" "$(short_form 'aaa bbb ccc' 7)"
 assert_eq "short_form: a single long word is cut" "aaaaa" "$(short_form 'aaaaaaaaaa' 5)"
-loc=$(locale -a 2>/dev/null | grep -iE '^(c|en_us)\.utf-?8$' | head -1)
-if [ -n "$loc" ]; then
-  assert_eq "short_form: multibyte text is not split mid-character ($loc)" "$(printf 'caf\xc3\xa9')" "$(LC_ALL=$loc short_form "$(printf 'caf\xc3\xa9 au lait')" 4)"
-else
-  echo "  skip short_form multibyte test: no UTF-8 locale installed"
-fi
+assert_eq "short_form: a cut inside a multibyte character drops the partial character" "caf" "$(short_form "$(printf 'caf\303\251 au lait')" 4)"
+assert_eq "short_form: a cut after a whole multibyte character keeps it" "$(printf 'caf\303\251')" "$(short_form "$(printf 'caf\303\251 au lait')" 5)"
+printf '%s' "$(short_form "$(printf 'caf\303\251 au lait')" 4)" | iconv -f UTF-8 -t UTF-8 > /dev/null 2>&1 && r=valid || r=invalid
+assert_eq "short_form: result is always valid UTF-8" valid "$r"
 
 assert_eq "ensure_period adds one" "Done." "$(ensure_period 'Done')"
 assert_eq "ensure_period keeps ? and !" "Done?" "$(ensure_period 'Done?')"
@@ -127,5 +125,19 @@ assert_eq "yaml_quote of empty" "''" "$(yaml_quote '')"
 is_valid_section bug && r=yes || r=no; assert_eq "is_valid_section accepts bug" yes "$r"
 is_valid_section nonsense && r=yes || r=no; assert_eq "is_valid_section rejects junk" no "$r"
 assert_eq "section_marker" '{/* release-note:bug */}' "$(section_marker bug)"
+
+# ---- non-ASCII text, control characters and comment smuggling (review of build-bullet) ----
+assert_eq "ucfirst: emoji first character is left alone" "$(printf '\360\237\230\200 foo')" "$(ucfirst "$(printf '\360\237\230\200 foo')")"
+assert_eq "ucfirst: non-ASCII letter is left alone, rest intact" "$(printf '\303\274ber')" "$(ucfirst "$(printf '\303\274ber')")"
+assert_eq "ucfirst: ASCII lower case is raised" "Hello" "$(ucfirst hello)"
+assert_eq "ucfirst: empty" "" "$(ucfirst '')"
+assert_eq "char_length counts characters, not bytes" 4 "$(char_length "$(printf 'caf\303\251')")"
+assert_eq "char_length: emoji is one character" 3 "$(char_length "$(printf 'a\360\237\230\200b')")"
+assert_eq "oneline: vertical tab and form feed become spaces" "a b c" "$(oneline "$(printf 'a\vb\fc')")"
+assert_eq "oneline: other control characters are dropped" "ab" "$(oneline "$(printf 'a\001\033b')")"
+assert_eq "defuse_comments breaks a comment opener" 'x { /* y */} z' "$(defuse_comments 'x {/* y */} z')"
+assert_eq "defuse_comments leaves other text alone" 'a {b} * / c' "$(defuse_comments 'a {b} * / c')"
+assert_eq "title_to_bullet: emoji-first title survives" "$(printf '\360\237\220\233 handle crash.')" "$(title_to_bullet "$(printf '\360\237\220\233 handle crash')")"
+assert_eq "section_from_title does not choke on emoji" enhancement "$(section_from_title "$(printf '\360\237\230\200 foo')")"
 
 finish

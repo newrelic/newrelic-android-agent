@@ -4,6 +4,7 @@
 # Usage: git tag --list | previous-tag.sh 7.8.4
 # Exit 1 (prints nothing) when there is no earlier release tag.
 set -euo pipefail
+export LC_ALL=C # ASCII patterns only; see lib.sh
 [ "$#" -eq 1 ] || { echo "usage: $0 VERSION" >&2; exit 2; }
 v=$1
 

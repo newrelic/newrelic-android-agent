@@ -4,6 +4,7 @@
 # Prints feature | enhancement | bug | security.
 # Exit 0: exactly one release-note:* label. Exit 10: none. Exit 11: more than one (prints nothing).
 set -euo pipefail
+export LC_ALL=C # ASCII patterns only; see lib.sh
 
 if [ "$#" -eq 0 ]; then labels=$(cat); else labels=$(printf '%s\n' "$@"); fi
 

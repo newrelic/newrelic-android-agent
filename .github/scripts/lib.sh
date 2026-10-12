@@ -4,6 +4,12 @@
 # (variables below are consumed by the scripts that source this file)
 # Portable to bash 3.2 (macOS) and bash 5 (CI): no associative arrays, mapfile or ${var,,}.
 
+# Every pattern in these scripts is ASCII, so the text tools run in the C locale: UTF-8 bytes pass
+# through untouched. Without this, BSD tr/awk/sed in a UTF-8 locale (the macOS default) abort on
+# some multibyte input ("Illegal byte sequence"). Lengths are therefore bytes unless char_length
+# is used.
+export LC_ALL=C
+
 DOCS_SUBJECT="Android agent"
 
 # Conventional Commit types recognised as a title prefix ("fix: ...", "feat(scope): ...").
@@ -44,7 +50,18 @@ END_MARKER='{/* release-note:end */}'
 
 # Collapse any whitespace run (including newlines) to one space and trim.
 oneline() {
-  printf '%s' "$1" | tr '\r\n\t' '   ' | sed -E 's/ +/ /g; s/^ //; s/ $//'
+  printf '%s' "$1" | tr '\r\n\t\v\f' '     ' | tr -d '\000-\010\016-\037\177' | sed -E 's/ +/ /g; s/^ //; s/ $//'
+}
+
+# Length in characters of UTF-8 text: the bytes that are not continuation bytes.
+char_length() {
+  printf '%s' "$1" | tr -d '\200-\277' | wc -c | tr -d ' '
+}
+
+# Break any "{/*" so text from a PR (e.g. inside a code span, which mdx_escape leaves alone)
+# cannot open a comment that strip_comments or the flag parser would later act on.
+defuse_comments() {
+  printf '%s' "$1" | sed 's|{/\*|{ /*|g'
 }
 
 # Escape characters MDX would parse as JSX/expressions. Text inside `inline code` is left alone.
@@ -143,7 +160,9 @@ past_tense() {
 
 # Upper-case the first character of a bullet.
 ucfirst() {
-  printf '%s' "$1" | awk '{ printf "%s%s", toupper(substr($0, 1, 1)), substr($0, 2) }'
+  local first=${1:0:1}
+  case $first in [a-z]) first=$(printf '%s' "$first" | tr 'a-z' 'A-Z') ;; esac
+  printf '%s%s' "$first" "${1:1}"
 }
 
 # Make sure a bullet ends like a sentence.
@@ -237,7 +256,8 @@ extract_release_note() {
 }
 
 # Shorten to at most N characters, cutting at a word boundary; drops a trailing full stop.
-# Bash substring, not cut(1): cut -c is byte-based on GNU coreutils and would split UTF-8.
+# Counts bytes (see the LC_ALL=C note at the top); iconv -c then drops a multibyte character the
+# cut may have split, so the result is always valid UTF-8.
 short_form() { # text max
   local s cut
   s=$(printf '%s' "$1" | sed -E 's/[.]+$//')
@@ -247,7 +267,7 @@ short_form() { # text max
       ' ') ;;
       *) case "$cut" in *' '*) cut=${cut% *} ;; esac ;;
     esac
-    s=$cut
+    s=$(printf '%s' "$cut" | iconv -f UTF-8 -t UTF-8 -c 2> /dev/null)
   fi
   printf '%s' "$s"
 }
