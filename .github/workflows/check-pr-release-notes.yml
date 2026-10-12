@@ -1,0 +1,67 @@
+name: Check PR release notes
+
+# Tells the author, while the PR is open, what the release-notes automation will do with it:
+# which section it lands in and the bullet it will become. Fails (red check) when the PR has no
+# single release-note:* label, because the label decides the section. Everything else is a
+# suggestion. The check is advisory until someone adds it as a required check in the repository
+# ruleset; the automation still handles unlabelled PRs after merge (see append-docs-release-notes.yml).
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+    branches: [develop]
+
+permissions:
+  contents: read
+  pull-requests: write # the report comment
+
+concurrency:
+  group: release-notes-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Check the PR
+        id: check
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          PR_LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -uo pipefail
+          PR_LABELS=$(jq -r '.[]' <<<"$PR_LABELS_JSON")
+          export PR_LABELS
+          rc=0
+          .github/scripts/check-pr.sh > "$RUNNER_TEMP/report.md" || rc=$?
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Post or update the PR comment
+        # Fork PRs get a read-only token and cannot comment; the job summary still has the report.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          ids=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("<!-- release-notes-check -->")) | .id')
+          id=${ids%%$'\n'*}
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@"$RUNNER_TEMP/report.md" > /dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -F body=@"$RUNNER_TEMP/report.md" > /dev/null
+          fi
+
+      - name: Fail when the PR needs attention
+        if: steps.check.outputs.rc != '0'
+        run: |
+          echo "::error::Add exactly one release-note:* label (feature, enhancement, bug or security). See the PR comment or job summary."
+          exit 1
