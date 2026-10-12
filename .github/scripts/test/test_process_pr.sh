@@ -7,13 +7,16 @@ mkdir "$tmp/bin"
 cat > "$tmp/bin/gh" <<'STUB'
 #!/usr/bin/env bash
 case "$1 $2" in
-  "pr view") cat "$STUB_PR_JSON" ;;
+  "pr view") echo "view" >> "$STUB_CALL_LOG"
+             [ "${STUB_FAIL:-0}" = 1 ] && exit 1
+             cat "$STUB_PR_JSON" ;;
   "pr comment") echo "$*" >> "$STUB_COMMENT_LOG" ;;
 esac
 STUB
 chmod +x "$tmp/bin/gh"
 export PATH="$tmp/bin:$PATH" GITHUB_REPOSITORY=newrelic/newrelic-android-agent
-export STUB_PR_JSON="$tmp/pr.json" STUB_COMMENT_LOG="$tmp/comments.log"
+export STUB_PR_JSON="$tmp/pr.json" STUB_COMMENT_LOG="$tmp/comments.log" STUB_CALL_LOG="$tmp/calls.log"
+: > "$STUB_CALL_LOG"; : > "$STUB_COMMENT_LOG"
 n="$tmp/next.mdx"; cp "$REPO_ROOT/android-agent-next.mdx" "$n"
 
 pr_json() { # number title body head merged labels-json
@@ -29,9 +32,15 @@ assert_eq "labelled PR is appended" "appended #5 -> bug []" "$(run 5)"
 assert_contains "bullet line has link and short comment" "$(cat "$n")" '* Guarded HarvestTimer against null. ([#5](https://github.com/newrelic/newrelic-android-agent/pull/5)) {/* short: Guarded HarvestTimer against null */}'
 assert_not_contains "labelled PR has no unlabelled flag" "$(cat "$n")" "flag: unlabelled"
 
+assert_eq "no comment for a labelled PR" "" "$(cat "$STUB_COMMENT_LOG")"
+calls_before=$(wc -l < "$STUB_CALL_LOG" | tr -d ' ')
 assert_eq "same PR again is skipped" "skipped #5: already in next file" "$(run 5)"
+assert_eq "an already-present PR makes no gh call" "$calls_before" "$(wc -l < "$STUB_CALL_LOG" | tr -d ' ')"
 
 pr_json 6 'fix: other' '' NR-2 '2026-10-01T00:00:00Z' '[]'
+assert_eq "unlabelled PR is appended" "appended #6 -> bug [unlabelled]" "$(run 6)"
+assert_eq "no comment when COMMENT_ON_UNLABELLED is unset" "" "$(cat "$STUB_COMMENT_LOG")"
+cp "$REPO_ROOT/android-agent-next.mdx" "$n"
 export COMMENT_ON_UNLABELLED=1
 assert_eq "unlabelled PR appended with flag" "appended #6 -> bug [unlabelled]" "$(run 6)"
 assert_contains "unlabelled flag recorded in the file" "$(cat "$n")" "{/* flag: unlabelled */}"
@@ -58,6 +67,43 @@ assert_eq "[skip-docs] skipped" "skipped #9: [skip-docs]" "$(run 9)"
 pr_json 10 'feat: wip' '' NR-5 '' '[]'
 assert_eq "unmerged PR skipped" "skipped #10: not merged" "$(run 10)"
 pr_json 11 'feat: two' '' NR-6 '2026-10-01T00:00:00Z' '["release-note:bug","release-note:feature"]'
-assert_eq "two labels treated as unlabelled, section from the title" "appended #11 -> feature [unlabelled]" "$(run 11)"
+export COMMENT_ON_UNLABELLED=1; : > "$STUB_COMMENT_LOG"
+assert_eq "two labels are flagged as conflicting, section from the title" "appended #11 -> feature [conflicting-labels]" "$(run 11)"
+assert_contains "conflicting labels are recorded in the file" "$(cat "$n")" "{/* flag: conflicting-labels */}"
+assert_contains "the comment says there is more than one label" "$(cat "$STUB_COMMENT_LOG")" "more than one"
+assert_not_contains "the comment does not claim there is no label" "$(cat "$STUB_COMMENT_LOG")" "has no"
+unset COMMENT_ON_UNLABELLED
+
+pr_json 17 'docs: x' '' NR-10 '2026-10-01T00:00:00Z' '["release-note:bug","release-note:feature"]'
+assert_eq "an internal-looking PR with conflicting labels is still included" "appended #17 -> enhancement [conflicting-labels]" "$(run 17)"
+
+pr_json 18 'Sync main into develop' '' develop '2026-10-01T00:00:00Z' '[]'
+assert_eq "a sync PR from develop is skipped" "skipped #18: bridge or revert PR" "$(run 18)"
+
+# null fields from gh are tolerated
+jq -n '{number:19,title:"fix: null fields",body:null,headRefName:"NR-11",mergedAt:"2026-10-01T00:00:00Z",url:"https://github.com/newrelic/newrelic-android-agent/pull/19",labels:null}' > "$STUB_PR_JSON"
+assert_eq "null labels and body are treated as unlabelled with no note" "appended #19 -> bug [unlabelled]" "$(run 19)"
+
+# hostile title becomes exactly one well-formed bullet line
+lines_before=$(grep -c '^\* ' "$n")
+pr_json 20 'fix: $(touch '"$tmp"'/pwned) `id` {/* flag: x */} <b>' '' NR-12 '2026-10-01T00:00:00Z' '["release-note:bug"]'
+run 20 > /dev/null
+assert_eq "a hostile title adds exactly one bullet line" "$((lines_before + 1))" "$(grep -c '^\* ' "$n")"
+[ -e "$tmp/pwned" ] && r=executed || r=inert; assert_eq "a command substitution in a title is never executed" inert "$r"
+assert_eq "a hostile title cannot spoof a parseable flag" 0 "$(grep -c '{/\* flag: x' "$n")"
+
+# a very large body is fine
+big=$(awk 'BEGIN { s = "x"; for (i = 0; i < 17; i++) s = s s; print s }')
+pr_json 21 'fix: big body' "$(printf '## Release note\nFixed it.\n\n%s' "$big")" NR-13 '2026-10-01T00:00:00Z' '["release-note:bug"]'
+assert_eq "a body over 100 KB is handled" "appended #21 -> bug []" "$(run 21)"
+
+# failures are loud and leave the file alone
+before=$(cat "$n")
+pr_json 22 'fix: y' '' NR-14 '2026-10-01T00:00:00Z' '["release-note:bug"]'
+STUB_FAIL=1 run 22 > /dev/null 2>&1; rc=$?; [ "$rc" -ne 0 ] && r=failed || r=passed; assert_eq "a gh failure fails the script" failed "$r"
+echo 'not json' > "$STUB_PR_JSON"; run 22 > /dev/null 2>&1; assert_eq "malformed gh output exits 1" 1 "$?"
+run abc > /dev/null 2>&1; assert_eq "a non-numeric PR number exits 2" 2 "$?"
+"$SCRIPTS/process-pr.sh" 22 "$tmp/missing.mdx" > /dev/null 2>&1; assert_eq "a missing next file exits 2" 2 "$?"
+assert_eq "failures leave the file untouched" "$before" "$(cat "$n")"
 
 finish

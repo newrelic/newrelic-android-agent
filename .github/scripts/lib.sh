@@ -276,7 +276,11 @@ short_form() { # text max
 # Prints why a PR can never appear in the release notes and returns 0; returns 1 when it can.
 # Shared by process-pr.sh (after merge) and check-pr.sh (on the open PR) so they cannot disagree.
 skip_reason() {
-  case "$3" in release/*) echo "release branch"; return 0 ;; esac
+  case "$3" in
+    release/*) echo "release branch"; return 0 ;;
+    release-please--*) echo "release PR"; return 0 ;;
+    main | develop) echo "bridge or revert PR"; return 0 ;; # a sync/back-merge PR, not a change
+  esac
   if printf '%s' "$1" | grep -qiE '^chore\(release\)|^chore: (release|update gradle\.properties)'; then
     echo "release chore"; return 0
   fi

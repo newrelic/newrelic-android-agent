@@ -140,4 +140,8 @@ assert_eq "defuse_comments leaves other text alone" 'a {b} * / c' "$(defuse_comm
 assert_eq "title_to_bullet: emoji-first title survives" "$(printf '\360\237\220\233 handle crash.')" "$(title_to_bullet "$(printf '\360\237\220\233 handle crash')")"
 assert_eq "section_from_title does not choke on emoji" enhancement "$(section_from_title "$(printf '\360\237\230\200 foo')")"
 
+assert_eq "skip_reason: a sync PR from main" "bridge or revert PR" "$(skip_reason 'Sync it' '' main)"
+assert_eq "skip_reason: a sync PR from develop" "bridge or revert PR" "$(skip_reason 'Sync it' '' develop)"
+assert_eq "skip_reason: a release-please PR" "release PR" "$(skip_reason 'chore(develop): release 7.8.4' '' release-please--branches--develop)"
+
 finish
