@@ -73,6 +73,39 @@ assert_contains "security type guesses the security section" "$out" 'under **Sec
 run_check 'fix: {braces} <tags>' '' NR-1 'release-note:bug'
 assert_contains "preview is MDX-escaped like the real bullet" "$out" '&#123;braces&#125; &lt;tags&gt;'
 
-PR_TITLE='' "$SCRIPTS/check-pr.sh" >/dev/null 2>&1; assert_eq "empty title is an error" 1 "$?"
+PR_TITLE='' "$SCRIPTS/check-pr.sh" >/dev/null 2>&1; assert_eq "empty title is an internal error (exit 2)" 2 "$?"
+
+# ---- internal errors never produce a report (review finding) ----
+out=$(PR_TITLE='   ' PR_BODY='' PR_HEAD=x PR_LABELS='release-note:bug' "$SCRIPTS/check-pr.sh" 2>/dev/null); rc=$?
+assert_eq "a blank title is an internal error, not 'needs attention'" 2 "$rc"
+assert_eq "an internal error writes nothing to stdout" "" "$out"
+out=$(PR_TITLE='   ' PR_BODY='' PR_HEAD=x PR_LABELS='release-note:bug' "$SCRIPTS/check-pr.sh" 2>&1 >/dev/null)
+assert_contains "the reason goes to stderr" "$out" "blank"
+
+run_check 'fix: x' '' NR-1 'release-note:bug'
+assert_eq "the first line of the report is exactly the marker" '<!-- release-notes-check -->' "$(printf '%s\n' "$out" | head -1)"
+
+# ---- hostile text in the PR cannot make the comment misbehave ----
+run_check 'fix: </details> <!-- release-notes-check --> @newrelic/team #123 [x](http://evil) ![i](http://e/i.png)' '' NR-1 'release-note:bug'
+assert_eq "hostile title still gets a report" 0 "$rc"
+assert_eq "the marker appears exactly once" 1 "$(printf '%s\n' "$out" | grep -c 'release-notes-check -->')"
+zw=$(printf '\342\200\213')
+assert_contains "an @mention is defused in the preview" "$out" "@${zw}newrelic/team"
+assert_contains "a #123 back-reference is defused in the preview" "$out" "#${zw}123"
+assert_not_contains "a Markdown link is not live in the preview" "$out" "[x](http://evil)"
+assert_not_contains "a Markdown image is not live in the preview" "$out" "![i](http://e/i.png)"
+assert_contains "brackets are escaped in the preview" "$out" '\[x\]'
+
+long=$(awk 'BEGIN { s = "<"; for (i = 0; i < 16; i++) s = s s; print s }')
+run_check 'fix: long note' "$(printf '## Release note\n%s\n' "$long")" NR-1 'release-note:bug'
+assert_eq "a huge release note still gets a report" 0 "$rc"
+[ "${#out}" -lt 5000 ] && r=capped || r="too long (${#out})"; assert_eq "the preview is capped well under the comment limit" capped "$r"
+
+run_check 'fix: x' '' NR-1 "$(printf 'release-note:bug\r')"
+assert_eq "a label with a trailing carriage return is not recognised" 1 "$rc"
+run_check 'fix: x' '' NR-1 "$(printf 'bug\nrelease-note:bug\nneeds-review')"
+assert_eq "unrelated labels next to the release-note label are fine" 0 "$rc"
+run_check 'refactor: x' '' NR-1 ''
+assert_contains "the label error says how to opt out" "$out" '[skip-docs]'
 
 finish

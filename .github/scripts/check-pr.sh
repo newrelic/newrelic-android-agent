@@ -2,7 +2,9 @@
 # PR-time release-notes check: does this open PR have what the release-notes automation needs,
 # and what will it turn into? Prints a Markdown report on stdout.
 # Env:  PR_TITLE (required), PR_BODY, PR_HEAD (head branch), PR_LABELS (one label per line)
-# Exit: 0 passed (suggestions allowed), 1 the PR needs fixing (missing or conflicting label).
+# Exit: 0 passed (suggestions allowed), 1 the PR needs fixing (missing or conflicting label),
+#       2 the check itself could not run (nothing is written to stdout in that case, so a
+#       half-built report can never be posted as if it were a result).
 #
 # Fails only for what changes where a bullet lands. Title style, title length and a missing
 # "Release note" section are suggestions, because the automation copes with all three.
@@ -10,7 +12,19 @@ set -euo pipefail
 dir=$(cd "$(dirname "$0")" && pwd)
 . "$dir/lib.sh"
 
-: "${PR_TITLE:?PR_TITLE is required}"
+[ -n "${PR_TITLE:-}" ] || { echo "check-pr.sh: PR_TITLE is required" >&2; exit 2; }
+
+# Hold the report back until the check has finished; only exit codes 0 and 1 release it.
+buf=$(mktemp)
+exec 3>&1 > "$buf"
+finish() {
+  local code=$?
+  exec >&3
+  if [ "$code" -le 1 ]; then cat "$buf"; fi
+  rm -f "$buf"
+  exit "$code"
+}
+trap finish EXIT
 body=${PR_BODY:-}
 head=${PR_HEAD:-}
 labels=${PR_LABELS:-}
@@ -20,6 +34,16 @@ err() { errors="$errors- $1"$'\n'; }
 warn() { warnings="$warnings- $1"$'\n'; }
 
 LABEL_LIST='`release-note:feature`, `release-note:enhancement`, `release-note:bug` or `release-note:security`'
+
+# The preview is rendered as a GitHub comment, where an @mention notifies people, #123 writes a
+# back-reference on another issue and links/images render. Defuse those in the preview only; the
+# real bullet is untouched. Long text is capped (a comment is limited to 65,536 characters).
+preview_text() {
+  local zw t=$1
+  zw=$(printf '\342\200\213')
+  if [ "${#t}" -gt 500 ]; then t="$(short_form "$t" 500) ..."; fi
+  printf '%s' "$t" | sed -E 's/\[/\\[/g; s/\]/\\]/g' | sed -E "s/@/@${zw}/g; s/(^|[^&])#([0-9])/\\1#${zw}\\2/g"
+}
 
 echo '<!-- release-notes-check -->'
 
@@ -42,12 +66,16 @@ case "$rc" in
       hint=""
     else
       hint=""
-      err "Add exactly one label: $LABEL_LIST. The label decides which section of the release notes this PR appears in."
+      err "Add exactly one label: $LABEL_LIST. The label decides which section of the release notes this PR appears in. To leave this PR out of the release notes, put \`[skip-docs]\` in its description instead."
     fi
     ;;
-  *)
+  11)
     hint=""
     err "This PR has more than one \`release-note:*\` label. Keep exactly one."
+    ;;
+  *)
+    echo "check-pr.sh: label classification failed (exit $rc)" >&2
+    exit 2
     ;;
 esac
 
@@ -70,12 +98,13 @@ echo
 if [ "$rc" = 10 ] && [ "$internal" = 1 ]; then
   echo "Left out of the release notes: \`docs\`, \`test\`, \`ci\`, \`chore\`, \`build\` and \`style\` PRs and Dependabot PRs are not user-facing. Add a \`release-note:*\` label to include it."
 else
-  built=$(PR_TITLE="$PR_TITLE" PR_BODY="$body" HINT_SECTION="$hint" "$dir/build-bullet.sh")
+  built=$(PR_TITLE="$PR_TITLE" PR_BODY="${body:0:20000}" HINT_SECTION="$hint" "$dir/build-bullet.sh") \
+    || { echo "check-pr.sh: could not build the preview" >&2; exit 2; }
   section=$(jq -r '.section' <<<"$built")
   if [ -n "$hint" ]; then origin="from its label"; else origin="guessed from the title; a label would make it certain"; fi
   echo "This PR will appear under **$(section_heading "$section")** ($origin) as:"
   echo
-  echo "> $(jq -r '.bullet' <<<"$built")"
+  echo "> $(preview_text "$(jq -r '.bullet' <<<"$built")")"
 fi
 
 if [ -n "$errors" ]; then

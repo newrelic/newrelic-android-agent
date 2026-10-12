@@ -5,6 +5,9 @@ name: Check PR release notes
 # single release-note:* label, because the label decides the section. Everything else is a
 # suggestion. The check is advisory until someone adds it as a required check in the repository
 # ruleset; the automation still handles unlabelled PRs after merge (see append-docs-release-notes.yml).
+# It only runs for PRs into develop. If it is ever made a required check, do not apply that rule to
+# other branches (main, release/*): the check would never report there and would block merges.
+# Exit codes of check-pr.sh: 0 pass, 1 needs a label (red check), 2+ the check itself broke.
 
 on:
   pull_request:
@@ -17,7 +20,7 @@ permissions:
 
 concurrency:
   group: release-notes-check-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false # a cancelled run could leave its comment half-posted and cause a duplicate
 
 jobs:
   check:
@@ -36,7 +39,7 @@ jobs:
           PR_LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           set -uo pipefail
-          PR_LABELS=$(jq -r '.[]' <<<"$PR_LABELS_JSON")
+          PR_LABELS=$(jq -r '.[]' <<<"$PR_LABELS_JSON") || { echo "::error::Could not read the PR labels"; exit 1; }
           export PR_LABELS
           rc=0
           .github/scripts/check-pr.sh > "$RUNNER_TEMP/report.md" || rc=$?
@@ -44,7 +47,9 @@ jobs:
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
       - name: Post or update the PR comment
+        # Only for a finished check (exit 0 or 1): a crash must not be posted as a result.
         # Fork PRs get a read-only token and cannot comment; the job summary still has the report.
+        if: steps.check.outputs.rc == '0' || steps.check.outputs.rc == '1'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -60,8 +65,16 @@ jobs:
             gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -F body=@"$RUNNER_TEMP/report.md" > /dev/null
           fi
 
-      - name: Fail when the PR needs attention
-        if: steps.check.outputs.rc != '0'
+      - name: Fail when the PR needs a label
+        if: steps.check.outputs.rc == '1'
         run: |
-          echo "::error::Add exactly one release-note:* label (feature, enhancement, bug or security). See the PR comment or job summary."
+          echo "::error::Add exactly one release-note:* label (feature, enhancement, bug or security), or put [skip-docs] in the description. See the PR comment or job summary."
+          exit 1
+
+      - name: Fail when the check itself broke
+        if: steps.check.outputs.rc != '0' && steps.check.outputs.rc != '1'
+        env:
+          CHECK_RC: ${{ steps.check.outputs.rc }}
+        run: |
+          echo "::error::The release-notes check crashed (exit $CHECK_RC); this is not a problem with the PR. See the log of the previous step."
           exit 1
