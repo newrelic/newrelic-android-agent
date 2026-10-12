@@ -1,0 +1,257 @@
+#!/usr/bin/env bash
+# Shared helpers for the docs release-notes scripts. Source this file; do not execute it.
+# shellcheck shell=bash disable=SC2034
+# (variables below are consumed by the scripts that source this file)
+# Portable to bash 3.2 (macOS) and bash 5 (CI): no associative arrays, mapfile or ${var,,}.
+
+DOCS_SUBJECT="Android agent"
+
+# Section keys, in the order they appear in the published note.
+SECTIONS="feature enhancement bug security"
+
+is_valid_section() {
+  case "$1" in feature | enhancement | bug | security) return 0 ;; *) return 1 ;; esac
+}
+
+section_heading() {
+  case "$1" in
+    feature) echo "New features" ;;
+    enhancement) echo "Improvements and enhancements" ;;
+    bug) echo "Bug fixes" ;;
+    security) echo "Security updates" ;;
+    *) return 1 ;;
+  esac
+}
+
+# Frontmatter array key for a section.
+section_array_key() {
+  case "$1" in
+    feature) echo "features" ;;
+    enhancement) echo "enhancements" ;;
+    bug) echo "bugs" ;;
+    security) echo "security" ;;
+    *) return 1 ;;
+  esac
+}
+
+# Section markers are the anchors every script edits against. They are MDX comments
+# (HTML comments are invalid MDX) so the file stays valid while it sits in a draft PR.
+section_marker() { printf '{/* release-note:%s */}' "$1"; }
+END_MARKER='{/* release-note:end */}'
+
+# Collapse any whitespace run (including newlines) to one space and trim.
+oneline() {
+  printf '%s' "$1" | tr '\r\n\t' '   ' | sed -E 's/ +/ /g; s/^ //; s/ $//'
+}
+
+# Escape characters MDX would parse as JSX/expressions. Text inside `inline code` is left alone.
+# With an odd number of backticks the code spans are ambiguous, so everything is escaped.
+mdx_escape() {
+  printf '%s' "$1" | awk '{
+    n = split($0, parts, "`")
+    balanced = (n % 2 == 1)
+    out = ""
+    for (i = 1; i <= n; i++) {
+      seg = parts[i]
+      if (!balanced || i % 2 == 1) {
+        gsub(/</, "\\&lt;", seg)
+        gsub(/>/, "\\&gt;", seg)
+        gsub(/\{/, "\\&#123;", seg)
+        gsub(/\}/, "\\&#125;", seg)
+      }
+      out = out (i > 1 ? "`" : "") seg
+    }
+    printf "%s", out
+  }'
+}
+
+# Plain text safe inside a {/* short: ... */} comment and a YAML string: no markup at all.
+plain_short() {
+  oneline "$(printf '%s' "$1" | sed -E 's/[`{}<>]//g; s|\*/||g')"
+}
+
+# YAML single-quoted scalar.
+yaml_quote() {
+  printf "'%s'" "$(printf '%s' "$1" | sed "s/'/''/g")"
+}
+
+# Fallback classification from a Conventional Commits title when no label and no model answer.
+section_from_title() {
+  lower=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$lower" in
+    fix:* | fix\(* | fix!:* | fix\ * | fixes\ * | fixed\ *) echo bug ;;
+    security:* | security\(* | security!:*) echo security ;;
+    feat:* | feat\(* | feat!:*) echo feature ;;
+    *) echo enhancement ;;
+  esac
+}
+
+# Reads bullet lines on stdin, prints the PR number from the trailing "/pull/N)" link of each.
+bullet_pr_number() {
+  sed -En 's|.*/pull/([0-9]+)\).*|\1|p'
+}
+
+# file_has_pr FILE N -> success when a bullet for PR N is already in FILE.
+file_has_pr() {
+  grep -E '^\* ' "$1" 2>/dev/null | bullet_pr_number | grep -qx "$2"
+}
+
+# Remove every {/* ... */} comment from a line (comment bodies never contain braces).
+strip_comments() {
+  sed -E 's/ *\{\/\*[^{}]*\*\/\}//g'
+}
+
+# ---- turning PR details into a bullet (no model involved) ----
+
+# Imperative verb -> past tense for the verbs PR titles in this repo actually start with.
+# Prints nothing for any other word (noun phrases, "don't ...", etc.), so a title is never
+# conjugated wrongly: unknown words are left exactly as the author wrote them.
+past_tense() {
+  case "$1" in
+    keep) echo Kept; return ;;
+    send) echo Sent; return ;;
+    write) echo Wrote; return ;;
+    build) echo Built; return ;;
+    make) echo Made; return ;;
+    set) echo Set; return ;;
+    read) echo Read; return ;;
+    skip | stop | drop | cap | wrap | log | defer)
+      echo "$(ucfirst "$1")$(printf '%s' "${1#"${1%?}"}")ed"; return ;;
+    add | fix | update | remove | improve | enable | disable | handle | prevent | avoid | resolve | \
+      restore | reduce | upgrade | replace | rename | ensure | allow | respect | report | guard | flush | \
+      raise | synchronize | confine | derive | register | install | harden | expose | introduce | \
+      deprecate | detect | track | collect | migrate | simplify | optimize | limit | validate | \
+      normalize | include | exclude | apply | switch | rework | relax | tighten | extend | correct | \
+      clear | close | open | create | delete | generate | parse | fetch | retry | use | move | \
+      persist | capture | record | throttle | cache | batch | bump | clean | default | isolate | \
+      surface | stamp | revert | align | bound | offload | reuse | consolidate | unify) ;;
+    *) return 0 ;;
+  esac
+  case "$1" in
+    *e) echo "$(ucfirst "$1")d" ;;
+    *[!aeiou]y) echo "$(ucfirst "${1%y}")ied" ;;
+    *) echo "$(ucfirst "$1")ed" ;;
+  esac
+}
+
+# Upper-case the first character of a bullet.
+ucfirst() {
+  printf '%s' "$1" | awk '{ printf "%s%s", toupper(substr($0, 1, 1)), substr($0, 2) }'
+}
+
+# Make sure a bullet ends like a sentence.
+ensure_period() {
+  case "$1" in
+    *[.!?]) printf '%s' "$1" ;;
+    *) printf '%s.' "$1" ;;
+  esac
+}
+
+# Remove noise from a title: Jira keys ("(NR-625270)", "[NR-1]", "NR-1:", "Nr 382848") and "[skip ci]".
+strip_title_noise() {
+  oneline "$(printf '%s' "$1" | sed -E 's/\[skip ci\]//Ig; s/[[(][Nn][Rr][- ][0-9]+[])]//g; s/[Nn][Rr][- ][0-9]+:?//g')"
+}
+
+# Conventional Commits title -> bullet text. Only the leading verb is touched.
+#   "fix: restore alpha in colors (NR-1)"  -> "Restored alpha in colors."
+#   "feat(gradle): raise AGP ceiling"      -> "Raised AGP ceiling."
+#   "Fix react native sourcemap endpoint"  -> "Fixed react native sourcemap endpoint."
+#   "fix: don't start replay"              -> "Don't start replay."   (unknown verb: left as written)
+title_to_bullet() {
+  t=$(strip_title_noise "$1")
+  rest=$(printf '%s' "$t" | sed -E 's/^[A-Za-z]+(\([^)]*\))?!?: //')
+  [ -n "$rest" ] || rest=$t
+  word=$(printf '%s' "$rest" | awk '{ print tolower($1) }')
+  past=$(past_tense "$word")
+  if [ -n "$past" ]; then
+    rest="$past$(printf '%s' "$rest" | sed -E 's/^[^ ]*//')"
+  else
+    rest=$(ucfirst "$rest")
+  fi
+  ensure_period "$rest"
+}
+
+# Conventional Commit types that are not user-facing. An unlabelled PR of one of these types is
+# left out of the release notes; a release-note:* label always includes it.
+is_internal_title() {
+  lower=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$lower" in
+    docs:* | docs\(* | test:* | test\(* | ci:* | ci\(* | chore:* | chore\(* | build:* | build\(* | style:* | style\(*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Pull an author-written release note out of a PR description. Two forms are recognised:
+#   a heading:  "## Release note" (any level, "note" or "notes") followed by a paragraph
+#   one line:   "Release note: Fixed ..."
+# HTML comments (PR template hints) are ignored. Prints nothing when there is no usable note.
+# Placeholder answers (n/a, none, tbd, "-") count as no note.
+extract_release_note() {
+  text=$(printf '%s\n' "$1" | tr -d '\r' | awk '
+    BEGIN { incomment = 0; state = 0; para = "" }
+    {
+      line = $0
+      out = ""
+      while (length(line) > 0) {
+        if (incomment) {
+          i = index(line, "-->")
+          if (i == 0) { line = ""; break }
+          line = substr(line, i + 3); incomment = 0
+        } else {
+          i = index(line, "<!--")
+          if (i == 0) { out = out line; line = ""; break }
+          out = out substr(line, 1, i - 1); line = substr(line, i + 4); incomment = 1
+        }
+      }
+      low = tolower(out)
+      if (state == 2) next
+      if (state == 1) {
+        if (out ~ /^[ \t]*$/) { if (para != "") state = 2; next }
+        if (out ~ /^[ \t]*#/) { state = 2; next }
+        gsub(/^[ \t]+|[ \t]+$/, "", out)
+        para = (para == "" ? out : para " " out)
+        next
+      }
+      if (low ~ /^[ \t]*#+[ \t]*release notes?[ \t]*:?[ \t]*$/) { state = 1; next }
+      if (low ~ /^[ \t]*release notes?[ \t]*:[ \t]*[^ \t]/) {
+        sub(/^[^:]*:[ \t]*/, "", out); gsub(/[ \t]+$/, "", out); para = out; state = 2; next
+      }
+    }
+    END { print para }')
+  text=$(oneline "$(printf '%s' "$text" | sed -E 's/^[-*][ ]+//')")
+  case $(printf '%s' "$text" | tr '[:upper:]' '[:lower:]') in
+    '' | n/a | na | none | tbd | - | 'not applicable') return 0 ;;
+  esac
+  printf '%s' "$text"
+}
+
+# Shorten to at most N characters, cutting at a word boundary; drops a trailing full stop.
+short_form() { # text max
+  s=$(printf '%s' "$1" | sed -E 's/[.]+$//')
+  if [ "${#s}" -gt "$2" ]; then
+    s=$(printf '%s' "$s" | cut -c1-"$2" | sed -E 's/ [^ ]*$//')
+  fi
+  printf '%s' "$s"
+}
+
+# skip_reason TITLE BODY HEAD_BRANCH
+# Prints why a PR can never appear in the release notes and returns 0; returns 1 when it can.
+# Shared by process-pr.sh (after merge) and check-pr.sh (on the open PR) so they cannot disagree.
+skip_reason() {
+  case "$3" in release/*) echo "release branch"; return 0 ;; esac
+  if printf '%s' "$1" | grep -qiE '^chore(\(release\))?: (release|update gradle\.properties)'; then
+    echo "release chore"; return 0
+  fi
+  if printf '%s' "$1" | grep -qiE '^(back ?port|merge |revert |release v)'; then
+    echo "bridge or revert PR"; return 0
+  fi
+  case "$2" in *'[skip-docs]'*) echo "[skip-docs]"; return 0 ;; esac
+  return 1
+}
+
+# is_internal_pr TITLE HEAD_BRANCH: not user-facing by default (docs/test/ci/chore/build/style
+# title type, or a Dependabot branch). A release-note:* label always includes the PR anyway.
+is_internal_pr() {
+  case "$2" in dependabot/*) return 0 ;; esac
+  is_internal_title "$1"
+}
