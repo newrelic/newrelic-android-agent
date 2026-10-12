@@ -22,7 +22,7 @@ Before submitting an Issue, please search for similar ones in the
 
 Release notes for the Android agent are drafted automatically from merged pull requests and reviewed by a human before they are published on docs.newrelic.com.
 
-**Every PR merged to `develop` must carry exactly one of these labels.** The label decides which section of the published note the PR appears in:
+**Every user-facing PR merged to `develop` should carry exactly one of these labels.** The label decides which section of the published note the PR appears in:
 
 | Label | Section |
 |---|---|
@@ -35,7 +35,7 @@ Release notes for the Android agent are drafted automatically from merged pull r
 - Unlabelled PRs whose title type is `docs`, `test`, `ci`, `chore`, `build` or `style`, and Dependabot PRs, are left out as not user-facing; add a `release-note:*` label to include one.
 - Use `security:` as the title type for a security fix, or the `release-note:security` label.
 - Put `[skip-docs]` anywhere in the PR description to leave a PR out (internal refactors, release chores).
-- The `Check PR release notes` check comments on your PR with the section and the exact bullet it will produce, and goes red if there is not exactly one `release-note:*` label. Title style, titles over 70 characters and a missing `## Release note` section are only suggestions. A PR that merges without a label is still included (section guessed from the title, bot comment), but please label it.
+- The `Check PR release notes` check comments on your PR with the section and the exact bullet it will produce, and goes red if a user-facing PR into `develop` does not have exactly one `release-note:*` label. PRs with `[skip-docs]`, internal-type PRs, Dependabot PRs and release, backport or revert PRs pass without one. Title style, titles over 70 characters and a missing `## Release note` section are only suggestions. A user-facing PR that merges without a label is still included (section guessed from the title, bot comment), but please label it.
 - When a release is published, a draft PR is opened on `newrelic/docs-website`. **Edit it before it merges**: check that each bullet is specific and user-facing, sits in the right section, and is mirrored in the frontmatter array.
 - Workflows: `.github/workflows/append-docs-release-notes.yml` (per PR) and `.github/workflows/generate-docs-release-notes.yml` (per release). Both need the `BOT_PAT` and `BOT_EMAIL` repository secrets.
 
