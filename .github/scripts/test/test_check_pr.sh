@@ -108,4 +108,27 @@ assert_eq "unrelated labels next to the release-note label are fine" 0 "$rc"
 run_check 'refactor: x' '' NR-1 ''
 assert_contains "the label error says how to opt out" "$out" '[skip-docs]'
 
+# ---- fork PRs and unexpected aborts (final review) ----
+out=$(PR_TITLE='fix: a fork change' PR_BODY='' PR_HEAD=main PR_FORK=true PR_LABELS='release-note:bug' "$SCRIPTS/check-pr.sh" 2>&1); rc=$?
+assert_eq "a fork PR from its own main is checked, not skipped" 0 "$rc"
+assert_contains "...and previewed" "$out" "under **Bug fixes**"
+out=$(PR_TITLE='fix: a fork change' PR_BODY='' PR_HEAD=main PR_FORK=true PR_LABELS='' "$SCRIPTS/check-pr.sh" 2>&1); rc=$?
+assert_eq "a fork PR from main with no label needs a label" 1 "$rc"
+out=$(PR_TITLE='fix: x' PR_BODY='' PR_HEAD=main PR_FORK=false PR_LABELS='' "$SCRIPTS/check-pr.sh" 2>&1); rc=$?
+assert_eq "a same-repo PR from main is still treated as a sync PR" 0 "$rc"
+assert_contains "...and says why" "$out" "bridge or revert PR"
+
+# An unexpected command failure must be exit 2 even when the failing command itself returns 1.
+
+stubs=$(mktemp -d); trap 'rm -rf "$stubs"' EXIT
+real_jq=$(command -v jq)
+cat > "$stubs/jq" <<STUB
+#!/usr/bin/env bash
+case "\$*" in *"-r"*) exit 1 ;; *) exec "$real_jq" "\$@" ;; esac
+STUB
+chmod +x "$stubs/jq"
+out=$(PATH="$stubs:$PATH" PR_TITLE='fix: x' PR_BODY='' PR_HEAD=x PR_LABELS='release-note:bug' "$SCRIPTS/check-pr.sh" 2>/dev/null); rc=$?
+assert_eq "an unexpected abort inside the check is exit 2, not 'needs a label'" 2 "$rc"
+assert_eq "...with nothing on stdout" "" "$out"
+
 finish

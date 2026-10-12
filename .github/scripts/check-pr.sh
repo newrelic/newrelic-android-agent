@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # PR-time release-notes check: does this open PR have what the release-notes automation needs,
 # and what will it turn into? Prints a Markdown report on stdout.
-# Env:  PR_TITLE (required), PR_BODY, PR_HEAD (head branch), PR_LABELS (one label per line)
+# Env:  PR_TITLE (required), PR_BODY, PR_HEAD (head branch), PR_LABELS (one label per line),
+#       PR_FORK ("true" when the PR comes from a fork)
 # Exit: 0 passed (suggestions allowed), 1 the PR needs fixing (missing or conflicting label),
 #       2 the check itself could not run (nothing is written to stdout in that case, so a
 #       half-built report can never be posted as if it were a result).
@@ -25,8 +26,11 @@ finish() {
   exit "$code"
 }
 trap finish EXIT
+# Any unexpected failure is an internal error (exit 2), never mistaken for "needs a label" (exit 1).
+trap 'exit 2' ERR
 body=${PR_BODY:-}
 head=${PR_HEAD:-}
+fork=${PR_FORK:-false}
 labels=${PR_LABELS:-}
 
 errors="" warnings=""
@@ -47,7 +51,7 @@ preview_text() {
 
 echo '<!-- release-notes-check -->'
 
-if reason=$(skip_reason "$PR_TITLE" "$body" "$head"); then
+if reason=$(skip_reason "$PR_TITLE" "$body" "$head" "$fork"); then
   echo '### Release notes check: passed'
   echo
   echo "This PR is not included in the release notes ($reason)."
@@ -122,4 +126,4 @@ fi
 echo
 echo '_Release notes are reviewed and edited by a person before they are published. See "Release notes" in CONTRIBUTING.md._'
 
-[ -z "$errors" ]
+if [ -z "$errors" ]; then exit 0; else exit 1; fi

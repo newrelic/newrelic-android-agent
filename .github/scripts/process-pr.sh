@@ -19,15 +19,16 @@ repo=${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}
 
 if file_has_pr "$next" "$pr"; then echo "skipped #$pr: already in next file"; exit 0; fi
 
-data=$(gh pr view "$pr" --repo "$repo" --json number,title,body,url,headRefName,labels,mergedAt)
+data=$(gh pr view "$pr" --repo "$repo" --json number,title,body,url,headRefName,isCrossRepository,labels,mergedAt)
 jq -e . > /dev/null 2>&1 <<<"$data" || { echo "gh returned no usable data for #$pr" >&2; exit 1; }
 title=$(jq -r '.title' <<<"$data")
 body=$(jq -r '.body // ""' <<<"$data")
 url=$(jq -r '.url' <<<"$data")
 head=$(jq -r '.headRefName' <<<"$data")
+fork=$(jq -r '.isCrossRepository // false' <<<"$data")
 
 if [ "$(jq -r '.mergedAt // ""' <<<"$data")" = "" ]; then echo "skipped #$pr: not merged"; exit 0; fi
-if reason=$(skip_reason "$title" "$body" "$head"); then echo "skipped #$pr: $reason"; exit 0; fi
+if reason=$(skip_reason "$title" "$body" "$head" "$fork"); then echo "skipped #$pr: $reason"; exit 0; fi
 
 flags="" rc=0
 hint=$(jq -r '(.labels // [])[].name' <<<"$data" | "$dir/classify-pr.sh") || rc=$?

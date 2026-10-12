@@ -38,6 +38,7 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          PR_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
           PR_LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           set -uo pipefail

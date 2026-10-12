@@ -272,15 +272,19 @@ short_form() { # text max
   printf '%s' "$s"
 }
 
-# skip_reason TITLE BODY HEAD_BRANCH
+# skip_reason TITLE BODY HEAD_BRANCH [IS_FORK]
 # Prints why a PR can never appear in the release notes and returns 0; returns 1 when it can.
 # Shared by process-pr.sh (after merge) and check-pr.sh (on the open PR) so they cannot disagree.
 skip_reason() {
-  case "$3" in
-    release/*) echo "release branch"; return 0 ;;
-    release-please--*) echo "release PR"; return 0 ;;
-    main | develop) echo "bridge or revert PR"; return 0 ;; # a sync/back-merge PR, not a change
-  esac
+  # Head-branch names are only meaningful for PRs from this repository: a fork contributor's PR from
+  # their own "main" is an ordinary change, not a sync PR. The 4th argument is "true" for fork PRs.
+  if [ "${4:-false}" != true ]; then
+    case "$3" in
+      release/*) echo "release branch"; return 0 ;;
+      release-please--*) echo "release PR"; return 0 ;;
+      main | develop) echo "bridge or revert PR"; return 0 ;; # a sync/back-merge PR, not a change
+    esac
+  fi
   if printf '%s' "$1" | grep -qiE '^chore\(release\)|^chore: (release|update gradle\.properties)'; then
     echo "release chore"; return 0
   fi

@@ -80,6 +80,10 @@ assert_eq "an internal-looking PR with conflicting labels is still included" "ap
 pr_json 18 'Sync main into develop' '' develop '2026-10-01T00:00:00Z' '[]'
 assert_eq "a sync PR from develop is skipped" "skipped #18: bridge or revert PR" "$(run 18)"
 
+# a fork PR from the contributor's own "main" is a normal change, not a sync PR
+jq -n '{number:23,title:"fix: crash from a fork",body:"",headRefName:"main",isCrossRepository:true,mergedAt:"2026-10-01T00:00:00Z",url:"https://github.com/newrelic/newrelic-android-agent/pull/23",labels:[{name:"release-note:bug"}]}' > "$STUB_PR_JSON"
+assert_eq "a fork PR from main is included" "appended #23 -> bug []" "$(run 23)"
+
 # null fields from gh are tolerated
 jq -n '{number:19,title:"fix: null fields",body:null,headRefName:"NR-11",mergedAt:"2026-10-01T00:00:00Z",url:"https://github.com/newrelic/newrelic-android-agent/pull/19",labels:null}' > "$STUB_PR_JSON"
 assert_eq "null labels and body are treated as unlabelled with no note" "appended #19 -> bug [unlabelled]" "$(run 19)"

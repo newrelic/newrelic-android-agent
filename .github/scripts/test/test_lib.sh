@@ -144,4 +144,12 @@ assert_eq "skip_reason: a sync PR from main" "bridge or revert PR" "$(skip_reaso
 assert_eq "skip_reason: a sync PR from develop" "bridge or revert PR" "$(skip_reason 'Sync it' '' develop)"
 assert_eq "skip_reason: a release-please PR" "release PR" "$(skip_reason 'chore(develop): release 7.8.4' '' release-please--branches--develop)"
 
+# ---- head-branch rules only apply to same-repo PRs (final review) ----
+assert_eq "skip_reason: a same-repo PR from main is a sync PR" "bridge or revert PR" "$(skip_reason 'fix: x' '' main false)"
+skip_reason 'fix: x' '' main true > /dev/null && r=skip || r=keep; assert_eq "skip_reason: a FORK PR from its own main is an ordinary change" keep "$r"
+skip_reason 'fix: x' '' develop true > /dev/null && r=skip || r=keep; assert_eq "skip_reason: a fork PR from develop is an ordinary change" keep "$r"
+skip_reason 'fix: x' '' release/1.0 true > /dev/null && r=skip || r=keep; assert_eq "skip_reason: a fork PR from release/1.0 is an ordinary change" keep "$r"
+assert_eq "skip_reason: title rules still apply to fork PRs" "bridge or revert PR" "$(skip_reason 'Revert something' '' main true)"
+assert_eq "skip_reason: [skip-docs] still applies to fork PRs" "[skip-docs]" "$(skip_reason 'fix: x' 'a [skip-docs]' main true)"
+
 finish
