@@ -15,10 +15,6 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
-import com.newrelic.agent.android.FeatureFlag;
-import com.newrelic.agent.android.NewRelic;
-import com.newrelic.agent.android.logging.AgentLog;
-
 import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.io.Streams;
 
@@ -60,19 +56,6 @@ public class MainActivity extends AppCompatActivity
         mNavigationDrawerFragment.setUp(
                 R.id.navigation_drawer,
                 (DrawerLayout) findViewById(R.id.drawer_layout));
-
-        // Add NewRelic
-        NewRelic.enableFeature(FeatureFlag.NativeReporting);
-        NewRelic.enableFeature(FeatureFlag.LogReporting);
-        NewRelic.enableFeature(FeatureFlag.OfflineStorage);
-        NewRelic.enableFeature(FeatureFlag.ApplicationExitReporting);
-        NewRelic.enableFeature(FeatureFlag.BackgroundReporting);
-
-
-        NewRelic.withApplicationToken("<APP-ID>")    // ## Provide application ID to test map uploads
-                .withLogLevel(AgentLog.DEBUG)
-                .withLaunchActivityName("agent-test-app")
-                .start(this);
     }
 
     @Override
