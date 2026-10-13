@@ -1,8 +1,7 @@
 # Where to call `NewRelic.start()`
 
-The agent is documented as started from the launcher `Activity`. This note records what the code does when
-`NewRelic.start()` is called from the launcher `Activity` and from `Application.onCreate()`, and what differs
-between the two.
+The recommended place to call `NewRelic.start()` is `Application.onCreate()`. This note records what the code
+does for each call site, why `Application.onCreate()` is recommended, and what differs between the two.
 
 ## Supported call sites
 
@@ -11,12 +10,27 @@ between the two.
 
 | Call site | Status |
 |---|---|
-| Launcher `Activity.onCreate()` | Documented default, most tested |
-| `Application.onCreate()` | Works mechanically; see the differences and open questions below |
+| `Application.onCreate()` | Recommended |
+| Launcher `Activity.onCreate()` | Supported, kept for backward compatibility |
 
 `NewRelic.start()` requires a build that went through the Gradle plugin (`NewRelic.isInstrumented()` is
 rewritten to return `true` at build time). Without instrumentation the call logs a recourse message and the
 agent does not run, wherever it is called from.
+
+## Why `Application.onCreate()` is recommended
+
+- **No Activity is required.** `AndroidAgentImpl` replaces the context it is given with the application
+  context (`appContext()`), and nothing in the agent checks for an `Activity`. The `Activity` passed from an
+  `Activity.onCreate()` is never used.
+- **Every launch is covered.** Until `start()` runs, `Agent.impl` is the null implementation and nothing is
+  recorded. Started from an `Activity`, a launch into a different `Activity` (push notification, deep link,
+  app shortcut, widget) never calls `start()`, so that session has no telemetry and no crash reports. Android
+  creates the `Application` before any `Activity`, so a start there covers all of them.
+- **Crash coverage is earlier, not later.** The uncaught exception handler is installed as part of
+  `start()`, wherever it is called, so starting from `Application` installs it earlier.
+- **Foreground and background detection do not depend on the call site.** In standard builds they come from
+  the instrumented `Activity` lifecycle methods and the self-creating `ApplicationStateMonitor`.
+- **Calling it from both places is safe.** `start()` is idempotent.
 
 ## Starting from `Application` when the app has no `Application` class
 
@@ -47,10 +61,10 @@ An app that already has an `Application` subclass only needs the `start()` call 
 1. **Instrumented calls that run before `start()`.** The injected `TraceMachine.startTracing(...)` and
    `ApplicationStateMonitor` calls in an `Activity`'s lifecycle methods run in whatever state the agent is in
    at that moment. Started from the `Activity`, the first `onCreate()` has already begun when `start()` runs.
-   Started from `Application`, the agent exists before any `Activity` does. Tracing is gated by
-   `FeatureFlag.InteractionTracing` and `Harvest.shouldCollectActivityTraces()`, which comes from the collector
-   configuration (`TraceMachine.enabled` is true by default). After moving `start()`, confirm in a staging build
-   that interaction traces still appear.
+   Started from `Application`, the agent exists before any `Activity` does, so the first `Activity` is
+   traced from its first lifecycle call. Tracing is gated by `FeatureFlag.InteractionTracing` and
+   `Harvest.shouldCollectActivityTraces()`, which comes from the collector configuration
+   (`TraceMachine.enabled` is true by default).
 2. **Main-thread work in `start()`.** `AndroidAgentImpl`'s constructor creates `SavedState`, the offline
    storage and the file stores synchronously on the calling thread. From an `Activity` that is inside the
    first screen's `onCreate()`; from `Application` it is inside process start. Either way StrictMode reports
