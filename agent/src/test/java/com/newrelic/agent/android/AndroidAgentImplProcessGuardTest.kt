@@ -6,7 +6,7 @@
 package com.newrelic.agent.android
 
 import org.junit.After
-import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertSame
 import org.junit.Before
 import org.junit.Test
@@ -31,7 +31,15 @@ class AndroidAgentImplProcessGuardTest {
 
     @After
     fun tearDown() {
+        Agent.stop()
         Agent.setImpl(null)
+    }
+
+    @Test
+    fun initInstallsAgentImplInMainProcess() {
+        AndroidAgentImpl.init(spyContext.context, agentConfiguration)
+
+        assertTrue(Agent.getImpl() is AndroidAgentImpl)
     }
 
     @Test
@@ -42,7 +50,6 @@ class AndroidAgentImplProcessGuardTest {
         AndroidAgentImpl.init(spyContext.context, agentConfiguration)
 
         assertSame(nullImpl, Agent.getImpl())
-        assertFalse(Agent.getImpl() is AndroidAgentImpl)
     }
 
     @Test
@@ -53,6 +60,5 @@ class AndroidAgentImplProcessGuardTest {
         AndroidAgentImpl.init(spyContext.context, agentConfiguration)
 
         assertSame(nullImpl, Agent.getImpl())
-        assertFalse(Agent.getImpl() is AndroidAgentImpl)
     }
 }

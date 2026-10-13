@@ -775,7 +775,7 @@ public class AndroidAgentImpl implements
 
     /**
      * Initialize & start the New Relic agent.
-     * Does nothing when called from a secondary process; Agent.impl stays NullAgentImpl.
+     * Does nothing when called from a secondary process; Agent.impl is left unchanged.
      *
      * @param context
      * @param agentConfiguration
