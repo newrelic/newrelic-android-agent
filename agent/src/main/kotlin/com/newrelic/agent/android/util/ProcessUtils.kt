@@ -21,8 +21,10 @@ import com.newrelic.agent.android.logging.AgentLogManager
  * `<package>:<name>` or a bare custom name such as `com.example.worker`, so the check is an
  * equality test, never `contains(":")`.
  *
- * Every path fails open: when the process name cannot be determined the process is treated as the
+ * Every path in here fails open: when the process name cannot be determined the process is treated as the
  * main one. A phantom session is a data-quality annoyance; a misfiring guard is total telemetry loss.
+ * Callers that run before the agent exists should still catch Throwable around the call, in case this
+ * class cannot be linked (AndroidAgentImpl.init does).
  */
 object ProcessUtils {
 

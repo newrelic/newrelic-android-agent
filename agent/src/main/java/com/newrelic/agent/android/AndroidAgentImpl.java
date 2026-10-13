@@ -774,6 +774,18 @@ public class AndroidAgentImpl implements
     }
 
     /**
+     * Fails open even when the Kotlin runtime backing {@link ProcessUtils} cannot be linked:
+     * a misfiring guard means no telemetry at all.
+     */
+    private static boolean isMainProcess(final Context context) {
+        try {
+            return ProcessUtils.isMainProcess(context);
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    /**
      * Initialize & start the New Relic agent.
      * Does nothing when called from a secondary process; Agent.impl is left unchanged.
      *
@@ -781,7 +793,7 @@ public class AndroidAgentImpl implements
      * @param agentConfiguration
      */
     public static void init(final Context context, final AgentConfiguration agentConfiguration) {
-        if (!ProcessUtils.isMainProcess(context)) {
+        if (!isMainProcess(context)) {
             log.info("NewRelic agent not started: not the main process.");
             return;
         }
