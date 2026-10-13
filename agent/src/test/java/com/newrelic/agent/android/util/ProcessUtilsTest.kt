@@ -61,6 +61,24 @@ class ProcessUtilsTest {
         assertTrue(ProcessUtils.isMainProcessName("", "com.example.app:remote"))
     }
 
+    // --- defaultProcessName: applicationInfo.processName, falling back to packageName ---
+
+    @Test
+    fun defaultProcessNameIsApplicationInfoProcessNameWhenSet() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.applicationInfo.processName = "${context.packageName}:app"
+        assertEquals("${context.packageName}:app", ProcessUtils.defaultProcessName(context))
+    }
+
+    @Test
+    fun defaultProcessNameFallsBackToPackageNameWhenNullOrEmpty() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.applicationInfo.processName = null
+        assertEquals(context.packageName, ProcessUtils.defaultProcessName(context))
+        context.applicationInfo.processName = ""
+        assertEquals(context.packageName, ProcessUtils.defaultProcessName(context))
+    }
+
     // --- resolveProcessName: the API-level branch ---
 
     private fun resolve(sdkInt: Int): Pair<String?, List<String>> {
@@ -147,8 +165,25 @@ class ProcessUtilsTest {
         assertFalse(ProcessUtils.isMainProcess(context))
     }
 
+    @Test
+    fun appLevelAndroidProcessMainProcessIsDetected() {
+        // <application android:process="pkg:app"> renames the main process
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.applicationInfo.processName = "${context.packageName}:app"
+        ShadowApplication.setProcessName("${context.packageName}:app")
+        assertTrue(ProcessUtils.isMainProcess(context))
+    }
+
+    @Test
+    fun appLevelAndroidProcessSecondaryProcessIsDetected() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.applicationInfo.processName = "${context.packageName}:app"
+        ShadowApplication.setProcessName("${context.packageName}:remote")
+        assertFalse(ProcessUtils.isMainProcess(context))
+    }
+
     // --- isMainProcess(Context) below API 28: ActivityManager.runningAppProcesses path ---
-    // sdk 26 (8.0) is below P and its android-all jar is already in the local Robolectric cache.
+    // sdk 26 is below P, so these exercise the ActivityManager.runningAppProcesses path
 
     private fun seedProcesses(context: Context, vararg processes: RunningAppProcessInfo) {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -177,9 +212,17 @@ class ProcessUtilsTest {
 
     @Test
     @Config(sdk = [26])
-    fun preApi28UnresolvableProcessFailsOpen() {
+    fun preApi28NullProcessListFailsOpen() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        seedProcesses(context) // no entry for our pid
+        seedProcesses(context) // empty list: Robolectric reports a null runningAppProcesses
+        assertTrue(ProcessUtils.isMainProcess(context))
+    }
+
+    @Test
+    @Config(sdk = [26])
+    fun preApi28MissingPidFailsOpen() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        seedProcesses(context, process("${context.packageName}:remote", android.os.Process.myPid() + 1))
         assertTrue(ProcessUtils.isMainProcess(context))
     }
 }

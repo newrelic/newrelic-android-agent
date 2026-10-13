@@ -11,11 +11,13 @@ import android.app.Application
 import android.content.Context
 import android.os.Build
 import android.os.Process
+import com.newrelic.agent.android.logging.AgentLogManager
 
 /**
  * Tells the main process from secondary processes (`android:process` services and the like).
  *
- * The main process is named exactly like the package. Secondary processes are either
+ * The main process is the one named like the app's default process: the package name, unless the
+ * manifest sets `android:process` on `<application>`. Secondary processes are either
  * `<package>:<name>` or a bare custom name such as `com.example.worker`, so the check is an
  * equality test, never `contains(":")`.
  *
@@ -25,13 +27,12 @@ import android.os.Process
 object ProcessUtils {
 
     @JvmStatic
-    @SuppressLint("NewApi") // Application.getProcessName() is only called when sdkInt >= P, see resolveProcessName
     fun isMainProcess(context: Context): Boolean = try {
         isMainProcessName(
-            context.packageName,
+            defaultProcessName(context),
             resolveProcessName(
                 Build.VERSION.SDK_INT,
-                { Application.getProcessName() },
+                { platformProcessName() },
                 {
                     val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
                     findProcessName(activityManager?.runningAppProcesses, Process.myPid())
@@ -39,14 +40,22 @@ object ProcessUtils {
             )
         )
     } catch (t: Throwable) {
+        AgentLogManager.getAgentLog().debug("ProcessUtils: could not determine the process, assuming main: $t")
         true
     }
 
-    internal fun isMainProcessName(packageName: String?, processName: String?): Boolean {
-        if (packageName.isNullOrEmpty() || processName.isNullOrEmpty()) {
+    @SuppressLint("NewApi") // only reached when resolveProcessName sees sdkInt >= P
+    private fun platformProcessName(): String? = Application.getProcessName()
+
+    /** The app's default process name: `applicationInfo.processName`, else the package name. */
+    internal fun defaultProcessName(context: Context): String =
+        context.applicationInfo?.processName?.takeIf { it.isNotEmpty() } ?: context.packageName
+
+    internal fun isMainProcessName(defaultProcessName: String?, processName: String?): Boolean {
+        if (defaultProcessName.isNullOrEmpty() || processName.isNullOrEmpty()) {
             return true
         }
-        return packageName == processName
+        return defaultProcessName == processName
     }
 
     /**
