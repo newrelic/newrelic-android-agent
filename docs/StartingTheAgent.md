@@ -18,6 +18,20 @@ each case, what is known to differ, and what is still open.
 rewritten to return `true` at build time). Without instrumentation the call logs a recourse message and the
 agent does not run, wherever it is called from.
 
+## Starting from `Application` when the app has no `Application` class
+
+Many apps have no `Application` subclass. To start the agent from one, the app has to add it:
+
+1. Create a class extending `android.app.Application` and call `NewRelic...start(this)` from `onCreate()`
+   after `super.onCreate()`.
+2. Register it with `android:name` on the `<application>` element of `AndroidManifest.xml`
+   (`android:name=".MyApplication"`, or a fully qualified name). Without the manifest entry Android never
+   instantiates the class and the agent never starts, with no error.
+3. Remove the `start()` call from the launcher `Activity`. A second call is ignored, but leaving both makes
+   it unclear which one started the agent.
+
+An app that already has an `Application` subclass only needs the `start()` call added to its `onCreate()`.
+
 ## What does not depend on the call site
 
 - **Launch timing and lifecycle observation start earlier than `start()`.** `NewRelicAppContentProvider`
