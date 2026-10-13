@@ -39,6 +39,9 @@ class AnalyticsEventFactory {
             case ApplicationExit:
                 event = new ApplicationExitEvent(name, eventAttributes);
                 break;
+            case MobileView:
+                event = new MobileViewEvent(name, eventAttributes);
+                break;
         }
 
         return event;
