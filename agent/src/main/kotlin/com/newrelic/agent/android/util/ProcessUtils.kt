@@ -62,7 +62,7 @@ object ProcessUtils {
 
     /**
      * API 28+ has a public accessor. Below that, find our own entry in
-     * `ActivityManager.runningAppProcesses` by pid, as Datadog's SDK does.
+     * `ActivityManager.runningAppProcesses` by pid.
      * `ActivityThread.currentProcessName()` is a restricted hidden API.
      */
     internal fun resolveProcessName(
