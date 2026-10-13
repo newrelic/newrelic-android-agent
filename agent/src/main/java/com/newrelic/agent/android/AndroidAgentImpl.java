@@ -89,6 +89,7 @@ import com.newrelic.agent.android.util.Decoder;
 import com.newrelic.agent.android.util.Encoder;
 import com.newrelic.agent.android.util.OfflineStorage;
 import com.newrelic.agent.android.util.PersistentUUID;
+import com.newrelic.agent.android.util.ProcessUtils;
 import com.newrelic.agent.android.util.Reachability;
 import com.newrelic.agent.android.util.UiBackgroundListener;
 
@@ -773,12 +774,30 @@ public class AndroidAgentImpl implements
     }
 
     /**
+     * Fails open even when the Kotlin runtime backing {@link ProcessUtils} cannot be linked:
+     * a misfiring guard means no telemetry at all.
+     */
+    private static boolean isMainProcess(final Context context) {
+        try {
+            return ProcessUtils.isMainProcess(context);
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    /**
      * Initialize & start the New Relic agent.
+     * Does nothing when called from a secondary process; Agent.impl is left unchanged.
      *
      * @param context
      * @param agentConfiguration
      */
     public static void init(final Context context, final AgentConfiguration agentConfiguration) {
+        if (!isMainProcess(context)) {
+            log.info("NewRelic agent not started: not the main process.");
+            return;
+        }
+
         try {
             Agent.setImpl(new AndroidAgentImpl(context, agentConfiguration));
             Agent.start();
