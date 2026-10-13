@@ -13,6 +13,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.newrelic.agent.android.FeatureFlag
+import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl
 import com.newrelic.agent.android.logging.AgentLog
 import com.newrelic.agent.android.logging.AgentLogManager
@@ -100,7 +101,9 @@ private class MeasureNavigationObserver(
     private val destinationChangedListener =
         NavController.OnDestinationChangedListener { controller, _, _ ->
             controller.currentDestination?.route?.let { to ->
-                SessionReplay.setTakeFullSnapshot(true)
+                if (AgentConfiguration.getInstance().sessionReplayConfiguration.isSessionReplayEnabled) {
+                    SessionReplay.setTakeFullSnapshot(true)
+                }
                 val attributes = mapOf("event_type" to "navigation")
 
                 AnalyticsControllerImpl.getInstance().recordBreadcrumb("screen_name: $to", attributes)

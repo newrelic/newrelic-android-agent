@@ -44,6 +44,7 @@ class BuildHelper {
      * 9.1              9.3.1
      * 9.2              9.4.1
      * 9.3              9.5.0
+     * 9.4              9.6.0
      *
      **/
 
@@ -54,7 +55,7 @@ class BuildHelper {
 
     public final String gradleVersion = GradleVersion.current().version
     static final String minSupportedAGPVersion = '7.0.0'
-    static final String maxSupportedAGPVersion = "9.3.0"
+    static final String maxSupportedAGPVersion = "9.4.0"
     static final String minSupportedGradleVersion = '7.1'
     static final String minSupportedGradleConfigCacheVersion = '6.6'
     static final String minSupportedAGPConfigCacheVersion = '7.0.0'
@@ -255,8 +256,17 @@ class BuildHelper {
         logger.warn("Set property '${PROP_HALT_ON_WARNING}=true' to treat warnings as fatal errors.")
     }
 
+    /**
+     * Read an optional Gradle property, falling back to defaultValue when it is not set.
+     *
+     * Resolved through the property provider rather than through rootProject: reaching into
+     * another project's model fails the build under Gradle's Isolated Projects, and a Gradle
+     * property resolves to the same value from any project in the build, so no cross-project
+     * access is needed to read one.
+     */
     def hasOptional(String key, Object defaultValue) {
-        project.rootProject.hasProperty(key) ? project.rootProject[key] : defaultValue
+        def provider = project.providers.gradleProperty(key)
+        provider.present ? provider.get() : defaultValue
     }
 
     def getBuildMetrics() {
@@ -345,7 +355,9 @@ class BuildHelper {
                 project.file("../../node_modules/react-native/react.gradle"),
                 project.file("../node_modules/react-native/react.gradle"),
                 project.file("node_modules/react-native/react.gradle"),
-                project.rootProject.file("node_modules/react-native/react.gradle"),
+                // rootDir, not rootProject.file(): reading another project's model fails the
+                // build under Isolated Projects, while rootDir is plain build layout.
+                new File(project.rootDir, "node_modules/react-native/react.gradle"),
         ]
 
         for (def reactGradle : reactGradlePaths) {

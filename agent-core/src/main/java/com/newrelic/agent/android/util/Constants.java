@@ -88,6 +88,7 @@ public final class Constants {
         public static final String CONTENT_LENGTH_HEADER = "Content-Length";
         public static final String USER_AGENT_HEADER = "User-Agent";
         public static final String HOST_HEADER = "Host";
+        public static final String WEBSOCKET_ACCEPT_HEADER = "Sec-WebSocket-Accept";
 
         public static final long MAX_PAYLOAD_SIZE = 1000000; //bytes
 
@@ -97,6 +98,7 @@ public final class Constants {
             public static final String JSON = "application/json";
             public static final String OCTET_STREAM = "application/octet-stream";
             public static final String GZIP = "application/gzip";
+            public static final String EVENT_STREAM = "text/event-stream";
         }
 
         public final class Encoding {

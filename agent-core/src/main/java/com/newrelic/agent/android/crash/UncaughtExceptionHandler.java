@@ -15,6 +15,9 @@ import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.harvest.Harvest;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
+import com.newrelic.agent.android.logging.LogReporter;
+import com.newrelic.agent.android.logging.LogReporting;
+import com.newrelic.agent.android.logging.Logger;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.PayloadController;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -29,6 +32,12 @@ public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler
     private final CrashReporter crashReporter;
 
     static Thread.UncaughtExceptionHandler previousExceptionHandler = null;
+
+    // Max time to spend draining queued log entries on the crash path. A buffered append
+    // measured ~0.84us/line (~1.2M lines/sec) on a development host -- not on device, so treat
+    // it as an order of magnitude only -- meaning even 10k queued entries drain in ~10ms. This
+    // is a generous ceiling chosen to bound the crash path, not a tuned value.
+    static final long LOG_DRAIN_BUDGET_MS = 250;
 
     public UncaughtExceptionHandler(CrashReporter crashReporter) {
         this.crashReporter = crashReporter;
@@ -108,6 +117,25 @@ public class UncaughtExceptionHandler implements Thread.UncaughtExceptionHandler
             crashReporter.storeAndReportCrash(crash,false);
 
         } finally {
+            // Log lines are appended to an in-memory BufferedWriter and normally only reach
+            // disk at harvest. The harvest never runs here since the process is about to die,
+            // so drain the logger queue and flush the buffer now (NR-616897) - the same
+            // reasoning as the persisted-event cleanup above. Order matters: drain first, or
+            // entries still queued never reach the buffer.
+            try {
+                final Logger logger = LogReporting.getLogger();
+                if (null != logger) {
+                    logger.flush(LOG_DRAIN_BUDGET_MS);
+                }
+                final LogReporter logReporter = LogReporter.getInstance();
+                if (null != logReporter) {
+                    logReporter.flushWorkingLogfile();
+                }
+            } catch (Throwable t) {
+                // Never let log flushing prevent chaining to the previous handler.
+                log.error("UncaughtExceptionHandler: could not flush log data: " + t);
+            }
+
             // InstantApps don't provide the same lifecycle hints as normal apps.
             // The app UI does go to background, so let the monitor know it is
             // now hidden so it shuts down the agent

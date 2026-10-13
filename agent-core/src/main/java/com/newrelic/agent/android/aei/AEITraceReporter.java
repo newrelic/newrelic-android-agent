@@ -41,6 +41,8 @@ public class AEITraceReporter extends PayloadReporter {
 
     static final String TRACE_DATA_DIR = "aeitrace/";
     static final String FILE_MASK = "threads-%s.dat";
+    static final String DISAMBIGUATED_FILE_MASK = "threads-%d-%d.dat";
+    static final int MAX_FILENAME_ATTEMPTS = 5;
 
     static long reportTTL = TimeUnit.SECONDS.convert(2, TimeUnit.DAYS); // thread data file expiration period (in MS)
 
@@ -131,6 +133,13 @@ public class AEITraceReporter extends PayloadReporter {
     }
 
     public void reportAEITrace(String aeiError, File artifact) {
+        if (artifact == null) {
+            // generateUniqueDataFilename() couldn't find an unused name for this pid (all
+            // MAX_FILENAME_ATTEMPTS candidates are occupied by still-undelivered traces).
+            // Drop this report rather than let a null artifact NPE out of FileOutputStream.
+            log.error("AEITraceReporter: could not generate a trace artifact filename; dropping AEI trace report.");
+            return;
+        }
 
         // store the report prior to upload:
         try (OutputStream artifactOs = new FileOutputStream(artifact, false)) {
@@ -307,7 +316,9 @@ public class AEITraceReporter extends PayloadReporter {
         Set<File> reportSet = new HashSet<>();
 
         try {
-            String fileMask = String.format(Locale.getDefault(), FILE_MASK, "\\d+");
+            // matches both the primary threads-<pid>.dat name and the disambiguated
+            // threads-<pid>-<suffix>.dat name from generateUniqueDataFilename()
+            String fileMask = String.format(Locale.getDefault(), FILE_MASK, "\\d+(-\\d+)?");
             reportSet = Streams.list(traceStore)
                     .filter(file -> file.isFile() && file.getName().matches(fileMask))
                     .collect(Collectors.toSet());
@@ -347,19 +358,27 @@ public class AEITraceReporter extends PayloadReporter {
     }
 
     /**
-     * Create a new filename for the trace data artifacts
+     * Create a new filename for the trace data artifacts.
+     * <p>
+     * The primary name is keyed only by pid ({@code threads-<pid>.dat}). Android reuses pids, and
+     * a prior trace for the same pid can still be sitting undelivered (e.g. throttled or rejected)
+     * when a new exit event reuses that pid, so the primary name may already be occupied. In that
+     * case, disambiguate with a numeric suffix instead of colliding with the existing file.
      *
-     * @return Unique filename
+     * @return Unique filename, or null if no unused name could be found within MAX_FILENAME_ATTEMPTS
      */
     File generateUniqueDataFilename(int pid) {
-        File traceFile;
-        int retries = 5;
-        do {
-            traceFile = new File(traceStore, String.format(Locale.getDefault(), FILE_MASK, pid));
+        File traceFile = new File(traceStore, String.format(Locale.getDefault(), FILE_MASK, pid));
 
-        } while (traceFile.exists() && 0 < traceFile.length() && retries-- > 0);
+        for (int suffix = 1; isOccupied(traceFile) && suffix <= MAX_FILENAME_ATTEMPTS; suffix++) {
+            traceFile = new File(traceStore, String.format(Locale.getDefault(), DISAMBIGUATED_FILE_MASK, pid, suffix));
+        }
 
-        return traceFile.exists() ? null : traceFile;
+        return isOccupied(traceFile) ? null : traceFile;
+    }
+
+    private boolean isOccupied(File file) {
+        return file.exists() && file.length() > 0;
     }
 
 }

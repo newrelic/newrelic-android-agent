@@ -406,6 +406,53 @@ public class CrashReporterTest {
     }
 
 
+    @Test
+    public void testCrashPathFlushesLogsAndStillChainsToPreviousHandler() throws Exception {
+        final java.io.File logDir = java.nio.file.Files.createTempDirectory("NR616897-").toFile();
+        com.newrelic.agent.android.FeatureFlag.enableFeature(com.newrelic.agent.android.FeatureFlag.LogReporting);
+        com.newrelic.agent.android.logging.LogReporting.setLogLevel(
+                com.newrelic.agent.android.logging.LogLevel.INFO);
+        final com.newrelic.agent.android.logging.LogReporter logReporter =
+                com.newrelic.agent.android.logging.LogReporter.initialize(logDir, agentConfiguration);
+
+        final String probe = "NR-616897 crash-path probe";
+        com.newrelic.agent.android.logging.LogReporting.getLogger()
+                .log(com.newrelic.agent.android.logging.LogLevel.INFO, probe);
+
+        final java.util.concurrent.atomic.AtomicBoolean chained =
+                new java.util.concurrent.atomic.AtomicBoolean(false);
+        final Thread.UncaughtExceptionHandler savedPreviousHandler = UncaughtExceptionHandler.previousExceptionHandler;
+        UncaughtExceptionHandler.previousExceptionHandler = (t, e) -> chained.set(true);
+
+        try {
+            TestCrashReporter.setReportCrashes(false);   // don't upload the crash for testing
+            TestCrashReporter.getUncaughtExceptionHandler()
+                    .uncaughtException(Thread.currentThread(), new RuntimeException("NR-616897"));
+
+            Assert.assertTrue("previous handler must still be chained - other crash reporters depend on it",
+                    chained.get());
+
+            // workingLogfile is protected on LogReporter (a different package), so walk the temp
+            // root passed to initialize() instead of reaching into LogReporter internals.
+            boolean probeReachedDisk;
+            try (java.util.stream.Stream<java.nio.file.Path> paths = java.nio.file.Files.walk(logDir.toPath())) {
+                probeReachedDisk = paths
+                        .filter(java.nio.file.Files::isRegularFile)
+                        .anyMatch(p -> {
+                            try {
+                                return java.nio.file.Files.readAllLines(p).stream().anyMatch(l -> l.contains(probe));
+                            } catch (java.io.IOException e) {
+                                return false;
+                            }
+                        });
+            }
+            Assert.assertTrue("queued and buffered log lines must reach disk on the crash path",
+                    probeReachedDisk);
+        } finally {
+            UncaughtExceptionHandler.previousExceptionHandler = savedPreviousHandler;
+        }
+    }
+
     private HttpURLConnection getMockedConnection() throws IOException {
         HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
 

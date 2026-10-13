@@ -49,4 +49,13 @@ public interface Logger {
     default void logAll(Throwable throwable, Map<String, Object> attributes) {
     }
 
+    /**
+     * Block until queued log entries have been handed to the reporter, or until the
+     * timeout expires. Implementations that do no queuing may ignore this.
+     *
+     * @param timeoutMs maximum time to wait, in milliseconds
+     */
+    default void flush(long timeoutMs) {
+    }
+
 }
