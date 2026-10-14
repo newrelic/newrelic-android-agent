@@ -42,6 +42,7 @@ public class JSErrorDataSender extends PayloadSender {
     public JSErrorDataSender(byte[] bytes, AgentConfiguration agentConfiguration, String appVersionOverride) {
         super(bytes, agentConfiguration);
         this.appVersionOverride = appVersionOverride;
+        setRetryKey(appVersionOverride != null ? appVersionOverride : "");
     }
 
     public JSErrorDataSender(Payload payload, AgentConfiguration agentConfiguration) {
@@ -51,6 +52,7 @@ public class JSErrorDataSender extends PayloadSender {
     public JSErrorDataSender(Payload payload, AgentConfiguration agentConfiguration, String appVersionOverride) {
         super(payload, agentConfiguration);
         this.appVersionOverride = appVersionOverride;
+        setRetryKey(appVersionOverride != null ? appVersionOverride : "");
     }
 
     @Override
@@ -138,5 +140,10 @@ public class JSErrorDataSender extends PayloadSender {
         // next harvest tick fires PayloadController.dequeueRunnable. Matches
         // CrashSender and AEITraceSender semantics.
         return Agent.hasReachableNetworkConnection(null);
+    }
+
+    @Override
+    protected String getSupportabilityPrefix() {
+        return MetricNames.SUPPORTABILITY_JSERROR;
     }
 }

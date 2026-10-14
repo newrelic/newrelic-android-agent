@@ -9,7 +9,9 @@ import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
+import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.payload.Payload;
+import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.util.Constants;
 
@@ -18,12 +20,14 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Verifies that {@link JSErrorDataSender} threads an
@@ -49,6 +53,56 @@ public class JSErrorDataSenderTest {
     @Before
     public void setUp() {
         AgentConfiguration.getInstance().setApplicationToken("DEAD-BEEF_BAAD-F00D");
+        StatsEngine.reset();
+    }
+
+    private static final String RETRY_SUCCESS = MetricNames.SUPPORTABILITY_JSERROR + MetricNames.SUPPORTABILITY_RETRY_SUCCESS;
+    private static final String RETRY_FAILED = MetricNames.SUPPORTABILITY_JSERROR + MetricNames.SUPPORTABILITY_RETRY_FAILED;
+
+    /**
+     * Upload a batch of stored errors the way the reporter does: a new payload, and so a new
+     * payload UUID, for every attempt.
+     */
+    private void upload(String appVersion, int responseCode) throws Exception {
+        final HttpURLConnection connection = Mockito.mock(HttpURLConnection.class);
+        Mockito.doReturn(false).when(connection).getDoOutput();
+        Mockito.doReturn(false).when(connection).getDoInput();
+        Mockito.doReturn(responseCode).when(connection).getResponseCode();
+
+        new JSErrorDataSender(new Payload(PAYLOAD_BYTES), AgentConfiguration.getInstance(), appVersion) {
+            @Override
+            protected HttpURLConnection getConnection() {
+                return connection;
+            }
+        }.call();
+    }
+
+    private long count(String name) {
+        return StatsEngine.get().getStatsMap().containsKey(name) ? StatsEngine.get().getStatsMap().get(name).getCount() : 0;
+    }
+
+    @Test
+    public void retriesAreLinkedAcrossRebuiltPayloads() throws Exception {
+        final String version = UUID.randomUUID().toString();
+
+        upload(version, HttpURLConnection.HTTP_UNAVAILABLE);
+        Assert.assertEquals(0, count(RETRY_FAILED));
+
+        upload(version, HttpURLConnection.HTTP_UNAVAILABLE);
+        Assert.assertEquals(1, count(RETRY_FAILED));
+
+        upload(version, HttpURLConnection.HTTP_ACCEPTED);
+        Assert.assertEquals(1, count(RETRY_SUCCESS));
+        Assert.assertEquals(1, count(RETRY_FAILED));
+    }
+
+    @Test
+    public void batchesForDifferentAppVersionsAreNotLinked() throws Exception {
+        upload(UUID.randomUUID().toString(), HttpURLConnection.HTTP_UNAVAILABLE);
+        upload(UUID.randomUUID().toString(), HttpURLConnection.HTTP_OK);
+
+        Assert.assertEquals(0, count(RETRY_SUCCESS));
+        Assert.assertEquals(0, count(RETRY_FAILED));
     }
 
     @Test
