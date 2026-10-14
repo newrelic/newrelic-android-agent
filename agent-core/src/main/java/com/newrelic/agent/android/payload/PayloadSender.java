@@ -23,7 +23,9 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -34,6 +36,11 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
     protected final AgentConfiguration agentConfiguration;
     protected final TicToc timer;
     protected int responseCode;
+    private String retryKey;
+
+    // Keys of payloads whose last upload failed, shared by every sender
+    static final Set<String> failedUploads = ConcurrentHashMap.newKeySet();
+    private static final int MAX_TRACKED_PAYLOADS = 1000;
 
     public PayloadSender(AgentConfiguration agentConfiguration) {
         this.agentConfiguration = agentConfiguration;
@@ -145,10 +152,12 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
                 connection.disconnect();
             }
 
+            recordRetryOutcome();
             return this;
 
         } catch (Exception e) {
             onFailedUpload("Unable to upload payload [" + payload.getUuid() + "]  to New Relic, will try again later. " + e);
+            recordRetryOutcome();
         }
 
         return this;
@@ -219,11 +228,77 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
     }
 
     /**
+     * Identifies what is being uploaded across attempts, so a retry can be recognised as one.
+     * Defaults to the payload's UUID; callers that rebuild the payload (and its UUID) for every
+     * attempt set the stable identity with {@link #setRetryKey(String)}.
+     */
+    protected String getRetryKey() {
+        final String prefix = getSupportabilityPrefix();
+        final String key = retryKey != null ? retryKey : (payload != null ? payload.getUuid() : null);
+
+        return key != null ? (prefix != null ? prefix : "") + key : null;
+    }
+
+    public void setRetryKey(String retryKey) {
+        this.retryKey = retryKey;
+    }
+
+    /**
+     * True if the previous upload of this payload is known to have failed, making this attempt a retry.
+     */
+    protected boolean isRetry() {
+        final String key = getRetryKey();
+        return key != null && failedUploads.contains(key);
+    }
+
+    /**
+     * True when the collector accepted the payload. Unlike {@link #isSuccessfulResponse()}, a 500
+     * isn't accepted: it means the payload was rejected, even though it won't be retried.
+     */
+    protected boolean isAccepted() {
+        return responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_ACCEPTED;
+    }
+
+    /**
      * True when the collector refused the payload outright, so uploading it again can't help.
      */
     protected boolean isPermanentlyRejected() {
         return responseCode == HttpURLConnection.HTTP_BAD_REQUEST
-                || responseCode == HttpURLConnection.HTTP_FORBIDDEN;
+                || responseCode == HttpURLConnection.HTTP_FORBIDDEN
+                || responseCode == HttpURLConnection.HTTP_INTERNAL_ERROR;
+    }
+
+    /**
+     * Record how the upload that just finished went, if it was a retry: an attempt at a payload
+     * whose previous upload failed. The first failure isn't a retry, so it records nothing.
+     */
+    protected void recordRetryOutcome() {
+        try {
+            final String key = getRetryKey();
+            final String prefix = getSupportabilityPrefix();
+            if (key == null || prefix == null) {
+                return;     // not an endpoint that reports retry outcomes
+            }
+
+            final boolean accepted = isAccepted();
+            final boolean isRetry = isRetry();
+
+            if (accepted || isPermanentlyRejected()) {
+                // either way the payload is finished with, so there is nothing left to retry
+                failedUploads.remove(key);
+            } else {
+                if (failedUploads.size() >= MAX_TRACKED_PAYLOADS) {
+                    failedUploads.clear();   // payloads abandoned elsewhere; don't grow unbounded
+                }
+                failedUploads.add(key);
+            }
+
+            if (isRetry) {
+                StatsEngine.get().inc(prefix + (accepted ? MetricNames.SUPPORTABILITY_RETRY_SUCCESS : MetricNames.SUPPORTABILITY_RETRY_FAILED));
+            }
+        } catch (Exception e) {
+            log.debug("PayloadSender: unable to record retry outcome: " + e);
+        }
     }
 
     protected URI getCollectorURI() {

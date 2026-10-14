@@ -21,7 +21,6 @@ import com.newrelic.agent.android.stats.TicToc;
 import com.newrelic.agent.android.util.NamedThreadFactory;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -48,9 +47,6 @@ public class PayloadController implements HarvestLifecycleAware {
     protected static ConcurrentLinkedQueue<PayloadReaper> payloadReaperQueue = null;
     protected static ConcurrentLinkedQueue<PayloadReaper> payloadReaperRetryQueue = null;
     protected static Map<String, Future> reapersInFlight = null;
-    // UUIDs of payloads whose last upload failed, so the next attempt is known to be a retry
-    protected static final Set<String> failedUploads = ConcurrentHashMap.newKeySet();
-    private static final int MAX_TRACKED_PAYLOADS = 1000;
     protected static boolean opportunisticUploads = false;
 
     protected static final Runnable dequeueRunnable = () -> {
@@ -76,7 +72,6 @@ public class PayloadController implements HarvestLifecycleAware {
             queueExecutor = new ThrottledScheduledThreadPoolExecutor(agentConfiguration.getIOThreadSize(), new NamedThreadFactory("PayloadWorker"));
             requeueFuture = queueExecutor.scheduleWithFixedDelay(requeueRunnable, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, PayloadController.PAYLOAD_REQUEUE_PERIOD_MS, TimeUnit.MILLISECONDS);
             reapersInFlight = new ConcurrentHashMap<String, Future>();
-            failedUploads.clear();
             opportunisticUploads = false;
 
             CrashReporter crashReporter = CrashReporter.initialize(agentConfiguration);
@@ -190,12 +185,9 @@ public class PayloadController implements HarvestLifecycleAware {
                 @Override
                 public PayloadSender call() throws Exception {
                     PayloadSender sender = super.call();
-                    if (sender != null) {
-                        recordRetryOutcome(sender);
-                        if (!sender.isSuccessfulResponse() && sender.shouldRetry()) {
-                            // resubmit the task
-                            payloadReaperRetryQueue.offer(this);
-                        }
+                    if (sender != null && !sender.isSuccessfulResponse() && sender.shouldRetry()) {
+                        // resubmit the task
+                        payloadReaperRetryQueue.offer(this);
                     }
 
                     reapersInFlight.remove(getUuid());
@@ -224,37 +216,6 @@ public class PayloadController implements HarvestLifecycleAware {
         }
 
         return future;
-    }
-
-    /**
-     * Record how an upload attempt went, if it was a retry: an attempt at a payload whose
-     * previous upload failed. The first failure isn't a retry, so it records nothing.
-     */
-    protected static void recordRetryOutcome(PayloadSender sender) {
-        final Payload payload = sender.getPayload();
-        if (payload == null) {
-            return;
-        }
-
-        final String uuid = payload.getUuid();
-
-        final String prefix = sender.getSupportabilityPrefix();
-        final boolean success = sender.isSuccessfulResponse();
-        final boolean isRetry;
-
-        if (success || sender.isPermanentlyRejected()) {
-            // either way the payload is finished with, so there is nothing left to retry
-            isRetry = failedUploads.remove(uuid);
-        } else {
-            if (failedUploads.size() >= MAX_TRACKED_PAYLOADS) {
-                failedUploads.clear();   // payloads abandoned elsewhere; don't grow unbounded
-            }
-            isRetry = !failedUploads.add(uuid);
-        }
-
-        if (isRetry && prefix != null) {
-            StatsEngine.get().inc(prefix + (success ? MetricNames.SUPPORTABILITY_RETRY_SUCCESS : MetricNames.SUPPORTABILITY_RETRY_FAILED));
-        }
     }
 
     protected static Future submitPayload(final PayloadReaper payloadReaper) {
@@ -329,7 +290,6 @@ public class PayloadController implements HarvestLifecycleAware {
                         if (!payloadReaper.sender.getPayload().isStale(agentConfiguration.getPayloadTTL())) {
                             submitPayload(payloadReaper);
                         } else {
-                            failedUploads.remove(payloadReaper.getUuid());
                             log.warn("PayloadController: Will not re-queue stale payload.");
                         }
                     }

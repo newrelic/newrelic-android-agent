@@ -29,6 +29,16 @@ public class CrashSender extends PayloadSender {
     public CrashSender(Crash crash, AgentConfiguration agentConfiguration) {
         super(crash.toJsonString().getBytes(), agentConfiguration);
         this.crash = crash;
+        setRetryKey(crash.getUuid().toString());    // the payload UUID is new for every attempt
+    }
+
+    /**
+     * Crashes are stored with a count of the uploads that got a response, which outlives the app
+     * process, so a crash that already has one failed upload is being retried.
+     */
+    @Override
+    protected boolean isRetry() {
+        return crash.getUploadCount() > 0 || super.isRetry();
     }
 
     @Override

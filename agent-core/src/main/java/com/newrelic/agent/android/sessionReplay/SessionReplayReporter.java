@@ -300,6 +300,7 @@ public class SessionReplayReporter extends PayloadReporter {
 
         Payload compressedPayload = new Payload(compressedBytes);
         PayloadSender payloadSender = new SessionReplaySender(compressedPayload, getAgentConfiguration(), HarvestConfiguration.getDefaultHarvestConfiguration(), attributes);
+        payloadSender.setRetryKey(payload.getUuid());   // the key a later cached retry of this replay uses
 
         final OfflineSessionReplayPayload snapshotForCallback = snapshot;
         final OfflineSessionReplayStore storeForCallback = offlineStore;

@@ -74,6 +74,7 @@ public class SessionReplaySender extends PayloadSender {
         this.frozenAttributes = new LinkedHashMap<>(cached.getAttributes());
         this.frozenUrlTimestamp = cached.getUrlTimestamp();
         this.isFromOfflineStore = true;
+        setRetryKey(cached.getUuid());      // same as the original upload; the payload UUIDs differ
         setPayload(this.payload.getBytes());
     }
 

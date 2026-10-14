@@ -34,6 +34,7 @@ public class CrashSenderTest {
 
     @Before
     public void setUp() throws Exception {
+        StatsEngine.reset();
         crashStore = spy(new TestCrashStore());
 
         agentConfiguration = new AgentConfiguration();
@@ -147,5 +148,43 @@ public class CrashSenderTest {
         Mockito.doNothing().when(connection).connect();
 
         return connection;
+    }
+
+    @Test
+    public void storedCrashWithAFailedUploadIsRetried() throws Exception {
+        final String retryFailed = MetricNames.SUPPORTABILITY_CRASH + MetricNames.SUPPORTABILITY_RETRY_FAILED;
+
+        HttpURLConnection connection = getMockedConnection();
+        Mockito.doReturn(HttpsURLConnection.HTTP_UNAVAILABLE).when(connection).getResponseCode();
+
+        // first attempt in this process: nothing to retry
+        CrashSender sender = spy(new CrashSender(crash, agentConfiguration));
+        Mockito.doReturn(connection).when(sender).getConnection();
+        sender.call();
+        Assert.assertFalse(StatsEngine.get().getStatsMap().containsKey(retryFailed));
+
+        // next launch: the crash comes back from the store with its upload count, and a new sender
+        Crash restored = new Crash(java.util.UUID.randomUUID(), crash.getBuildId(), System.currentTimeMillis());
+        restored.incrementUploadCount();
+        sender = spy(new CrashSender(restored, agentConfiguration));
+        Mockito.doReturn(connection).when(sender).getConnection();
+        sender.call();
+        Assert.assertEquals(1, StatsEngine.get().getStatsMap().get(retryFailed).getCount());
+    }
+
+    @Test
+    public void crashSendersShareARetryKeyAcrossRebuilds() throws Exception {
+        final String retryFailed = MetricNames.SUPPORTABILITY_CRASH + MetricNames.SUPPORTABILITY_RETRY_FAILED;
+
+        HttpURLConnection connection = getMockedConnection();
+        Mockito.doReturn(HttpsURLConnection.HTTP_UNAVAILABLE).when(connection).getResponseCode();
+
+        for (int attempt = 0; attempt < 2; attempt++) {
+            CrashSender sender = spy(new CrashSender(crash, agentConfiguration));    // new payload UUID each time
+            Mockito.doReturn(connection).when(sender).getConnection();
+            sender.call();
+        }
+
+        Assert.assertEquals(1, StatsEngine.get().getStatsMap().get(retryFailed).getCount());
     }
 }

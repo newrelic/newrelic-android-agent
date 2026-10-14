@@ -11,6 +11,7 @@ import static org.mockito.internal.verification.VerificationModeFactory.atLeastO
 
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.crash.CrashReporterTest;
+import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 
 import org.junit.Assert;
@@ -60,6 +61,7 @@ public class PayloadSenderTest {
         });
 
         StatsEngine.get().getStatsMap().clear();
+        PayloadSender.failedUploads.clear();
     }
 
     private HttpURLConnection getMockedConnection() throws IOException {
@@ -276,5 +278,131 @@ public class PayloadSenderTest {
         };
         Assert.assertNotEquals("Different payloads mean senders are NOT equal", thisSender, theOtherSender);
 
+    }
+
+    private static final String RETRY_SUCCESS = MetricNames.SUPPORTABILITY_CRASH + MetricNames.SUPPORTABILITY_RETRY_SUCCESS;
+    private static final String RETRY_FAILED = MetricNames.SUPPORTABILITY_CRASH + MetricNames.SUPPORTABILITY_RETRY_FAILED;
+
+    /**
+     * Upload the payload with a freshly built sender, the way reporters do, calling it directly
+     * rather than through the PayloadController.
+     */
+    private void upload(Payload payload, String retryKey, int responseCode) throws Exception {
+        final HttpURLConnection connection = getMockedConnection();
+        Mockito.doReturn(responseCode).when(connection).getResponseCode();
+
+        PayloadSender sender = new PayloadSender(payload, agentConfiguration) {
+            @Override
+            protected HttpURLConnection getConnection() {
+                return connection;
+            }
+
+            @Override
+            protected String getSupportabilityPrefix() {
+                return MetricNames.SUPPORTABILITY_CRASH;
+            }
+        };
+        sender.setRetryKey(retryKey);
+        sender.call();
+    }
+
+    private long count(String name) {
+        return StatsEngine.get().getStatsMap().containsKey(name) ? StatsEngine.get().getStatsMap().get(name).getCount() : 0;
+    }
+
+    @Test
+    public void firstUploadRecordsNoRetryMetrics() throws Exception {
+        upload(payload, null, HttpURLConnection.HTTP_OK);
+        upload(new Payload("another".getBytes()), null, HttpURLConnection.HTTP_UNAVAILABLE);
+
+        Assert.assertEquals(0, count(RETRY_SUCCESS));
+        Assert.assertEquals(0, count(RETRY_FAILED));
+    }
+
+    @Test
+    public void retryOutcomesAreRecordedWhenSendersAreCalledDirectly() throws Exception {
+        upload(payload, null, HttpURLConnection.HTTP_UNAVAILABLE);
+        Assert.assertEquals(0, count(RETRY_FAILED));
+
+        upload(payload, null, HttpURLConnection.HTTP_UNAVAILABLE);
+        Assert.assertEquals(1, count(RETRY_FAILED));
+
+        upload(payload, null, HttpURLConnection.HTTP_ACCEPTED);
+        Assert.assertEquals(1, count(RETRY_SUCCESS));
+        Assert.assertEquals(1, count(RETRY_FAILED));
+        Assert.assertTrue(PayloadSender.failedUploads.isEmpty());
+    }
+
+    @Test
+    public void internalServerErrorIsNotARetrySuccess() throws Exception {
+        upload(payload, null, HttpURLConnection.HTTP_UNAVAILABLE);
+        upload(payload, null, HttpURLConnection.HTTP_INTERNAL_ERROR);
+
+        Assert.assertEquals(0, count(RETRY_SUCCESS));
+        Assert.assertEquals(1, count(RETRY_FAILED));
+
+        // the payload was rejected, so that sequence is over
+        upload(payload, null, HttpURLConnection.HTTP_UNAVAILABLE);
+        Assert.assertEquals(1, count(RETRY_FAILED));
+    }
+
+    @Test
+    public void rejectedRetryIsAFailureAndEndsTheSequence() throws Exception {
+        upload(payload, null, HttpURLConnection.HTTP_UNAVAILABLE);
+        upload(payload, null, HttpURLConnection.HTTP_FORBIDDEN);
+
+        Assert.assertEquals(1, count(RETRY_FAILED));
+        Assert.assertTrue(PayloadSender.failedUploads.isEmpty());
+    }
+
+    @Test
+    public void retryKeyLinksPayloadsRebuiltWithNewUuids() throws Exception {
+        Payload first = new Payload("one".getBytes());
+        Payload second = new Payload("one".getBytes());
+        Assert.assertNotEquals(first.getUuid(), second.getUuid());
+
+        upload(first, "replay-1", HttpURLConnection.HTTP_UNAVAILABLE);
+        upload(second, "replay-1", HttpURLConnection.HTTP_OK);
+
+        Assert.assertEquals(1, count(RETRY_SUCCESS));
+    }
+
+    @Test
+    public void payloadsAreNotLinkedWithoutAMatchingKey() throws Exception {
+        upload(new Payload("one".getBytes()), null, HttpURLConnection.HTTP_UNAVAILABLE);
+        upload(new Payload("one".getBytes()), null, HttpURLConnection.HTTP_OK);
+
+        Assert.assertEquals(0, count(RETRY_SUCCESS));
+    }
+
+    @Test
+    public void endpointsDoNotShareRetryState() throws Exception {
+        upload(payload, null, HttpURLConnection.HTTP_UNAVAILABLE);
+
+        PayloadSender other = new PayloadSender(payload, agentConfiguration) {
+            @Override
+            protected HttpURLConnection getConnection() {
+                return connection;
+            }
+
+            @Override
+            protected String getSupportabilityPrefix() {
+                return MetricNames.SUPPORTABILITY_HEX;
+            }
+        };
+        other.call();
+
+        Assert.assertEquals(0, count(MetricNames.SUPPORTABILITY_HEX + MetricNames.SUPPORTABILITY_RETRY_SUCCESS));
+    }
+
+    @Test
+    public void senderWithoutEndpointPrefixRecordsNothing() throws Exception {
+        Mockito.doReturn(HttpURLConnection.HTTP_UNAVAILABLE).when(connection).getResponseCode();
+
+        payloadSender.call();
+        payloadSender.call();
+
+        Assert.assertTrue(StatsEngine.get().getStatsMap().keySet().stream().noneMatch(name -> name.contains("/Retry/")));
+        Assert.assertTrue(PayloadSender.failedUploads.isEmpty());
     }
 }
