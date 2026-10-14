@@ -248,4 +248,9 @@ public class SessionReplaySender extends PayloadSender {
     protected URI getCollectorURI() {
         return URI.create(getProtocol() + agentConfiguration.getCollectorHost() + "/mobile/blobs?");
     }
+
+    @Override
+    protected String getSupportabilityPrefix() {
+        return MetricNames.SUPPORTABILITY_SESSION_REPLAY;
+    }
 }

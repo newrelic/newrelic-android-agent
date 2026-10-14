@@ -61,6 +61,10 @@ public class MetricNames {
     public static final String SUPPORTABILITY_SESSION_INVALID_DURATION = SUPPORTABILITY_AGENT + "Session/InvalidDuration";
     public static final String SUPPORTABILITY_RESPONSE_TIME_INVALID_DURATION = SUPPORTABILITY_AGENT + "Network/Request/ResponseTime/InvalidDuration";
 
+    // Appended to a per-endpoint prefix, e.g. SUPPORTABILITY_CRASH + SUPPORTABILITY_RETRY_SUCCESS
+    public static final String SUPPORTABILITY_RETRY_SUCCESS = "Retry/Success";
+    public static final String SUPPORTABILITY_RETRY_FAILED = "Retry/Failed";
+
     public static final String SUPPORTABILITY_CRASH = SUPPORTABILITY_AGENT + "Crash/";
     public static final String SUPPORTABILITY_CRASH_RECURSIVE_HANDLER = SUPPORTABILITY_CRASH + "UncaughtExceptionHandler/Recursion";
     public static final String SUPPORTABILITY_CRASH_UNCAUGHT_HANDLER = SUPPORTABILITY_AGENT + "UncaughtExceptionHandler/<name>";

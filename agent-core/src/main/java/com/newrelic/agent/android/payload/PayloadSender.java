@@ -209,6 +209,23 @@ public abstract class PayloadSender implements Callable<PayloadSender> {
         return false;
     }
 
+    /**
+     * Supportability prefix of the endpoint this sender uploads to (e.g.
+     * {@link MetricNames#SUPPORTABILITY_CRASH}), under which the retry outcome metrics are
+     * recorded. Senders that return null don't report retry outcomes.
+     */
+    protected String getSupportabilityPrefix() {
+        return null;
+    }
+
+    /**
+     * True when the collector refused the payload outright, so uploading it again can't help.
+     */
+    protected boolean isPermanentlyRejected() {
+        return responseCode == HttpURLConnection.HTTP_BAD_REQUEST
+                || responseCode == HttpURLConnection.HTTP_FORBIDDEN;
+    }
+
     protected URI getCollectorURI() {
         return URI.create(getProtocol() + agentConfiguration.getCollectorHost());
     }

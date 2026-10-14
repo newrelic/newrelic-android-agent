@@ -465,6 +465,74 @@ public class PayloadControllerTest {
         };
     }
 
+    private static final String RETRY_SUCCESS = MetricNames.SUPPORTABILITY_CRASH + MetricNames.SUPPORTABILITY_RETRY_SUCCESS;
+    private static final String RETRY_FAILED = MetricNames.SUPPORTABILITY_CRASH + MetricNames.SUPPORTABILITY_RETRY_FAILED;
+
+    private enum Outcome {SUCCESS, TRANSIENT_FAILURE, REJECTED}
+
+    private void upload(Outcome outcome) {
+        Mockito.doReturn(MetricNames.SUPPORTABILITY_CRASH).when(payloadSender).getSupportabilityPrefix();
+        Mockito.doReturn(outcome == Outcome.SUCCESS).when(payloadSender).isSuccessfulResponse();
+        Mockito.doReturn(outcome == Outcome.REJECTED).when(payloadSender).isPermanentlyRejected();
+        PayloadController.recordRetryOutcome(payloadSender);
+    }
+
+    private long count(String name) {
+        return StatsEngine.get().getStatsMap().containsKey(name) ? StatsEngine.get().getStatsMap().get(name).getCount() : 0;
+    }
+
+    @Test
+    public void firstUploadRecordsNoRetryMetrics() {
+        upload(Outcome.SUCCESS);
+        upload(Outcome.TRANSIENT_FAILURE);
+
+        Assert.assertEquals(0, count(RETRY_SUCCESS));
+        Assert.assertEquals(0, count(RETRY_FAILED));
+    }
+
+    @Test
+    public void retrySuccessIsRecordedWhenFailedUploadLaterSucceeds() {
+        upload(Outcome.TRANSIENT_FAILURE);
+        upload(Outcome.SUCCESS);
+
+        Assert.assertEquals(1, count(RETRY_SUCCESS));
+        Assert.assertEquals(0, count(RETRY_FAILED));
+        Assert.assertTrue(PayloadController.failedUploads.isEmpty());
+    }
+
+    @Test
+    public void retryFailedIsRecordedForEachFailedRetry() {
+        upload(Outcome.TRANSIENT_FAILURE);
+        upload(Outcome.TRANSIENT_FAILURE);
+        upload(Outcome.TRANSIENT_FAILURE);
+
+        Assert.assertEquals(2, count(RETRY_FAILED));
+        Assert.assertEquals(0, count(RETRY_SUCCESS));
+    }
+
+    @Test
+    public void rejectedRetryIsAFailureAndEndsTheSequence() {
+        upload(Outcome.TRANSIENT_FAILURE);
+        upload(Outcome.REJECTED);
+
+        Assert.assertEquals(1, count(RETRY_FAILED));
+        Assert.assertTrue(PayloadController.failedUploads.isEmpty());
+
+        // a fresh failure afterwards starts over rather than counting as a retry
+        upload(Outcome.TRANSIENT_FAILURE);
+        Assert.assertEquals(1, count(RETRY_FAILED));
+    }
+
+    @Test
+    public void senderWithoutEndpointPrefixRecordsNoRetryMetrics() {
+        Mockito.doReturn(false).when(payloadSender).isSuccessfulResponse();
+
+        PayloadController.recordRetryOutcome(payloadSender);
+        PayloadController.recordRetryOutcome(payloadSender);
+
+        Assert.assertTrue(StatsEngine.get().getStatsMap().keySet().stream().noneMatch(name -> name.contains("/Retry/")));
+    }
+
     private void drainPayloadControllerQueue() throws ExecutionException, InterruptedException {
         PayloadController.dequeueRunnable.run();
         for (Future future : PayloadController.reapersInFlight.values()) {

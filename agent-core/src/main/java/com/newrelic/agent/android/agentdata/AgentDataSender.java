@@ -97,4 +97,9 @@ public class AgentDataSender extends PayloadSender {
     protected boolean shouldUploadOpportunistically() {
         return PayloadController.shouldUploadOpportunistically();
     }
+
+    @Override
+    protected String getSupportabilityPrefix() {
+        return MetricNames.SUPPORTABILITY_HEX;
+    }
 }

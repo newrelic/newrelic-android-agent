@@ -156,4 +156,9 @@ public class AEITraceSender extends PayloadSender {
     public boolean shouldRetry() {
         return true;
     }
+
+    @Override
+    protected String getSupportabilityPrefix() {
+        return MetricNames.SUPPORTABILITY_AEI;
+    }
 }

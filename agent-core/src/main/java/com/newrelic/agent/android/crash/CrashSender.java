@@ -128,4 +128,8 @@ public class CrashSender extends PayloadSender {
         return URI.create(getProtocol() + agentConfiguration.getCrashCollectorHost() + CRASH_COLLECTOR_PATH);
     }
 
+    @Override
+    protected String getSupportabilityPrefix() {
+        return MetricNames.SUPPORTABILITY_CRASH;
+    }
 }

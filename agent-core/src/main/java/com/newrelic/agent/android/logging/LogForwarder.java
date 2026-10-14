@@ -139,4 +139,8 @@ public class LogForwarder extends PayloadSender {
         return URI.create(getProtocol() + agentConfiguration.getCollectorHost() + "/mobile/logs");
     }
 
+    @Override
+    protected String getSupportabilityPrefix() {
+        return MetricNames.SUPPORTABILITY_LOG_REPORTING;
+    }
 }
