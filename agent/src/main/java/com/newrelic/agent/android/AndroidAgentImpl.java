@@ -737,7 +737,7 @@ public class AndroidAgentImpl implements
         Harvest.shutdown();
         Measurements.shutdown();
         PayloadController.shutdown();
-        if (AgentConfiguration.getInstance().getSessionReplayConfiguration().isSessionReplayEnabled()) {
+        if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
             SessionReplay.deInitialize();
         }
 
