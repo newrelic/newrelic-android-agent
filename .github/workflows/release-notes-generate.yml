@@ -5,6 +5,8 @@ name: Release notes - generate
 # A person publishes the release (create_release.yml only drafts it), so the release event fires.
 # The event runs this file as it is at the tagged commit, so it must be on main before the first
 # release that should use it.
+# If this run shows as cancelled (GitHub cancels a pending run when another joins the
+# docs-release-notes-next group), run it again by hand with the version.
 
 on:
   release:

@@ -34,7 +34,7 @@ Release notes for the Android agent are drafted automatically from merged pull r
 - If the description has a `## Release note` heading (or a `Release note:` line), that text becomes the bullet as written, so say what changed for app developers or their users and, for a bug, what was broken. Otherwise the title is used with its type prefix and Jira key removed and the leading verb put in the past tense. Write `N/A` to use the title.
 - Unlabelled `docs`, `test`, `ci`, `chore`, `build` and `style` PRs, and Dependabot PRs, are left out; add a label to include one. Put `[skip-docs]` in the description to leave any PR out.
 - The `Release notes - check` check comments on your PR with the section and the exact bullet, and goes red when a user-facing PR into `develop` does not have exactly one `release-note:*` label.
-- When a release is published, `release-notes-generate.yml` opens a draft PR on `newrelic/docs-website`. **Edit it before it merges**: each bullet specific and user-facing, in the right section, and mirrored in its frontmatter array; check the "PRs left out" list in the PR description. To rebuild a note, run that workflow by hand with the version.
+- When a release is published, `release-notes-generate.yml` opens a draft PR on `newrelic/docs-website`. **Edit it before it merges**: each bullet specific and user-facing, in the right section, and mirrored in its frontmatter array; check the "PRs left out" list in the PR description. To rebuild a note, or if that workflow's run shows as cancelled, run it by hand with the version.
 - Settings are in `.github/release-notes.json`. The workflows need the `BOT_PAT` and `BOT_EMAIL` repository secrets.
 
 ## Contributor License Agreement

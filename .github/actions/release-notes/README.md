@@ -325,6 +325,13 @@ jobs:
 A `release` event runs the workflow file as it is at the tagged commit, so the file must be on the
 branch releases are tagged from before the first release that should use it.
 
+**A cancelled generate run must be run again by hand.** `append` and `generate` share the
+concurrency group `docs-release-notes-next`, so a release never races a bullet push. GitHub keeps
+only one *pending* run per group: when another run queues behind a waiting one, the waiting run is
+cancelled. A cancelled append costs nothing, because the release run builds any missing bullet. A
+cancelled generate leaves the release without a docs PR and its bullets on the next branch. If a
+generate run shows as cancelled, run `release-notes-generate.yml` by hand with that version.
+
 ## Action inputs
 
 All three take `github-token` (default: the run's token), `config` (default
