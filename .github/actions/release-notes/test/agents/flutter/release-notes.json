@@ -1,0 +1,10 @@
+{
+  "subject": "Flutter agent",
+  "docsFolder": "flutter-release-notes",
+  "filePrefix": "flutter-agent-",
+  "nextBranch": "flutter-next",
+  "tagPrefix": "v",
+  "skeleton": "flutter-agent-next.mdx",
+  "downloadLink": "https://pub.dev/packages/newrelic_mobile/versions/{version}",
+  "changelog": "CHANGELOG.md"
+}

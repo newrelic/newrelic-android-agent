@@ -1,0 +1,28 @@
+name: Release notes - check
+
+# Comments on each open PR into develop with the section and bullet it will become, and fails when a
+# user-facing PR does not carry exactly one release-note:* label. If this is ever made a required
+# check, apply that only to develop: it never reports on PRs into other branches.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+    branches: [develop]
+
+permissions:
+  contents: read
+  pull-requests: write # the report comment
+
+concurrency:
+  group: release-notes-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: false # a cancelled run could leave its comment half-posted
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/release-notes/check

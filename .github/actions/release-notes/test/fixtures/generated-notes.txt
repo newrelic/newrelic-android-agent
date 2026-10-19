@@ -1,0 +1,7 @@
+## What's Changed
+* fix: restore green develop unit tests by @alice in https://github.com/newrelic/newrelic-react-native-agent/pull/646
+* feat: add thing by @bob in https://github.com/newrelic/newrelic-react-native-agent/pull/618
+* fix: other by @carol in https://github.com/newrelic/newrelic-react-native-agent/pull/639
+
+
+**Full Changelog**: https://github.com/newrelic/newrelic-react-native-agent/compare/7.8.2...7.8.3
