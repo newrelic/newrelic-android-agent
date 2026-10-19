@@ -119,7 +119,7 @@ public class AnalyticsEvent extends HarvestableObject {
      * caller is left alone.
      */
     private void recordBackgroundState() {
-        if (recordsBackgroundState() && FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
             final boolean inBackground = ApplicationStateMonitor.isAppInBackground();
 
             this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, inBackground));
@@ -127,14 +127,6 @@ public class AnalyticsEvent extends HarvestableObject {
                 StatsEngine.notice().inc(MetricNames.BACKGROUND_EVENT_COUNT);
             }
         }
-    }
-
-    /**
-     * Whether this event type is stamped with the app state when it is recorded. Events that are
-     * built after the fact, from state captured earlier, must supply their own.
-     */
-    protected boolean recordsBackgroundState() {
-        return true;
     }
 
     /**

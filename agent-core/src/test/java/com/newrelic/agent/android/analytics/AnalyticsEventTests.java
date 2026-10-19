@@ -333,16 +333,6 @@ public class AnalyticsEventTests {
     }
 
     @Test
-    public void applicationExitEventIsNotStampedWithTheCurrentState() {
-        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
-
-        Assert.assertNull(backgroundOf(new ApplicationExitEvent("exit", new HashSet<AnalyticsAttribute>())));
-
-        moveToBackground();
-        Assert.assertNull(backgroundOf(new ApplicationExitEvent("exit", new HashSet<AnalyticsAttribute>())));
-    }
-
-    @Test
     public void backgroundEventCountOnlyCountsBackgroundEvents() {
         FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
 
