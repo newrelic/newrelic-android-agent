@@ -1,0 +1,10 @@
+{
+  "subject": "Capacitor agent",
+  "docsFolder": "capacitor-release-notes",
+  "filePrefix": "capacitor-agent-",
+  "nextBranch": "capacitor-next",
+  "tagPrefix": "v",
+  "skeleton": "capacitor-agent-next.mdx",
+  "downloadLink": "https://www.npmjs.com/package/{npmPackage}/v/{version}",
+  "changelog": "CHANGELOG.md"
+}

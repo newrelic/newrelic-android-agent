@@ -1,0 +1,10 @@
+{
+  "subject": "React Native agent",
+  "docsFolder": "react-native-release-notes",
+  "filePrefix": "react-native-agent-",
+  "nextBranch": "react-native-next",
+  "tagPrefix": "v",
+  "skeleton": "react-native-agent-next.mdx",
+  "downloadLink": "https://www.npmjs.com/package/{npmPackage}/v/{version}",
+  "changelog": "CHANGELOG.md"
+}
