@@ -2,7 +2,8 @@
 # shellcheck shell=bash
 # A stand-in for gh in the build-release.sh and per-agent tests. Source it to put "gh" on PATH:
 #   generate-notes prints $FAKE_GH/notes.txt ($FAKE_GH/notes-fail makes it fail every time,
-#   $FAKE_GH/notes-fail-once only the next time),
+#   $FAKE_GH/notes-fail-once only the next time, $FAKE_GH/notes-blank-once answers the next call
+#   with an empty body and exit 0),
 #   "pr view N" prints $FAKE_GH/pr-N.json (no such file makes it fail).
 # Every call is appended to $FAKE_GH/calls.log.
 FAKE_GH=$(mktemp -d)
@@ -14,6 +15,7 @@ case "$1 $2" in
   "api -X")
     [ ! -e "$FAKE_GH/notes-fail" ] || exit 1
     if [ -e "$FAKE_GH/notes-fail-once" ]; then rm "$FAKE_GH/notes-fail-once"; exit 1; fi
+    if [ -e "$FAKE_GH/notes-blank-once" ]; then rm "$FAKE_GH/notes-blank-once"; echo; exit 0; fi
     cat "$FAKE_GH/notes.txt" ;;
   "pr view")
     [ -f "$FAKE_GH/pr-$3.json" ] || { echo "no such PR: $3" >&2; exit 1; }

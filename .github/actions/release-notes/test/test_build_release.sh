@@ -72,6 +72,7 @@ log=$(build --changelog "$tmp/CHANGELOG.md"); rc=$?
 assert_eq "no PRs with a CHANGELOG builds" 0 "$rc"
 assert_contains "no PRs with a CHANGELOG warns" "$log" "::warning::No PRs found between v1.9.2 and v1.9.3; using the CHANGELOG only."
 assert_contains "no PRs with a CHANGELOG uses its entries" "$(cat "$out")" "- Fixed a crash on startup."
+assert_contains "no PRs: the PR text says the note comes from the CHANGELOG only" "$(cat "$work/pr-body.md")" "### No PRs found"
 
 touch "$FAKE_GH/notes-fail"
 log=$(build 2>&1); assert_eq "a generate-notes call that keeps failing exits 1" 1 "$?"
@@ -80,6 +81,10 @@ rm "$FAKE_GH/notes-fail"
 fake_notes 10; touch "$FAKE_GH/notes-fail-once"
 log=$(build 2>&1); assert_eq "a generate-notes call that fails once is retried" 0 "$?"
 assert_contains "the retry is logged" "$log" "releases/generate-notes failed (attempt 1); retrying."
+fake_notes 10; touch "$FAKE_GH/notes-blank-once"
+log=$(build 2>&1); assert_eq "an empty generate-notes answer is retried, not taken as no PRs" 0 "$?"
+assert_contains "the empty answer is logged as a failed attempt" "$log" "attempt 1"
+assert_eq "the retry's PRs are used" "10" "$(tr '\n' ' ' < "$work/release-prs.txt" | sed 's/ $//')"
 
 # The run is linked when the runner says which run this is.
 fake_notes 10; cp "$SKELETON" "$next"

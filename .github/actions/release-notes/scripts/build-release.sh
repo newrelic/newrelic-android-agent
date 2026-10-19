@@ -46,11 +46,14 @@ src="$work/release-src.mdx"
 cp "$next" "$work/next.mdx"
 : > "$work/failed-prs.txt"; : > "$work/skipped-prs.txt"; : > "$work/changelog.txt"; : > "$work/flags.txt"
 
-# Source B: PRs merged between the two tags. The API fails now and then (an empty response), so
-# it is tried three times before the release run gives up.
+# Source B: PRs merged between the two tags. The API fails now and then, by an error or by an
+# empty answer (real generated notes are never empty), so it is tried three times.
 for attempt in 1 2 3; do
-  gh api -X POST "repos/$repo/releases/generate-notes" \
-    -f tag_name="$tag" -f previous_tag_name="$prev_tag" --jq .body > "$work/generated-notes.txt" && break
+  if gh api -X POST "repos/$repo/releases/generate-notes" \
+    -f tag_name="$tag" -f previous_tag_name="$prev_tag" --jq .body > "$work/generated-notes.txt" \
+    && grep -q '[^[:space:]]' "$work/generated-notes.txt"; then
+    break
+  fi
   if [ "$attempt" = 3 ]; then
     echo "::error::Could not list the PRs between $prev_tag and $tag (releases/generate-notes failed 3 times)"
     exit 1
@@ -115,6 +118,11 @@ fi
   echo "**A human edit pass is required before this merges.** Bullets were generated from each PR's title, its \`release-note:*\` label and any \`Release note\` text in its description$from; titles are developer-facing, so most bullets need rewording."
   echo
   echo "Check: every bullet is user-facing and specific, bug bullets say what was broken, each bullet sits in the right section, and the frontmatter arrays mirror the body."
+  if [ -z "$prs" ]; then
+    echo
+    echo "### No PRs found"
+    echo "GitHub listed no PRs between \`$prev_tag\` and \`$tag\`, so this note comes from the CHANGELOG only. Bullets still on the next branch were not included; add any that belong to this release by hand."
+  fi
   if [ "$used_fallback" = 1 ]; then
     echo
     echo "### No bullets"
