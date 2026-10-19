@@ -67,5 +67,6 @@ public enum FeatureFlag {
         enableFeature(ApplicationExitReporting);
         enableFeature(LogReporting);
         enableFeature(EventPersistence);
+        enableFeature(AutomaticMobileViewTracing);
     }
 }

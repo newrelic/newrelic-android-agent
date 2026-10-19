@@ -8,6 +8,7 @@ package com.newrelic.agent.android;
 import static com.newrelic.agent.android.FeatureFlag.AnalyticsEvents;
 import static com.newrelic.agent.android.FeatureFlag.AppStartMetrics;
 import static com.newrelic.agent.android.FeatureFlag.ApplicationExitReporting;
+import static com.newrelic.agent.android.FeatureFlag.AutomaticMobileViewTracing;
 import static com.newrelic.agent.android.FeatureFlag.BackgroundReporting;
 import static com.newrelic.agent.android.FeatureFlag.CrashReporting;
 import static com.newrelic.agent.android.FeatureFlag.DefaultInteractions;
@@ -70,6 +71,7 @@ public class FeatureFlagTest {
         Assert.assertTrue("ApplicationExitReporting is enabled by default", FeatureFlag.featureEnabled(ApplicationExitReporting));
         Assert.assertTrue("LogReporting is enabled by default", FeatureFlag.featureEnabled(LogReporting));
         Assert.assertTrue("EventPersistence is enabled by default", FeatureFlag.featureEnabled(EventPersistence));
+        Assert.assertTrue("AutomaticMobileViewTracing is enabled by default", FeatureFlag.featureEnabled(AutomaticMobileViewTracing));
     }
 
     @Test

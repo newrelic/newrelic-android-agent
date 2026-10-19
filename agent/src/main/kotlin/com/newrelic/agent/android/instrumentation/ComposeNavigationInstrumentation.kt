@@ -83,11 +83,34 @@ private class MeasureNavigationObserver(
             navController.addOnDestinationChangedListener(destinationChangedListener)
         } else if (event == Lifecycle.Event.ON_PAUSE) {
             navController.removeOnDestinationChangedListener(destinationChangedListener)
+            // The Activity/Fragment producers emit a disappear event on their own onPause; the
+            // NavHost container they're hosted in is suppressed on the Activity side precisely
+            // because this Compose producer is expected to own appear/disappear for its
+            // destinations instead (see isNavHostContainer()). Without this, the current route
+            // would never get a disappear event when the host stops being visible.
+            recordDisappearedIfNeeded()
         }
     }
 
     fun dispose() {
         navController.removeOnDestinationChangedListener(destinationChangedListener)
+        recordDisappearedIfNeeded()
+    }
+
+    private fun recordDisappearedIfNeeded() {
+        lastMobileViewRoute?.let { route ->
+            try {
+                MobileViewContext.getInstance().onViewDisappeared(route)
+            } catch (e: Exception) {
+                log.error("ComposeNavigationInstrumentation.recordDisappearedIfNeeded: ", e)
+            } finally {
+                // Whether or not the above succeeded, this observer no longer considers `route`
+                // current - a later re-resume of the same host must not skip re-recording it as
+                // appeared (addOnDestinationChangedListener's immediate re-fire would otherwise be
+                // deduped against a route this observer no longer actually owns).
+                lastMobileViewRoute = null
+            }
+        }
     }
 
     // addOnDestinationChangedListener immediately re-invokes the listener with the CURRENT
@@ -110,6 +133,15 @@ private class MeasureNavigationObserver(
 
                 if (FeatureFlag.featureEnabled(FeatureFlag.AutomaticMobileViewTracing) && to != lastMobileViewRoute) {
                     try {
+                        // The route being navigated away from needs its own disappear event
+                        // before the new route appears - onActivityPaused/onFragmentPaused only
+                        // cover the Activity/Fragment producers, not Compose destinations, since
+                        // this NavHost's container Activity is suppressed on that side precisely
+                        // so this producer can own its own destinations' appear/disappear pairs.
+                        lastMobileViewRoute?.let { from ->
+                            MobileViewContext.getInstance().onViewDisappeared(from)
+                        }
+
                         // No distinct "created" moment exists for a Compose destination (only
                         // this destination-changed callback firing) - loadTime is left
                         // unpopulated for Compose until a real start-time hook is designed,

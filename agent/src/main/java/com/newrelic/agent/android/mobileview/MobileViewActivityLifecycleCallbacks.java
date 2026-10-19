@@ -31,10 +31,20 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MobileViewActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
-    // Class names of activities currently being torn down and recreated for a config change
-    // (e.g. rotation). Keyed by class name, not a single flag, so that multiple activities
-    // rotating concurrently (multi-window/split-screen) don't desync each other's suppression.
+    // Identities of activities currently being torn down and recreated for a config change
+    // (e.g. rotation), keyed by "taskId:className" rather than class name alone. A config change
+    // destroys and recreates the Activity as a brand-new instance, so there's no Activity
+    // identity (no stable hashCode/instance reference) that survives from the old instance to
+    // the new one - task ID is the one thing that does, since the recreated Activity lands back
+    // in the same task. Two DIFFERENT concurrent instances of the same Activity class (e.g.
+    // multi-window/split-screen, or the same screen opened in two separate tasks) run in
+    // different tasks, so keying on taskId too (not class name alone) stops them from
+    // cross-contaminating each other's suppression flag.
     private final Set<String> changingConfigurations = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    private static String configChangeKey(@NonNull Activity activity) {
+        return activity.getTaskId() + ":" + activity.getClass().getName();
+    }
 
     // Whether a given Activity instance was treated as a NavHostFragment container at the time
     // it appeared. Computed once in onActivityResumed and reused in onActivityPaused so the
@@ -66,7 +76,7 @@ public class MobileViewActivityLifecycleCallbacks implements Application.Activit
         boolean isContainer = isNavHostContainer(activity);
         navHostContainerAtAppear.put(activity, isContainer);
         Long createdAt = createdAtMs.remove(activity);
-        if (changingConfigurations.remove(clazz.getName())) {
+        if (changingConfigurations.remove(configChangeKey(activity))) {
             return;
         }
         if (isContainer) {
@@ -92,7 +102,7 @@ public class MobileViewActivityLifecycleCallbacks implements Application.Activit
     @Override
     public void onActivityPaused(@NonNull Activity activity) {
         if (activity.isChangingConfigurations()) {
-            changingConfigurations.add(activity.getClass().getName());
+            changingConfigurations.add(configChangeKey(activity));
             return;
         }
         Boolean wasContainer = navHostContainerAtAppear.remove(activity);
@@ -135,14 +145,35 @@ public class MobileViewActivityLifecycleCallbacks implements Application.Activit
             if (ComposeNavHostRegistry.getInstance().isRegistered(activity)) {
                 return true;
             }
+            if (!(activity instanceof FragmentActivity)) {
+                return false;
+            }
+            // Recurse into child fragment managers, not just the activity's top-level fragments: the
+            // Fragment producer below registers its callbacks recursively (registerFragmentLifecycleCallbacks(...,
+            // true)), so it fires for a NavHostFragment's destinations no matter how deeply that
+            // NavHostFragment is nested under other fragments. Only scanning top-level fragments here
+            // would miss a nested NavHostFragment, leaving this check returning false while the nested
+            // NavHostFragment's destinations still fire their own MobileView events - producing a
+            // redundant Activity-level event alongside them.
+            //
+            // This walk (and the registry check above) runs on every Activity resume, including
+            // when the feature flag is disabled, so it must never let an exception escape: a
+            // FragmentManager mutated concurrently by an in-flight transaction (e.g.
+            // getChildFragmentManager() on a fragment not yet attached) would otherwise crash the
+            // host app from inside Application.ActivityLifecycleCallbacks.
+            return containsNavHostFragment(((FragmentActivity) activity).getSupportFragmentManager());
         } catch (Exception e) {
             log.error("MobileViewActivityLifecycleCallbacks.isNavHostContainer: ", e);
-        }
-        if (!(activity instanceof FragmentActivity)) {
             return false;
         }
-        for (androidx.fragment.app.Fragment fragment : ((FragmentActivity) activity).getSupportFragmentManager().getFragments()) {
+    }
+
+    private static boolean containsNavHostFragment(@NonNull androidx.fragment.app.FragmentManager fragmentManager) {
+        for (androidx.fragment.app.Fragment fragment : fragmentManager.getFragments()) {
             if (fragment instanceof NavHostFragment) {
+                return true;
+            }
+            if (containsNavHostFragment(fragment.getChildFragmentManager())) {
                 return true;
             }
         }

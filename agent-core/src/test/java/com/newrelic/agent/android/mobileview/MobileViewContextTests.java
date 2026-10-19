@@ -9,6 +9,7 @@ import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
+import com.newrelic.agent.android.analytics.EventListener;
 import com.newrelic.agent.android.analytics.TestEventStore;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
@@ -63,7 +64,7 @@ public class MobileViewContextTests {
         Assert.assertNull("First appeared view should have no previousView attribute.", attrValue(event, AnalyticsAttribute.MOBILE_VIEW_PREVIOUS_VIEW_ATTRIBUTE));
         Assert.assertNull("First appeared view should have no previousViewInstanceId attribute.", attrValue(event, AnalyticsAttribute.MOBILE_VIEW_PREVIOUS_VIEW_INSTANCE_ID_ATTRIBUTE));
         Assert.assertEquals("Current view should be updated.", "ViewOne", MobileViewContext.getInstance().getCurrentView());
-        Assert.assertEquals("uiPlatform attribute should match.", "Android", attrValue(event, AnalyticsAttribute.MOBILE_VIEW_UI_PLATFORM_ATTRIBUTE));
+        Assert.assertEquals("uiFramework attribute should match.", "Android", attrValue(event, AnalyticsAttribute.MOBILE_VIEW_UI_FRAMEWORK_ATTRIBUTE));
         Assert.assertTrue("appeared attribute should be true.", attribute(event, AnalyticsAttribute.MOBILE_VIEW_APPEARED_ATTRIBUTE).getBooleanValue());
         Assert.assertFalse("restarted should be false on first appearance.", attribute(event, AnalyticsAttribute.MOBILE_VIEW_RESTARTED_ATTRIBUTE).getBooleanValue());
 
@@ -158,19 +159,108 @@ public class MobileViewContextTests {
     }
 
     @Test
-    public void onViewAppearedWithLoadTimeOnRestartOmitsLoadTimeAttribute() {
+    public void onViewAppearedWithLoadTimeOnGenuineReconstructionAfterRestartRecordsLoadTimeAttribute() {
         MobileViewContext.getInstance().onViewAppeared(new MobileViewAppearance("ViewOne", UiPlatform.ANDROID).loadTimeMs(50L));
         controller.getEventManager().empty();
         MobileViewContext.getInstance().onViewAppeared(new MobileViewAppearance("ViewTwo", UiPlatform.ANDROID));
         controller.getEventManager().empty();
 
-        // A resurfaced screen has nothing to time (IDD §5.4) - loadTime must be omitted even if
-        // a producer mistakenly supplies one on a restarted appearance.
+        // ViewOne is revisited (restarted=true, since its view name has been seen before), but this
+        // appearance carries a loadTimeMs because the producer observed a genuine reconstruction of
+        // this instance (e.g. the user backed out and relaunched the Activity). loadTime must be
+        // honored here: suppressing it based on the view name having appeared before, rather than on
+        // whether this specific instance was actually rebuilt, would permanently kill loadTime for
+        // every view name after its first appearance (IDD §5.4 - "genuine first construction" is a
+        // per-instance notion, not a per-view-name one).
         MobileViewContext.getInstance().onViewAppeared(new MobileViewAppearance("ViewOne", UiPlatform.ANDROID).loadTimeMs(50L));
 
         AnalyticsEvent event = onlyQueuedEvent();
-        Assert.assertNull("loadTime attribute should be absent on a restarted appearance.",
+        Assert.assertTrue("restarted should be true on a screen's second appearance.",
+                attribute(event, AnalyticsAttribute.MOBILE_VIEW_RESTARTED_ATTRIBUTE).getBooleanValue());
+        AnalyticsAttribute attribute = attribute(event, AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE);
+        Assert.assertNotNull("loadTime attribute should be present when a producer supplies it, even on a restarted appearance.", attribute);
+        Assert.assertEquals("loadTime attribute should match the supplied value.", 50.0, attribute.getDoubleValue(), 0.0);
+    }
+
+    @Test
+    public void onViewAppearedWithoutLoadTimeOnRestartOmitsLoadTimeAttribute() {
+        MobileViewContext.getInstance().onViewAppeared(new MobileViewAppearance("ViewOne", UiPlatform.ANDROID).loadTimeMs(50L));
+        controller.getEventManager().empty();
+        MobileViewContext.getInstance().onViewAppeared(new MobileViewAppearance("ViewTwo", UiPlatform.ANDROID));
+        controller.getEventManager().empty();
+
+        // ViewOne resurfaces without being rebuilt (e.g. brought back to the foreground) - the
+        // producer correctly supplies no loadTimeMs, so loadTime must be absent (IDD §5.4).
+        MobileViewContext.getInstance().onViewAppeared(new MobileViewAppearance("ViewOne", UiPlatform.ANDROID));
+
+        AnalyticsEvent event = onlyQueuedEvent();
+        Assert.assertNull("loadTime attribute should be absent when the producer supplies no load time.",
                 attribute(event, AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE));
+    }
+
+    @Test
+    public void onViewAppearedReturnsNullWhenEventIsRejectedButKeepsCurrentViewAdvanced() {
+        MobileViewContext.getInstance().onViewAppeared(new MobileViewAppearance("ViewOne", UiPlatform.ANDROID));
+        controller.getEventManager().empty();
+
+        // Force AnalyticsControllerImpl.recordMobileViewEvent() to return false, simulating a
+        // rejected event (e.g. queue overflow) without depending on real queue-size internals.
+        controller.getEventManager().setEventListener(new RejectingEventListener());
+        try {
+            String viewInstanceId = MobileViewContext.getInstance().onViewAppeared(
+                    new MobileViewAppearance("ViewTwo", UiPlatform.ANDROID));
+
+            // The caller (e.g. NewRelic.setCurrentView()) must be told this appearance was not
+            // actually recorded - previously the boolean result of recordMobileViewEvent was
+            // discarded, so viewInstanceId was returned as non-null even though no event ever
+            // reached the queue.
+            Assert.assertNull("viewInstanceId must be null when the underlying event was rejected.", viewInstanceId);
+        } finally {
+            controller.getEventManager().setEventListener(null);
+        }
+
+        // The referrer chain still advances to ViewTwo despite the rejected event, so a later
+        // disappear for ViewTwo (driven by the real lifecycle, independent of whether this
+        // specific appear event was recorded) is not left desynced from MobileViewContext.
+        Assert.assertEquals("Current view should still advance so later lifecycle calls stay consistent.",
+                "ViewTwo", MobileViewContext.getInstance().getCurrentView());
+    }
+
+    private static class RejectingEventListener implements EventListener {
+        @Override
+        public boolean onEventAdded(AnalyticsEvent analyticsEvent) {
+            return false;
+        }
+
+        @Override
+        public boolean onEventOverflow(AnalyticsEvent analyticsEvent) {
+            return false;
+        }
+
+        @Override
+        public boolean onEventEvicted(AnalyticsEvent analyticsEvent) {
+            return false;
+        }
+
+        @Override
+        public void onEventQueueSizeExceeded(int currentQueueSize) {
+        }
+
+        @Override
+        public void onEventQueueTimeExceeded(int maxBufferTimeInSec) {
+        }
+
+        @Override
+        public void onEventFlush() {
+        }
+
+        @Override
+        public void onStart(com.newrelic.agent.android.analytics.EventManager eventManager) {
+        }
+
+        @Override
+        public void onShutdown() {
+        }
     }
 
     @Test

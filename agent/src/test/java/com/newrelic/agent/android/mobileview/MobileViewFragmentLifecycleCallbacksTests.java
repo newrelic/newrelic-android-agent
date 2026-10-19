@@ -120,6 +120,33 @@ public class MobileViewFragmentLifecycleCallbacksTests {
     }
 
     @Test
+    public void configChangeOnOneHostDoesNotSuppressTheSameFragmentClassUnderAnUnrelatedHost() {
+        FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
+
+        // Fragment rotating under host Activity in task 1.
+        Mockito.when(hostActivity.getTaskId()).thenReturn(1);
+        Fragment fragment = plainFragment();
+        callbacks.onFragmentResumed(fragmentManager, fragment);
+        Mockito.when(hostActivity.isChangingConfigurations()).thenReturn(true);
+        callbacks.onFragmentPaused(fragmentManager, fragment);
+
+        // An unrelated host Activity instance in a different task (e.g. multi-window), hosting
+        // the SAME Fragment class - a genuine resume, not a post-rotation recreation, so it must
+        // not be suppressed by task 1's in-flight config-change entry.
+        Activity otherTaskHost = Mockito.mock(Activity.class);
+        Mockito.when(otherTaskHost.getTaskId()).thenReturn(2);
+        Mockito.when(otherTaskHost.isChangingConfigurations()).thenReturn(false);
+        MobileViewFragmentLifecycleCallbacks otherTaskCallbacks = new MobileViewFragmentLifecycleCallbacks(otherTaskHost);
+        Fragment otherTaskFragment = plainFragment();
+
+        otherTaskCallbacks.onFragmentResumed(fragmentManager, otherTaskFragment);
+
+        assertEquals("An unrelated host's fragment of the same class must not be suppressed by a " +
+                        "config change happening under a different host/task.",
+                otherTaskFragment.getClass().getSimpleName(), MobileViewContext.getInstance().getCurrentView());
+    }
+
+    @Test
     public void realBackgroundingAfterConfigChangeSuppressionStillTracksNewFragments() {
         FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
         Fragment fragment = plainFragment();

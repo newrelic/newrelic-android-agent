@@ -1009,12 +1009,33 @@ public final class NewRelic {
      * screens, or views you want to rename). Requires the
      * {@link FeatureFlag#ManualMobileViewTracing} feature flag to be enabled.
      *
+     * <p>The {@code uiPlatform} attribute on the recorded event is always {@link
+     * UiPlatform#ANDROID}. Callers that need to report a different platform (e.g. a
+     * React Native or Flutter bridge) should use {@link #setCurrentView(String, Map, UiPlatform)}.
+     *
      * @param viewName   Name of the view to record as currently visible.
      * @param attributes A map of key-value pairs holding the event attributes. The values must
      *                    be of type String, Double, or Boolean.
      * @return Returns true if the MobileView event was successfully recorded.
      */
     public static boolean setCurrentView(String viewName, Map<String, Object> attributes) {
+        return setCurrentView(viewName, attributes, UiPlatform.ANDROID);
+    }
+
+    /**
+     * Manually records a MobileView event for the given view name, attributes, and UI platform.
+     * Use this to track screens that automatic MobileView tracking cannot capture (e.g. React
+     * Native or Flutter screens). Requires the {@link FeatureFlag#ManualMobileViewTracing}
+     * feature flag to be enabled.
+     *
+     * @param viewName   Name of the view to record as currently visible.
+     * @param attributes A map of key-value pairs holding the event attributes. The values must
+     *                    be of type String, Double, or Boolean.
+     * @param uiPlatform The UI platform the view was rendered with, e.g. {@link
+     *                    UiPlatform#ANDROID} or {@link UiPlatform#COMPOSE}.
+     * @return Returns true if the MobileView event was successfully recorded.
+     */
+    public static boolean setCurrentView(String viewName, Map<String, Object> attributes, UiPlatform uiPlatform) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "setCurrentView"));
 
@@ -1028,9 +1049,14 @@ public final class NewRelic {
             return false;
         }
 
+        if (uiPlatform == null) {
+            log.error("NewRelic.setCurrentView: uiPlatform must not be null.");
+            return false;
+        }
+
         try {
             return MobileViewContext.getInstance().onViewAppeared(
-                    new MobileViewAppearance(viewName, UiPlatform.ANDROID)
+                    new MobileViewAppearance(viewName, uiPlatform)
                             .attributes(attributes)) != null;
         } catch (Exception e) {
             log.error("NewRelic.setCurrentView: ", e);

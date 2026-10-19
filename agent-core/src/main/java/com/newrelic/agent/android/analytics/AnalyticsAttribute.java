@@ -93,7 +93,7 @@ public class AnalyticsAttribute {
     public static final String MOBILE_VIEW_APPEARED_ATTRIBUTE = "appeared";
     public static final String MOBILE_VIEW_RESTARTED_ATTRIBUTE = "restarted";
     public static final String MOBILE_VIEW_REAPPEARED_ATTRIBUTE = "reappeared";
-    public static final String MOBILE_VIEW_UI_PLATFORM_ATTRIBUTE = "uiPlatform";
+    public static final String MOBILE_VIEW_UI_FRAMEWORK_ATTRIBUTE = "uiFramework";
     public static final String MOBILE_VIEW_LOAD_TIME_ATTRIBUTE = "loadTime";
     public static final String MOBILE_VIEW_TIME_VISIBLE_ATTRIBUTE = "timeVisible";
 

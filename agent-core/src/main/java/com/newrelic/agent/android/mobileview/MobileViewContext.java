@@ -59,7 +59,7 @@ public class MobileViewContext {
         }
 
         if (appearance.getUiPlatform() == null) {
-            log.warn("MobileViewContext.onViewAppeared(): uiPlatform is null, ignoring.");
+            log.warn("MobileViewContext.onViewAppeared(): uiFramework is null, ignoring.");
             return null;
         }
 
@@ -93,7 +93,7 @@ public class MobileViewContext {
         eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_INSTANCE_ID_ATTRIBUTE, viewInstanceId);
         eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_APPEARED_ATTRIBUTE, true);
         eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_RESTARTED_ATTRIBUTE, restarted);
-        eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_UI_PLATFORM_ATTRIBUTE, appearance.getUiPlatform().getWireValue());
+        eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_UI_FRAMEWORK_ATTRIBUTE, appearance.getUiPlatform().getWireValue());
         String viewClass = appearance.getViewClass();
         if (viewClass != null && !viewClass.isEmpty()) {
             eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_CLASS_ATTRIBUTE, viewClass);
@@ -105,13 +105,29 @@ public class MobileViewContext {
             }
         }
         Long loadTimeMs = appearance.getLoadTimeMs();
-        if (loadTimeMs != null && loadTimeMs >= 0 && !restarted) {
-            // loadTime is only meaningful for a genuine first construction (IDD §5.4) - a
-            // screen that resurfaced without being rebuilt has nothing to time.
+        if (loadTimeMs != null && loadTimeMs >= 0) {
+            // loadTime is only meaningful for a genuine first construction (IDD §5.4). Producers
+            // already encode that: they only supply a loadTimeMs when they observed this specific
+            // instance's construction-to-first-resume window (e.g. the Activity/Fragment producers
+            // key their created-at timestamp per instance and clear it once consumed), so a resumed
+            // screen that was not rebuilt arrives here with loadTimeMs == null regardless of whether
+            // its view name has appeared before. Gating on `restarted` (an "ever seen this view name
+            // in the process" signal) instead would permanently suppress loadTime for every
+            // subsequent genuine reconstruction of a view name after its first appearance.
             eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_LOAD_TIME_ATTRIBUTE, loadTimeMs.doubleValue());
         }
 
-        AnalyticsControllerImpl.getInstance().recordMobileViewEvent(viewName, eventAttributes);
+        boolean recorded = AnalyticsControllerImpl.getInstance().recordMobileViewEvent(viewName, eventAttributes);
+        if (!recorded) {
+            // The referrer chain (currentView/previousView) was already advanced above so a
+            // disappear racing with this call sees consistent state - but if the event itself
+            // was rejected (e.g. attribute validation failure), this appearance never actually
+            // happened as far as any caller is concerned, so it must not be reported as if it had
+            // (IDD §5.1 - callers like NewRelic.setCurrentView() return this success/failure to
+            // their own caller).
+            log.warn("MobileViewContext.onViewAppeared(): [" + viewName + "] event was not recorded, returning null.");
+            return null;
+        }
 
         return viewInstanceId;
     }
@@ -158,7 +174,10 @@ public class MobileViewContext {
         eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_APPEARED_ATTRIBUTE, false);
         eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_TIME_VISIBLE_ATTRIBUTE, timeVisibleMs);
 
-        AnalyticsControllerImpl.getInstance().recordMobileViewEvent(viewName, eventAttributes);
+        boolean recorded = AnalyticsControllerImpl.getInstance().recordMobileViewEvent(viewName, eventAttributes);
+        if (!recorded) {
+            log.warn("MobileViewContext.onViewDisappeared(): [" + viewName + "] event was not recorded.");
+        }
     }
 
     /**

@@ -32,14 +32,23 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MobileViewFragmentLifecycleCallbacks extends FragmentManager.FragmentLifecycleCallbacks {
     private static final AgentLog log = AgentLogManager.getAgentLog();
 
-    // Class names of fragments currently being torn down and recreated because their host
+    // Identities of fragments currently being torn down and recreated because their host
     // Activity is changing configurations (e.g. rotation) - mirrors the suppression in
-    // MobileViewActivityLifecycleCallbacks. Static (not an instance field) because a NEW
-    // MobileViewFragmentLifecycleCallbacks instance is registered on each recreated Activity
-    // instance's FragmentManager - the entry added in onFragmentPaused (on the dying activity's
-    // instance) must still be visible to onFragmentResumed on the recreated activity's instance.
+    // MobileViewActivityLifecycleCallbacks, including keying by "taskId:className" rather than
+    // class name alone (see configChangeKey() there for why). Static (not an instance field)
+    // because a NEW MobileViewFragmentLifecycleCallbacks instance is registered on each
+    // recreated Activity instance's FragmentManager - the entry added in onFragmentPaused (on
+    // the dying activity's instance) must still be visible to onFragmentResumed on the recreated
+    // activity's instance. Keying by the host Activity's taskId (stable across that
+    // recreation) rather than class name alone stops two concurrent instances of the same
+    // Fragment class under different host Activity instances (e.g. the same screen open in two
+    // multi-window tasks) from cross-contaminating each other's suppression flag.
     private static final Set<String> changingConfigurations = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Activity hostActivity;
+
+    private String configChangeKey(@NonNull Fragment fragment) {
+        return hostActivity.getTaskId() + ":" + fragment.getClass().getName();
+    }
 
     // Wall-clock time of onFragmentCreated, per Fragment instance, consumed (removed) by the
     // first onFragmentResumed that follows - mirrors MobileViewActivityLifecycleCallbacks'
@@ -77,7 +86,7 @@ public class MobileViewFragmentLifecycleCallbacks extends FragmentManager.Fragme
         // MobileViewActivityLifecycleCallbacks.onActivityResumed for why.
         Class<?> clazz = fragment.getClass();
         Long createdAt = createdAtMs.remove(fragment);
-        if (changingConfigurations.remove(clazz.getName())) {
+        if (changingConfigurations.remove(configChangeKey(fragment))) {
             return;
         }
         if (!FeatureFlag.featureEnabled(FeatureFlag.AutomaticMobileViewTracing)) {
@@ -100,7 +109,7 @@ public class MobileViewFragmentLifecycleCallbacks extends FragmentManager.Fragme
             return;
         }
         if (hostActivity.isChangingConfigurations()) {
-            changingConfigurations.add(fragment.getClass().getName());
+            changingConfigurations.add(configChangeKey(fragment));
             return;
         }
         if (!FeatureFlag.featureEnabled(FeatureFlag.AutomaticMobileViewTracing)) {

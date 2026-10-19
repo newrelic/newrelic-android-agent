@@ -101,6 +101,30 @@ public class MobileViewActivityLifecycleCallbacksTests {
     }
 
     @Test
+    public void configChangeInOneTaskDoesNotSuppressAnUnrelatedInstanceInAnotherTask() {
+        FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
+
+        // Activity rotating in task 1.
+        Activity rotatingActivity = plainActivity();
+        Mockito.when(rotatingActivity.getTaskId()).thenReturn(1);
+        Mockito.when(rotatingActivity.isChangingConfigurations()).thenReturn(true);
+        callbacks.onActivityResumed(rotatingActivity);
+        callbacks.onActivityPaused(rotatingActivity);
+
+        // A second, independent instance of the SAME Activity class, running in a different
+        // task (e.g. multi-window/split-screen) - this is a genuine resume, not a post-rotation
+        // recreation, so it must be tracked normally rather than suppressed by task 1's
+        // in-flight config-change entry.
+        Activity otherTaskActivity = plainActivity();
+        Mockito.when(otherTaskActivity.getTaskId()).thenReturn(2);
+        callbacks.onActivityResumed(otherTaskActivity);
+
+        assertEquals("An unrelated instance of the same class in a different task must not be suppressed " +
+                        "by a config change happening to an instance in a different task.",
+                otherTaskActivity.getClass().getSimpleName(), MobileViewContext.getInstance().getCurrentView());
+    }
+
+    @Test
     public void realBackgroundingStillEmitsEventsAfterConfigChangeSuppression() {
         FeatureFlag.enableFeature(FeatureFlag.AutomaticMobileViewTracing);
         Activity activity = plainActivity();
