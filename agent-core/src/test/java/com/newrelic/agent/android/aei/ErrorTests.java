@@ -235,23 +235,31 @@ public class ErrorTests {
         Assert.assertEquals(Boolean.TRUE, backgroundAttribute(aeiError(null, new HashSet<>())));
 
         setLiveAppInBackground(false);
-        Assert.assertNull(backgroundAttribute(aeiError(null, new HashSet<>())));
+        Assert.assertEquals(Boolean.FALSE, backgroundAttribute(aeiError(null, new HashSet<>())));
     }
 
     @Test
     public void testIsBackgroundAtExit() {
         HashMap<String, Object> aeiEvent = new HashMap<>();
-        Assert.assertNull(Error.isBackgroundAtExit(null));
-        Assert.assertNull(Error.isBackgroundAtExit(aeiEvent));
 
+        // no exit-time state: live app state decides
+        setLiveAppInBackground(true);
+        Assert.assertTrue(Error.isBackgroundAtExit(null));
+        Assert.assertTrue(Error.isBackgroundAtExit(aeiEvent));
         aeiEvent.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "unexpected");
-        Assert.assertNull(Error.isBackgroundAtExit(aeiEvent));
+        Assert.assertTrue(Error.isBackgroundAtExit(aeiEvent));
 
+        setLiveAppInBackground(false);
+        Assert.assertFalse(Error.isBackgroundAtExit(null));
+        Assert.assertFalse(Error.isBackgroundAtExit(aeiEvent));
+
+        // exit-time state wins over live state
         aeiEvent.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, AnalyticsAttribute.APP_EXIT_APP_STATE_BACKGROUND);
-        Assert.assertEquals(Boolean.TRUE, Error.isBackgroundAtExit(aeiEvent));
+        Assert.assertTrue(Error.isBackgroundAtExit(aeiEvent));
 
+        setLiveAppInBackground(true);
         aeiEvent.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, AnalyticsAttribute.APP_EXIT_APP_STATE_FOREGROUND);
-        Assert.assertEquals(Boolean.FALSE, Error.isBackgroundAtExit(aeiEvent));
+        Assert.assertFalse(Error.isBackgroundAtExit(aeiEvent));
     }
 
     @Test

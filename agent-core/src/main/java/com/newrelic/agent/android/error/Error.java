@@ -147,37 +147,60 @@ public class Error extends HarvestableObject {
     }
 
     /**
-     * Read the app's foreground/background state at the time of an AEI exit, as recorded by the OS
-     * (derived from {@code ApplicationExitInfo.getImportance()}).
+     * Whether the app was in the background when the process in an AEI event exited, as recorded by
+     * the OS (derived from {@code ApplicationExitInfo.getImportance()}).
      *
-     * @return {@code null} when the event carries no exit-time state
+     * <p>An event with no exit-time state falls back to the live {@link ApplicationStateMonitor}
+     * state, so callers always get a definite answer.
      */
-    public static Boolean isBackgroundAtExit(HashMap<String, Object> event) {
-        if (event == null) {
-            return null;
-        }
-        final Object appState = event.get(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE);
+    public static boolean isBackgroundAtExit(HashMap<String, Object> event) {
+        final Object appState = (event == null) ? null : event.get(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE);
+
         if (AnalyticsAttribute.APP_EXIT_APP_STATE_BACKGROUND.equals(appState)) {
-            return Boolean.TRUE;
+            return true;
         }
         if (AnalyticsAttribute.APP_EXIT_APP_STATE_FOREGROUND.equals(appState)) {
-            return Boolean.FALSE;
+            return false;
         }
-        return null;
+        return ApplicationStateMonitor.isAppInBackground();
     }
 
     public Set<AnalyticsAttribute> getErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
-        return getErrorSessionAttributes(sessionAttributes, null);
+        final Set<AnalyticsAttribute> attrs = getCommonErrorSessionAttributes(sessionAttributes);
+
+        //Background Reporting
+        if (attrs != null && FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if (ApplicationStateMonitor.isAppInBackground()) {
+                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
+                StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
+            }
+        }
+
+        return attrs;
     }
 
     /**
-     * @param backgroundAtExit the app state when the process exited, for errors replayed from a
-     *                         prior process (AEI). When non-null, {@code background} is stamped
-     *                         {@code true} or {@code false} from it instead of from the live
-     *                         {@link ApplicationStateMonitor} state, which describes the current
-     *                         launch rather than the exit being reported.
+     * For errors replayed from a prior process (AEI): stamps {@code background} {@code true} or
+     * {@code false} from the app state at exit, not from the live {@link ApplicationStateMonitor}
+     * state, which describes the current launch rather than the exit being reported.
      */
-    public Set<AnalyticsAttribute> getErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes, Boolean backgroundAtExit) {
+    public Set<AnalyticsAttribute> getErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes, boolean backgroundAtExit) {
+        final Set<AnalyticsAttribute> attrs = getCommonErrorSessionAttributes(sessionAttributes);
+
+        //Background Reporting
+        if (attrs != null && FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            // replace any stale value frozen into the prior session's attributes
+            attrs.removeIf(attr -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(attr.getName()));
+            attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, backgroundAtExit));
+            if (backgroundAtExit) {
+                StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
+            }
+        }
+
+        return attrs;
+    }
+
+    private Set<AnalyticsAttribute> getCommonErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
         if (sessionAttributes == null) {
             return null;
         }
@@ -187,22 +210,6 @@ public class Error extends HarvestableObject {
             if (!Agent.hasReachableNetworkConnection(null)) {
                 attrs.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_NAME_ATTRIBUTE, true));
                 StatsEngine.notice().inc(MetricNames.OFFLINE_STORAGE_CRASH_COUNT);
-            }
-        }
-
-        //Background Reporting
-        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (backgroundAtExit != null) {
-                // The exit-time state is known, so report it explicitly: true for background, false
-                // for foreground. Replace any stale value frozen into the prior session's attributes.
-                attrs.removeIf(attr -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(attr.getName()));
-                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, backgroundAtExit));
-                if (backgroundAtExit) {
-                    StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
-                }
-            } else if (ApplicationStateMonitor.isAppInBackground()) {
-                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
-                StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
             }
         }
 
