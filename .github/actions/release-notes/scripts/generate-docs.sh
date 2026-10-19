@@ -1,35 +1,39 @@
 #!/usr/bin/env bash
 # Turn an accumulated next-release .mdx into the final release-notes .mdx.
-# Usage: generate-docs.sh --next FILE --version VER --date YYYY-MM-DD --out FILE
-#                         [--download-link URL] [--flags-out FILE]
+# Usage: generate-docs.sh --next FILE --subject TEXT --version VER --date YYYY-MM-DD --out FILE
+#                         [--download-link URL] [--tail-file FILE] [--flags-out FILE]
 # - Fills the four frontmatter arrays from each bullet's {/* short: ... */} comment.
 # - Deletes every section whose array is empty; keeps `category:` present and blank.
-# - Keeps everything after the {/* release-note:end */} marker verbatim (React Native has no Support statement).
+# - Ends the note with the contents of --tail-file (what follows the end marker in the agent's
+#   skeleton, e.g. Android's Support statement), or, without --tail-file, with whatever follows the
+#   {/* release-note:end */} marker in --next. Either way it is copied verbatim.
 # - Writes one "#<pr> <flag>" line per flagged bullet to --flags-out for the PR description.
 # Exits 3 when the file has no bullets at all; exits 2 on bad arguments or a malformed input file
 # (unknown section marker, bullet before any marker, missing end marker) instead of dropping bullets.
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
-next="" version="" date="" out="" link="" flags_out=""
+next="" subject="" version="" date="" out="" link="" tail_file="" flags_out=""
 while [ "$#" -gt 0 ]; do
   [ "$#" -ge 2 ] || { echo "$1 needs a value" >&2; exit 2; }
   case "$1" in
-    --next) next=$2 ;; --version) version=$2 ;; --date) date=$2 ;;
-    --out) out=$2 ;; --download-link) link=$2 ;; --flags-out) flags_out=$2 ;;
+    --next) next=$2 ;; --subject) subject=$2 ;; --version) version=$2 ;; --date) date=$2 ;;
+    --out) out=$2 ;; --download-link) link=$2 ;; --tail-file) tail_file=$2 ;; --flags-out) flags_out=$2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift 2
 done
-for v in next version date out; do
+for v in next subject version date out; do
   [ -n "${!v}" ] || { echo "--$v is required" >&2; exit 2; }
 done
 [ -f "$next" ] || { echo "missing file: $next" >&2; exit 2; }
+[ -z "$tail_file" ] || [ -f "$tail_file" ] || { echo "missing file: $tail_file" >&2; exit 2; }
 
 # These land in the frontmatter, so they must not be able to add keys or break the YAML.
 # ([[ =~ ]] sees the whole string; grep would accept "7.8.4<newline>evil: 1" because its first line matches.)
 version_re='^[0-9]+\.[0-9]+\.[0-9]+$'
 date_re='^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+[[ $subject =~ $SUBJECT_RE ]] || { echo "--subject must be letters, digits, spaces and . + - only" >&2; exit 2; }
 [[ $version =~ $version_re ]] || { echo "--version must look like 7.8.4" >&2; exit 2; }
 [[ $date =~ $date_re ]] || { echo "--date must look like 2026-10-20" >&2; exit 2; }
 case $link in '' | https://*) ;; *) echo "--download-link must be an https URL" >&2; exit 2 ;; esac
@@ -68,6 +72,8 @@ while IFS= read -r l || [ -n "$l" ]; do
       ;;
   esac
 done < "$tmp/next.clean"
+# The skeleton's tail, when given, replaces whatever followed the end marker in --next.
+[ -z "$tail_file" ] || tr -d '\r' < "$tail_file" > "$tmp/support"
 
 total=0
 for s in $SECTIONS; do total=$((total + $(wc -l < "$tmp/$s.short"))); done
@@ -85,7 +91,7 @@ emit_array() { # section
 
 {
   printf -- '---\n'
-  printf 'subject: %s\n' "$DOCS_SUBJECT"
+  printf 'subject: %s\n' "$subject"
   printf "releaseDate: '%s'\n" "$date"
   printf 'version: %s\n' "$version"
   [ -z "$link" ] || printf "downloadLink: '%s'\n" "$link"
@@ -97,7 +103,7 @@ emit_array() { # section
     printf '\n## %s\n\n' "$(section_heading "$s")"
     cat "$tmp/$s.body"
   done
-  # Anything after the end marker (nothing in the React Native skeleton) follows the sections.
+  # The tail (Android's Support statement; nothing for the hybrid agents) follows the sections.
   if [ -s "$tmp/support" ]; then
     printf '\n'
     cat "$tmp/support"

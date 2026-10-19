@@ -124,6 +124,6 @@ if [ -n "$warnings" ]; then
   printf '%s' "$warnings"
 fi
 echo
-echo '_Release notes are reviewed and edited by a person before they are published. See "Release notes" in CONTRIBUTING.md._'
+echo '_Release notes are reviewed and edited by a person before they are published._'
 
 if [ -z "$errors" ]; then exit 0; else exit 1; fi

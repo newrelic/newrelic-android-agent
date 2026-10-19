@@ -5,7 +5,7 @@ u=https://github.com/newrelic/newrelic-react-native-agent/pull
 n="$tmp/next.mdx"; o="$tmp/out.mdx"; fl="$tmp/flags.txt"
 cp "$SKELETON" "$n"
 a() { "$SCRIPTS/append-bullet.sh" "$n" "$@"; }
-gen() { "$SCRIPTS/generate-docs.sh" --next "$n" --version 7.8.4 --date 2026-10-20 --out "$o" "$@" 2>/dev/null; }
+gen() { "$SCRIPTS/generate-docs.sh" --subject "React Native agent" --next "$n" --version 7.8.4 --date 2026-10-20 --out "$o" "$@" 2>/dev/null; }
 
 a bug "* Fixed a crash on \`Foo\` startup. ([#1]($u/1)) {/* short: Fixed a crash on Foo startup */}"
 a bug "* Fixed Bob's bug. ([#2]($u/2)) {/* short: Fixed Bob's bug */} {/* flag: unlabelled */}"
@@ -36,7 +36,7 @@ assert_contains "bug bullet in body with dash and link" "$out" "- Fixed a crash 
 assert_not_contains "no Support statement for React Native" "$out" "Support statement"
 assert_not_contains "skeleton downloadLink placeholder is not copied" "$out" "X.Y.Z"
 printf '%s\n' '{/* release-note:bug */}' "* Fixed x. ([#1]($u/1))" '{/* release-note:end */}' '## Kept' > "$tmp/tail.mdx"
-"$SCRIPTS/generate-docs.sh" --next "$tmp/tail.mdx" --version 7.8.4 --date 2026-10-20 --out "$tmp/tail.out" 2>/dev/null
+"$SCRIPTS/generate-docs.sh" --subject "React Native agent" --next "$tmp/tail.mdx" --version 7.8.4 --date 2026-10-20 --out "$tmp/tail.out" 2>/dev/null
 assert_contains "text after the end marker is still kept" "$(cat "$tmp/tail.out")" "- Fixed x. ([#1]($u/1))
 
 ## Kept"
@@ -47,7 +47,7 @@ gen; assert_not_contains "downloadLink key omitted when no link" "$(cat "$o")" "
 
 # nothing to publish
 cp "$SKELETON" "$n"
-"$SCRIPTS/generate-docs.sh" --next "$n" --version 7.8.4 --date 2026-10-20 --out "$o" 2>/dev/null
+"$SCRIPTS/generate-docs.sh" --subject "React Native agent" --next "$n" --version 7.8.4 --date 2026-10-20 --out "$o" 2>/dev/null
 assert_eq "no bullets exits 3" 3 "$?"
 
 # reconciliation: only-in-A, only-in-B, in-both appear once
@@ -58,7 +58,7 @@ a bug "* In both again. ([#11]($u/11)) {/* short: Duplicate */}"
 a bug "* Only in compare. ([#12]($u/12)) {/* short: Only in compare */}"
 a bug "* Released later, not in this release. ([#99]($u/99)) {/* short: Later */}"
 "$SCRIPTS/filter-bullets.sh" "$n" keep 10 11 12 > "$tmp/release-src.mdx"
-"$SCRIPTS/generate-docs.sh" --next "$tmp/release-src.mdx" --version 7.8.4 --date 2026-10-20 --out "$o" 2>/dev/null
+"$SCRIPTS/generate-docs.sh" --subject "React Native agent" --next "$tmp/release-src.mdx" --version 7.8.4 --date 2026-10-20 --out "$o" 2>/dev/null
 out=$(cat "$o")
 assert_contains "only-in-A survives" "$out" "Only on next branch."
 assert_contains "only-in-B survives" "$out" "Only in compare."
@@ -73,7 +73,7 @@ for s in $SECTIONS; do
 done
 
 # ---- malformed input and bad arguments are refused, never silently mishandled ----
-g() { "$SCRIPTS/generate-docs.sh" "$@" 2>/dev/null; }
+g() { "$SCRIPTS/generate-docs.sh" --subject "React Native agent" "$@" 2>/dev/null; }
 ok_args=(--version 7.8.4 --date 2026-10-20)
 bul="* Fixed x. ([#1]($u/1)) {/* short: Fixed x */}"
 skel="$SKELETON"
@@ -127,5 +127,33 @@ nil" "$parsed"
 else
   echo "  skip YAML round-trip: ruby not installed"
 fi
+
+# ---- subject and tail come from the caller (the shared code has no agent built in) ----
+cp "$SKELETON" "$n"; a bug "$bul"
+g --next "$n" "${ok_args[@]}" --subject ".NET MAUI agent" --out "$o"
+assert_contains "--subject is written to the frontmatter" "$(cat "$o")" "
+subject: .NET MAUI agent
+"
+g --next "$n" "${ok_args[@]}" --subject "Evil: agent" --out "$o"; assert_eq "a subject with a colon exits 2" 2 "$?"
+g --next "$n" "${ok_args[@]}" --subject "$(printf 'A\nversion: 9')" --out "$o"; assert_eq "a subject with a newline exits 2" 2 "$?"
+"$SCRIPTS/generate-docs.sh" --next "$n" "${ok_args[@]}" --out "$o" 2>/dev/null; assert_eq "a missing --subject exits 2" 2 "$?"
+
+printf '%s\n' '## Support statement' '' 'Update every three months.' > "$tmp/tail.txt"
+g --next "$n" "${ok_args[@]}" --tail-file "$tmp/tail.txt" --out "$o"
+assert_contains "--tail-file is appended after the sections" "$(cat "$o")" "- Fixed x. ([#1]($u/1))
+
+## Support statement
+
+Update every three months."
+printf '%s\n' '{/* release-note:bug */}' "$bul" '{/* release-note:end */}' '## Stale tail from the next branch' > "$tmp/stale.mdx"
+g --next "$tmp/stale.mdx" "${ok_args[@]}" --tail-file "$tmp/tail.txt" --out "$o"
+assert_not_contains "--tail-file replaces the tail of --next" "$(cat "$o")" "Stale tail"
+: > "$tmp/empty-tail.txt"
+g --next "$tmp/stale.mdx" "${ok_args[@]}" --tail-file "$tmp/empty-tail.txt" --out "$o"
+assert_not_contains "an empty --tail-file means no tail at all" "$(cat "$o")" "Stale tail"
+last2=$(tail -c2 "$o" | od -An -tx1 | tr -d ' \n')
+[ "$last2" != 0a0a ] && [ "${last2#??}" = 0a ] && r=yes || r=no
+assert_eq "with an empty tail the output still ends with one newline" yes "$r"
+g --next "$n" "${ok_args[@]}" --tail-file "$tmp/missing.txt" --out "$o"; assert_eq "a missing --tail-file exits 2" 2 "$?"
 
 finish

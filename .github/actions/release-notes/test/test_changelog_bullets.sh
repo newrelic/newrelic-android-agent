@@ -84,7 +84,7 @@ cp "$SKELETON" "$n"
 "$SCRIPTS/append-bullet.sh" "$n" feature "* Added a thing. ([#5]($u/5)) {/* short: Added a thing */}"
 printf '%s\n' '## 1.9.3' '## Improvements' '- Updated the Native iOS agent to version 7.7.8.' > "$c"
 cb 1.9.3 > /dev/null
-"$SCRIPTS/generate-docs.sh" --next "$n" --version 1.9.3 --date 2026-10-20 --out "$o" 2> /dev/null
+"$SCRIPTS/generate-docs.sh" --subject "React Native agent" --next "$n" --version 1.9.3 --date 2026-10-20 --out "$o" 2> /dev/null
 assert_contains "changelog entries populate the enhancements array" "$(cat "$o")" "enhancements:
   - 'Updated the Native iOS agent to version 7.7.8'"
 assert_contains "PR bullets populate the features array" "$(cat "$o")" "features:

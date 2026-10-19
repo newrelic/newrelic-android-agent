@@ -10,7 +10,13 @@
 # is used.
 export LC_ALL=C
 
-DOCS_SUBJECT="React Native agent"
+# Where every agent's release notes live on docs-website, and the branch release PRs target.
+DOCS_ROOT=src/content/docs/release-notes/mobile-release-notes
+DOCS_BASE=develop
+
+# An agent's display name ("React Native agent", ".NET MAUI agent"). It is written unquoted into
+# the frontmatter and into PR titles, so it is kept to characters that are safe in both.
+SUBJECT_RE='^[A-Za-z0-9.+][A-Za-z0-9 .+-]*$'
 
 # Conventional Commit types recognised as a title prefix ("fix: ...", "feat(scope): ...").
 CC_TYPES="feat|fix|perf|refactor|docs|test|ci|chore|build|style|security|revert"
