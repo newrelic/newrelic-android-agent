@@ -10,6 +10,8 @@ import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.SessionEvent;
 
+import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.crash.CrashTests;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -18,9 +20,11 @@ import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 import com.newrelic.agent.android.error.Error;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 
 import java.util.HashMap;
@@ -159,6 +163,96 @@ public class ErrorTests {
 
 
 
+
+    @After
+    public void tearDownBackgroundState() {
+        ApplicationStateMonitor.setInstance(new ApplicationStateMonitor());
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+    }
+
+    private void setLiveAppInBackground(boolean background) {
+        ApplicationStateMonitor monitor = Mockito.mock(ApplicationStateMonitor.class);
+        Mockito.when(monitor.getForegrounded()).thenReturn(!background);
+        ApplicationStateMonitor.setInstance(monitor);
+    }
+
+    private Error aeiError(String exitAppState, Set<AnalyticsAttribute> sessionAttributes) {
+        HashMap<String, Object> aeiEvent = getApplicationExitInfoEvent();
+        if (exitAppState != null) {
+            aeiEvent.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, exitAppState);
+        }
+        return new Error(sessionAttributes, aeiEvent);
+    }
+
+    /** @return the stamped {@code background} value, or null when the attribute is absent */
+    private Boolean backgroundAttribute(Error error) {
+        return error.getSessionAttributes().stream()
+                .filter(a -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(a.getName()))
+                .map(AnalyticsAttribute::getBooleanValue)
+                .findFirst().orElse(null);
+    }
+
+    @Test
+    public void testExitInBackgroundStampsBackgroundWhenAppLaunchedInForeground() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        setLiveAppInBackground(false);
+
+        Assert.assertEquals(Boolean.TRUE, backgroundAttribute(aeiError(AnalyticsAttribute.APP_EXIT_APP_STATE_BACKGROUND, new HashSet<>())));
+    }
+
+    @Test
+    public void testExitInForegroundStampsFalseWhenLiveAppInBackground() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        setLiveAppInBackground(true);
+
+        Assert.assertEquals(Boolean.FALSE, backgroundAttribute(aeiError(AnalyticsAttribute.APP_EXIT_APP_STATE_FOREGROUND, new HashSet<>())));
+    }
+
+    @Test
+    public void testExitInForegroundReplacesStaleBackgroundSessionAttribute() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        Set<AnalyticsAttribute> frozen = new HashSet<>();
+        frozen.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
+
+        Error stamped = aeiError(AnalyticsAttribute.APP_EXIT_APP_STATE_FOREGROUND, frozen);
+        Assert.assertEquals(Boolean.FALSE, backgroundAttribute(stamped));
+        Assert.assertEquals(1, stamped.getSessionAttributes().stream()
+                .filter(a -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(a.getName())).count());
+    }
+
+    @Test
+    public void testExitStateIgnoredWhenBackgroundReportingDisabled() {
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+
+        Assert.assertNull(backgroundAttribute(aeiError(AnalyticsAttribute.APP_EXIT_APP_STATE_BACKGROUND, new HashSet<>())));
+    }
+
+    @Test
+    public void testMissingExitStateFallsBackToLiveState() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+
+        setLiveAppInBackground(true);
+        Assert.assertEquals(Boolean.TRUE, backgroundAttribute(aeiError(null, new HashSet<>())));
+
+        setLiveAppInBackground(false);
+        Assert.assertNull(backgroundAttribute(aeiError(null, new HashSet<>())));
+    }
+
+    @Test
+    public void testIsBackgroundAtExit() {
+        HashMap<String, Object> aeiEvent = new HashMap<>();
+        Assert.assertNull(Error.isBackgroundAtExit(null));
+        Assert.assertNull(Error.isBackgroundAtExit(aeiEvent));
+
+        aeiEvent.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "unexpected");
+        Assert.assertNull(Error.isBackgroundAtExit(aeiEvent));
+
+        aeiEvent.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, AnalyticsAttribute.APP_EXIT_APP_STATE_BACKGROUND);
+        Assert.assertEquals(Boolean.TRUE, Error.isBackgroundAtExit(aeiEvent));
+
+        aeiEvent.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, AnalyticsAttribute.APP_EXIT_APP_STATE_FOREGROUND);
+        Assert.assertEquals(Boolean.FALSE, Error.isBackgroundAtExit(aeiEvent));
+    }
 
     @Test
     public void testGetSafeBuildId() {

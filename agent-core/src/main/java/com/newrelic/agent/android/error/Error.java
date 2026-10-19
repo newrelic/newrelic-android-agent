@@ -77,7 +77,7 @@ public class Error extends HarvestableObject {
         this.timestamp = System.currentTimeMillis();
         this.deviceInfo = new DeviceInfo(agentImpl.getDeviceInformation(), agentImpl.getEnvironmentInformation());
         this.applicationInfo = new ApplicationInfo(agentImpl.getApplicationInformation());
-        this.sessionAttributes = getErrorSessionAttributes(sessionAttributes);
+        this.sessionAttributes = getErrorSessionAttributes(sessionAttributes, isBackgroundAtExit(event));
         this.agentName = agentImpl.getDeviceInformation().getAgentName();
         this.event = event;
         this.dataToken = Harvest.getHarvestConfiguration().getDataToken();
@@ -146,7 +146,38 @@ public class Error extends HarvestableObject {
         return Agent.getIsObfuscated();
     }
 
+    /**
+     * Read the app's foreground/background state at the time of an AEI exit, as recorded by the OS
+     * (derived from {@code ApplicationExitInfo.getImportance()}).
+     *
+     * @return {@code null} when the event carries no exit-time state
+     */
+    public static Boolean isBackgroundAtExit(HashMap<String, Object> event) {
+        if (event == null) {
+            return null;
+        }
+        final Object appState = event.get(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE);
+        if (AnalyticsAttribute.APP_EXIT_APP_STATE_BACKGROUND.equals(appState)) {
+            return Boolean.TRUE;
+        }
+        if (AnalyticsAttribute.APP_EXIT_APP_STATE_FOREGROUND.equals(appState)) {
+            return Boolean.FALSE;
+        }
+        return null;
+    }
+
     public Set<AnalyticsAttribute> getErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
+        return getErrorSessionAttributes(sessionAttributes, null);
+    }
+
+    /**
+     * @param backgroundAtExit the app state when the process exited, for errors replayed from a
+     *                         prior process (AEI). When non-null, {@code background} is stamped
+     *                         {@code true} or {@code false} from it instead of from the live
+     *                         {@link ApplicationStateMonitor} state, which describes the current
+     *                         launch rather than the exit being reported.
+     */
+    public Set<AnalyticsAttribute> getErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes, Boolean backgroundAtExit) {
         if (sessionAttributes == null) {
             return null;
         }
@@ -161,7 +192,15 @@ public class Error extends HarvestableObject {
 
         //Background Reporting
         if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (ApplicationStateMonitor.isAppInBackground()) {
+            if (backgroundAtExit != null) {
+                // The exit-time state is known, so report it explicitly: true for background, false
+                // for foreground. Replace any stale value frozen into the prior session's attributes.
+                attrs.removeIf(attr -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(attr.getName()));
+                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, backgroundAtExit));
+                if (backgroundAtExit) {
+                    StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
+                }
+            } else if (ApplicationStateMonitor.isAppInBackground()) {
                 attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
                 StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
             }
