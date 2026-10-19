@@ -20,6 +20,34 @@ class SemanticsNodeUtil {
         }
 
         /**
+         * Converts an ARGB color int to a hex color string without a leading '#'.
+         *
+         * @return [ComposeSessionReplayConstants.Defaults.DEFAULT_BACKGROUND_COLOR] ("transparent") if the
+         *         color is fully transparent, "rrggbb" if it is fully opaque, otherwise "rrggbbaa".
+         */
+        @JvmStatic
+        fun toHexColor(argb: Int): String {
+            val alpha = (argb ushr 24) and 0xFF
+            val rgb = argb and 0xFFFFFF
+            return when (alpha) {
+                0 -> ComposeSessionReplayConstants.Defaults.DEFAULT_BACKGROUND_COLOR
+                0xFF -> "%06x".format(rgb)
+                else -> "%06x%02x".format(rgb, alpha)
+            }
+        }
+
+        /**
+         * Converts a background color produced by [toHexColor] into a CSS color value.
+         *
+         * @return "transparent" if the color is null, empty, or transparent, otherwise "#" + [hexColor].
+         */
+        @JvmStatic
+        fun toCssColor(hexColor: String?): String {
+            val transparent = ComposeSessionReplayConstants.Defaults.DEFAULT_BACKGROUND_COLOR
+            return if (hexColor.isNullOrEmpty() || hexColor == transparent) transparent else "#$hexColor"
+        }
+
+        /**
          * Legacy method for backward compatibility
          * Extracts background color from BackgroundElement (older Compose approach)
          *
@@ -33,12 +61,7 @@ class SemanticsNodeUtil {
                 colorField.isAccessible = true
                 val colorLong: Long = colorField.get(modifier) as Long
                 val color = Color(colorLong.toULong())
-                val colorString = Integer.toHexString(color.toArgb())
-                if(colorString.length > 2) {
-                    return  colorString.substring(2)
-                } else {
-                    return "FFFFFF"
-                }
+                return toHexColor(color.toArgb())
             } catch (e: NoSuchFieldException) {
                 e.printStackTrace()
                 return null
@@ -53,12 +76,12 @@ class SemanticsNodeUtil {
          * This is the preferred method for extracting background colors from Compose nodes
          *
          * @param node The Modifier.Node instance (should be a BackgroundNode)
-         * @return Hex color string (e.g., "FF0000" for red) or null if not available
+         * @return Hex color string (e.g., "ff0000" for red, "transparent" if fully transparent) or null if not available
          *
          * Example:
          * ```
          * val colorHex = getBackgroundColorFromNode(node)
-         * // Returns "6200EE" for Color(0xFF6200EE)
+         * // Returns "6200ee" for Color(0xFF6200EE)
          * ```
          */
         fun getBackgroundColorFromNode(node: Modifier.Node): String? {
@@ -71,17 +94,8 @@ class SemanticsNodeUtil {
                 // Get color from the node
                 val color = backgroundNodeGetter.getColor(node)
 
-                // Convert to hex string, excluding alpha if fully opaque
                 if (color != Color.Unspecified) {
-                    val argb = color.toArgb()
-                    val colorString = Integer.toHexString(argb)
-
-                    // Remove alpha channel if fully opaque (FF)
-                    return if (colorString.length > 2) {
-                        colorString.substring(2)
-                    } else {
-                        "FFFFFF"
-                    }
+                    return toHexColor(color.toArgb())
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

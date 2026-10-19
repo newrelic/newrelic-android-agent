@@ -779,6 +779,26 @@ public class LogReporter extends PayloadReporter {
     }
 
     /**
+     * Push buffered log data through to the filesystem.
+     *
+     * Log lines are appended to an in-memory BufferedWriter and would otherwise only reach
+     * disk at harvest, so a process that dies first loses them (NR-616897). Only flush() is
+     * needed, not FileDescriptor.sync(): once write(2) returns the bytes live in the kernel
+     * page cache, which survives process death. Never throws — callers include the fatal
+     * exception path, where an exception must not prevent chaining to the previous handler.
+     */
+    public synchronized void flushWorkingLogfile() {
+        try {
+            final BufferedWriter writer = workingLogfileWriter.get();
+            if (null != writer) {
+                writer.flush();
+            }
+        } catch (Exception e) {
+            log.error("LogReporter: Could not flush working log file: " + e);
+        }
+    }
+
+    /**
      * Shutdown the reporter. Remove from HarvestLifecycle notifications.
      */
     void shutdown() {

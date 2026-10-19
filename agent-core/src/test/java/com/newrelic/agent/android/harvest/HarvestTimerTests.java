@@ -6,6 +6,7 @@
 package com.newrelic.agent.android.harvest;
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -168,6 +169,51 @@ public class HarvestTimerTests {
     }
 
     @Test
+    public void tickNowShouldHarvestEvenWhileAppIsInBackground() {
+        // NR-614098 made ApplicationStateMonitor.isAppInBackground() accurate at the exact
+        // moment AndroidAgentImpl.applicationBackgrounded() runs. That callback calls
+        // Harvest.harvestNow(true, true) -> HarvestTimer.tickNow(true) to flush any remaining
+        // events before shutdown. tickNow() is a deliberate, explicit harvest (it already
+        // disregards the "time since last tick" limit) and must not be blocked by the
+        // periodic-scheduler's background guard, or queued events are silently dropped.
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+
+        TestHarvestTimer timer = new TestHarvestTimer();
+        timer.setPeriod(60000);
+        timer.start();
+
+        // HarvestTimer.start() schedules an immediate tick (delay=0) while still foregrounded;
+        // let it settle before establishing our baseline, so we only measure the tickNow() call below.
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Assert.fail(e.getMessage());
+        }
+        long executeCountBeforeBackgrounding = timer.getExecuteCount();
+
+        ApplicationStateMonitor.getInstance().uiHidden();
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Assert.fail(e.getMessage());
+        }
+        Assert.assertTrue("Precondition: app must be in background", ApplicationStateMonitor.isAppInBackground());
+
+        timer.tickNow(true);
+
+        Assert.assertEquals("tickNow() must harvest even while app is in background",
+                executeCountBeforeBackgrounding + 1, timer.getExecuteCount());
+
+        timer.stop();
+        ApplicationStateMonitor.getInstance().activityStarted();
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Assert.fail(e.getMessage());
+        }
+    }
+
+    @Test
     public void shouldCancelFutureTasks() throws Exception {
         TestHarvestTimer timer = new TestHarvestTimer();
         timer.setPeriod(10);
@@ -223,6 +269,10 @@ public class HarvestTimerTests {
             ((MockHarvester) harvester).setDisabled(true);
         }
 
+        public long getExecuteCount() {
+            return ((MockHarvester) harvester).getExecuteCount();
+        }
+
         @Override
         protected void cancelPendingTasks() {
             super.cancelPendingTasks();
@@ -255,10 +305,15 @@ public class HarvestTimerTests {
 
     class MockHarvester extends Harvester {
         private boolean disable;
+        private long executeCount = 0;
 
         @Override
         protected void execute() {
-            // nop
+            executeCount++;
+        }
+
+        public long getExecuteCount() {
+            return executeCount;
         }
 
         @Override

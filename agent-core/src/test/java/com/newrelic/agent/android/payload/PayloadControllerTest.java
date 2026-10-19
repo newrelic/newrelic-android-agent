@@ -20,6 +20,7 @@ import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.metric.MetricNames;
+import com.newrelic.agent.android.sessionReplay.SessionReplayReporter;
 import com.newrelic.agent.android.stats.StatsEngine;
 import com.newrelic.agent.android.test.mock.TestFuture;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
@@ -125,6 +126,38 @@ public class PayloadControllerTest {
     public void getInstance() throws Exception {
         PayloadController controller = PayloadController.initialize(agentConfiguration);
         Assert.assertEquals(controller, instance.get());
+    }
+
+    @Test
+    public void ensureSessionReplayReporterInitializedCreatesReporterWhenEnabledAfterBoot() throws Exception {
+        // setUp() already ran PayloadController.initialize() with a fresh AgentConfiguration,
+        // where SessionReplayConfiguration.enabled defaults to false - mirroring a fresh install
+        // with no cached config yet. That init is a one-shot gate, so SessionReplayReporter never
+        // got created. SR then gets enabled later (mirrors the collector's connect response
+        // arriving after boot), and AndroidAgentImpl.startSessionReplayRecorderWithMode() must be
+        // able to lazily create the reporter before SessionReplay starts recording - otherwise
+        // every captured chunk is silently dropped with "not initialized".
+        SessionReplayReporter.shutdown();
+        Assert.assertNull("Precondition: SR was disabled when PayloadController.initialize() ran",
+                SessionReplayReporter.getInstance());
+
+        agentConfiguration.getSessionReplayConfiguration().setEnabled(true);
+        PayloadController.ensureSessionReplayReporterInitialized(agentConfiguration);
+
+        Assert.assertNotNull("SessionReplayReporter must be created once SR is enabled",
+                SessionReplayReporter.getInstance());
+
+        SessionReplayReporter.shutdown();
+    }
+
+    @Test
+    public void ensureSessionReplayReporterInitializedIsNoopWhenStillDisabled() throws Exception {
+        SessionReplayReporter.shutdown();
+
+        PayloadController.ensureSessionReplayReporterInitialized(agentConfiguration);
+
+        Assert.assertNull("SessionReplayReporter must not be created while SR remains disabled",
+                SessionReplayReporter.getInstance());
     }
 
     @Test

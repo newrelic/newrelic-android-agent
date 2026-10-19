@@ -55,13 +55,22 @@
       "note": "Future version - will be tested when released"
     },
     {
-      "name": "AGP 9.3 - Latest",
+      "name": "AGP 9.3 - Stable",
       "agp": "9.3.0",
       "gradle": "9.5.0",
       "java": "17",
       "kotlin": "2.3.0",
       "enabled": true,
       "note": "Validated on sample app (agent-test-app) with JDK 17 - build and instrumentation working"
+    },
+    {
+      "name": "AGP 9.4 - Latest",
+      "agp": "9.4.0",
+      "gradle": "9.6.1",
+      "java": "17",
+      "kotlin": "2.3.0",
+      "enabled": true,
+      "note": "Validated on sample app (agent-test-app, PluginAGP94CompatSpec) and an external app (MyWebApplication debug+release) with JDK 17 - build, instrumentation, and R8 minify + map upload all working (NR-620918)"
     },
     {
       "name": "AGP 10.0 - Future",
@@ -81,6 +90,7 @@
     "agp_9.1": "Requires Gradle 9.3.1+, Java 17+. Built-in Kotlin support.",
     "agp_9.2": "Requires Gradle 9.4.1+, Java 17+, Kotlin 2.3+. Built-in Kotlin support.",
     "agp_9.3": "Requires Gradle 9.5.0+, Java 17+, Kotlin 2.3+. Built-in Kotlin support. Validated on the sample app with JDK 17 (build + instrumentation).",
+    "agp_9.4": "Requires Gradle 9.6.0+, Java 17+, Kotlin 2.3+. Built-in Kotlin support. Validated on the sample app and an external real-world app (MyWebApplication) with JDK 17 (build + instrumentation + R8 map upload).",
     "agp_10.0": "Future major version. Expected to require Gradle 9.5+, Java 21+, Kotlin 2.3+. May introduce breaking changes."
   }
 }

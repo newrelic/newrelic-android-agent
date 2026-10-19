@@ -19,8 +19,8 @@ public class ViewBackgroundHelper {
      * Attempts to get the background color of a View, covering several common Drawable types.
      *
      * @param view The View to inspect.
-     * @return A 4-component hexadecimal string (RRGGBBAA) representing the background color,
-     *         or null if the color cannot be determined or the view has no background.
+     * @return A CSS hexadecimal color string (see {@link #toRGBAHexString(int)}), or an empty string
+     *         if the color cannot be determined, is fully transparent, or the view has no background.
      */
     @NonNull
     public static String getBackgroundColor(View view) {
@@ -43,8 +43,8 @@ public class ViewBackgroundHelper {
      * Recursively attempts to extract a single color from a Drawable.
      *
      * @param drawable The Drawable to inspect.
-     * @return A 4-component hexadecimal string (RRGGBBAA) representing the color,
-     *         or null if the color cannot be determined.
+     * @return A CSS hexadecimal color string (see {@link #toRGBAHexString(int)}), or an empty string
+     *         if the color cannot be determined or is fully transparent.
      */
     @NonNull
     private static String getDrawableColor(Drawable drawable) {
@@ -57,14 +57,7 @@ public class ViewBackgroundHelper {
         }
 
         if (drawable instanceof ColorDrawable) {
-            int color = ((ColorDrawable) drawable).getColor();
-            String colorString = toRGBAHexString(color);
-            if(colorString.length() > 3) {
-                return colorString;
-            } else {
-                return "#FFFFFF";
-            }
-            // Remove the leading '#'
+            return toRGBAHexString(((ColorDrawable) drawable).getColor());
         } else if (drawable instanceof GradientDrawable) {
             GradientDrawable gradientDrawable = (GradientDrawable) drawable;
             // GradientDrawables can have multiple colors for gradients.
@@ -125,17 +118,24 @@ public class ViewBackgroundHelper {
     }
 
     /**
-     * Converts an Android Color integer to an RGBA hexadecimal string.
+     * Converts an Android Color integer to a CSS hexadecimal color string.
      *
      * @param color The Android Color integer.
-     * @return An RGBA hexadecimal string (RRGGBBAA).
+     * @return An empty string if the color is fully transparent (so no background-color is emitted),
+     *         "#rrggbb" if it is fully opaque, otherwise "#rrggbbaa".
      */
-    private static String toRGBAHexString(int color) {
+    static String toRGBAHexString(int color) {
         int red = Color.red(color);
         int green = Color.green(color);
         int blue = Color.blue(color);
         int alpha = Color.alpha(color);
-        return String.format("#%02x%02x%02x", red, green, blue, alpha);
+        if (alpha == 0) {
+            return "";
+        }
+        if (alpha == 0xFF) {
+            return String.format("#%02x%02x%02x", red, green, blue);
+        }
+        return String.format("#%02x%02x%02x%02x", red, green, blue, alpha);
     }
 
 

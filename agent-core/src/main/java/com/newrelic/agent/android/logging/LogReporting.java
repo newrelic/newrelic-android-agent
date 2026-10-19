@@ -47,6 +47,9 @@ public abstract class LogReporting {
     };
 
     public static void initialize(File cacheDir, AgentConfiguration agentConfiguration) throws IOException {
+        if (!isRemoteLoggingEnabled()) {
+            return;
+        }
         if (agentConfiguration.getLogReportingConfiguration().enabled) {
             LogReporting.setLogLevel(agentConfiguration.getLogReportingConfiguration().getLogLevel());
             LogReporter.initialize(cacheDir, agentConfiguration);
@@ -59,10 +62,16 @@ public abstract class LogReporting {
     }
 
     public static boolean isInitialized() {
+        if (!isRemoteLoggingEnabled()) {
+            return false;
+        }
         return LogReporter.getInstance() != null;
     }
 
     public static void shutdown() {
+        if (!isRemoteLoggingEnabled()) {
+            return;
+        }
         if(isInitialized()) {
             LogReporter.getInstance().shutdown();
         }

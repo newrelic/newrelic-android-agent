@@ -60,6 +60,9 @@ public class ApplicationStateMonitor {
         final Runnable runner = () -> {
             if (foregrounded.get()) {
                 log.info("UI has become hidden (app backgrounded)");
+                // Flip before notifying (mirrors activityStarted()'s ordering) so listeners can
+                // reliably check ApplicationStateMonitor.isAppInBackground() from within their
+                // own applicationBackgrounded() callback.
                 foregrounded.set(false);
                 notifyApplicationInBackground();
             }

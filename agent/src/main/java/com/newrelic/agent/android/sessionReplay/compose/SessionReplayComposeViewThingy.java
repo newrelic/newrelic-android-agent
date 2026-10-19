@@ -94,9 +94,7 @@ public class SessionReplayComposeViewThingy implements SessionReplayViewThingyIn
 
         // Compare background colors (null-safe)
         if (!java.util.Objects.equals(viewDetails.backgroundColor, otherDetails.backgroundColor)) {
-            if (otherDetails.backgroundColor != null) {
-                styleDifferences.put("background-color", otherDetails.backgroundColor);
-            }
+            styleDifferences.put("background-color", SemanticsNodeUtil.toCssColor(otherDetails.backgroundColor));
         }
 
         // Compare visibility
