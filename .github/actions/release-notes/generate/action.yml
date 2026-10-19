@@ -12,7 +12,10 @@ inputs:
     required: false
     default: "false"
   release-date:
-    description: The note's releaseDate, YYYY-MM-DD. Defaults to the date of the tagged commit.
+    description: >-
+      The note's releaseDate: YYYY-MM-DD, or "published" for the publish date of the tag's GitHub
+      release (agents whose releases a person publishes). Defaults to the date of the tagged commit,
+      which is also used when "published" finds no published release.
     required: false
     default: ""
   bot-pat:
@@ -75,6 +78,7 @@ runs:
       id: release
       shell: bash
       env:
+        GH_TOKEN: ${{ inputs.github-token }}
         VERSION: ${{ inputs.version }}
         RELEASE_DATE: ${{ inputs.release-date }}
         TAG_PREFIX: ${{ steps.config.outputs.tag_prefix }}
@@ -86,6 +90,10 @@ runs:
         work="$RUNNER_TEMP/release-notes"
         rm -rf "$work"; mkdir -p "$work/out"
         "$S/ensure-history.sh"
+        if [ "$RELEASE_DATE" = published ]; then
+          RELEASE_DATE=$("$S/published-date.sh" --prefix "$TAG_PREFIX" --version "$VERSION")
+          [ -n "$RELEASE_DATE" ] || echo "::notice::No published GitHub release for $VERSION; dating the note from its tag."
+        fi
         args=(--prefix "$TAG_PREFIX" --version "$VERSION" --skeleton "$SKELETON" --out "$work")
         [ -z "$CHANGELOG" ] || args+=(--changelog "$CHANGELOG")
         [ -z "$RELEASE_DATE" ] || args+=(--date "$RELEASE_DATE")

@@ -41,15 +41,10 @@ jobs:
           ref: develop # the shared code as reviewed now, not as it was at the tag
           fetch-depth: 0
           persist-credentials: false
-      - name: Date the note from the release
-        id: date
-        env:
-          PUBLISHED_AT: ${{ github.event.release.published_at }}
-        run: echo "date=${PUBLISHED_AT%%T*}" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/release-notes/generate
         with:
           version: ${{ inputs.version || github.event.release.tag_name }}
-          release-date: ${{ steps.date.outputs.date }}
+          release-date: published # the date the release was published, also on a dispatch
           overwrite: ${{ inputs.overwrite || false }}
           dry-run: ${{ inputs.dry-run || false }}
           bot-pat: ${{ secrets.BOT_PAT }}

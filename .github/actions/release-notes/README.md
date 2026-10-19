@@ -271,7 +271,8 @@ and the release workflow's old docs job becomes:
 ```
 
 **A person publishes the release** (Android, Flutter, .NET MAUI). The `release: published` event
-fires, so the caller listens for it and dates the note from the publish date:
+fires, so the caller listens for it, and `release-date: published` dates the note from the publish
+date, also when the workflow is run by hand:
 
 ```yaml
 name: Release notes - generate
@@ -310,15 +311,10 @@ jobs:
         with:
           fetch-depth: 0 # tags and history
           persist-credentials: false
-      - name: Date the note from the release
-        id: date
-        env:
-          PUBLISHED_AT: ${{ github.event.release.published_at }}
-        run: echo "date=${PUBLISHED_AT%%T*}" >> "$GITHUB_OUTPUT"
       - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/generate@develop
         with:
           version: ${{ inputs.version || github.event.release.tag_name }}
-          release-date: ${{ steps.date.outputs.date }}
+          release-date: published
           overwrite: ${{ inputs.overwrite || false }}
           dry-run: ${{ inputs.dry-run || false }}
           bot-pat: ${{ secrets.BOT_PAT }}
@@ -338,7 +334,7 @@ All three take `github-token` (default: the run's token), `config` (default
 |---|---|
 | `append` | `bot-pat`, `bot-email`, `docs-repo` (default `newrelic/docs-website`), `pr-number` (default: the event's PR) |
 | `check` | none |
-| `generate` | `version` (required; `1.9.3` or `v1.9.3`), `overwrite`, `release-date` (default: the tagged commit's date), `bot-pat`, `bot-email`, `docs-repo` |
+| `generate` | `version` (required; `1.9.3` or `v1.9.3`), `overwrite`, `release-date` (`YYYY-MM-DD`, or `published` for the GitHub release's publish date; default: the tagged commit's date), `bot-pat`, `bot-email`, `docs-repo` |
 
 `bot-pat` reaches only the steps that talk to docs-website; the steps that read PR text use
 `github-token`. With `dry-run: true` nothing on docs-website changes and `bot-pat` is not needed: the

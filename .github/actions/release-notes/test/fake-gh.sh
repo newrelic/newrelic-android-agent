@@ -4,7 +4,8 @@
 #   generate-notes prints $FAKE_GH/notes.txt ($FAKE_GH/notes-fail makes it fail every time,
 #   $FAKE_GH/notes-fail-once only the next time, $FAKE_GH/notes-blank-once answers the next call
 #   with an empty body and exit 0),
-#   "pr view N" prints $FAKE_GH/pr-N.json (no such file makes it fail).
+#   "pr view N" prints $FAKE_GH/pr-N.json (no such file makes it fail),
+#   "api repos/.../releases/tags/T" prints $FAKE_GH/release-T.json through its --jq filter.
 # Every call is appended to $FAKE_GH/calls.log.
 FAKE_GH=$(mktemp -d)
 mkdir "$FAKE_GH/bin"
@@ -17,6 +18,12 @@ case "$1 $2" in
     if [ -e "$FAKE_GH/notes-fail-once" ]; then rm "$FAKE_GH/notes-fail-once"; exit 1; fi
     if [ -e "$FAKE_GH/notes-blank-once" ]; then rm "$FAKE_GH/notes-blank-once"; echo; exit 0; fi
     cat "$FAKE_GH/notes.txt" ;;
+  "api repos/"*)
+    # GET repos/OWNER/NAME/releases/tags/TAG: $FAKE_GH/release-TAG.json, filtered by --jq like gh does.
+    tag=${2##*/releases/tags/}; f="$FAKE_GH/release-$tag.json"
+    [ -f "$f" ] || { echo "gh: Not Found (HTTP 404)" >&2; exit 1; }
+    jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr=$a; prev=$a; done
+    if [ -n "$jq_expr" ]; then jq -r "$jq_expr" "$f"; else cat "$f"; fi ;;
   "pr view")
     [ -f "$FAKE_GH/pr-$3.json" ] || { echo "no such PR: $3" >&2; exit 1; }
     cat "$FAKE_GH/pr-$3.json" ;;
