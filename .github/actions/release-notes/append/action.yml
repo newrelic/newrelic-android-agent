@@ -227,7 +227,8 @@ runs:
             echo "Dry run: nothing was pushed. The next file would change like this:"
             echo
             echo '```diff'
-            diff -u "$dir/before.mdx" "$dir/docs/$DOCS_DIR/$SKELETON_NAME" | tail -n +3
+            # diff exits 1 when the files differ, which is the point here; the runner runs bash -e.
+            diff -u "$dir/before.mdx" "$dir/docs/$DOCS_DIR/$SKELETON_NAME" | tail -n +3 || true
             echo '```'
           fi
         } >> "$GITHUB_STEP_SUMMARY"

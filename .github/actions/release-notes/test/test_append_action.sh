@@ -13,8 +13,8 @@ step() {
   ruby -ryaml -e 'puts YAML.load_file(ARGV[0])["runs"]["steps"].find { |s| s["name"] == ARGV[1] }["run"]' \
     "$TEST_DIR/../append/action.yml" "$1"
 }
-run_step() { # NAME  (env comes from the caller)
-  (cd "$tmp/agent" && bash -c "$(step "$1")")
+run_step() { # NAME  (env comes from the caller). The runner runs `shell: bash` as bash -e -o pipefail.
+  (cd "$tmp/agent" && bash --noprofile --norc -e -o pipefail -c "$(step "$1")")
 }
 
 # An agent repo whose origin has the merge commit of PR #5 tagged v1.0.0.
@@ -37,9 +37,19 @@ GITHUB_ACTION_PATH="$TEST_DIR/../append" GH_TOKEN=x PR_NUMBER=5 TAG_PREFIX=v run
 assert_eq "a PR in a release tag is skipped" "skipped #5: already released in v1.0.0" "$(cat "$RUNNER_TEMP/release-notes/status.txt")"
 assert_contains "and the step says so" "$(cat "$GITHUB_OUTPUT")" "skip=true"
 
-DRY_RUN=true DOCS_DIR=notes SKELETON_NAME=next.mdx run_step "Show the result"
+DRY_RUN=true DOCS_DIR=notes SKELETON_NAME=next.mdx run_step "Show the result"; rc=$?
+assert_eq "the summary step of a skipped PR succeeds" 0 "$rc"
 summary=$(cat "$GITHUB_STEP_SUMMARY")
 assert_contains "the summary reports the skip" "$summary" "skipped #5: already released in v1.0.0"
 assert_not_contains "the summary shows no diff left over from an earlier append" "$summary" "would change like this"
+
+# A dry run that appends: the summary shows the change, and diff's exit 1 must not fail the step.
+dir="$RUNNER_TEMP/release-notes"; mkdir -p "$dir/docs/notes"
+echo "appended #6 -> bug []" > "$dir/status.txt"
+printf 'before\n' > "$dir/before.mdx"; printf 'after\n' > "$dir/docs/notes/next.mdx"
+: > "$GITHUB_STEP_SUMMARY"
+DRY_RUN=true DOCS_DIR=notes SKELETON_NAME=next.mdx run_step "Show the result"; rc=$?
+assert_eq "the summary step of a dry run with a change succeeds" 0 "$rc"
+assert_contains "and shows the change" "$(cat "$GITHUB_STEP_SUMMARY")" "+after"
 
 finish
