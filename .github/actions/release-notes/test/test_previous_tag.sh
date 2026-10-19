@@ -37,4 +37,24 @@ out=$(printf '%s\n' "$many" | "$SCRIPTS/previous-tag.sh" 1.100.0); rc=$?
 assert_eq "30000 tags: exits 0" 0 "$rc"
 assert_eq "30000 tags: right answer" 1.99.0 "$out"
 
+# ---- --prefix: React Native and the hybrids tag v1.9.2, Android and MAUI tag 7.8.3 ----
+vtags=$(printf '%s\n' v1.9.0 v1.9.1 v1.9.2 1.9.5 nightly-2026-10-01 v1.9.3-rc1 release-1.9.2 V1.9.2)
+pp() { printf '%s\n' "$vtags" | "$SCRIPTS/previous-tag.sh" --prefix "$@"; }
+assert_eq "--prefix v answers with the prefix kept" v1.9.2 "$(pp v 1.9.3)"
+assert_eq "--prefix v ignores bare, nightly, rc, other-prefix and upper-case tags" v1.9.1 "$(pp v 1.9.2)"
+assert_eq "--prefix '' is the same as no prefix" 1.9.5 "$(pp '' 1.9.9)"
+assert_eq "--prefix '' ignores v tags" "" "$(pp '' 1.9.4 2>/dev/null)"
+pp v 1.9.0 > /dev/null; assert_eq "--prefix v: lowest tag has no previous" 1 "$?"
+pp v1 1.9.3 > /dev/null 2>&1; assert_eq "a prefix with a digit exits 2" 2 "$?"
+pp 'v.*' 1.9.3 > /dev/null 2>&1; assert_eq "a prefix with regex characters exits 2" 2 "$?"
+printf '%s\n' v1.9.2 | "$SCRIPTS/previous-tag.sh" --prefix > /dev/null 2>&1; assert_eq "--prefix with no value exits 2" 2 "$?"
+pp v v1.9.3 > /dev/null 2>&1; assert_eq "VERSION is bare even with --prefix" 2 "$?"
+
+# ---- release-tags.sh: the already-released check ----
+rt() { printf '%s\n' "$vtags" | "$SCRIPTS/release-tags.sh" "$@"; }
+assert_eq "release-tags --prefix v keeps only v-release tags" "v1.9.0 v1.9.1 v1.9.2" "$(rt --prefix v | tr '\n' ' ' | sed 's/ $//')"
+assert_eq "release-tags with no prefix keeps only bare release tags" "1.9.5" "$(rt)"
+assert_eq "release-tags with nothing matching prints nothing and exits 0" ":0" "$(printf 'nightly-1\n' | "$SCRIPTS/release-tags.sh" --prefix v; echo ":$?")"
+printf '' | "$SCRIPTS/release-tags.sh" --prefix 1 > /dev/null 2>&1; assert_eq "release-tags with a bad prefix exits 2" 2 "$?"
+
 finish
