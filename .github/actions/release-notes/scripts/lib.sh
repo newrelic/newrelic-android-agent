@@ -54,6 +54,12 @@ section_array_key() {
 section_marker() { printf '{/* release-note:%s */}' "$1"; }
 END_MARKER='{/* release-note:end */}'
 
+# skeleton_tail FILE: what follows the end marker in a skeleton (Android's Support statement),
+# which every release note ends with. Prints nothing when the marker is the last line.
+skeleton_tail() {
+  tr -d '\r' < "$1" | awk -v m="$END_MARKER" 'found { print } $0 == m { found = 1 }'
+}
+
 # Collapse any whitespace run (including newlines) to one space and trim.
 oneline() {
   printf '%s' "$1" | tr '\r\n\t\v\f' '     ' | tr -d '\000-\010\016-\037\177' | sed -E 's/ +/ /g; s/^ //; s/ $//'
