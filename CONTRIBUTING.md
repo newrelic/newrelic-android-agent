@@ -18,6 +18,25 @@ Before submitting an Issue, please search for similar ones in the
 2. Increase the version numbers in any examples files and the README.md to the new version that this Pull Request would represent. The versioning scheme we use is [SemVer](http://semver.org/).
 3. You may merge the Pull Request in once you have the sign-off of two other developers, or if you do not have permission to do that, you may request the second reviewer to merge it for you.
 
+## Release notes
+
+Release notes for the Android agent are drafted automatically from merged pull requests and reviewed by a person before they are published on docs.newrelic.com. The automation is shared with the hybrid agents and lives in [`.github/actions/release-notes/`](.github/actions/release-notes/README.md); its README explains how each bullet is built.
+
+**Every user-facing PR merged to `develop` should carry exactly one of these labels.** The label decides which section of the published note the PR appears in:
+
+| Label | Section |
+|---|---|
+| `release-note:feature` | New features |
+| `release-note:enhancement` | Improvements and enhancements |
+| `release-note:bug` | Bug fixes |
+| `release-note:security` | Security updates |
+
+- If the description has a `## Release note` heading (or a `Release note:` line), that text becomes the bullet as written, so say what changed for app developers or their users and, for a bug, what was broken. Otherwise the title is used with its type prefix and Jira key removed and the leading verb put in the past tense. Write `N/A` to use the title.
+- Unlabelled `docs`, `test`, `ci`, `chore`, `build` and `style` PRs, and Dependabot PRs, are left out; add a label to include one. Put `[skip-docs]` in the description to leave any PR out.
+- The `Release notes - check` check comments on your PR with the section and the exact bullet, and goes red when a user-facing PR into `develop` does not have exactly one `release-note:*` label.
+- When a release is published, `release-notes-generate.yml` opens a draft PR on `newrelic/docs-website`. **Edit it before it merges**: each bullet specific and user-facing, in the right section, and mirrored in its frontmatter array; check the "PRs left out" list in the PR description. To rebuild a note, run that workflow by hand with the version.
+- Settings are in `.github/release-notes.json`. The workflows need the `BOT_PAT` and `BOT_EMAIL` repository secrets.
+
 ## Contributor License Agreement
 
 Keep in mind that when you submit your Pull Request, you'll need to sign the CLA via the click-through using CLA-Assistant. If you'd like to execute our corporate CLA, or if you have any questions, please drop us an email at opensource@newrelic.com.

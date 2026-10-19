@@ -1,0 +1,64 @@
+name: Release notes tests
+
+# CI for the shared release-notes code in .github/actions/release-notes/, which every adopted agent
+# repo runs at @develop: the script suite, shellcheck, the action and workflow linters, and dry runs
+# of the actions, by local path, on this repository's real history.
+
+on:
+  pull_request:
+    paths:
+      - ".github/actions/release-notes/**"
+      - ".github/release-notes.json"
+      - ".github/workflows/release-notes-*.yml"
+      - "android-agent-next.mdx"
+
+permissions:
+  contents: write # the generate dry run calls POST /releases/generate-notes
+  pull-requests: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Script tests
+        run: bash .github/actions/release-notes/test/run.sh
+      - name: shellcheck
+        run: shellcheck --severity=warning -x .github/actions/release-notes/scripts/*.sh .github/actions/release-notes/test/*.sh
+      - name: Action run blocks
+        run: bash .github/actions/release-notes/test/lint-actions.sh
+      - name: actionlint
+        run: |
+          # Installer pinned to the commit of tag v1.7.7 (a tag can move), and the binary version pinned too.
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/03d0035246f3e81f36aed592ffb4bebf33a03106/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color .github/workflows/release-notes-*.yml
+
+  dry-run:
+    # A fork PR's token is read-only, and generate-notes needs contents: write.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Generate 7.8.3 (dry run)
+        uses: ./.github/actions/release-notes/generate
+        with:
+          version: 7.8.3
+          release-date: 2026-09-29
+          dry-run: true
+      - name: Append a merged, unreleased PR (dry run)
+        uses: ./.github/actions/release-notes/append
+        with:
+          pr-number: 645
+          dry-run: true
+      - name: Append a PR released in 7.8.3 (dry run, skipped)
+        uses: ./.github/actions/release-notes/append
+        with:
+          pr-number: 634
+          dry-run: true

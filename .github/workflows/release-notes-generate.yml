@@ -1,0 +1,57 @@
+name: Release notes - generate
+
+# When an Android agent release is published, build its docs-website release note and open it as a
+# draft PR for a person to edit. See .github/actions/release-notes/README.md.
+# A person publishes the release (create_release.yml only drafts it), so the release event fires.
+# The event runs this file as it is at the tagged commit, so it must be on main before the first
+# release that should use it.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, e.g. 7.8.4 (its tag must exist)"
+        required: true
+      overwrite:
+        description: "Replace an existing release-notes branch or file for this version (discards edits on it)"
+        type: boolean
+        default: false
+      dry-run:
+        description: "Only build the note into the job summary"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # POST /releases/generate-notes needs it
+
+jobs:
+  generate:
+    # Nightly builds are published as pre-releases; they are not releases.
+    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
+    concurrency:
+      group: docs-release-notes-next
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: develop # the shared code as reviewed now, not as it was at the tag
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Date the note from the release
+        id: date
+        env:
+          PUBLISHED_AT: ${{ github.event.release.published_at }}
+        run: echo "date=${PUBLISHED_AT%%T*}" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/release-notes/generate
+        with:
+          version: ${{ inputs.version || github.event.release.tag_name }}
+          release-date: ${{ steps.date.outputs.date }}
+          overwrite: ${{ inputs.overwrite || false }}
+          dry-run: ${{ inputs.dry-run || false }}
+          bot-pat: ${{ secrets.BOT_PAT }}
+          bot-email: ${{ secrets.BOT_EMAIL }}
+          docs-repo: ${{ vars.DOCS_REPO || 'newrelic/docs-website' }}
