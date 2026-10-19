@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# Add the CHANGELOG.md entries for one version to a release .mdx that already holds its PR bullets.
+# Add the CHANGELOG entries for one version to a release .mdx that already holds its PR bullets.
 # Usage: changelog-bullets.sh VERSION CHANGELOG NEXT_FILE      (NEXT_FILE is edited in place)
-# The version's entries are the "-"/"*" list items between "## VERSION" and the next "## X.Y.Z".
-# Each goes in the section named by the nearest heading above it: security -> security,
-# fix/bug -> bug, feature or "New in this release" -> feature, anything else ("Improvements",
-# no heading) -> enhancement. Blockquoted callouts and "Auto-release from commit:" lines are skipped.
+# The version's section starts at a heading of any level whose text starts with VERSION, bare,
+# v-prefixed or [bracketed], followed by a space, "(", "]" or the end of the line ("# 7.1.12",
+# "## 1.6.13", "### 1.3.2", "## v1.9.2 (2026-10-05)", "## [1.3.2] - 2026-10-05"). It ends at the
+# next heading of that shape for any version. Every other heading inside it names a section,
+# whatever its level: security -> security, fix/bug -> bug, feature or "New in this release" ->
+# feature, anything else ("Improvements", "Upgrade notes", no heading) -> enhancement.
+# Each "-"/"*"/"+" list item (nested ones too) is one entry; indented lines under an item continue
+# it. Blockquoted callouts and "Auto-release from commit:" lines are skipped.
 # An entry whose text already appears in a bullet of NEXT_FILE (case, spacing and full stops
-# ignored) is not added, so a change that is both in CHANGELOG.md and on the next branch appears once.
+# ignored) is not added, so a change that is both in the CHANGELOG and on the next branch appears once.
 # Prints one line per entry, "added <section>: <text>" or "duplicate: <text>". A version with no
 # entries prints nothing and exits 0. Exit 2 on bad arguments.
 set -euo pipefail
@@ -34,11 +38,18 @@ grep -E '^\* ' "$next" | tr -d '\r' | while IFS= read -r l; do bullet_key "$l"; 
 
 # Tab-separated "section<TAB>entry" lines for the version. Reading a file, so an early exit is safe.
 entries=$(tr -d '\r' < "$changelog" | awk -v v="$version" '
-  BEGIN { esc = v; gsub(/\./, "\\.", esc); s = "enhancement" }
-  !inv && $0 ~ ("^## " esc "([ \t(]|$)") { inv = 1; next }
+  function flush() { if (cur != "") print cs "\t" cur; cur = "" }
+  BEGIN { esc = v; gsub(/\./, "\\.", esc); s = "enhancement"; cur = "" }
+  # Up to three leading spaces still make a heading (CommonMark), so " ## 1.5.11" counts. A "]"
+  # first in a bracket is literal in every awk, which "\]" is not.
+  /^ ? ? ?#+[ \t]+\[?v?[0-9]+\.[0-9]+\.[0-9]+([] \t(]|$)/ {
+    if (inv) { flush(); exit }
+    if ($0 ~ ("^ ? ? ?#+[ \t]+\\[?v?" esc "([] \t(]|$)")) inv = 1
+    next
+  }
   !inv { next }
-  /^## [0-9]/ { exit }
-  /^#+ / {
+  /^ ? ? ?#+[ \t]/ {
+    flush()
     h = tolower($0)
     if (h ~ /security/) s = "security"
     else if (h ~ /fix|bug/) s = "bug"
@@ -46,11 +57,16 @@ entries=$(tr -d '\r' < "$changelog" | awk -v v="$version" '
     else s = "enhancement"
     next
   }
-  /^[ \t]*[-*+] / {
-    t = $0; sub(/^[ \t]*[-*+] +/, "", t)
+  /^[ \t]*[-*+][ \t]+/ {
+    flush()
+    t = $0; sub(/^[ \t]*[-*+][ \t]+/, "", t)
     if (t ~ /^Auto-release from commit:/) next
-    print s "\t" t
-  }')
+    cur = t; cs = s
+    next
+  }
+  /^[ \t]+[^ \t]/ { if (cur != "") { t = $0; sub(/^[ \t]+/, "", t); cur = cur " " t }; next }
+  { flush() }
+  END { flush() }')
 
 [ -n "$entries" ] || exit 0
 printf '%s\n' "$entries" | while IFS="$(printf '\t')" read -r section entry; do
