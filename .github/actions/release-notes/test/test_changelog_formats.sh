@@ -63,4 +63,11 @@ assert_contains "extra spaces after the marker are dropped" "$out" "added enhanc
 assert_contains "+ items are entries" "$out" "added enhancement: Plus item."
 assert_not_contains "an indented paragraph after a blank line is not joined" "$out" "Not a continuation"
 
+# A large CHANGELOG: the parser stops at the next version but must still read to the end, or the
+# producer of the pipe dies of SIGPIPE under pipefail (macOS pipes hold 16 KB, Linux 64 KB).
+{ printf '%s\n' '## 9.9.9' '- Newest entry.' '## 9.9.8'; for i in $(seq 1 4000); do echo "- Old entry number $i, padded to make the file large."; done; } > "$tmp/big.md"
+cp "$SKELETON" "$n"; out=$("$SCRIPTS/changelog-bullets.sh" 9.9.9 "$tmp/big.md" "$n"); rc=$?
+assert_eq "a 200 KB CHANGELOG is read without dying (exit 0)" 0 "$rc"
+assert_eq "a 200 KB CHANGELOG still yields the version's entry" "added enhancement: Newest entry." "$out"
+
 finish

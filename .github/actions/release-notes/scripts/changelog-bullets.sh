@@ -36,14 +36,17 @@ bullet_key() {
 keys=$(mktemp); trap 'rm -f "$keys"' EXIT
 grep -E '^\* ' "$next" | tr -d '\r' | while IFS= read -r l; do bullet_key "$l"; done > "$keys" || true
 
-# Tab-separated "section<TAB>entry" lines for the version. Reading a file, so an early exit is safe.
+# Tab-separated "section<TAB>entry" lines for the version. awk reads to the end of the file even
+# after the version's section ends: an early exit would kill tr with SIGPIPE under pipefail once the
+# file outgrows the pipe buffer (16 KB on macOS, 64 KB on Linux).
 entries=$(tr -d '\r' < "$changelog" | awk -v v="$version" '
   function flush() { if (cur != "") print cs "\t" cur; cur = "" }
   BEGIN { esc = v; gsub(/\./, "\\.", esc); s = "enhancement"; cur = "" }
+  done { next }
   # Up to three leading spaces still make a heading (CommonMark), so " ## 1.5.11" counts. A "]"
   # first in a bracket is literal in every awk, which "\]" is not.
   /^ ? ? ?#+[ \t]+\[?v?[0-9]+\.[0-9]+\.[0-9]+([] \t(]|$)/ {
-    if (inv) { flush(); exit }
+    if (inv) { flush(); inv = 0; done = 1; next }
     if ($0 ~ ("^ ? ? ?#+[ \t]+\\[?v?" esc "([] \t(]|$)")) inv = 1
     next
   }
