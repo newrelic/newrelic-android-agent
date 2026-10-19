@@ -78,6 +78,8 @@ runs:
       run: |
         set -euo pipefail
         S="$GITHUB_ACTION_PATH/../scripts"
+        # Start clean: a second append in the same job (the CI dry runs) must not report the first's files.
+        rm -rf "$RUNNER_TEMP/release-notes"
         mkdir -p "$RUNNER_TEMP/release-notes"
         "$S/ensure-history.sh"
         sha=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json mergeCommit --jq '.mergeCommit.oid // ""')

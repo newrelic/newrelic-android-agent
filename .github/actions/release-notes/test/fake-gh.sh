@@ -4,7 +4,7 @@
 #   generate-notes prints $FAKE_GH/notes.txt ($FAKE_GH/notes-fail makes it fail every time,
 #   $FAKE_GH/notes-fail-once only the next time, $FAKE_GH/notes-blank-once answers the next call
 #   with an empty body and exit 0),
-#   "pr view N" prints $FAKE_GH/pr-N.json (no such file makes it fail),
+#   "pr view N" prints $FAKE_GH/pr-N.json through any --jq filter (no such file makes it fail),
 #   "api repos/.../releases/tags/T" prints $FAKE_GH/release-T.json through its --jq filter.
 # Every call is appended to $FAKE_GH/calls.log.
 FAKE_GH=$(mktemp -d)
@@ -26,7 +26,8 @@ case "$1 $2" in
     if [ -n "$jq_expr" ]; then jq -r "$jq_expr" "$f"; else cat "$f"; fi ;;
   "pr view")
     [ -f "$FAKE_GH/pr-$3.json" ] || { echo "no such PR: $3" >&2; exit 1; }
-    cat "$FAKE_GH/pr-$3.json" ;;
+    jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr=$a; prev=$a; done
+    if [ -n "$jq_expr" ]; then jq -r "$jq_expr" "$FAKE_GH/pr-$3.json"; else cat "$FAKE_GH/pr-$3.json"; fi ;;
   *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;
 esac
 STUB

@@ -50,15 +50,29 @@ jobs:
         uses: ./.github/actions/release-notes/generate
         with:
           version: 7.8.3
-          release-date: 2026-09-29
+          release-date: published
           dry-run: true
+      - name: Check the 7.8.3 note
+        run: |
+          f="$RUNNER_TEMP/release-notes/out/android-783.mdx"
+          grep -qx 'subject: Android agent' "$f"
+          grep -qx "releaseDate: '2026-09-29'" "$f" # the publish date, looked up from the release
+          grep -qx "downloadLink: 'https://central.sonatype.com/artifact/com.newrelic.agent.android/android-agent'" "$f"
+          tail -1 "$f" | grep -q 'mobile-agents-eol-policy/#android-eol' # the Support statement ends it
+          grep -q 'newrelic/newrelic-android-agent#635: release branch' "$RUNNER_TEMP/release-notes/pr-body.md"
       - name: Append a merged, unreleased PR (dry run)
         uses: ./.github/actions/release-notes/append
         with:
           pr-number: 645
           dry-run: true
+      - name: Check the bullet for 645
+        run: |
+          grep -q '^appended #645 -> ' "$RUNNER_TEMP/release-notes/status.txt"
       - name: Append a PR released in 7.8.3 (dry run, skipped)
         uses: ./.github/actions/release-notes/append
         with:
           pr-number: 634
           dry-run: true
+      - name: Check that 634 was skipped as released
+        run: |
+          grep -qx 'skipped #634: already released in 7.8.3' "$RUNNER_TEMP/release-notes/status.txt"
