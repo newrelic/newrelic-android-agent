@@ -16,6 +16,15 @@ public class ApplicationExitEvent extends AnalyticsEvent {
         super(name, AnalyticsEventCategory.ApplicationExit, AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT, attributeSet);
     }
 
+    /**
+     * Exit records are replayed on the next launch, so the app state now says nothing about the
+     * exit. The state at exit is carried by the appState attribute.
+     */
+    @Override
+    protected boolean recordsBackgroundState() {
+        return false;
+    }
+
     @Override
     public boolean isValid() {
         return validator.isValidEventName(name) && (validator.isValidEventType(eventType));
