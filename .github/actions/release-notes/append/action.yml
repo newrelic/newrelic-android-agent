@@ -1,0 +1,234 @@
+name: Release notes - append
+description: >-
+  Build the release-note bullet for a merged pull request and append it to the agent's
+  accumulating next-release branch, and draft PR, on docs-website.
+inputs:
+  bot-pat:
+    description: Token with contents and pull-requests write access to docs-repo. Not needed for a dry run.
+    required: false
+    default: ""
+  bot-email:
+    description: Email for the bot's commits on docs-repo. Not needed for a dry run.
+    required: false
+    default: ""
+  pr-number:
+    description: The merged PR to append. Defaults to the pull request of the triggering event.
+    required: false
+    default: ${{ github.event.pull_request.number }}
+  docs-repo:
+    description: The docs repository, owner/name. Point it at a fork to test.
+    required: false
+    default: newrelic/docs-website
+  github-token:
+    description: Token that reads this repository's PRs and comments on unlabelled ones.
+    required: false
+    default: ${{ github.token }}
+  config:
+    description: Path of the release-notes config in the agent repository.
+    required: false
+    default: .github/release-notes.json
+  dry-run:
+    description: "true: build the bullet and show it in the job summary; change nothing on docs-repo."
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Load the release-notes config
+      id: config
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+      run: |
+        set -euo pipefail
+        "$GITHUB_ACTION_PATH/../scripts/config.sh" "$CONFIG" | tee -a "$GITHUB_OUTPUT"
+
+    - name: Check the inputs
+      shell: bash
+      env:
+        DRY_RUN: ${{ inputs.dry-run }}
+        HAS_BOT_PAT: ${{ inputs.bot-pat != '' }}
+        HAS_BOT_EMAIL: ${{ inputs.bot-email != '' }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+      run: |
+        set -euo pipefail
+        case "$DRY_RUN" in true | false) ;; *) echo "::error::dry-run must be true or false, not '$DRY_RUN'"; exit 1 ;; esac
+        case "$PR_NUMBER" in
+          '' | *[!0-9]*) echo "::error::pr-number must be a PR number, not '$PR_NUMBER' (run on a pull_request event or pass pr-number)"; exit 1 ;;
+        esac
+        [[ $DOCS_REPO =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "::error::docs-repo must be owner/name, not '$DOCS_REPO'"; exit 1; }
+        if [ "$DRY_RUN" = false ]; then
+          missing=""
+          [ "$HAS_BOT_PAT" = true ] || missing="$missing bot-pat"
+          [ "$HAS_BOT_EMAIL" = true ] || missing="$missing bot-email"
+          [ -z "$missing" ] || { echo "::error::Missing inputs:$missing (pass secrets.BOT_PAT and secrets.BOT_EMAIL)"; exit 1; }
+        fi
+
+    # A merge that is already in a release tag was covered by the release run that tagged it; a bullet
+    # appended now would sit on the next branch with no later release to prune it. The release run
+    # shares the caller's concurrency group, so it cannot tag and prune between this check and the push.
+    - name: Skip a PR that is already released
+      id: released
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        TAG_PREFIX: ${{ steps.config.outputs.tag_prefix }}
+      run: |
+        set -euo pipefail
+        S="$GITHUB_ACTION_PATH/../scripts"
+        # Start clean: a second append in the same job (the CI dry runs) must not report the first's files.
+        rm -rf "$RUNNER_TEMP/release-notes"
+        mkdir -p "$RUNNER_TEMP/release-notes"
+        "$S/ensure-history.sh"
+        sha=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json mergeCommit --jq '.mergeCommit.oid // ""')
+        released=""
+        if [ -n "$sha" ]; then
+          released=$({ git tag --list --contains "$sha" 2> /dev/null || true; } | "$S/release-tags.sh" --prefix "$TAG_PREFIX" | sed -n 1p)
+        fi
+        if [ -n "$released" ]; then
+          echo "skipped #$PR_NUMBER: already released in $released" | tee "$RUNNER_TEMP/release-notes/status.txt"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    # The only steps that see bot-pat are the ones that talk to docs-repo: this one and the two that
+    # push. The step that reads PR text uses github-token.
+    - name: Check out the docs next branch (or start it)
+      if: steps.released.outputs.skip != 'true' && inputs.dry-run != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.bot-pat }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+        DOCS_BASE: ${{ steps.config.outputs.docs_base }}
+        DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        NEXT_BRANCH: ${{ steps.config.outputs.next_branch }}
+        SKELETON: ${{ steps.config.outputs.skeleton }}
+        SKELETON_NAME: ${{ steps.config.outputs.skeleton_name }}
+      run: |
+        set -euo pipefail
+        docs="$RUNNER_TEMP/release-notes/docs"
+        gh auth setup-git
+        # Only "no such branch" (exit 2) starts a new branch; any other failure must stop the run.
+        rc=0
+        git ls-remote --exit-code --heads "https://github.com/$DOCS_REPO.git" "$NEXT_BRANCH" > /dev/null 2>&1 || rc=$?
+        case "$rc" in 0 | 2) ;; *) echo "::error::Could not check for $NEXT_BRANCH on $DOCS_REPO (git ls-remote exit $rc)"; exit 1 ;; esac
+        if [ "$rc" = 0 ]; then
+          gh repo clone "$DOCS_REPO" "$docs" -- --depth 50 --branch "$NEXT_BRANCH"
+        else
+          gh repo clone "$DOCS_REPO" "$docs" -- --depth 50 --branch "$DOCS_BASE"
+          git -C "$docs" checkout -b "$NEXT_BRANCH"
+        fi
+        mkdir -p "$docs/$DOCS_DIR"
+        if [ ! -f "$docs/$DOCS_DIR/$SKELETON_NAME" ]; then
+          cp "$SKELETON" "$docs/$DOCS_DIR/$SKELETON_NAME"
+          echo "Started $SKELETON_NAME from $SKELETON."
+        fi
+
+    - name: Read the docs next file (dry run)
+      if: steps.released.outputs.skip != 'true' && inputs.dry-run == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+        DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        NEXT_BRANCH: ${{ steps.config.outputs.next_branch }}
+        SKELETON: ${{ steps.config.outputs.skeleton }}
+        SKELETON_NAME: ${{ steps.config.outputs.skeleton_name }}
+      run: |
+        set -euo pipefail
+        docs="$RUNNER_TEMP/release-notes/docs"
+        mkdir -p "$docs/$DOCS_DIR"
+        rc=0
+        git ls-remote --exit-code --heads "https://github.com/$DOCS_REPO.git" "$NEXT_BRANCH" > /dev/null 2>&1 || rc=$?
+        case "$rc" in
+          0) gh api -H 'Accept: application/vnd.github.raw+json' \
+               "repos/$DOCS_REPO/contents/$DOCS_DIR/$SKELETON_NAME?ref=$NEXT_BRANCH" > "$docs/$DOCS_DIR/$SKELETON_NAME" ;;
+          2) cp "$SKELETON" "$docs/$DOCS_DIR/$SKELETON_NAME" ;;
+          *) echo "::error::Could not check for $NEXT_BRANCH on $DOCS_REPO (git ls-remote exit $rc)"; exit 1 ;;
+        esac
+        cp "$docs/$DOCS_DIR/$SKELETON_NAME" "$RUNNER_TEMP/release-notes/before.mdx"
+
+    - name: Build and append the bullet
+      id: process
+      if: steps.released.outputs.skip != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        COMMENT_ON_UNLABELLED: ${{ inputs.dry-run == 'true' && '0' || '1' }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        SKELETON_NAME: ${{ steps.config.outputs.skeleton_name }}
+      run: |
+        set -euo pipefail
+        "$GITHUB_ACTION_PATH/../scripts/process-pr.sh" "$PR_NUMBER" "$RUNNER_TEMP/release-notes/docs/$DOCS_DIR/$SKELETON_NAME" \
+          | tee "$RUNNER_TEMP/release-notes/status.txt"
+        # A skipped PR changes nothing: no commit (not even of a freshly started skeleton) and no draft PR.
+        case "$(cat "$RUNNER_TEMP/release-notes/status.txt")" in skipped*) echo "skip=true" >> "$GITHUB_OUTPUT" ;; esac
+
+    - name: Commit and push
+      if: steps.released.outputs.skip != 'true' && steps.process.outputs.skip != 'true' && inputs.dry-run != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.bot-pat }}
+        BOT_EMAIL: ${{ inputs.bot-email }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        SUBJECT: ${{ steps.config.outputs.subject }}
+        DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        NEXT_BRANCH: ${{ steps.config.outputs.next_branch }}
+        SKELETON_NAME: ${{ steps.config.outputs.skeleton_name }}
+      run: |
+        set -euo pipefail
+        cd "$RUNNER_TEMP/release-notes/docs"
+        git config user.name newrelic-mobile-agent-bot
+        git config user.email "$BOT_EMAIL"
+        git add "$DOCS_DIR/$SKELETON_NAME"
+        if git diff --staged --quiet; then
+          echo "Nothing to commit ($(cat "$RUNNER_TEMP/release-notes/status.txt"))."
+          exit 0
+        fi
+        git commit -q -m "chore: append $GITHUB_REPOSITORY#$PR_NUMBER to the $SUBJECT next release notes"
+        "$GITHUB_ACTION_PATH/../scripts/push-with-retry.sh" "$NEXT_BRANCH"
+
+    - name: Make sure the draft next PR exists
+      if: steps.released.outputs.skip != 'true' && steps.process.outputs.skip != 'true' && inputs.dry-run != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.bot-pat }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+        DOCS_BASE: ${{ steps.config.outputs.docs_base }}
+        NEXT_BRANCH: ${{ steps.config.outputs.next_branch }}
+        SUBJECT: ${{ steps.config.outputs.subject }}
+      run: |
+        set -euo pipefail
+        open=$(gh pr list --repo "$DOCS_REPO" --head "$NEXT_BRANCH" --state open --json number --jq 'length')
+        if [ "$open" = 0 ]; then
+          gh pr create --repo "$DOCS_REPO" --base "$DOCS_BASE" --head "$NEXT_BRANCH" --draft \
+            --title "$SUBJECT: next release notes" \
+            --body "Release-note bullets for the next $SUBJECT release, one per PR merged in $GITHUB_REPOSITORY (best effort), built by the shared release-notes append action. Do not merge: when $SUBJECT is released, the generate action opens the release-notes PR from these bullets and removes them from here."
+        fi
+
+    - name: Show the result
+      if: always()
+      shell: bash
+      env:
+        DRY_RUN: ${{ inputs.dry-run }}
+        DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        SKELETON_NAME: ${{ steps.config.outputs.skeleton_name }}
+      run: |
+        set -uo pipefail
+        dir="$RUNNER_TEMP/release-notes"
+        {
+          echo "### Release notes: append"
+          echo
+          if [ -f "$dir/status.txt" ]; then echo "\`$(cat "$dir/status.txt")\`"; else echo "No result: see the log."; fi
+          if [ "$DRY_RUN" = true ] && [ -f "$dir/before.mdx" ]; then
+            echo
+            echo "Dry run: nothing was pushed. The next file would change like this:"
+            echo
+            echo '```diff'
+            # diff exits 1 when the files differ, which is the point here; the runner runs bash -e.
+            diff -u "$dir/before.mdx" "$dir/docs/$DOCS_DIR/$SKELETON_NAME" | tail -n +3 || true
+            echo '```'
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"

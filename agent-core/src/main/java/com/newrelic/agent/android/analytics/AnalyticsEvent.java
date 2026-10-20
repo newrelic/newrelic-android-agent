@@ -69,6 +69,10 @@ public class AnalyticsEvent extends HarvestableObject {
 
     protected AnalyticsEvent(String name, AnalyticsEventCategory category, String eventType, Set<AnalyticsAttribute> initialAttributeSet) {
         this(name, category, eventType, System.currentTimeMillis(), initialAttributeSet);
+
+        // Only a newly recorded event reflects the app state right now. Copies and events restored
+        // from storage go through the constructors below and keep the state they were recorded with.
+        recordBackgroundState();
     }
 
     AnalyticsEvent(final AnalyticsEvent analyticsEvent) {
@@ -107,11 +111,20 @@ public class AnalyticsEvent extends HarvestableObject {
                 StatsEngine.notice().inc(MetricNames.OFFLINE_STORAGE_EVENT_COUNT);
             }
         }
+    }
 
-        //Background Reporting
+    /**
+     * Stamp the app state at the moment the event is recorded. The value is written for foreground
+     * as well as background so it overrides the session-level attribute, which is resolved at
+     * harvest time and may describe a different moment. An attribute already supplied by the
+     * caller is left alone.
+     */
+    private void recordBackgroundState() {
         if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (ApplicationStateMonitor.isAppInBackground()) {
-                this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
+            final boolean inBackground = ApplicationStateMonitor.isAppInBackground();
+
+            this.attributeSet.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, inBackground));
+            if (inBackground) {
                 StatsEngine.notice().inc(MetricNames.BACKGROUND_EVENT_COUNT);
             }
         }

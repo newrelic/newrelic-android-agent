@@ -1,0 +1,10 @@
+{
+  "subject": "Cordova agent",
+  "docsFolder": "cordova-release-notes",
+  "filePrefix": "cordova-agent-",
+  "nextBranch": "cordova-next",
+  "tagPrefix": "v",
+  "skeleton": "cordova-agent-next.mdx",
+  "downloadLink": "https://github.com/newrelic/newrelic-cordova-plugin",
+  "changelog": "CHANGELOG.md"
+}
