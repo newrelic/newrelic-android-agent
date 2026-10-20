@@ -8,9 +8,11 @@ package com.newrelic.agent.android.agentdata;
 import com.google.flatbuffers.FlatBufferBuilder;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.agentdata.builder.AgentDataBuilder;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
@@ -33,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -68,6 +71,68 @@ public class AgentDataControllerTest {
     @After
     public void tearDown() throws Exception {
         AnalyticsControllerImpl.shutdown();
+    }
+
+    @Test
+    public void handledExceptionInBackgroundIsStampedBackgroundTrue() throws Exception {
+        final ApplicationStateMonitor monitor = installMonitorInBackground();
+        FeatureFlag.enableFeature(FeatureFlag.HandledExceptions);
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        try {
+            Map<String, Object> attributes = new HashMap<>();
+            AgentDataController.sendAgentData(new RuntimeException("background"), attributes);
+
+            assertEquals(Boolean.TRUE, attributes.get(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME));
+        } finally {
+            removeMonitor(monitor);
+        }
+    }
+
+    @Test
+    public void handledExceptionInForegroundIsNotStampedBackground() throws Exception {
+        final ApplicationStateMonitor monitor = new ApplicationStateMonitor();
+        ApplicationStateMonitor.setInstance(monitor);
+        FeatureFlag.enableFeature(FeatureFlag.HandledExceptions);
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        try {
+            Map<String, Object> attributes = new HashMap<>();
+            AgentDataController.sendAgentData(new RuntimeException("foreground"), attributes);
+
+            assertTrue(!attributes.containsKey(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME));
+        } finally {
+            removeMonitor(monitor);
+        }
+    }
+
+    @Test
+    public void handledExceptionIsNotStampedWhenBackgroundReportingIsDisabled() throws Exception {
+        final ApplicationStateMonitor monitor = installMonitorInBackground();
+        FeatureFlag.enableFeature(FeatureFlag.HandledExceptions);
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+        try {
+            Map<String, Object> attributes = new HashMap<>();
+            AgentDataController.sendAgentData(new RuntimeException("disabled"), attributes);
+
+            assertTrue(!attributes.containsKey(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME));
+        } finally {
+            removeMonitor(monitor);
+        }
+    }
+
+    // The monitor applies a transition on its own thread: wait for it so the exception sees it
+    private static ApplicationStateMonitor installMonitorInBackground() throws Exception {
+        final ApplicationStateMonitor monitor = new ApplicationStateMonitor();
+        ApplicationStateMonitor.setInstance(monitor);
+        monitor.uiHidden();
+        monitor.getExecutor().submit(() -> {
+        }).get(10, TimeUnit.SECONDS);
+        return monitor;
+    }
+
+    private static void removeMonitor(ApplicationStateMonitor monitor) {
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+        monitor.getExecutor().shutdownNow();
+        ApplicationStateMonitor.setInstance(null);
     }
 
     @Test

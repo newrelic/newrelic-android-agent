@@ -9,11 +9,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.NewRelicConfig;
 import com.newrelic.agent.android.analytics.AnalyticsAttribute;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
 import com.newrelic.agent.android.analytics.SessionEvent;
+import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.harvest.ApplicationInformation;
 import com.newrelic.agent.android.harvest.crash.ExceptionInfo;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -21,7 +23,9 @@ import com.newrelic.agent.android.logging.ConsoleAgentLog;
 import com.newrelic.agent.android.test.stub.StubAgentImpl;
 import com.newrelic.agent.android.test.stub.StubAnalyticsAttributeStore;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(JUnit4.class)
 public class CrashTests {
@@ -69,6 +74,71 @@ public class CrashTests {
         sessionAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.APP_INSTALL_ATTRIBUTE, true));
         sessionEvent.addAttributes(sessionAttributes);
         AnalyticsControllerImpl.getInstance().getEventManager().addEvent(sessionEvent);
+    }
+
+    private ApplicationStateMonitor monitor;
+
+    @Before
+    public void installApplicationStateMonitor() {
+        // A monitor of our own, so a test can move the app between foreground and background
+        monitor = new ApplicationStateMonitor();
+        ApplicationStateMonitor.setInstance(monitor);
+    }
+
+    @After
+    public void restoreDefaults() {
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+        monitor.getExecutor().shutdownNow();
+        ApplicationStateMonitor.setInstance(null);
+    }
+
+    @Test
+    public void crashInBackgroundIsStampedBackgroundTrue() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+        moveToBackground();
+
+        crash = new Crash(new RuntimeException("background"), new HashSet<AnalyticsAttribute>(), new HashSet<AnalyticsEvent>(), true);
+
+        Assert.assertEquals(Boolean.TRUE, backgroundOf(crash));
+    }
+
+    @Test
+    public void crashInForegroundIsNotStampedBackground() {
+        FeatureFlag.enableFeature(FeatureFlag.BackgroundReporting);
+
+        crash = new Crash(new RuntimeException("foreground"), new HashSet<AnalyticsAttribute>(), new HashSet<AnalyticsEvent>(), true);
+
+        Assert.assertNull(backgroundOf(crash));
+    }
+
+    @Test
+    public void crashIsNotStampedWhenBackgroundReportingIsDisabled() {
+        FeatureFlag.disableFeature(FeatureFlag.BackgroundReporting);
+        moveToBackground();
+
+        crash = new Crash(new RuntimeException("disabled"), new HashSet<AnalyticsAttribute>(), new HashSet<AnalyticsEvent>(), true);
+
+        Assert.assertNull(backgroundOf(crash));
+    }
+
+    // The monitor applies a transition on its own thread: wait for it so the next crash sees it
+    private void moveToBackground() {
+        monitor.uiHidden();
+        try {
+            monitor.getExecutor().submit(() -> {
+            }).get(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new AssertionError("Application state monitor did not settle", e);
+        }
+    }
+
+    private static Boolean backgroundOf(Crash crash) {
+        for (AnalyticsAttribute attribute : crash.getSessionAttributes()) {
+            if (AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(attribute.getName())) {
+                return attribute.getBooleanValue();
+            }
+        }
+        return null;
     }
 
     @Test
