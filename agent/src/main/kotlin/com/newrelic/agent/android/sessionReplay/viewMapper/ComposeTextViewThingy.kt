@@ -20,6 +20,7 @@ import com.newrelic.agent.android.sessionReplay.SessionReplayLocalConfiguration
 import com.newrelic.agent.android.sessionReplay.compose.ComposePrivacyUtils
 import com.newrelic.agent.android.sessionReplay.compose.ComposeSessionReplayConstants
 import com.newrelic.agent.android.sessionReplay.compose.ComposeViewDetails
+import com.newrelic.agent.android.sessionReplay.compose.SemanticsNodeUtil
 import com.newrelic.agent.android.sessionReplay.internal.NewRelicIdGenerator
 import com.newrelic.agent.android.sessionReplay.models.Attributes
 import com.newrelic.agent.android.sessionReplay.models.IncrementalEvent.MutationRecord
@@ -255,9 +256,7 @@ open class ComposeTextViewThingy(
         }
 
         if (viewDetails.backgroundColor != otherComposeViewDetails.backgroundColor) {
-            otherComposeViewDetails.backgroundColor?.let {
-                styleDifferences["background-color"] = it
-            }
+            styleDifferences["background-color"] = SemanticsNodeUtil.toCssColor(otherComposeViewDetails.backgroundColor)
         }
 
         if (textColor != other.textColor) {

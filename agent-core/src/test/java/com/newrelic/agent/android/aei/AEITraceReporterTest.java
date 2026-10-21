@@ -167,6 +167,59 @@ public class AEITraceReporterTest {
     }
 
     @Test
+    public void reportAEITraceToArtifact_nullArtifactDoesNotThrow() {
+        // generateUniqueDataFilename() can return null when every candidate name for a pid is
+        // still occupied; the caller must not NPE on new FileOutputStream(null, ...).
+        traceReporter.reportAEITrace(sysTrace, (File) null);
+    }
+
+    @Test
+    public void generateUniqueDataFilename_disambiguatesOnCollision() {
+        int pid = 424242;
+
+        File primary = traceReporter.generateUniqueDataFilename(pid);
+        Assert.assertNotNull(primary);
+        traceReporter.reportAEITrace(sysTrace, primary);
+
+        File secondary = traceReporter.generateUniqueDataFilename(pid);
+        Assert.assertNotNull("Should disambiguate rather than collide with the occupied primary name", secondary);
+        Assert.assertNotEquals(primary.getName(), secondary.getName());
+        Assert.assertFalse(secondary.exists());
+    }
+
+    @Test
+    public void generateUniqueDataFilename_disambiguatedFilesAreStillTracked() {
+        int pid = 424243;
+
+        File primary = traceReporter.generateUniqueDataFilename(pid);
+        traceReporter.reportAEITrace(sysTrace, primary);
+
+        File secondary = traceReporter.generateUniqueDataFilename(pid);
+        traceReporter.reportAEITrace(sysTrace, secondary);
+
+        Set<File> cached = traceReporter.getCachedTraces();
+        Assert.assertTrue("Primary trace file should still be picked up for upload", cached.contains(primary));
+        Assert.assertTrue("Disambiguated trace file should also be picked up for upload", cached.contains(secondary));
+    }
+
+    @Test
+    public void generateUniqueDataFilename_returnsNullWhenExhausted() {
+        int pid = 424244;
+
+        // Occupy the primary name and every disambiguated slot.
+        for (int attempt = 0; attempt <= AEITraceReporter.MAX_FILENAME_ATTEMPTS; attempt++) {
+            File traceFile = traceReporter.generateUniqueDataFilename(pid);
+            Assert.assertNotNull("Should still have an unused slot at attempt " + attempt, traceFile);
+            traceReporter.reportAEITrace(sysTrace, traceFile);
+        }
+
+        Assert.assertNull("Every candidate name is occupied", traceReporter.generateUniqueDataFilename(pid));
+
+        // The int-pid overload must not throw even though generateUniqueDataFilename() returns null.
+        traceReporter.reportAEITrace(sysTrace, pid);
+    }
+
+    @Test
     public void postAEITrace() {
         Mockito.doReturn(true).when(traceReporter).postAEITrace(Mockito.any(File.class));
 

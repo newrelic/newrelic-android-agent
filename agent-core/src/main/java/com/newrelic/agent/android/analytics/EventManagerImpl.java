@@ -27,6 +27,7 @@ public class EventManagerImpl implements EventManager, EventListener {
     protected static final int DEFAULT_MAX_EVENT_BUFFER_SIZE = 1000;   // 1000 as the default
 
     public static final int DEFAULT_MIN_EVENT_BUFFER_SIZE = 64;
+    public static final int MAX_EVENT_BUFFER_TIME_LIMIT = 600;    // 600 seconds (10 minutes), upper bound for setMaxEventBufferTime
     public static final int DEFAULT_MIN_EVENT_BUFFER_TIME = (int) (HarvestTimer.DEFAULT_HARVEST_PERIOD / 1000);     // 60 seconds (1 minutes, same as harvest)
 
     private AtomicReference<List<AnalyticsEvent>> events;
@@ -65,7 +66,12 @@ public class EventManagerImpl implements EventManager, EventListener {
         eventStore = agentConfiguration.getEventStore();
         List<AnalyticsEvent> storedEvents = new ArrayList<AnalyticsEvent>();
         if (eventStore != null) {
-            storedEvents = eventStore.fetchAll();
+            if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence)) {
+                storedEvents = eventStore.fetchAll();
+            } else {
+                // Persistence is off: don't resurrect old events, and drop orphans so they aren't re-sent every launch
+                eventStore.clear();
+            }
         }
 
         if (!initialized.compareAndSet(false, true)) {
@@ -280,7 +286,7 @@ public class EventManagerImpl implements EventManager, EventListener {
         // Validate if maxSize in within the range of DEFAULT_MIN_EVENT_BUFFER_SIZE and DEFAULT_MAX_EVENT_POOL_SIZE
 
         if (maxSize < DEFAULT_MIN_EVENT_BUFFER_SIZE) {
-            log.error("Event queue cannot be smaller than " + DEFAULT_MIN_EVENT_BUFFER_SIZE);
+            log.warn("Event queue cannot be smaller than " + DEFAULT_MIN_EVENT_BUFFER_SIZE);
             maxSize = DEFAULT_MIN_EVENT_BUFFER_SIZE;
         }
 
@@ -296,16 +302,16 @@ public class EventManagerImpl implements EventManager, EventListener {
     @Override
     public void setMaxEventBufferTime(int maxBufferTimeInSec) {
 
-        // Validate if maxSize in within the range of DEFAULT_MAX_EVENT_BUFFER_TIME and DEFAULT_MIN_EVENT_BUFFER_TIME
+        // Validate that the buffer time is within DEFAULT_MIN_EVENT_BUFFER_TIME and MAX_EVENT_BUFFER_TIME_LIMIT
 
         if (maxBufferTimeInSec < DEFAULT_MIN_EVENT_BUFFER_TIME) {
-            log.error("Event buffer time cannot be shorter than " + DEFAULT_MIN_EVENT_BUFFER_TIME + " seconds");
+            log.warn("Event buffer time cannot be shorter than " + DEFAULT_MIN_EVENT_BUFFER_TIME + " seconds");
             maxBufferTimeInSec = DEFAULT_MIN_EVENT_BUFFER_TIME;
         }
 
-        if (maxBufferTimeInSec > DEFAULT_MAX_EVENT_BUFFER_TIME) {
-            log.warn("Event buffer time should not be longer than " + DEFAULT_MAX_EVENT_BUFFER_TIME + " seconds");
-            maxBufferTimeInSec = DEFAULT_MAX_EVENT_BUFFER_TIME;
+        if (maxBufferTimeInSec > MAX_EVENT_BUFFER_TIME_LIMIT) {
+            log.warn("Event buffer time cannot be longer than " + MAX_EVENT_BUFFER_TIME_LIMIT + " seconds");
+            maxBufferTimeInSec = MAX_EVENT_BUFFER_TIME_LIMIT;
         }
 
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API_EVENT_BUFFER_SIZE);

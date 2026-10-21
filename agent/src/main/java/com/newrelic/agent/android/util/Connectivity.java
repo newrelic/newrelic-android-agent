@@ -170,6 +170,8 @@ public final class Connectivity {
                 return WanType.HRPD;
             case 13:// TelephonyManager.NETWORK_TYPE_LTE: (API level 11)
                 return WanType.LTE;
+            case 20:// TelephonyManager.NETWORK_TYPE_NR: (API level 29)
+                return WanType.NR;
             case TelephonyManager.NETWORK_TYPE_UNKNOWN:
             default:
                 return WanType.UNKNOWN;
