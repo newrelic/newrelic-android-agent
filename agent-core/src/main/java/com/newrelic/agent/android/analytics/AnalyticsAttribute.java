@@ -97,6 +97,10 @@ public class AnalyticsAttribute {
     public static final String MOBILE_VIEW_LOAD_TIME_ATTRIBUTE = "loadTime";
     public static final String MOBILE_VIEW_TIME_VISIBLE_ATTRIBUTE = "timeVisible";
 
+    // MobileViewTiming
+    public static final String MOBILE_VIEW_TIMING_NAME_ATTRIBUTE = "timingName";
+    public static final String MOBILE_VIEW_TIMING_VALUE_ATTRIBUTE = "timingValue";
+
     // NativeReporting
     public static final String NATIVE_ROOTED_DEVICE_ATTRIBUTE = "rootedDevice";
     public static final String NATIVE_EXCEPTION_MESSAGE_ATTRIBUTE = "exceptionMessage";

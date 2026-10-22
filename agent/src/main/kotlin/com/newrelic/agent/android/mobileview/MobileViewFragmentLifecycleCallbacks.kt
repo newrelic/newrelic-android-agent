@@ -31,7 +31,7 @@ class MobileViewFragmentLifecycleCallbacks(
     private val hostActivity: Activity
 ) : FragmentManager.FragmentLifecycleCallbacks() {
 
-    // Wall-clock time of onFragmentCreated, per Fragment instance, consumed (removed) by the
+    // Monotonic time (ms) of onFragmentCreated, per Fragment instance, consumed (removed) by the
     // first onFragmentResumed that follows - mirrors MobileViewActivityLifecycleCallbacks'
     // createdAtMs. A later resume without an intervening create (e.g. backgrounding) correctly
     // gets no loadTime once the entry has been consumed.
@@ -45,7 +45,7 @@ class MobileViewFragmentLifecycleCallbacks(
         if (fragment is NavHostFragment) {
             return
         }
-        createdAtMs[fragment] = System.currentTimeMillis()
+        createdAtMs[fragment] = MobileViewTiming.monotonicNowMs()
     }
 
     override fun onFragmentResumed(fm: FragmentManager, fragment: Fragment) {
@@ -63,7 +63,7 @@ class MobileViewFragmentLifecycleCallbacks(
             return
         }
         try {
-            val loadTime = createdAt?.let { System.currentTimeMillis() - it }
+            val loadTime = createdAt?.let { MobileViewTiming.monotonicNowMs() - it }
             MobileViewContext.getInstance().onViewAppeared(
                 MobileViewAppearance(clazz.simpleName, UiPlatform.ANDROID_FRAGMENT)
                     .viewClass(clazz.name)

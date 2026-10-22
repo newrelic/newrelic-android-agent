@@ -11,4 +11,10 @@ public class MobileViewEvent extends AnalyticsEvent {
     public MobileViewEvent(String name, Set<AnalyticsAttribute> attributeSet) {
         super(name, AnalyticsEventCategory.MobileView, AnalyticsEvent.EVENT_TYPE_MOBILE_VIEW, attributeSet);
     }
+
+    // MobileView is a reserved event type: the base check would reject the agent's own event.
+    @Override
+    public boolean isValid() {
+        return validator.isValidEventName(name) && validator.isValidEventType(eventType);
+    }
 }

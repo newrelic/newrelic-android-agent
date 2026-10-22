@@ -72,9 +72,16 @@ public class NewRelicSetCurrentViewTests {
     }
 
     private static AnalyticsEvent onlyQueuedEvent() {
-        Collection<AnalyticsEvent> events = AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents();
-        assertEquals("Queued event collection should have a size of 1.", 1, events.size());
-        return events.iterator().next();
+        // Only MobileView events: a visit that carries a loadTime is also followed by its
+        // MobileViewTiming baseline, which these tests are not about.
+        java.util.List<AnalyticsEvent> events = new java.util.ArrayList<AnalyticsEvent>();
+        for (AnalyticsEvent event : AnalyticsControllerImpl.getInstance().getEventManager().getQueuedEvents()) {
+            if (AnalyticsEvent.EVENT_TYPE_MOBILE_VIEW.equals(event.getEventType())) {
+                events.add(event);
+            }
+        }
+        assertEquals("Queued MobileView event collection should have a size of 1.", 1, events.size());
+        return events.get(0);
     }
 
     private static String attrValue(AnalyticsEvent event, String name) {

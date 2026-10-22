@@ -205,6 +205,8 @@ public class AnalyticsValidator {
         add(AnalyticsEvent.EVENT_TYPE_MOBILE_CRASH);
         add(AnalyticsEvent.EVENT_TYPE_MOBILE_USER_ACTION);
         add(AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
+        add(AnalyticsEvent.EVENT_TYPE_MOBILE_VIEW);
+        add(AnalyticsEvent.EVENT_TYPE_MOBILE_VIEW_TIMING);
     }};
 
     /**

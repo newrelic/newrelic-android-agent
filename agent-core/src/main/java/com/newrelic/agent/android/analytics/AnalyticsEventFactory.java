@@ -42,6 +42,9 @@ class AnalyticsEventFactory {
             case MobileView:
                 event = new MobileViewEvent(name, eventAttributes);
                 break;
+            case MobileViewTiming:
+                event = new MobileViewTimingEvent(name, eventAttributes);
+                break;
         }
 
         return event;

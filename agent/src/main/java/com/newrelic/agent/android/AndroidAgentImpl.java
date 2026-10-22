@@ -58,6 +58,7 @@ import com.newrelic.agent.android.logging.LogReportingConfiguration;
 import com.newrelic.agent.android.measurement.MeasurementEngine;
 import com.newrelic.agent.android.metric.Metric;
 import com.newrelic.agent.android.mobileview.MobileViewActivityLifecycleCallbacks;
+import com.newrelic.agent.android.mobileview.MobileViewTiming;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.ndk.NativeReporting;
@@ -1280,6 +1281,13 @@ public class AndroidAgentImpl implements
 
     @Override
     public void onSessionRestarted() {
+        // Timings recorded with no view current share one cap bucket that has no view to go away
+        // with, so it is emptied at each session start. Skipped while Mobile Views is off, so a
+        // disabled view subsystem is never called into.
+        if (MobileViewTiming.getInstance().isEnabled()) {
+            MobileViewTiming.getInstance().resetUnattributedCapForNewSession();
+        }
+
         // Shut down previous session's reporters before re-evaluating sampling
         if (agentConfiguration.getSessionReplayConfiguration().isSessionReplayEnabled()) {
             SessionReplay.deInitialize();

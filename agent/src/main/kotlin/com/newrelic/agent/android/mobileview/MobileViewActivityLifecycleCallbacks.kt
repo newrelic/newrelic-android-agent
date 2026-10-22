@@ -81,7 +81,7 @@ class MobileViewActivityLifecycleCallbacks : Application.ActivityLifecycleCallba
             return
         }
         try {
-            val loadTime = createdAt?.let { System.currentTimeMillis() - it }
+            val loadTime = createdAt?.let { MobileViewTiming.monotonicNowMs() - it }
             MobileViewContext.getInstance().onViewAppeared(
                 MobileViewAppearance(clazz.simpleName, UiPlatform.ANDROID)
                     .viewClass(clazz.name)
@@ -112,7 +112,7 @@ class MobileViewActivityLifecycleCallbacks : Application.ActivityLifecycleCallba
     }
 
     override fun onActivityCreated(activity: Activity, bundle: Bundle?) {
-        createdAtMs[activity] = System.currentTimeMillis()
+        createdAtMs[activity] = MobileViewTiming.monotonicNowMs()
         if (!FeatureFlag.featureEnabled(FeatureFlag.AutomaticMobileViewTracing)) {
             return
         }

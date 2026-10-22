@@ -15,7 +15,8 @@ public enum AnalyticsEventCategory {
     Breadcrumb,
     UserAction,
     ApplicationExit,
-    MobileView;
+    MobileView,
+    MobileViewTiming;
 
     public static AnalyticsEventCategory fromString(String categoryString) {
         AnalyticsEventCategory category = Custom;
@@ -38,6 +39,8 @@ public enum AnalyticsEventCategory {
                 category = ApplicationExit;
             } else if (categoryString.equalsIgnoreCase("mobileview")) {
                 category = MobileView;
+            } else if (categoryString.equalsIgnoreCase("mobileviewtiming")) {
+                category = MobileViewTiming;
             }
         }
         return category;

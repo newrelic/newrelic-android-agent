@@ -28,12 +28,22 @@ public class MobileViewContext {
     private static final AgentLog log = AgentLogManager.getAgentLog();
     private static final MobileViewContext instance = new MobileViewContext();
 
+    // viewName, previousView and currentView are truncated at this many characters (IDD §5.3.5).
+    static final int MAX_VIEW_NAME_LENGTH = 128;
+
     private final Object lock = new Object();
     private String currentView;
     private String currentViewInstanceId;
     private String previousView;
     private String previousViewInstanceId;
     private long currentViewAppearedAtMs;
+    // Timing origins for the current view (see ViewTimingSnapshot). Monotonic System.nanoTime()
+    // values, kept next to the identity above under the same lock so the baseline and customer
+    // marks always resolve against the same instants.
+    private boolean currentViewVisible;
+    private long currentViewAppearedAtNs;
+    private long currentViewLoadStartNs;
+    private boolean currentViewHasLoadStart;
     private final Set<String> everAppearedViewNames = new HashSet<>();
 
     private MobileViewContext() {
@@ -51,7 +61,7 @@ public class MobileViewContext {
      * @return The viewInstanceId assigned to this appearance, or null if the event was not recorded.
      */
     public String onViewAppeared(MobileViewAppearance appearance) {
-        String viewName = appearance.getViewName();
+        String viewName = truncateViewName(appearance.getViewName());
 
         if (viewName == null || viewName.isEmpty()) {
             log.warn("MobileViewContext.onViewAppeared(): view name is null or empty, ignoring.");
@@ -73,6 +83,17 @@ public class MobileViewContext {
         final String viewInstanceId = UUID.randomUUID().toString();
         final boolean restarted;
         final long now = System.currentTimeMillis();
+        final long appearNs = System.nanoTime();
+
+        // A load time longer than the longest accepted timing is not vouched for: the view was not
+        // plausibly being built that whole time (IDD §6.3). It is treated as unobserved, so the
+        // MobileView carries no loadTime and no baseline timing is sent.
+        final Long loadTimeMs = appearance.getLoadTimeMs();
+        final boolean hasLoadTime = loadTimeMs != null && loadTimeMs >= 0 && loadTimeMs <= MobileViewTiming.MAX_MILLISECONDS;
+        if (loadTimeMs != null && !hasLoadTime) {
+            log.debug("MobileViewContext.onViewAppeared(): [" + viewName + "] load time " + loadTimeMs + "ms is out of range, omitting.");
+        }
+        final ViewTimingSnapshot snapshot;
 
         synchronized (lock) {
             referrer = currentView;
@@ -83,6 +104,12 @@ public class MobileViewContext {
             currentView = viewName;
             currentViewInstanceId = viewInstanceId;
             currentViewAppearedAtMs = now;
+            currentViewVisible = true;
+            currentViewAppearedAtNs = appearNs;
+            currentViewHasLoadStart = hasLoadTime;
+            currentViewLoadStartNs = hasLoadTime ? appearNs - loadTimeMs * 1_000_000L : 0;
+            snapshot = new ViewTimingSnapshot(viewName, viewInstanceId, referrer, appearNs,
+                    currentViewLoadStartNs, hasLoadTime, true);
         }
 
         Map<String, Object> eventAttributes = new HashMap<>();
@@ -104,8 +131,7 @@ public class MobileViewContext {
                 eventAttributes.put(AnalyticsAttribute.MOBILE_VIEW_PREVIOUS_VIEW_INSTANCE_ID_ATTRIBUTE, referrerInstanceId);
             }
         }
-        Long loadTimeMs = appearance.getLoadTimeMs();
-        if (loadTimeMs != null && loadTimeMs >= 0) {
+        if (hasLoadTime) {
             // loadTime is only meaningful for a genuine first construction (IDD §5.4). Producers
             // already encode that: they only supply a loadTimeMs when they observed this specific
             // instance's construction-to-first-resume window (e.g. the Activity/Fragment producers
@@ -129,6 +155,10 @@ public class MobileViewContext {
             return null;
         }
 
+        // Emitted outside the lock, from the snapshot taken inside it, so a concurrent transition
+        // cannot attach the baseline to a different view.
+        MobileViewTiming.getInstance().recordInitialDisplay(snapshot);
+
         return viewInstanceId;
     }
 
@@ -143,6 +173,9 @@ public class MobileViewContext {
             log.warn("MobileViewContext.onViewDisappeared(): view name is null or empty, ignoring.");
             return;
         }
+
+        // Producers report the untruncated name; it has to match what onViewAppeared stored.
+        viewName = truncateViewName(viewName);
 
         if (!AnalyticsControllerImpl.getInstance().isInitializedAndEnabled()) {
             log.debug("MobileViewContext.onViewDisappeared(): analytics controller is not initialized or enabled, ignoring.");
@@ -163,6 +196,9 @@ public class MobileViewContext {
             }
             timeVisibleMs = currentViewAppearedAtMs == 0 ? 0 : (System.currentTimeMillis() - currentViewAppearedAtMs);
             currentViewAppearedAtMs = 0;
+            // The view is no longer on screen: a later mark has no zero point on it.
+            currentViewVisible = false;
+            currentViewHasLoadStart = false;
             viewInstanceId = currentViewInstanceId;
         }
 
@@ -177,6 +213,35 @@ public class MobileViewContext {
         boolean recorded = AnalyticsControllerImpl.getInstance().recordMobileViewEvent(viewName, eventAttributes);
         if (!recorded) {
             log.warn("MobileViewContext.onViewDisappeared(): [" + viewName + "] event was not recorded.");
+        }
+    }
+
+    /**
+     * Agents don't scrub view names, but they do bound them. Cuts at {@link #MAX_VIEW_NAME_LENGTH}
+     * characters without splitting a surrogate pair.
+     */
+    static String truncateViewName(String viewName) {
+        if (viewName == null || viewName.length() <= MAX_VIEW_NAME_LENGTH) {
+            return viewName;
+        }
+        int end = MAX_VIEW_NAME_LENGTH;
+        if (Character.isHighSurrogate(viewName.charAt(end - 1))) {
+            end--;
+        }
+        return viewName.substring(0, end);
+    }
+
+    /**
+     * @return an immutable copy of the visible view's identity and timing origins, or a snapshot
+     * with {@link ViewTimingSnapshot#hasCurrentView()} false when no view is visible
+     */
+    public ViewTimingSnapshot snapshotForTiming() {
+        synchronized (lock) {
+            if (!currentViewVisible || currentView == null) {
+                return ViewTimingSnapshot.noView();
+            }
+            return new ViewTimingSnapshot(currentView, currentViewInstanceId, previousView,
+                    currentViewAppearedAtNs, currentViewLoadStartNs, currentViewHasLoadStart, true);
         }
     }
 
@@ -226,6 +291,10 @@ public class MobileViewContext {
             previousView = null;
             previousViewInstanceId = null;
             currentViewAppearedAtMs = 0;
+            currentViewVisible = false;
+            currentViewAppearedAtNs = 0;
+            currentViewLoadStartNs = 0;
+            currentViewHasLoadStart = false;
             everAppearedViewNames.clear();
         }
     }
