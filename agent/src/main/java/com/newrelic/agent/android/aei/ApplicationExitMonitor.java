@@ -316,19 +316,11 @@ public class ApplicationExitMonitor {
         eventAttributes.put(AnalyticsAttribute.APP_EXIT_PROCESS_ID_ATTRIBUTE, exitInfo.getPid());
         eventAttributes.put(AnalyticsAttribute.EVENT_TYPE_ATTRIBUTE, AnalyticsEvent.EVENT_TYPE_MOBILE_APPLICATION_EXIT);
 
-        // Add fg/bg flag based on inferred importance:
-        switch (exitInfo.getImportance()) {
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE:
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
-            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "foreground");
-                break;
-            default:
-                eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE, "background");
-                break;
-        }
+        // Add fg/bg flag based on the importance the OS recorded for the process at exit
+        eventAttributes.put(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE,
+                isForegroundImportance(exitInfo.getImportance()) ?
+                        AnalyticsAttribute.APP_EXIT_APP_STATE_FOREGROUND :
+                        AnalyticsAttribute.APP_EXIT_APP_STATE_BACKGROUND);
 
         // Add the reason for the exit
         if (exitInfo.getReason() == ApplicationExitInfo.REASON_ANR) {
@@ -380,6 +372,23 @@ public class ApplicationExitMonitor {
 
     protected String toValidAttributeValue(String attributeValue) {
         return (null == attributeValue ? "null" : attributeValue.substring(0, Math.min(attributeValue.length(), AnalyticsAttribute.ATTRIBUTE_VALUE_MAX_LENGTH - 1)));
+    }
+
+    /**
+     * Android treats an app as foreground when it has a visible activity or a foreground service
+     * (see "Background execution limits"). Anything less visible than that is background, including
+     * perceptible-only (e.g. audio), service, and cached processes.
+     */
+    static boolean isForegroundImportance(int importance) {
+        switch (importance) {
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING:
+            case ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE:
+                return true;
+            default:
+                return false;
+        }
     }
 
     protected String getReasonAsString(int reason) {
