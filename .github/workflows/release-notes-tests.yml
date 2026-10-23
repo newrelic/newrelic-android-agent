@@ -60,14 +60,36 @@ jobs:
           grep -qx "downloadLink: 'https://central.sonatype.com/artifact/com.newrelic.agent.android/android-agent'" "$f"
           tail -1 "$f" | grep -q 'mobile-agents-eol-policy/#android-eol' # the Support statement ends it
           grep -q 'newrelic/newrelic-android-agent#635: release branch' "$RUNNER_TEMP/release-notes/pr-body.md"
+      # A fixed PR number goes stale at the next release (#645 did with 7.8.4), so take the newest
+      # merged PR into develop that has a release-note label and is in no release tag yet.
+      - name: Find a merged, unreleased PR
+        id: unreleased
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh pr list --repo "$GITHUB_REPOSITORY" --base develop --state merged --limit 50 --json number,mergeCommit,labels \
+            --jq '.[] | select(any(.labels[]; .name | startswith("release-note:"))) | "\(.number) \(.mergeCommit.oid)"' > "$RUNNER_TEMP/merged.txt"
+          while read -r number sha; do
+            if [ -z "$(git tag --contains "$sha")" ]; then
+              echo "number=$number" >> "$GITHUB_OUTPUT"
+              echo "Using #$number"
+              exit 0
+            fi
+          done < "$RUNNER_TEMP/merged.txt"
+          echo "::notice::No merged, labelled PR is waiting for a release (one just shipped); skipping the unreleased append dry run."
       - name: Append a merged, unreleased PR (dry run)
+        if: steps.unreleased.outputs.number != ''
         uses: ./.github/actions/release-notes/append
         with:
-          pr-number: 645
+          pr-number: ${{ steps.unreleased.outputs.number }}
           dry-run: true
-      - name: Check the bullet for 645
+      - name: Check the bullet for the unreleased PR
+        if: steps.unreleased.outputs.number != ''
+        env:
+          NUMBER: ${{ steps.unreleased.outputs.number }}
         run: |
-          grep -q '^appended #645 -> ' "$RUNNER_TEMP/release-notes/status.txt"
+          grep -q "^appended #$NUMBER -> " "$RUNNER_TEMP/release-notes/status.txt"
       - name: Append a PR released in 7.8.3 (dry run, skipped)
         uses: ./.github/actions/release-notes/append
         with:
