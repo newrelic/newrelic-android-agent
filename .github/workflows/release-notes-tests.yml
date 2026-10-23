@@ -78,11 +78,15 @@ jobs:
             fi
           done < "$RUNNER_TEMP/merged.txt"
           echo "::notice::No merged, labelled PR is waiting for a release (one just shipped); skipping the unreleased append dry run."
+      # Its bullet is already on docs-website's android-next branch (the real append added it), so
+      # read the next file from this repo, which has no android-next branch: the dry run then starts
+      # from the skeleton, as the first PR after a release does, and builds the bullet.
       - name: Append a merged, unreleased PR (dry run)
         if: steps.unreleased.outputs.number != ''
         uses: ./.github/actions/release-notes/append
         with:
           pr-number: ${{ steps.unreleased.outputs.number }}
+          docs-repo: ${{ github.repository }}
           dry-run: true
       - name: Check the bullet for the unreleased PR
         if: steps.unreleased.outputs.number != ''
