@@ -13,6 +13,9 @@ Unity, .NET MAUI). A person edits every note before it is published.
   branch.
 - **`check`**, on every open PR: comments with the section and the bullet the PR will become, and
   fails when a user-facing PR does not carry exactly one `release-note:*` label.
+- **`ready`**, run by hand once a person has checked a release's note: marks its draft docs-website
+  PR ready for review and comments with who checked it. It runs as the bot that opened the PR, so it
+  works for people without write access to docs-website.
 
 Everything agent-specific lives in the agent's repo (`.github/release-notes.json` and a skeleton);
 nothing in this folder names an agent.
@@ -47,7 +50,7 @@ nothing in this folder names an agent.
    must match the config. Anything after `{/* release-note:end */}` ends every note (Android's Support
    statement); the hybrids have nothing there. If the repo publishes root files (an npm package with
    no `files` field, a git-installed plugin, a pub package), exclude the skeleton from the package.
-3. **Callers.** Add the three workflows below, with the repo's own PR base branch.
+3. **Callers.** Add the four workflows below, with the repo's own PR base branch.
 4. **Dry run.** Run `generate` with `dry-run: true` for the latest real release (see "Trying it
    out") and compare the job summary with the note already on docs-website.
 5. **Labels.** Create the four labels:
@@ -332,9 +335,45 @@ cancelled. A cancelled append costs nothing, because the release run builds any 
 cancelled generate leaves the release without a docs PR and its bullets on the next branch. If a
 generate run shows as cancelled, run `release-notes-generate.yml` by hand with that version.
 
+`.github/workflows/release-notes-ready.yml`, run from the repo's Actions tab after checking a
+release's note:
+
+```yaml
+name: Release notes - ready
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release whose docs-website note you've checked, e.g. 1.9.3"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/ready@develop
+        with:
+          version: ${{ inputs.version }}
+          bot-pat: ${{ secrets.BOT_PAT }}
+          docs-repo: ${{ vars.DOCS_REPO || 'newrelic/docs-website' }}
+```
+
+It finds the open docs PR on the version's release branch (`<agent>_release_notes_1-9-3`), marks it
+ready for review, and comments "Marked ready for review by @<you>" with a link to the run. A PR that
+is already ready is left alone. Like every `workflow_dispatch` workflow, it shows in the Actions tab
+only once it is on the default branch.
+
 ## Action inputs
 
-All three take `github-token` (default: the run's token), `config` (default
+`append`, `check` and `generate` take `github-token` (default: the run's token), `config` (default
 `.github/release-notes.json`) and `dry-run` (default `false`).
 
 | Action | Other inputs |
@@ -342,6 +381,7 @@ All three take `github-token` (default: the run's token), `config` (default
 | `append` | `bot-pat`, `bot-email`, `docs-repo` (default `newrelic/docs-website`), `pr-number` (default: the event's PR) |
 | `check` | none |
 | `generate` | `version` (required; `1.9.3` or `v1.9.3`), `overwrite`, `release-date` (`YYYY-MM-DD`, or `published` for the GitHub release's publish date; default: the tagged commit's date), `bot-pat`, `bot-email`, `docs-repo` |
+| `ready` | `version` (required; `1.9.3` or `v1.9.3`), `bot-pat` (required), `docs-repo`, `config`. No `github-token` or `dry-run`: it reads nothing but the docs PR and changes only its draft state and comments. |
 
 `bot-pat` reaches only the steps that talk to docs-website; the steps that read PR text use
 `github-token`. With `dry-run: true` nothing on docs-website changes and `bot-pat` is not needed: the
