@@ -11,7 +11,8 @@
 #   "pr create" prints $FAKE_GH/pr-create-url (default .../pull/999); with $FAKE_GH/maintainer-fail
 #   it fails like GitHub does unless --no-maintainer-edit is passed,
 #   "api user" prints $FAKE_GH/user.json and "api repos/O/N" $FAKE_GH/repo-O-N.json, through --jq,
-#   "api -X POST repos/O/N/merge-upstream" runs $FAKE_GH/merge-upstream.sh when there is one.
+#   "api -X POST repos/O/N/merge-upstream" runs $FAKE_GH/merge-upstream.sh when there is one,
+#   "api repos/O/N/contents/PATH" succeeds only when $FAKE_GH/on-base exists.
 # $FAKE_GH/list-fail, ready-fail, comment-fail and merge-fail make the matching command fail.
 # Every call is appended to $FAKE_GH/calls.log, and "$GH_TOKEN|$1 $2" to $FAKE_GH/tokens.log.
 FAKE_GH=$(mktemp -d)
@@ -43,6 +44,9 @@ case "$1 $2" in
     tag=${2##*/releases/tags/}; f="$FAKE_GH/release-$tag.json"
     [ -f "$f" ] || { echo "gh: Not Found (HTTP 404)" >&2; exit 1; }
     out "$f" ;;
+  "api repos/"*/contents/*)
+    # GET repos/OWNER/NAME/contents/PATH: found only when $FAKE_GH/on-base exists.
+    [ -e "$FAKE_GH/on-base" ] || { echo "gh: Not Found (HTTP 404)" >&2; exit 1; } ;;
   "api repos/"*)
     # GET repos/OWNER/NAME: $FAKE_GH/repo-OWNER-NAME.json.
     r=${2#repos/}; f="$FAKE_GH/repo-${r%%/*}-${r#*/}.json"

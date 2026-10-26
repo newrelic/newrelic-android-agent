@@ -12,7 +12,7 @@ pub() {
     --version 1.9.3 --body-file "$tmp/body.md" "$@"
 }
 reset() {
-  rm -f "$FAKE_GH"/*.json "$FAKE_GH"/*.log "$FAKE_GH"/*-fail "$FAKE_GH/merge-upstream.sh"
+  rm -f "$FAKE_GH"/*.json "$FAKE_GH"/*.log "$FAKE_GH"/*-fail "$FAKE_GH/merge-upstream.sh" "$FAKE_GH/on-base"
   unset FORK_PAT GH_TOKEN
 }
 calls() { cat "$FAKE_GH/calls.log" 2> /dev/null; }
@@ -74,6 +74,25 @@ reset; export GH_TOKEN=g FORK_PAT=f; fake_fork newrelic/docs-website; fake_open_
 out=$(pub --dry-run 2> /dev/null)
 assert_contains "an open PR on the fork, with a fork token: goes to the fork" "$out" "target=$FORK"
 
+# --- What a dry run reports ---
+
+reset; export GH_TOKEN=g FORK_PAT=f GITHUB_STEP_SUMMARY="$tmp/summary"; : > "$tmp/summary"; fake_fork newrelic/docs-website
+out=$(pub --dry-run 2> /dev/null)
+assert_contains "a dry run says where the branch would go" "$out" \
+  "::notice::A real run would push $BRANCH to $FORK and open a draft PR on newrelic/docs-website."
+assert_contains "and puts it in the job summary" "$(cat "$tmp/summary")" "A real run would push $BRANCH to $FORK"
+
+reset; export GH_TOKEN=g FORK_PAT=f; fake_fork newrelic/docs-website; fake_open_pr 26303 newrelic
+out=$(pub --dry-run 2> /dev/null)
+assert_contains "a dry run with an open PR says it would update that PR" "$out" \
+  "::notice::A real run would push $BRANCH to newrelic/docs-website and update https://github.com/newrelic/docs-website/pull/26303."
+
+reset; export GH_TOKEN=g; touch "$FAKE_GH/on-base"
+out=$(pub --dry-run 2> /dev/null)
+assert_contains "a dry run says when the note is already on the base branch" "$out" \
+  "::notice::rn-193.mdx is already on newrelic/docs-website develop; a real run would stop there unless overwrite is true."
+unset GITHUB_STEP_SUMMARY
+
 # --- Bad arguments ---
 
 reset
@@ -126,6 +145,9 @@ assert_contains "fork: pushed with the fork token" "$out" "push $FORK $BRANCH wi
 assert_contains "fork: the PR's head is the fork's branch" "$(calls)" "--head newrelic-mobile-agents-bot:$BRANCH --draft"
 assert_contains "fork: the fork is synced with the fork token" "$(tokens)" "f|api -X"
 assert_contains "fork: the PR is opened with the bot token" "$(tokens)" "b|pr create"
+out=$(GH_TOKEN=g pub --dry-run 2> /dev/null)
+assert_contains "a dry run sees the branch already on the fork" "$out" \
+  "::notice::$BRANCH already exists on $FORK; a real run would reuse it only if its content is identical."
 
 fake_open_pr 26400 newrelic-mobile-agents-bot
 out=$(pub 2> "$tmp/err"); rc=$?

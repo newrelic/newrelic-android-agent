@@ -93,6 +93,10 @@ echo "target=$target"
 [ -z "$pr_number" ] || echo "existing PR #$pr_number: $pr_url"
 
 if [ "$dry_run" = true ]; then
+  plan="A real run would push $branch to $target and open a draft PR on $docs_repo"
+  [ -z "$pr_number" ] || plan="A real run would push $branch to $target and update $pr_url"
+  echo "::notice::$plan."
+  [ -z "${GITHUB_STEP_SUMMARY:-}" ] || printf '\n%s.\n' "$plan" >> "$GITHUB_STEP_SUMMARY"
   if GH_TOKEN=$read_token gh api "repos/$docs_repo/contents/$docs_dir/$file?ref=$docs_base" --silent 2> /dev/null; then
     echo "::notice::$file is already on $docs_repo $docs_base; a real run would stop there unless overwrite is true."
   fi
