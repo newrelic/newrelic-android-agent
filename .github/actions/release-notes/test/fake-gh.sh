@@ -5,7 +5,10 @@
 #   $FAKE_GH/notes-fail-once only the next time, $FAKE_GH/notes-blank-once answers the next call
 #   with an empty body and exit 0),
 #   "pr view N" prints $FAKE_GH/pr-N.json through any --jq filter (no such file makes it fail),
-#   "api repos/.../releases/tags/T" prints $FAKE_GH/release-T.json through its --jq filter.
+#   "api repos/.../releases/tags/T" prints $FAKE_GH/release-T.json through its --jq filter,
+#   "pr list" prints $FAKE_GH/pr-list.json (no file: no PRs) through its --jq filter,
+#   "pr ready" and "pr comment" succeed silently.
+# $FAKE_GH/list-fail, ready-fail and comment-fail make the matching pr command fail.
 # Every call is appended to $FAKE_GH/calls.log.
 FAKE_GH=$(mktemp -d)
 mkdir "$FAKE_GH/bin"
@@ -28,6 +31,13 @@ case "$1 $2" in
     [ -f "$FAKE_GH/pr-$3.json" ] || { echo "no such PR: $3" >&2; exit 1; }
     jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr=$a; prev=$a; done
     if [ -n "$jq_expr" ]; then jq -r "$jq_expr" "$FAKE_GH/pr-$3.json"; else cat "$FAKE_GH/pr-$3.json"; fi ;;
+  "pr list")
+    [ ! -e "$FAKE_GH/list-fail" ] || { echo "gh: HTTP 502" >&2; exit 1; }
+    f="$FAKE_GH/pr-list.json"; [ -f "$f" ] || { f="$FAKE_GH/no-prs.json"; echo '[]' > "$f"; }
+    jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr=$a; prev=$a; done
+    if [ -n "$jq_expr" ]; then jq -r "$jq_expr" "$f"; else cat "$f"; fi ;;
+  "pr ready" | "pr comment")
+    [ ! -e "$FAKE_GH/$2-fail" ] || { echo "gh: HTTP 403" >&2; exit 1; } ;;
   *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;
 esac
 STUB
