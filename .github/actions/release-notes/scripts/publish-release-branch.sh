@@ -102,5 +102,75 @@ if [ "$dry_run" = true ]; then
   exit 0
 fi
 
-echo "Publishing is not implemented yet" >&2
-exit 1
+# The clone moves the working directory; keep the input files reachable.
+source="$(cd "$(dirname "$source")" && pwd)/$(basename "$source")"
+body_file="$(cd "$(dirname "$body_file")" && pwd)/$(basename "$body_file")"
+work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
+if [ -n "$fork" ] && [ "$target" = "$fork" ]; then kind=fork push_token=$FORK_PAT; else kind=bot push_token=$BOT_PAT; fi
+
+GH_TOKEN=$BOT_PAT git clone -q --depth 1 --branch "$docs_base" "$GIT_BASE/$docs_repo.git" "$work/docs"
+cd "$work/docs"
+if [ -e "$docs_dir/$file" ] && [ "$overwrite" != true ]; then
+  echo "::error::$file already exists on $docs_repo $docs_base. Run again with overwrite=true to replace it." >&2
+  exit 1
+fi
+mkdir -p "$docs_dir"
+cp "$source" "$docs_dir/$file"
+git config user.name newrelic-mobile-agent-bot
+git config user.email "$BOT_EMAIL"
+# The branch sits on docs-repo's base tip, so the fork's base must have that commit for the push to
+# be accepted. Its Workflows permission covers upstream commits that change .github/workflows/.
+if [ "$kind" = fork ]; then
+  GH_TOKEN=$FORK_PAT gh api -X POST "repos/$fork/merge-upstream" -f branch="$docs_base" > /dev/null ||
+    { echo "::error::Could not sync $fork $docs_base with $docs_repo (merge-upstream)" >&2; exit 1; }
+fi
+git remote add target "$GIT_BASE/$target.git"
+
+# Never overwrite a release-notes branch a person may have edited: the docs PR is where the
+# mandatory edit pass happens. Identical content is reused, so a re-run after a half-finished run
+# is safe.
+commit_and_push() { # push-args...
+  git checkout -q -b "$branch"
+  git add "$docs_dir/$file"
+  git commit -q -m "docs: add $subject $version release notes"
+  echo "push $target $branch with $kind token"
+  GH_TOKEN=$push_token git push -q "$@" target "HEAD:refs/heads/$branch"
+}
+rc=0
+GH_TOKEN=$push_token git ls-remote --exit-code --heads target "$branch" > /dev/null 2>&1 || rc=$?
+case "$rc" in
+  2) commit_and_push ;;
+  0)
+    GH_TOKEN=$push_token git fetch -q --depth 1 target "$branch"
+    if git show "FETCH_HEAD:$docs_dir/$file" 2> /dev/null | cmp -s - "$docs_dir/$file"; then
+      echo "$branch already holds identical notes; reusing it."
+    elif [ "$overwrite" = true ]; then
+      commit_and_push --force
+    else
+      echo "::error::$branch already exists on $target with different content (it may hold a person's edits)." \
+        "Delete the branch and its PR to regenerate, or run again with overwrite=true to discard them." >&2
+      exit 1
+    fi
+    ;;
+  *) echo "::error::Could not check for $branch on $target (git ls-remote exit $rc)" >&2; exit 1 ;;
+esac
+
+if [ -n "$pr_number" ]; then
+  GH_TOKEN=$BOT_PAT gh pr edit "$pr_number" --repo "$docs_repo" --body-file "$body_file" > /dev/null
+  echo "updated #$pr_number"
+  exit 0
+fi
+head_ref=$branch
+[ "$target" = "$docs_repo" ] || head_ref="${target%%/*}:$branch"
+create_pr() { # extra-args...
+  GH_TOKEN=$BOT_PAT gh pr create --repo "$docs_repo" --base "$docs_base" --head "$head_ref" --draft \
+    --title "$subject $version release notes" --label documentation --body-file "$body_file" "$@"
+}
+if ! url=$(create_pr 2> "$work/create.err"); then
+  # Allowing maintainer edits needs push access to the head repo, which the org-scoped BOT_PAT
+  # lacks on the bot's own fork. The team still edits on the fork; the docs team can suggest.
+  grep -q "Fork collab" "$work/create.err" || { cat "$work/create.err" >&2; exit 1; }
+  url=$(create_pr --no-maintainer-edit)
+  echo "::notice::Opened without \"allow edits by maintainers\" (GitHub refused it for this token); the docs team can suggest changes instead."
+fi
+echo "opened $url"
