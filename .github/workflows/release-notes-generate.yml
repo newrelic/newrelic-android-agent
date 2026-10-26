@@ -50,5 +50,6 @@ jobs:
           overwrite: ${{ inputs.overwrite || false }}
           dry-run: ${{ inputs.dry-run || false }}
           bot-pat: ${{ secrets.BOT_PAT }}
+          fork-pat: ${{ secrets.BOT_FORK_PAT }} # the release branch goes to the bot's fork, where the team can edit it
           bot-email: ${{ secrets.BOT_EMAIL }}
           docs-repo: ${{ vars.DOCS_REPO || 'newrelic/docs-website' }}

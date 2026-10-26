@@ -7,7 +7,7 @@
 #   "pr view N" prints $FAKE_GH/pr-N.json through any --jq filter (no such file makes it fail),
 #   "api repos/.../releases/tags/T" prints $FAKE_GH/release-T.json through its --jq filter,
 #   "pr list" prints $FAKE_GH/pr-list.json (no file: no PRs) through its --jq filter,
-#   "pr ready", "pr comment" and "pr edit" succeed silently,
+#   "pr ready", "pr comment", "pr edit" and "auth setup-git" succeed silently,
 #   "pr create" prints $FAKE_GH/pr-create-url (default .../pull/999); with $FAKE_GH/maintainer-fail
 #   it fails like GitHub does unless --no-maintainer-edit is passed,
 #   "api user" prints $FAKE_GH/user.json and "api repos/O/N" $FAKE_GH/repo-O-N.json, through --jq,
@@ -57,7 +57,7 @@ case "$1 $2" in
     out "$f" ;;
   "pr ready" | "pr comment")
     [ ! -e "$FAKE_GH/$2-fail" ] || { echo "gh: HTTP 403" >&2; exit 1; } ;;
-  "pr edit") ;;
+  "pr edit" | "auth setup-git") ;;
   "pr create")
     case " $* " in
       *" --no-maintainer-edit "*) ;;
