@@ -30,6 +30,12 @@ inputs:
     description: The docs repository, owner/name. Point it at a fork to test.
     required: false
     default: newrelic/docs-website
+  fork-pat:
+    description: >-
+      Token owned by the account whose fork of docs-repo should hold release branches (Contents and
+      Workflows write on the fork). Empty: branches go to docs-repo.
+    required: false
+    default: ""
   github-token:
     description: Token that lists the release's PRs (contents write, for releases/generate-notes) and reads them.
     required: false
@@ -180,28 +186,30 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        FORK_PAT: ${{ inputs.fork-pat }}
         DOCS_REPO: ${{ inputs.docs-repo }}
         DOCS_BASE: ${{ steps.config.outputs.docs_base }}
         DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        SUBJECT: ${{ steps.config.outputs.subject }}
+        VERSION: ${{ steps.release.outputs.version }}
         FILE: ${{ steps.build.outputs.file }}
         BRANCH: ${{ steps.config.outputs.release_branch_prefix }}${{ steps.release.outputs.dashed }}
       run: |
         set -euo pipefail
-        if gh api "repos/$DOCS_REPO/contents/$DOCS_DIR/$FILE?ref=$DOCS_BASE" --silent 2> /dev/null; then
-          echo "::notice::$FILE is already on $DOCS_REPO $DOCS_BASE; a real run would stop there unless overwrite is true."
-        fi
-        if git ls-remote --exit-code --heads "https://github.com/$DOCS_REPO.git" "$BRANCH" > /dev/null 2>&1; then
-          echo "::notice::$BRANCH already exists on $DOCS_REPO; a real run would reuse it only if its content is identical."
-        fi
+        work="$RUNNER_TEMP/release-notes"
+        "$GITHUB_ACTION_PATH/../scripts/publish-release-branch.sh" --dry-run --docs-repo "$DOCS_REPO" \
+          --docs-base "$DOCS_BASE" --docs-dir "$DOCS_DIR" --file "$FILE" --source "$work/out/$FILE" \
+          --branch "$BRANCH" --subject "$SUBJECT" --version "$VERSION" --body-file "$work/pr-body.md"
 
-    # Never overwrite a release-notes branch or file a person may have edited: the docs PR is where
-    # the mandatory edit pass happens. Identical content is simply reused, which makes a re-run after
-    # a half-finished run safe.
+    # Where the branch goes, and why a person's edits are never overwritten: see
+    # publish-release-branch.sh. bot-pat opens the PR; fork-pat, when set, holds the branch on the fork.
     - name: Open or update the docs PR
       if: inputs.dry-run != 'true'
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.bot-pat }}
+        BOT_PAT: ${{ inputs.bot-pat }}
+        FORK_PAT: ${{ inputs.fork-pat }}
         BOT_EMAIL: ${{ inputs.bot-email }}
         OVERWRITE: ${{ inputs.overwrite }}
         DOCS_REPO: ${{ inputs.docs-repo }}
@@ -214,48 +222,12 @@ runs:
       run: |
         set -euo pipefail
         work="$RUNNER_TEMP/release-notes"
-        docs="$work/docs"
         gh auth setup-git
-        gh repo clone "$DOCS_REPO" "$docs" -- --depth 1 --branch "$DOCS_BASE"
-        cd "$docs"
-        if [ -e "$DOCS_DIR/$FILE" ] && [ "$OVERWRITE" != true ]; then
-          echo "::error::$FILE already exists on $DOCS_REPO $DOCS_BASE. Run again with overwrite=true to replace it."
-          exit 1
-        fi
-        mkdir -p "$DOCS_DIR"
-        cp "$work/out/$FILE" "$DOCS_DIR/$FILE"
-        git config user.name newrelic-mobile-agent-bot
-        git config user.email "$BOT_EMAIL"
-        commit_and_push() { # push-args...
-          git checkout -q -b "$BRANCH"
-          git add "$DOCS_DIR/$FILE"
-          git commit -q -m "docs: add $SUBJECT $VERSION release notes"
-          git push "$@" origin "HEAD:refs/heads/$BRANCH"
-        }
-        rc=0
-        git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1 || rc=$?
-        case "$rc" in
-          2) commit_and_push ;;
-          0)
-            git fetch -q --depth 1 origin "$BRANCH"
-            if git show "FETCH_HEAD:$DOCS_DIR/$FILE" 2> /dev/null | cmp -s - "$DOCS_DIR/$FILE"; then
-              echo "$BRANCH already holds identical notes; reusing it."
-            elif [ "$OVERWRITE" = true ]; then
-              commit_and_push --force
-            else
-              echo "::error::$BRANCH already exists on $DOCS_REPO with different content (it may hold a person's edits). Delete the branch and its PR to regenerate, or run again with overwrite=true to discard them."
-              exit 1
-            fi
-            ;;
-          *) echo "::error::Could not check for $BRANCH on $DOCS_REPO (git ls-remote exit $rc)"; exit 1 ;;
-        esac
-        existing=$(gh pr list --repo "$DOCS_REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
-        if [ -n "$existing" ]; then
-          gh pr edit "$existing" --repo "$DOCS_REPO" --body-file "$work/pr-body.md"
-        else
-          gh pr create --repo "$DOCS_REPO" --base "$DOCS_BASE" --head "$BRANCH" --draft \
-            --title "$SUBJECT $VERSION release notes" --label documentation --body-file "$work/pr-body.md"
-        fi
+        args=(--docs-repo "$DOCS_REPO" --docs-base "$DOCS_BASE" --docs-dir "$DOCS_DIR" --file "$FILE"
+          --source "$work/out/$FILE" --branch "$BRANCH" --subject "$SUBJECT" --version "$VERSION"
+          --body-file "$work/pr-body.md")
+        [ "$OVERWRITE" != true ] || args+=(--overwrite)
+        "$GITHUB_ACTION_PATH/../scripts/publish-release-branch.sh" "${args[@]}"
 
     - name: Remove the released bullets from the next branch
       if: inputs.dry-run != 'true'

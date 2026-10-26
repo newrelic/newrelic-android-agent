@@ -10,7 +10,8 @@ Unity, .NET MAUI). A person edits every note before it is published.
 - **`generate`**, on every release: reconciles the accumulated bullets, every PR between the previous
   release tag and the new one, and (optionally) the version's `CHANGELOG.md` entries, writes the
   release `.mdx`, opens it as a draft docs-website PR, and removes the released bullets from the next
-  branch.
+  branch. With `fork-pat`, the release branch lives on the bot's fork of docs-website, so people
+  without write access to docs-website can edit the note (see "Editing a release note on the fork").
 - **`check`**, on every open PR: comments with the section and the bullet the PR will become, and
   fails when a user-facing PR does not carry exactly one `release-note:*` label.
 - **`ready`**, run by hand once a person has checked a release's note: marks its draft docs-website
@@ -65,7 +66,8 @@ nothing in this folder names an agent.
 7. **Switch over.** Replace the old docs job of the release workflow with the call to
    `release-notes-generate.yml` (below), and delete the old `.github/scripts/generate-docs.sh`.
 8. **Secrets.** `BOT_PAT` (contents and pull-requests write on `newrelic/docs-website`) and
-   `BOT_EMAIL`. The optional repo variable `DOCS_REPO` points the callers at a docs-website fork.
+   `BOT_EMAIL`. Optionally `BOT_FORK_PAT`, for editable release notes (see "Editing a release note on
+   the fork"). The optional repo variable `DOCS_REPO` points the callers at a docs-website fork.
 
 ### `.github/release-notes.json`
 
@@ -258,6 +260,7 @@ jobs:
           overwrite: ${{ inputs.overwrite || false }}
           dry-run: ${{ inputs.dry-run || false }}
           bot-pat: ${{ secrets.BOT_PAT }}
+          fork-pat: ${{ secrets.BOT_FORK_PAT }}
           bot-email: ${{ secrets.BOT_EMAIL }}
           docs-repo: ${{ vars.DOCS_REPO || 'newrelic/docs-website' }}
 ```
@@ -321,6 +324,7 @@ jobs:
           overwrite: ${{ inputs.overwrite || false }}
           dry-run: ${{ inputs.dry-run || false }}
           bot-pat: ${{ secrets.BOT_PAT }}
+          fork-pat: ${{ secrets.BOT_FORK_PAT }}
           bot-email: ${{ secrets.BOT_EMAIL }}
           docs-repo: ${{ vars.DOCS_REPO || 'newrelic/docs-website' }}
 ```
@@ -371,6 +375,33 @@ ready for review, and comments "Marked ready for review by @<you>" with a link t
 is already ready is left alone. Like every `workflow_dispatch` workflow, it shows in the Actions tab
 only once it is on the default branch.
 
+### Editing a release note on the fork
+
+docs-website gives write access only to bot accounts, so release branches it holds can't be edited
+by the people who check the notes. With `fork-pat`, `generate` pushes each release's branch to the
+bot's fork of docs-website instead and opens the draft PR from there; fork collaborators can push to
+it. The next drafts (`<agent>-next`) stay on docs-website: nobody edits those.
+
+One-time setup, signed in as the bot account:
+
+1. Fork `newrelic/docs-website` into the bot account, keeping the name `docs-website`.
+2. In the fork's **Settings → Collaborators**, invite the people who check release notes.
+3. Create a fine-grained token: resource owner the bot account, repository access only the fork,
+   **Contents** and **Workflows** read and write. Each branch is built on docs-website's latest
+   `develop`, so its push carries upstream commits the fork lacks, and GitHub refuses those that
+   touch `.github/workflows/` without Workflows. Actions are off in forks, so nothing runs there.
+4. Add it as the repository secret `BOT_FORK_PAT` in each agent repo, next to `BOT_PAT`, and pass
+   `fork-pat: ${{ secrets.BOT_FORK_PAT }}` to `generate` (the callers above do).
+
+`BOT_PAT` still opens and updates the PR on docs-website. A repo without `BOT_FORK_PAT` keeps its
+branches on docs-website, and an already open PR is always updated where its branch is.
+
+To edit a note: open the docs PR, follow its branch to the fork, and edit the file there (the GitHub
+web editor works) or push to the branch with git. Then run `release-notes-ready.yml`. GitHub opens
+these PRs without "allow edits by maintainers" (`BOT_PAT` has no access to the bot's fork; the live
+check showed `maintainerCanModify: false`), so the docs team suggests changes rather than pushing
+them. If GitHub ever refuses the request outright, generate retries without it and says so.
+
 ## Action inputs
 
 `append`, `check` and `generate` take `github-token` (default: the run's token), `config` (default
@@ -380,11 +411,11 @@ only once it is on the default branch.
 |---|---|
 | `append` | `bot-pat`, `bot-email`, `docs-repo` (default `newrelic/docs-website`), `pr-number` (default: the event's PR) |
 | `check` | none |
-| `generate` | `version` (required; `1.9.3` or `v1.9.3`), `overwrite`, `release-date` (`YYYY-MM-DD`, or `published` for the GitHub release's publish date; default: the tagged commit's date), `bot-pat`, `bot-email`, `docs-repo` |
+| `generate` | `version` (required; `1.9.3` or `v1.9.3`), `overwrite`, `release-date` (`YYYY-MM-DD`, or `published` for the GitHub release's publish date; default: the tagged commit's date), `bot-pat`, `bot-email`, `docs-repo`, `fork-pat` (default empty: release branches stay on docs-repo) |
 | `ready` | `version` (required; `1.9.3` or `v1.9.3`), `bot-pat` (required), `docs-repo`, `config`. No `github-token` or `dry-run`: it reads nothing but the docs PR and changes only its draft state and comments. |
 
-`bot-pat` reaches only the steps that talk to docs-website; the steps that read PR text use
-`github-token`. With `dry-run: true` nothing on docs-website changes and `bot-pat` is not needed: the
+`bot-pat` reaches only the steps that talk to docs-website, and `fork-pat` only generate's two that
+publish (or preview) the release branch; the steps that read PR text use `github-token`. With `dry-run: true` nothing on docs-website changes and `bot-pat` is not needed: the
 note (or the bullet) and the docs PR text go to the job summary. A real `generate` run never
 overwrites a release branch or file that differs from what it built unless `overwrite` is `true`.
 
