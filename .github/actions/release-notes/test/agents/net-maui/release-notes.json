@@ -1,0 +1,10 @@
+{
+  "subject": ".NET MAUI agent",
+  "docsFolder": "net-maui-release-notes",
+  "filePrefix": "net-maui-agent-",
+  "nextBranch": "net-maui-next",
+  "tagPrefix": "",
+  "skeleton": "net-maui-agent-next.mdx",
+  "downloadLink": "https://www.nuget.org/packages/NewRelic.MAUI.Plugin",
+  "changelog": "CHANGELOG.md"
+}

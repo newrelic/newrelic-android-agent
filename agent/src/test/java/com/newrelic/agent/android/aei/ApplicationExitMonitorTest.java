@@ -615,6 +615,36 @@ public class ApplicationExitMonitorTest {
     }
 
     @Test
+    public void testAnrAppStateFollowsExitImportance() throws IOException {
+        int[] foreground = {
+                ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND,
+                ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE,
+                ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING,
+                ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE};
+        int[] background = {
+                ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE,
+                ActivityManager.RunningAppProcessInfo.IMPORTANCE_CANT_SAVE_STATE,
+                ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE,
+                ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED,
+                ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE};
+
+        for (int importance : foreground) {
+            assertEquals("importance " + importance, AnalyticsAttribute.APP_EXIT_APP_STATE_FOREGROUND, anrAppState(importance));
+            assertTrue(ApplicationExitMonitor.isForegroundImportance(importance));
+        }
+        for (int importance : background) {
+            assertEquals("importance " + importance, AnalyticsAttribute.APP_EXIT_APP_STATE_BACKGROUND, anrAppState(importance));
+            assertFalse(ApplicationExitMonitor.isForegroundImportance(importance));
+        }
+    }
+
+    private Object anrAppState(int importance) throws IOException {
+        ApplicationExitInfo exitInfo = provideApplicationExitInfo(ApplicationExitInfo.REASON_ANR, importance, pidCtr.incrementAndGet());
+        return applicationExitMonitor.getEventAttributesForAEI(exitInfo, null, Objects.requireNonNull(exitInfo.getTraceInputStream()).toString())
+                .get(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE);
+    }
+
+    @Test
     public void testGetEventAttributesForNonANRAEI() throws IOException {
 
 
