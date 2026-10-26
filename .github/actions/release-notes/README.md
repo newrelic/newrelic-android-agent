@@ -397,9 +397,10 @@ One-time setup, signed in as the bot account:
 branches on docs-website, and an already open PR is always updated where its branch is.
 
 To edit a note: open the docs PR, follow its branch to the fork, and edit the file there (the GitHub
-web editor works) or push to the branch with git. Then run `release-notes-ready.yml`. If GitHub would
-not let `BOT_PAT` allow maintainer edits on a fork PR, the PR is opened without them (the run says
-so) and the docs team suggests changes instead of editing.
+web editor works) or push to the branch with git. Then run `release-notes-ready.yml`. GitHub opens
+these PRs without "allow edits by maintainers" (`BOT_PAT` has no access to the bot's fork; the live
+check showed `maintainerCanModify: false`), so the docs team suggests changes rather than pushing
+them. If GitHub ever refuses the request outright, generate retries without it and says so.
 
 ## Action inputs
 
