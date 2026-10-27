@@ -17,6 +17,7 @@ import com.newrelic.agent.android.analytics.EventManager;
 import com.newrelic.agent.android.analytics.EventManagerImpl;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
+import com.newrelic.agent.android.distributedtracing.InFlightTraces;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
 import com.newrelic.agent.android.harvest.Harvest;
@@ -357,6 +358,9 @@ public final class NewRelic {
                 isShutdown = true;
                 Agent.getImpl().stop();
             } finally {
+                // Not in AndroidAgentImpl.stop(): that also runs each time the app goes to the
+                // background, where requests still in flight must keep their trace
+                InFlightTraces.getInstance().reset();
                 Agent.setImpl(NullAgentImpl.instance);
                 started = false;
                 log.warn("Agent is shut down.");

@@ -30,6 +30,7 @@ import com.newrelic.agent.android.analytics.NetworkRequestEvent;
 import com.newrelic.agent.android.background.ApplicationStateEvent;
 import com.newrelic.agent.android.background.ApplicationStateMonitor;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
+import com.newrelic.agent.android.distributedtracing.InFlightTraces;
 import com.newrelic.agent.android.distributedtracing.TraceConfiguration;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.distributedtracing.TraceListener;
@@ -72,6 +73,7 @@ import org.robolectric.RobolectricTestRunner;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.Reference;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -324,6 +326,21 @@ public class NewRelicTest {
 
         Assert.assertFalse(NewRelic.started);
         Assert.assertTrue(NewRelic.isShutdown);
+    }
+
+    @Test
+    public void testShutdownClearsInFlightTraces() throws Exception {
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+        InFlightTraces.getInstance().reset();
+        final TraceContext traceContext = DistributedTracing.getInstance().startTrace(Providers.provideTransactionState());
+        Assert.assertNotNull("The trace should be in flight", InFlightTraces.getInstance().currentTraceAttributes());
+
+        NewRelic.started = true;
+        NewRelic.shutdown();
+
+        Assert.assertNull("A restarted agent must not inherit a trace from before the shutdown",
+                InFlightTraces.getInstance().currentTraceAttributes());
+        Reference.reachabilityFence(traceContext);
     }
 
     @Test
