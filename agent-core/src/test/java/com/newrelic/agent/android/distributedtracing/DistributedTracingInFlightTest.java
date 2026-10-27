@@ -107,4 +107,25 @@ public class DistributedTracingInFlightTest {
         Assert.assertNotNull(traceContext);
         Assert.assertNull(InFlightTraces.getInstance().currentTraceAttributes());
     }
+
+    @Test
+    public void startTraceRegistersTheRealIdsWhenTheAppListenerOverwritesTheRequestContext() {
+        DistributedTracing.setDistributedTraceListener(new TraceListener() {
+            @Override
+            public void onTraceCreated(Map<String, String> requestContext) {
+                requestContext.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, "app-provided-trace-id");
+            }
+
+            @Override
+            public void onSpanCreated(Map<String, String> requestContext) {
+                requestContext.put(DistributedTracing.NR_SPAN_ID_ATTRIBUTE, "app-provided-span-id");
+            }
+        });
+
+        final TraceContext traceContext = DistributedTracing.getInstance().startTrace(transactionState);
+
+        assertInFlight(traceContext);
+        InFlightTraces.getInstance().traceFinished(traceContext.getTraceId());
+        Assert.assertNull(InFlightTraces.getInstance().currentTraceAttributes());
+    }
 }

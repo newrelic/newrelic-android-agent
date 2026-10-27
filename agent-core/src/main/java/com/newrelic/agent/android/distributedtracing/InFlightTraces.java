@@ -16,16 +16,18 @@ import java.util.Map;
  * The distributed traces of the instrumented requests currently in flight, so a log record
  * written while one is in flight can carry its trace.id and span.id.
  * <p>
- * Registered through the {@link TraceListener} hook. {@link DistributedTracing} always notifies
- * this listener, independent of whichever listener the app registered, so replacing or
- * removing the app's listener cannot disable log correlation.
+ * Fed by {@link DistributedTracing} when a trace starts, independent of whichever
+ * {@link TraceListener} the app registered, so replacing or removing the app's listener cannot
+ * disable log correlation.
  * <p>
  * Requests can overlap and a log call has no tie to any one of them, so the most recently
- * started request still in flight is the best available answer. Entries are held weakly and the
- * list is capped, so a request that never reports back (a call that is created but never
- * executed) cannot tag every later log record.
+ * started request still in flight is the best available answer. {@link #traceFinished} (called
+ * when the transaction ends) is the primary way an entry leaves. The weak reference and the cap
+ * of {@code MAX_IN_FLIGHT_TRACES} are only a backstop for a call that is created but never
+ * completes: a finished request's trace context can stay reachable until harvest, so the weak
+ * reference alone does not release it.
  */
-public class InFlightTraces implements TraceListener {
+public class InFlightTraces {
     // Far above the number of requests genuinely in flight at once
     static final int MAX_IN_FLIGHT_TRACES = 64;
 
@@ -50,21 +52,20 @@ public class InFlightTraces implements TraceListener {
         return instance;
     }
 
-    @Override
-    public void onTraceCreated(Map<String, String> requestContext) {
-        // The span id is not in the request context yet: register in onSpanCreated
-    }
-
-    @Override
-    public void onSpanCreated(Map<String, String> requestContext) {
-        if (requestContext == null || !FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
+    /**
+     * Records a newly started trace. Takes the ids from the trace context itself, not from its
+     * request context: that map is handed to the app's TraceListener, which may overwrite trace.id.
+     * Ignored when distributed tracing is disabled.
+     */
+    void traceStarted(TraceContext traceContext) {
+        if (traceContext == null || !FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)) {
             return;
         }
 
-        // The request context lives exactly as long as its TraceContext, so it stands in as the owner
-        register(new WeakReference<Object>(requestContext),
-                requestContext.get(DistributedTracing.NR_TRACE_ID_ATTRIBUTE),
-                requestContext.get(DistributedTracing.NR_SPAN_ID_ATTRIBUTE));
+        // Held until the transaction holding the trace context goes away
+        register(new WeakReference<Object>(traceContext),
+                traceContext.getTraceId(),
+                traceContext.getTracePayload().getSpanId());
     }
 
     void register(WeakReference<Object> owner, String traceId, String spanId) {

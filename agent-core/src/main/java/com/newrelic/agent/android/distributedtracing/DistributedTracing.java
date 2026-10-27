@@ -107,7 +107,7 @@ public class DistributedTracing implements TraceFacade, TraceListener {
 
         try {
             traceContext.requestContext.put(NR_SPAN_ID_ATTRIBUTE, traceContext.tracePayload.getSpanId());
-            notifyInFlightTraces(traceContext.requestContext);
+            notifyInFlightTraces(traceContext);
             instance.traceListener.get().onSpanCreated(traceContext.requestContext);
         } catch (Exception e) {
             instance.traceListener.set(instance);
@@ -118,12 +118,12 @@ public class DistributedTracing implements TraceFacade, TraceListener {
     }
 
     /**
-     * The agent's own listener, called ahead of (and independent of) the app's, so replacing or
-     * removing the app's listener cannot disable log correlation.
+     * The agent's own tracker, called ahead of (and independent of) the app's listener, so replacing
+     * or removing the app's listener cannot disable log correlation.
      */
-    private void notifyInFlightTraces(Map<String, String> requestContext) {
+    private void notifyInFlightTraces(TraceContext traceContext) {
         try {
-            InFlightTraces.getInstance().onSpanCreated(requestContext);
+            InFlightTraces.getInstance().traceStarted(traceContext);
         } catch (Exception e) {
             log.debug("Unable to record the in-flight trace: " + e.getLocalizedMessage());
         }

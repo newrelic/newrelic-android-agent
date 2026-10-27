@@ -15,7 +15,6 @@ import org.junit.Test;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -136,52 +135,57 @@ public class InFlightTracesTest {
     }
 
     @Test
-    public void onSpanCreatedRegistersTheTraceFromTheRequestContext() {
-        final Map<String, String> requestContext = new HashMap<>();
-        requestContext.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, "trace-1");
-        requestContext.put(DistributedTracing.NR_SPAN_ID_ATTRIBUTE, "span-1");
+    public void traceStartedRegistersTheTraceContextsIds() {
+        final TraceContext traceContext = TraceContext.createTraceContext(null);
 
-        traces.onSpanCreated(requestContext);
+        traces.traceStarted(traceContext);
 
-        assertCurrent(traces.currentTraceAttributes(), "trace-1", "span-1");
-        Reference.reachabilityFence(requestContext);
+        assertCurrent(traces.currentTraceAttributes(), traceContext.getTraceId(), traceContext.getTracePayload().getSpanId());
+        Reference.reachabilityFence(traceContext);
     }
 
     @Test
-    public void onSpanCreatedIgnoresARequestContextWithoutBothIds() {
-        final Map<String, String> missingSpan = new HashMap<>();
-        missingSpan.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, "trace-1");
-        traces.onSpanCreated(missingSpan);
+    public void traceStartedIgnoresAnIdTheAppWroteIntoTheRequestContext() {
+        final TraceContext traceContext = TraceContext.createTraceContext(null);
+        traceContext.getRequestContext().put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, "app-trace-id");
+        traceContext.getRequestContext().put(DistributedTracing.NR_SPAN_ID_ATTRIBUTE, "app-span-id");
 
-        final Map<String, String> missingTrace = new HashMap<>();
-        missingTrace.put(DistributedTracing.NR_SPAN_ID_ATTRIBUTE, "span-1");
-        traces.onSpanCreated(missingTrace);
+        traces.traceStarted(traceContext);
 
-        traces.onSpanCreated(null);
-
-        Assert.assertNull(traces.currentTraceAttributes());
+        assertCurrent(traces.currentTraceAttributes(), traceContext.getTraceId(), traceContext.getTracePayload().getSpanId());
+        Reference.reachabilityFence(traceContext);
     }
 
     @Test
-    public void onSpanCreatedIgnoredWhenDistributedTracingIsDisabled() {
+    public void traceStartedIgnoresNull() {
+        traces.traceStarted(null);
+
+        Assert.assertEquals(0, traces.size());
+    }
+
+    @Test
+    public void traceStartedIgnoredWhenDistributedTracingIsDisabled() {
+        final TraceContext traceContext = TraceContext.createTraceContext(null);
         FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
 
-        final Map<String, String> requestContext = new HashMap<>();
-        requestContext.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, "trace-1");
-        requestContext.put(DistributedTracing.NR_SPAN_ID_ATTRIBUTE, "span-1");
-        traces.onSpanCreated(requestContext);
+        traces.traceStarted(traceContext);
 
         Assert.assertEquals(0, traces.size());
-        Reference.reachabilityFence(requestContext);
+        Reference.reachabilityFence(traceContext);
     }
 
     @Test
-    public void onTraceCreatedDoesNothing() {
-        final Map<String, String> requestContext = new HashMap<>();
-        requestContext.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, "trace-1");
+    public void traceStartedHoldsTheTraceContextWeakly() {
+        final TraceContext live = TraceContext.createTraceContext(null);
+        traces.traceStarted(live);
 
-        traces.onTraceCreated(requestContext);
+        // Same shape as an abandoned call: a registration whose owner has been released
+        final WeakReference<Object> released = new WeakReference<>(new Object());
+        released.clear();
+        traces.register(released, "trace-2", "span-2");
 
-        Assert.assertEquals(0, traces.size());
+        assertCurrent(traces.currentTraceAttributes(), live.getTraceId(), live.getTracePayload().getSpanId());
+        Assert.assertEquals(1, traces.size());
+        Reference.reachabilityFence(live);
     }
 }
