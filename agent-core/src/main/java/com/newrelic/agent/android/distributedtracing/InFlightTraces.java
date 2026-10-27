@@ -8,6 +8,7 @@ package com.newrelic.agent.android.distributedtracing;
 import com.newrelic.agent.android.FeatureFlag;
 
 import java.lang.ref.WeakReference;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -37,11 +38,18 @@ public class InFlightTraces {
         final WeakReference<Object> owner;
         final String traceId;
         final String spanId;
+        // Built once per request, not once per log record; immutable, so safe to hand to any thread
+        final Map<String, String> attributes;
 
         Entry(WeakReference<Object> owner, String traceId, String spanId) {
             this.owner = owner;
             this.traceId = traceId;
             this.spanId = spanId;
+
+            final Map<String, String> ids = new HashMap<>(4);
+            ids.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, traceId);
+            ids.put(DistributedTracing.NR_SPAN_ID_ATTRIBUTE, spanId);
+            this.attributes = Collections.unmodifiableMap(ids);
         }
     }
 
@@ -96,22 +104,15 @@ public class InFlightTraces {
     }
 
     /**
-     * @return trace.id and span.id of the most recently started request still in flight,
-     * or null when none is
+     * @return trace.id and span.id of the most recently started request still in flight, as an
+     * unmodifiable map shared by every call for that request, or null when none is
      */
     public Map<String, String> currentTraceAttributes() {
         synchronized (this) {
             pruneReleased();
 
             final Entry newest = traces.peekLast();
-            if (newest == null) {
-                return null;
-            }
-
-            final Map<String, String> attributes = new HashMap<>(4);
-            attributes.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, newest.traceId);
-            attributes.put(DistributedTracing.NR_SPAN_ID_ATTRIBUTE, newest.spanId);
-            return attributes;
+            return (newest == null) ? null : newest.attributes;
         }
     }
 

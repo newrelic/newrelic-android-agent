@@ -157,6 +157,39 @@ public class InFlightTracesTest {
     }
 
     @Test
+    public void currentTraceAttributesAreSharedAcrossCallsForTheSameTrace() {
+        start("trace-1", "span-1");
+
+        Assert.assertSame("The map is built once per trace, not once per log record",
+                traces.currentTraceAttributes(), traces.currentTraceAttributes());
+    }
+
+    @Test
+    public void currentTraceAttributesCannotBeModified() {
+        start("trace-1", "span-1");
+
+        try {
+            traces.currentTraceAttributes().put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, "overwritten");
+            Assert.fail("The shared map must be unmodifiable");
+        } catch (UnsupportedOperationException expected) {
+            // a caller cannot corrupt the attributes handed to every other log record
+        }
+
+        assertCurrent(traces.currentTraceAttributes(), "trace-1", "span-1");
+    }
+
+    @Test
+    public void resetClearsEveryTraceInFlight() {
+        start("trace-1", "span-1");
+        start("trace-2", "span-2");
+
+        traces.reset();
+
+        Assert.assertEquals(0, traces.size());
+        Assert.assertNull(traces.currentTraceAttributes());
+    }
+
+    @Test
     public void traceStartedIgnoresNull() {
         traces.traceStarted(null);
 
