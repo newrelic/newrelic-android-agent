@@ -107,12 +107,25 @@ public class DistributedTracing implements TraceFacade, TraceListener {
 
         try {
             traceContext.requestContext.put(NR_SPAN_ID_ATTRIBUTE, traceContext.tracePayload.getSpanId());
+            notifyInFlightTraces(traceContext.requestContext);
             instance.traceListener.get().onSpanCreated(traceContext.requestContext);
         } catch (Exception e) {
             instance.traceListener.set(instance);
             log.error("The provided listener has thrown an exception and has been removed: "
                     + e.getLocalizedMessage());
             AgentDataController.sendAgentData(e, new HashMap<String, Object>());
+        }
+    }
+
+    /**
+     * The agent's own listener, called ahead of (and independent of) the app's, so replacing or
+     * removing the app's listener cannot disable log correlation.
+     */
+    private void notifyInFlightTraces(Map<String, String> requestContext) {
+        try {
+            InFlightTraces.getInstance().onSpanCreated(requestContext);
+        } catch (Exception e) {
+            log.debug("Unable to record the in-flight trace: " + e.getLocalizedMessage());
         }
     }
 
