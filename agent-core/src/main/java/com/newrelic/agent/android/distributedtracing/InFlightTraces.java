@@ -62,7 +62,7 @@ public class InFlightTraces {
             return;
         }
 
-        // Held until the transaction holding the trace context goes away
+        // Held weakly: released once the trace context is unreachable, or earlier by traceFinished
         register(new WeakReference<Object>(traceContext),
                 traceContext.getTraceId(),
                 traceContext.getTracePayload().getSpanId());

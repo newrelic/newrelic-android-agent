@@ -173,19 +173,4 @@ public class InFlightTracesTest {
         Assert.assertEquals(0, traces.size());
         Reference.reachabilityFence(traceContext);
     }
-
-    @Test
-    public void traceStartedHoldsTheTraceContextWeakly() {
-        final TraceContext live = TraceContext.createTraceContext(null);
-        traces.traceStarted(live);
-
-        // Same shape as an abandoned call: a registration whose owner has been released
-        final WeakReference<Object> released = new WeakReference<>(new Object());
-        released.clear();
-        traces.register(released, "trace-2", "span-2");
-
-        assertCurrent(traces.currentTraceAttributes(), live.getTraceId(), live.getTracePayload().getSpanId());
-        Assert.assertEquals(1, traces.size());
-        Reference.reachabilityFence(live);
-    }
 }

@@ -55,6 +55,7 @@ public class DistributedTracingInFlightTest {
     @Test
     public void startTraceRegistersTheTraceAndStillNotifiesAnAppListener() {
         final List<String> callbacks = new ArrayList<>();
+        final boolean[] registeredBeforeSpanCallback = {false};
         DistributedTracing.setDistributedTraceListener(new TraceListener() {
             @Override
             public void onTraceCreated(Map<String, String> requestContext) {
@@ -63,6 +64,7 @@ public class DistributedTracingInFlightTest {
 
             @Override
             public void onSpanCreated(Map<String, String> requestContext) {
+                registeredBeforeSpanCallback[0] = (InFlightTraces.getInstance().currentTraceAttributes() != null);
                 callbacks.add("span:" + requestContext.get(DistributedTracing.NR_SPAN_ID_ATTRIBUTE));
             }
         });
@@ -73,6 +75,7 @@ public class DistributedTracingInFlightTest {
         Assert.assertEquals(2, callbacks.size());
         Assert.assertEquals("trace:" + traceContext.getTraceId(), callbacks.get(0));
         Assert.assertEquals("span:" + traceContext.getTracePayload().getSpanId(), callbacks.get(1));
+        Assert.assertTrue("registered before the app's onSpanCreated", registeredBeforeSpanCallback[0]);
     }
 
     @Test
@@ -89,6 +92,26 @@ public class DistributedTracingInFlightTest {
             }
         };
         DistributedTracing.setDistributedTraceListener(throwingListener);
+
+        final TraceContext traceContext = DistributedTracing.getInstance().startTrace(transactionState);
+
+        assertInFlight(traceContext);
+        Assert.assertSame("The throwing listener is removed, as before",
+                DistributedTracing.getInstance(), DistributedTracing.instance.traceListener.get());
+    }
+
+    @Test
+    public void startTraceRegistersTheTraceWhenTheAppListenerThrowsInOnSpanCreated() {
+        DistributedTracing.setDistributedTraceListener(new TraceListener() {
+            @Override
+            public void onTraceCreated(Map<String, String> requestContext) {
+            }
+
+            @Override
+            public void onSpanCreated(Map<String, String> requestContext) {
+                throw new IllegalStateException("onSpanCreated");
+            }
+        });
 
         final TraceContext traceContext = DistributedTracing.getInstance().startTrace(transactionState);
 
