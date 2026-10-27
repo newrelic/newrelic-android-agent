@@ -11,6 +11,7 @@ import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.api.common.WanType;
 import com.newrelic.agent.android.api.v1.Defaults;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
+import com.newrelic.agent.android.distributedtracing.InFlightTraces;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
@@ -214,6 +215,11 @@ public class TransactionState {
             state = State.COMPLETE;
             endTime = System.currentTimeMillis();
             TraceMachine.exitMethod();
+
+            // The request is no longer in flight: log records written from here on don't carry its trace
+            if (trace != null) {
+                InFlightTraces.getInstance().traceFinished(trace.getTraceId());
+            }
         }
         return toTransactionData();
     }
