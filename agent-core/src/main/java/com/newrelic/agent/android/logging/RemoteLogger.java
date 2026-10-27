@@ -7,6 +7,9 @@ package com.newrelic.agent.android.logging;
 
 
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.distributedtracing.DistributedTracing;
+import com.newrelic.agent.android.distributedtracing.InFlightTraces;
 import com.newrelic.agent.android.harvest.HarvestLifecycleAware;
 import com.newrelic.agent.android.util.NamedThreadFactory;
 
@@ -104,6 +107,12 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
             return; // what's the point?
         }
 
+        // Read on the calling thread: by the time the executor runs the callable, the request this
+        // record was written during may have finished.
+        final Map<String, String> traceAttributes = FeatureFlag.featureEnabled(FeatureFlag.DistributedTracing)
+                ? InFlightTraces.getInstance().currentTraceAttributes()
+                : null;
+
         final LogReporter logReporter = LogReporter.getInstance();
 
         Callable<Boolean> callable = () -> {
@@ -134,6 +143,12 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                 // entity.guid and every session attribute onto every line.
                 logDataMap.put(LogReporting.LOG_SESSION_ID, AgentConfiguration.getInstance().getSessionID());
 
+                // Record-level, like the session id. Added to the record itself rather than to the
+                // caller's "attributes", which can't override them.
+                if (traceAttributes != null) {
+                    logDataMap.putAll(traceAttributes);
+                }
+
                 // translate a passed message to attributes
                 if (message != null) {
                     logDataMap.put(LogReporting.LOG_MESSAGE_ATTRIBUTE, message);
@@ -156,7 +171,8 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
                      * Length of attribute value: 4,094 characters are stored in NRDB as a Log event field
                      **/
 
-                    logDataMap.put(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE, attributes);
+                    logDataMap.put(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE,
+                            (traceAttributes != null) ? withoutTraceAttributes(attributes) : attributes);
                 }
 
                 if (null == logReporter) {
@@ -192,6 +208,22 @@ public class RemoteLogger implements HarvestLifecycleAware, Logger {
         synchronized (executor) {
             executor.submit(callable);
         }
+    }
+
+    /**
+     * The agent's trace.id and span.id are the only ones on the record, so drop any the caller
+     * passed. Works on a copy: the caller's map is never modified.
+     */
+    private static Map<String, Object> withoutTraceAttributes(Map<String, Object> attributes) {
+        if (!attributes.containsKey(DistributedTracing.NR_TRACE_ID_ATTRIBUTE)
+                && !attributes.containsKey(DistributedTracing.NR_SPAN_ID_ATTRIBUTE)) {
+            return attributes;
+        }
+
+        final Map<String, Object> copy = new HashMap<>(attributes);
+        copy.remove(DistributedTracing.NR_TRACE_ID_ATTRIBUTE);
+        copy.remove(DistributedTracing.NR_SPAN_ID_ATTRIBUTE);
+        return copy;
     }
 
     @Override

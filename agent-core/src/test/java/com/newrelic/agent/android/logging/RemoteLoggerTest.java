@@ -18,7 +18,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
 import com.newrelic.agent.android.FeatureFlag;
+import com.newrelic.agent.android.distributedtracing.DistributedTracing;
+import com.newrelic.agent.android.distributedtracing.InFlightTraces;
+import com.newrelic.agent.android.distributedtracing.TraceContext;
+import com.newrelic.agent.android.instrumentation.TransactionState;
 import com.newrelic.agent.android.stats.TicToc;
+import com.newrelic.agent.android.test.mock.Providers;
 import com.newrelic.agent.android.util.Constants;
 import com.newrelic.agent.android.util.Streams;
 
@@ -63,6 +68,8 @@ public class RemoteLoggerTest extends LoggingTests {
 
     @After
     public void tearDown() throws Exception {
+        InFlightTraces.getInstance().reset();
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
         logReporter.shutdown();
         FeatureFlag.disableFeature(FeatureFlag.LogReporting);
         Streams.list(LogReporter.logDataStore).forEach(file -> file.delete());
@@ -210,6 +217,136 @@ public class RemoteLoggerTest extends LoggingTests {
         Assert.assertTrue(attributes.has("deviceModel"));
         Assert.assertTrue(attributes.has("deviceModel"));
         Assert.assertTrue(attributes.has("deviceManufacturer"));
+    }
+
+    private JsonObject firstLogRecord(JsonArray jsonArray) {
+        return jsonArray.get(0).getAsJsonObject()
+                .get(LOG_PAYLOAD_LOGS_ATTRIBUTE).getAsJsonArray()
+                .get(0).getAsJsonObject();
+    }
+
+    @Test
+    public void recordIsStampedWithTheTraceWhileARequestIsInFlight() throws Exception {
+        final TransactionState transactionState = Providers.provideTransactionState();
+        final TraceContext traceContext = DistributedTracing.getInstance().startTrace(transactionState);
+        transactionState.setTrace(traceContext);
+
+        logger.appendToWorkingLogfile(LogLevel.INFO, "in flight: " + getRandomMsg(12), null, null);
+        logger.flush();
+
+        final JsonObject record = firstLogRecord(verifyWorkingLogfile(2));
+        Assert.assertEquals(traceContext.getTraceId(), record.get(DistributedTracing.NR_TRACE_ID_ATTRIBUTE).getAsString());
+        Assert.assertEquals(traceContext.getTracePayload().getSpanId(), record.get(DistributedTracing.NR_SPAN_ID_ATTRIBUTE).getAsString());
+        Assert.assertFalse("Record-level fields, not nested attributes", record.has(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE));
+
+        transactionState.end();
+    }
+
+    @Test
+    public void recordIsNotStampedWhenNoRequestIsInFlight() throws Exception {
+        logger.appendToWorkingLogfile(LogLevel.INFO, "no request: " + getRandomMsg(12), null, null);
+        logger.flush();
+
+        final JsonObject record = firstLogRecord(verifyWorkingLogfile(2));
+        Assert.assertFalse(record.has(DistributedTracing.NR_TRACE_ID_ATTRIBUTE));
+        Assert.assertFalse(record.has(DistributedTracing.NR_SPAN_ID_ATTRIBUTE));
+    }
+
+    @Test
+    public void recordIsNotStampedOnceTheRequestHasFinished() throws Exception {
+        final TransactionState transactionState = Providers.provideTransactionState();
+        transactionState.setTrace(DistributedTracing.getInstance().startTrace(transactionState));
+        transactionState.end();
+
+        logger.appendToWorkingLogfile(LogLevel.INFO, "finished: " + getRandomMsg(12), null, null);
+        logger.flush();
+
+        final JsonObject record = firstLogRecord(verifyWorkingLogfile(2));
+        Assert.assertFalse(record.has(DistributedTracing.NR_TRACE_ID_ATTRIBUTE));
+        Assert.assertFalse(record.has(DistributedTracing.NR_SPAN_ID_ATTRIBUTE));
+    }
+
+    @Test
+    public void recordIsNotStampedWhenDistributedTracingIsDisabled() throws Exception {
+        final TransactionState transactionState = Providers.provideTransactionState();
+        // Held by the transaction until end(), so the trace is registered and can't be collected:
+        // only the feature flag keeps this record unstamped
+        transactionState.setTrace(DistributedTracing.getInstance().startTrace(transactionState));
+        Assert.assertNotNull(InFlightTraces.getInstance().currentTraceAttributes());
+        FeatureFlag.disableFeature(FeatureFlag.DistributedTracing);
+
+        logger.appendToWorkingLogfile(LogLevel.INFO, "tracing off: " + getRandomMsg(12), null, null);
+        logger.flush();
+
+        final JsonObject record = firstLogRecord(verifyWorkingLogfile(2));
+        Assert.assertFalse(record.has(DistributedTracing.NR_TRACE_ID_ATTRIBUTE));
+        Assert.assertFalse(record.has(DistributedTracing.NR_SPAN_ID_ATTRIBUTE));
+
+        transactionState.end();
+    }
+
+    @Test
+    public void traceIsReadOnTheCallingThread() throws Exception {
+        final TransactionState transactionState = Providers.provideTransactionState();
+        final TraceContext traceContext = DistributedTracing.getInstance().startTrace(transactionState);
+        transactionState.setTrace(traceContext);
+
+        // The executor may run the record after the request has finished
+        logger.appendToWorkingLogfile(LogLevel.INFO, "calling thread: " + getRandomMsg(12), null, null);
+        transactionState.end();
+        logger.flush();
+
+        final JsonObject record = firstLogRecord(verifyWorkingLogfile(2));
+        Assert.assertEquals(traceContext.getTraceId(), record.get(DistributedTracing.NR_TRACE_ID_ATTRIBUTE).getAsString());
+    }
+
+    @Test
+    public void callerSuppliedTraceAttributesDoNotOverrideTheAgentsValues() throws Exception {
+        final TransactionState transactionState = Providers.provideTransactionState();
+        final TraceContext traceContext = DistributedTracing.getInstance().startTrace(transactionState);
+        transactionState.setTrace(traceContext);
+
+        final HashMap<String, Object> attrs = new HashMap<>();
+        attrs.put("level", "INFO");
+        attrs.put("message", "caller attrs: " + getRandomMsg(12));
+        attrs.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, "caller-trace-id");
+        attrs.put(DistributedTracing.NR_SPAN_ID_ATTRIBUTE, "caller-span-id");
+        attrs.put("custom", "kept");
+
+        logger.logAttributes(attrs);
+        logger.flush();
+
+        final JsonObject record = firstLogRecord(verifyWorkingLogfile(2));
+        Assert.assertEquals(traceContext.getTraceId(), record.get(DistributedTracing.NR_TRACE_ID_ATTRIBUTE).getAsString());
+        Assert.assertEquals(traceContext.getTracePayload().getSpanId(), record.get(DistributedTracing.NR_SPAN_ID_ATTRIBUTE).getAsString());
+
+        final JsonObject recordAttributes = record.get(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE).getAsJsonObject();
+        Assert.assertFalse(recordAttributes.has(DistributedTracing.NR_TRACE_ID_ATTRIBUTE));
+        Assert.assertFalse(recordAttributes.has(DistributedTracing.NR_SPAN_ID_ATTRIBUTE));
+        Assert.assertEquals("kept", recordAttributes.get("custom").getAsString());
+
+        Assert.assertEquals("The caller's map is not modified", "caller-trace-id", attrs.get(DistributedTracing.NR_TRACE_ID_ATTRIBUTE));
+        Assert.assertEquals("The caller's map is not modified", "caller-span-id", attrs.get(DistributedTracing.NR_SPAN_ID_ATTRIBUTE));
+
+        transactionState.end();
+    }
+
+    @Test
+    public void callerSuppliedTraceAttributesAreLeftAloneWhenNoRequestIsInFlight() throws Exception {
+        final HashMap<String, Object> attrs = new HashMap<>();
+        attrs.put("level", "INFO");
+        attrs.put("message", "caller only: " + getRandomMsg(12));
+        attrs.put(DistributedTracing.NR_TRACE_ID_ATTRIBUTE, "caller-trace-id");
+        attrs.put(DistributedTracing.NR_SPAN_ID_ATTRIBUTE, "caller-span-id");
+
+        logger.logAttributes(attrs);
+        logger.flush();
+
+        final JsonObject record = firstLogRecord(verifyWorkingLogfile(2));
+        Assert.assertFalse(record.has(DistributedTracing.NR_TRACE_ID_ATTRIBUTE));
+        final JsonObject recordAttributes = record.get(LogReporting.LOG_ATTRIBUTES_ATTRIBUTE).getAsJsonObject();
+        Assert.assertEquals("caller-trace-id", recordAttributes.get(DistributedTracing.NR_TRACE_ID_ATTRIBUTE).getAsString());
+        Assert.assertEquals("caller-span-id", recordAttributes.get(DistributedTracing.NR_SPAN_ID_ATTRIBUTE).getAsString());
     }
 
     // @Test  FIXME flakey test
