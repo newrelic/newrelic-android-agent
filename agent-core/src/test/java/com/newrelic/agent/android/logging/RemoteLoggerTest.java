@@ -40,6 +40,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class RemoteLoggerTest extends LoggingTests {
 
@@ -256,6 +258,7 @@ public class RemoteLoggerTest extends LoggingTests {
     public void recordIsNotStampedOnceTheRequestHasFinished() throws Exception {
         final TransactionState transactionState = Providers.provideTransactionState();
         transactionState.setTrace(DistributedTracing.getInstance().startTrace(transactionState));
+        Assert.assertNotNull("The trace should be in flight before the request ends", InFlightTraces.getInstance().currentTraceAttributes());
         transactionState.end();
 
         logger.appendToWorkingLogfile(LogLevel.INFO, "finished: " + getRandomMsg(12), null, null);
@@ -291,13 +294,32 @@ public class RemoteLoggerTest extends LoggingTests {
         final TraceContext traceContext = DistributedTracing.getInstance().startTrace(transactionState);
         transactionState.setTrace(traceContext);
 
-        // The executor may run the record after the request has finished
-        logger.appendToWorkingLogfile(LogLevel.INFO, "calling thread: " + getRandomMsg(12), null, null);
-        transactionState.end();
+        // Occupy every executor thread, so the record can't be built until the request has finished
+        final int threads = logger.executor.getCorePoolSize();
+        final CountDownLatch gated = new CountDownLatch(threads);
+        final CountDownLatch release = new CountDownLatch(1);
+        for (int i = 0; i < threads; i++) {
+            logger.executor.submit(() -> {
+                gated.countDown();
+                release.await();
+                return null;
+            });
+        }
+
+        try {
+            Assert.assertTrue("Executor threads should be occupied", gated.await(5, TimeUnit.SECONDS));
+
+            logger.appendToWorkingLogfile(LogLevel.INFO, "calling thread: " + getRandomMsg(12), null, null);
+            transactionState.end();
+            Assert.assertNull("The request has finished", InFlightTraces.getInstance().currentTraceAttributes());
+        } finally {
+            release.countDown();
+        }
         logger.flush();
 
         final JsonObject record = firstLogRecord(verifyWorkingLogfile(2));
         Assert.assertEquals(traceContext.getTraceId(), record.get(DistributedTracing.NR_TRACE_ID_ATTRIBUTE).getAsString());
+        Assert.assertEquals(traceContext.getTracePayload().getSpanId(), record.get(DistributedTracing.NR_SPAN_ID_ATTRIBUTE).getAsString());
     }
 
     @Test
