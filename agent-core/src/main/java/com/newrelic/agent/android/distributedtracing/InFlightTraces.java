@@ -41,7 +41,7 @@ public class InFlightTraces {
         // Built once per request, not once per log record; immutable, so safe to hand to any thread
         final Map<String, String> attributes;
 
-        Entry(WeakReference<Object> owner, String traceId, String spanId) {
+        Entry(WeakReference<TraceContext> owner, String traceId, String spanId) {
             this.owner = owner;
             this.traceId = traceId;
             this.spanId = spanId;
@@ -71,12 +71,12 @@ public class InFlightTraces {
         }
 
         // Held weakly: released once the trace context is unreachable, or earlier by traceFinished
-        register(new WeakReference<Object>(traceContext),
+        register(new WeakReference<>(traceContext),
                 traceContext.getTraceId(),
                 traceContext.getTracePayload().getSpanId());
     }
 
-    void register(WeakReference<Object> owner, String traceId, String spanId) {
+    void register(WeakReference<TraceContext> owner, String traceId, String spanId) {
         if (owner == null || isEmpty(traceId) || isEmpty(spanId)) {
             return;
         }

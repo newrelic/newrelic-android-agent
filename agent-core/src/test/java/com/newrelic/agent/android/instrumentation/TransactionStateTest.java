@@ -29,6 +29,12 @@ public class TransactionStateTest {
         transactionState = Providers.provideTransactionState();
     }
 
+    @After
+    public void tearDown() {
+        InFlightTraces.getInstance().reset();
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+    }
+
     @Test
     public void isSent() throws Exception {
         Assert.assertFalse(transactionState.isSent());
@@ -88,12 +94,6 @@ public class TransactionStateTest {
         Assert.assertNull(transactionState.getTrace());
         transactionState.end();
         transactionState.end();
-    }
-
-    @After
-    public void tearDown() {
-        InFlightTraces.getInstance().reset();
-        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
     }
 
     @Test

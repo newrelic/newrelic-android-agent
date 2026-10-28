@@ -23,7 +23,7 @@ public class InFlightTracesTest {
     private final InFlightTraces traces = InFlightTraces.getInstance();
 
     // Owners are held weakly by the tracker, so keep them reachable for the length of each test
-    private final List<Object> owners = new ArrayList<>();
+    private final List<TraceContext> owners = new ArrayList<>();
 
     @Before
     public void setUp() {
@@ -126,7 +126,8 @@ public class InFlightTracesTest {
     public void releasedOwnersAreNotCurrent() {
         start("trace-1", "span-1");
 
-        final WeakReference<Object> released = new WeakReference<>(new Object());
+        final TraceContext traceContext = TraceContext.createTraceContext(null);
+        final WeakReference<TraceContext> released = new WeakReference<>(traceContext);
         released.clear();
         traces.register(released, "trace-2", "span-2");
 
