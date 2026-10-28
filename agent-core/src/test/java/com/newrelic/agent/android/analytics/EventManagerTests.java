@@ -573,6 +573,84 @@ public class EventManagerTests implements EventListener {
         }
     }
 
+    @Test
+    public void testEventManagerInitUsesAsyncStoreHooks() {
+        final List<AnalyticsEvent> asyncEvents = new ArrayList<AnalyticsEvent>();
+        asyncEvents.add(new AnalyticsEvent("async-event-1"));
+        asyncEvents.add(new AnalyticsEvent("async-event-2"));
+
+        final boolean[] syncFetchCalled = {false};
+        final boolean[] asyncFetchCalled = {false};
+        final boolean[] syncClearCalled = {false};
+        final boolean[] asyncClearCalled = {false};
+
+        AnalyticsEventStore asyncStore = new AnalyticsEventStore() {
+            @Override
+            public boolean store(AnalyticsEvent event) {
+                return true;
+            }
+
+            @Override
+            public List<AnalyticsEvent> fetchAll() {
+                syncFetchCalled[0] = true;
+                return asyncEvents;
+            }
+
+            @Override
+            public void fetchAll(LoadCallback callback) {
+                asyncFetchCalled[0] = true;
+                callback.onLoaded(asyncEvents);
+            }
+
+            @Override
+            public int count() {
+                return asyncEvents.size();
+            }
+
+            @Override
+            public void clear() {
+                syncClearCalled[0] = true;
+            }
+
+            @Override
+            public void clearAsync() {
+                asyncClearCalled[0] = true;
+            }
+
+            @Override
+            public void delete(AnalyticsEvent event) {
+            }
+
+            @Override
+            public String getRootPath() {
+                return "";
+            }
+        };
+
+        AgentConfiguration cfg = new AgentConfiguration();
+        cfg.setEnableAnalyticsEvents(true);
+        cfg.setEventStore(asyncStore);
+        cfg.setAnalyticsAttributeStore(new StubAnalyticsAttributeStore());
+
+        EventManagerImpl localManager = new EventManagerImpl();
+        FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
+        localManager.initialize(cfg);
+
+        Assert.assertTrue("initialize() should invoke fetchAll(LoadCallback)", asyncFetchCalled[0]);
+        Assert.assertFalse("initialize() must not invoke synchronous fetchAll() directly", syncFetchCalled[0]);
+        Assert.assertEquals(2, localManager.getQueuedEvents().size());
+
+        FeatureFlag.disableFeature(FeatureFlag.EventPersistence);
+        try {
+            localManager.initialize(cfg);
+            Assert.assertTrue("initialize() should invoke clearAsync() when EventPersistence is disabled", asyncClearCalled[0]);
+            Assert.assertFalse("initialize() must not invoke synchronous clear() directly", syncClearCalled[0]);
+        } finally {
+            FeatureFlag.enableFeature(FeatureFlag.EventPersistence);
+            localManager.shutdown();
+        }
+    }
+
     @Override
     public boolean onEventAdded(AnalyticsEvent eventToBeAdded) {
         return true;
