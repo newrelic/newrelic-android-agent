@@ -1,5 +1,6 @@
 package com.newrelic.agent.android.webView
 
+import android.content.Context
 import android.os.Build
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -12,6 +13,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -28,7 +30,31 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+
+/**
+ * Models the host-app pattern that made the agent's wrapper recurse forever: a WebView subclass
+ * that installs its own internal client with `super.setWebViewClient` and overrides the public
+ * setter to merely store the caller's client, which its internal client then forwards to.
+ */
+private class SwallowingWebView(context: Context) : WebView(context) {
+    var swallowed: WebViewClient? = null
+
+    override fun setWebViewClient(client: WebViewClient) {
+        swallowed = client
+    }
+}
+
+/** Overrides the setter but still reaches the framework, so the client is genuinely installed. */
+private class ForwardingWebView(context: Context) : WebView(context) {
+    var setterCalls = 0
+
+    override fun setWebViewClient(client: WebViewClient) {
+        setterCalls++
+        super.setWebViewClient(client)
+    }
+}
 
 @RunWith(RobolectricTestRunner::class)
 class WebViewInstrumentationCallbacksTest {
@@ -255,5 +281,67 @@ class WebViewInstrumentationCallbacksTest {
         assertTrue("Stale tracked state must not suppress the fallback path",
                 StatsEngine.SUPPORTABILITY.statsMap
                         .containsKey(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED))
+    }
+
+    @Test
+    fun loadUrlCalled_doesNotInstallWrapperThroughASwallowingSetter() {
+        val swallowing = SwallowingWebView(RuntimeEnvironment.getApplication())
+
+        WebViewInstrumentationCallbacks.loadUrlCalled(swallowing)
+
+        // The override stores whatever it is given in the host app's own forwarding field, replacing
+        // the app's client with a wrapper around the app's *internal* client: an endless
+        // onPageStarted -> wrapper -> internal client -> wrapper cycle, and the app's client lost.
+        // There is no way to undo that afterwards, so the install must never be attempted.
+        assertNull("Agent must not push a wrapper through an overridden setter", swallowing.swallowed)
+    }
+
+    @Test
+    fun loadUrlCalled_onSwallowingSetter_stillFallsBackToBytecodePageFinished() {
+        val swallowing = SwallowingWebView(RuntimeEnvironment.getApplication())
+        WebViewInstrumentationCallbacks.loadUrlCalled(swallowing)
+        StatsEngine.SUPPORTABILITY.statsMap.clear()
+
+        WebViewInstrumentationCallbacks.onPageFinishedCalled(
+                mock(WebViewClient::class.java), swallowing, "https://example.com")
+
+        // No wrapper was installed, so the instrumented onPageFinished override has to report the
+        // page load itself or detection is lost for this WebView altogether.
+        assertTrue(StatsEngine.SUPPORTABILITY.statsMap
+                .containsKey(MetricNames.SUPPORTABILITY_MOBILE_ANDROID_WEBVIEW_PAGE_FINISHED))
+    }
+
+    @Test
+    fun loadUrlCalled_skipsInstallWhenSetterIsOverriddenEvenIfItCallsSuper() {
+        val forwarding = ForwardingWebView(RuntimeEnvironment.getApplication())
+
+        WebViewInstrumentationCallbacks.loadUrlCalled(forwarding)
+
+        // Conservative on purpose: whether an override forwards to super cannot be known from the
+        // outside, and guessing wrong clobbers the host app's client.
+        assertEquals(0, forwarding.setterCalls)
+    }
+
+    @Test
+    fun loadUrlCalled_stillInstallsOnAPlainWebView() {
+        val plain = WebView(RuntimeEnvironment.getApplication())
+
+        WebViewInstrumentationCallbacks.loadUrlCalled(plain)
+
+        assertTrue("A plain WebView has no override to worry about",
+                plain.getWebViewClient() is NRWebViewClient)
+    }
+
+    @Test
+    fun setWebViewClientCalled_stillWrapsForAnOverridingSubclass() {
+        val swallowing = SwallowingWebView(RuntimeEnvironment.getApplication())
+        val customer = mock(WebViewClient::class.java)
+
+        val result = WebViewInstrumentationCallbacks.setWebViewClientCalled(swallowing, customer)
+
+        // Here the wrapped client is the one the host app handed us, not its own internal client,
+        // so wrapping is still safe and keeps page-finished reporting working.
+        assertTrue(result is NRWebViewClient)
+        assertSame(customer, (result as NRWebViewClient).delegate)
     }
 }
