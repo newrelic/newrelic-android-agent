@@ -64,24 +64,12 @@ public class EventManagerImpl implements EventManager, EventListener {
     @Override
     public void initialize(AgentConfiguration agentConfiguration) {
         eventStore = agentConfiguration.getEventStore();
-        List<AnalyticsEvent> storedEvents = new ArrayList<AnalyticsEvent>();
-        if (eventStore != null) {
-            if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence)) {
-                storedEvents = eventStore.fetchAll();
-            } else {
-                // Persistence is off: don't resurrect old events, and drop orphans so they aren't re-sent every launch
-                eventStore.clear();
-            }
-        }
 
         if (!initialized.compareAndSet(false, true)) {
             eventsRecorded.set(0);
             eventsEvicted.set(0);
             log.verbose("EventManagerImpl.initialize(): Has already been initialized. Bypassing...");
-            //retrieve all the events from pref
-            for (AnalyticsEvent event : storedEvents) {
-                addEvent(event);
-            }
+            loadOrClearStoredEvents();
             return;
         }
 
@@ -90,12 +78,31 @@ public class EventManagerImpl implements EventManager, EventListener {
         eventsEvicted.set(0);
         empty();
 
-        //retrieve all the events from pref
-        for (AnalyticsEvent event : storedEvents) {
-            addEvent(event);
-        }
+        loadOrClearStoredEvents();
 
         listener.get().onStart(this);
+    }
+
+    private void loadOrClearStoredEvents() {
+        if (eventStore == null) {
+            return;
+        }
+        if (FeatureFlag.featureEnabled(FeatureFlag.EventPersistence)) {
+            eventStore.fetchAll(new AnalyticsEventStore.LoadCallback() {
+                @Override
+                public void onLoaded(List<AnalyticsEvent> storedEvents) {
+                    if (storedEvents == null) {
+                        return;
+                    }
+                    for (AnalyticsEvent event : storedEvents) {
+                        addEvent(event);
+                    }
+                }
+            });
+        } else {
+            // Persistence is off: don't resurrect old events, and drop orphans so they aren't re-sent every launch
+            eventStore.clearAsync();
+        }
     }
 
     @Override
