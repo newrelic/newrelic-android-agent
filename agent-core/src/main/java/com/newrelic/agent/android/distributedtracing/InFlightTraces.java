@@ -35,7 +35,7 @@ public class InFlightTraces {
     private static final InFlightTraces instance = new InFlightTraces();
 
     private static final class Entry {
-        final WeakReference<Object> owner;
+        final WeakReference<TraceContext> owner;
         final String traceId;
         final String spanId;
         // Built once per request, not once per log record; immutable, so safe to hand to any thread
