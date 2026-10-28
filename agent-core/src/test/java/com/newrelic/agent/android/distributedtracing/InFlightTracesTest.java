@@ -38,9 +38,9 @@ public class InFlightTracesTest {
     }
 
     private void start(String traceId, String spanId) {
-        final Object owner = new Object();
+        final TraceContext owner = TraceContext.createTraceContext(null);
         owners.add(owner);
-        traces.register(new WeakReference<>(owner), traceId, spanId);
+        traces.register(new WeakReference<TraceContext>(owner), traceId, spanId);
     }
 
     private static void assertCurrent(Map<String, String> attributes, String traceId, String spanId) {
