@@ -2,18 +2,29 @@
 
 Shared automation that writes docs-website release notes, in the
 [release-notes template](https://github.com/newrelic/docs-website/blob/develop/templates/release-notes-template.mdx)
-format, for the Android agent and the hybrid agents (React Native, Cordova, Capacitor, Flutter,
-Unity, .NET MAUI). A person edits every note before it is published.
+format, for the Android and iOS agents and the hybrid agents (React Native, Cordova, Capacitor,
+Flutter, Unity, .NET MAUI). A person edits every note before it is published.
+
+Every note has the template's layout: the frontmatter `subject`, `releaseDate`, `version`, the
+`features`, `enhancements`, `bugs` and `security` lists, then `downloadLink` (no `category:`), and a
+`### New features`, `### Improvements and enhancements`, `### Bug fixes` or `### Security updates`
+heading for each section that has bullets. Each frontmatter list item is the bullet's summary: the
+whole bullet when it is 200 characters or fewer, else its first sentence, else the text before its
+first colon, else the first 200 characters cut at a word with an ellipsis. Summaries are worked out
+again from the bullet text every time a note is built, so editing a bullet on the next draft is
+enough.
 
 - **`append`**, on every merged PR: builds the PR's bullet and adds it to the agent's `<agent>-next`
   branch on `newrelic/docs-website`, behind a draft "next release notes" PR that is never merged.
 - **`generate`**, on every release: reconciles the accumulated bullets, every PR between the previous
   release tag and the new one, and (optionally) the version's `CHANGELOG.md` entries, writes the
-  release `.mdx`, opens it as a draft docs-website PR, and removes the released bullets from the next
-  branch. With `fork-pat`, the release branch lives on the bot's fork of docs-website, so people
-  without write access to docs-website can edit the note (see "Editing a release note on the fork").
+  release `.mdx`, opens it as a draft docs-website PR (ready for review with `readyForReview`), and
+  removes the released bullets from the next branch. With `fork-pat`, the release branch lives on
+  the bot's fork of docs-website, so people without write access to docs-website can edit the note
+  (see "Editing a release note on the fork").
 - **`check`**, on every open PR: comments with the section and the bullet the PR will become, and
-  fails when a user-facing PR does not carry exactly one `release-note:*` label.
+  fails when a user-facing PR does not carry exactly one `release-note:*` label. With
+  `labelledOnly`, a PR with no label passes, and the comment says it is left out.
 - **`ready`**, run by hand once a person has checked a release's note: marks its draft docs-website
   PR ready for review and comments with who checked it. It runs as the bot that opened the PR, so it
   works for people without write access to docs-website.
@@ -27,7 +38,10 @@ nothing in this folder names an agent.
    PR description, or a `Release note: ...` line, is used as written. Otherwise the title is used with
    its Conventional Commit type and Jira key removed and the leading verb put in the past tense
    (`fix: guard against null filename (NR-1)` becomes "Guarded against null filename."). `N/A` in
-   the section means "use the title".
+   the section means "use the title". A paragraph of two or more lines that all start with `- ` or
+   `* ` is a list: each line becomes its own bullet, all in the PR's one section and all linking the
+   PR (the native-agent bumps write one line per updated agent). A single `- ` line, or prose mixed
+   with list lines, is one bullet.
 2. **Section:** the PR's `release-note:*` label:
 
    | Label | Section |
@@ -38,10 +52,14 @@ nothing in this folder names an agent.
    | `release-note:security` | Security updates |
 
    With no label (or more than one) the section is guessed from the title type, the PR gets a bot
-   comment, and the docs PR lists it under "Bullets that need extra attention".
+   comment, and the docs PR lists it under "Bullets that need extra attention". With
+   `labelledOnly`, a PR with no label is left out instead (see 3); one with several is still included
+   and flagged.
 3. **Left out:** PRs with `[skip-docs]` in the description; release, back-port, revert and
    `main`/`develop` sync PRs; and, unless labelled, `docs`, `test`, `ci`, `chore`, `build` and
-   `style` PRs and Dependabot PRs. Every PR in a release that gets no bullet is listed in the docs PR.
+   `style` PRs and Dependabot PRs. With `labelledOnly`, also every PR with no `release-note:*`
+   label: a label added after the merge still counts, because `generate` reads each PR's labels
+   again at release time. Every PR in a release that gets no bullet is listed in the docs PR.
 
 ## Adopting it in an agent repo
 
@@ -95,9 +113,15 @@ nothing in this folder names an agent.
 | `downloadLink` | no | `https://` template. `{version}` is `1.9.3`, `{tag}` is the tag (`v1.9.3`), `{npmPackage}` is `name` in `package.json` at the tag. Left out: no `downloadLink:` line. |
 | `changelog` | no | CHANGELOG to reconcile against. Left out: none is read. |
 | `fallbackText` | no | Bullet used when a release has no bullets at all. Default `Updated version.` |
+| `prLinks` | no | `true` or `false`. Default `true`: each bullet ends with its PR link, `([#123](…))`. `false` leaves the links out of the published note only; the next draft and the docs PR text keep them. |
+| `labelledOnly` | no | `true` or `false`. Default `false`. `true`: only PRs with a `release-note:*` label become bullets (for repos whose release and sync PRs the skip rules don't recognise); `check` passes unlabelled PRs and says they are left out. |
+| `readyForReview` | no | `true` or `false`. Default `false`: `generate` opens the docs PR as a draft, for `ready` to mark later. `true` opens it ready for review, and its text says why. A PR that is already open keeps its state. |
 
 `config.sh` validates all of this first in every action, and in the `check` action on every PR, and
 names the field at fault.
+
+iOS (plain `7.7.11` tags, unlabelled release and sync PRs, notes without PR links) adds
+`"tagPrefix": ""`, `"labelledOnly": true` and `"prLinks": false`.
 
 The CHANGELOG parser takes the version's section from a heading of any level whose text starts with
 the version (`# 7.1.12`, `## 1.6.13`, `### 1.3.2`, `## v1.9.2 (date)`, `## [1.3.2] - date`) to the
@@ -112,12 +136,11 @@ continue it.
 subject: React Native agent
 releaseDate: 'YYYY-MM-DD'
 version: next
-downloadLink: 'https://www.npmjs.com/package/newrelic-react-native-agent/v/X.Y.Z'
-category:
 features: []
 enhancements: []
 bugs: []
 security: []
+downloadLink: 'https://www.npmjs.com/package/newrelic-react-native-agent/v/X.Y.Z'
 ---
 
 {/* release-note:feature */}
@@ -134,6 +157,10 @@ security: []
 
 {/* release-note:end */}
 ```
+
+The skeleton only starts the next draft. Its frontmatter values and `##` headings are placeholders:
+the release note always gets the layout described at the top, whatever an older skeleton has (a
+`category:` line, another key order).
 
 ### Callers
 
@@ -276,7 +303,7 @@ and the release workflow's old docs job becomes:
     secrets: inherit
 ```
 
-**A person publishes the release** (Android, Flutter, .NET MAUI). The `release: published` event
+**A person publishes the release** (Android, iOS, Flutter, .NET MAUI). The `release: published` event
 fires, so the caller listens for it, and `release-date: published` dates the note from the publish
 date, also when the workflow is run by hand:
 
@@ -415,9 +442,14 @@ them. If GitHub ever refuses the request outright, generate retries without it a
 | `ready` | `version` (required; `1.9.3` or `v1.9.3`), `bot-pat` (required), `docs-repo`, `config`. No `github-token` or `dry-run`: it reads nothing but the docs PR and changes only its draft state and comments. |
 
 `bot-pat` reaches only the steps that talk to docs-website, and `fork-pat` only generate's two that
-publish (or preview) the release branch; the steps that read PR text use `github-token`. With `dry-run: true` nothing on docs-website changes and `bot-pat` is not needed: the
-note (or the bullet) and the docs PR text go to the job summary. A real `generate` run never
-overwrites a release branch or file that differs from what it built unless `overwrite` is `true`.
+publish (or preview) the release branch; the steps that read PR text use `github-token`. With
+`dry-run: true` nothing on docs-website changes and `bot-pat` is not needed: the note (or the bullet)
+and the docs PR text go to the job summary. A real `generate` run never overwrites a release branch
+or file that differs from what it built unless `overwrite` is `true`.
+
+`generate` writes the note in the template layout described at the top, whatever the skeleton's
+frontmatter or headings. `prLinks`, `labelledOnly` and `readyForReview` come from the config, not
+from inputs, so one setting covers every caller.
 
 ## Trying it out
 
