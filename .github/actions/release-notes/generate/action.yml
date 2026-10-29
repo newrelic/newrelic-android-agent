@@ -1,0 +1,280 @@
+name: Release notes - generate
+description: >-
+  Build one release's notes from the bullets accumulated on docs-website, every PR merged since the
+  previous release tag and (optionally) the version's CHANGELOG entries; open them as a draft
+  docs-website PR for a person to edit, and remove the released bullets from the next branch.
+inputs:
+  version:
+    description: The release, bare (1.9.3) or as its tag (v1.9.3). The tag must exist.
+    required: true
+  overwrite:
+    description: "true: replace an existing release-notes branch or file for this version (discards edits on it)."
+    required: false
+    default: "false"
+  release-date:
+    description: >-
+      The note's releaseDate: YYYY-MM-DD, or "published" for the publish date of the tag's GitHub
+      release (agents whose releases a person publishes). Defaults to the date of the tagged commit,
+      which is also used when "published" finds no published release.
+    required: false
+    default: ""
+  bot-pat:
+    description: Token with contents and pull-requests write access to docs-repo. Not needed for a dry run.
+    required: false
+    default: ""
+  bot-email:
+    description: Email for the bot's commits on docs-repo. Not needed for a dry run.
+    required: false
+    default: ""
+  docs-repo:
+    description: The docs repository, owner/name. Point it at a fork to test.
+    required: false
+    default: newrelic/docs-website
+  fork-pat:
+    description: >-
+      Token owned by the account whose fork of docs-repo should hold release branches (Contents and
+      Workflows write on the fork). Empty: branches go to docs-repo.
+    required: false
+    default: ""
+  github-token:
+    description: Token that lists the release's PRs (contents write, for releases/generate-notes) and reads them.
+    required: false
+    default: ${{ github.token }}
+  config:
+    description: Path of the release-notes config in the agent repository.
+    required: false
+    default: .github/release-notes.json
+  dry-run:
+    description: "true: build the note and PR text into the job summary; change nothing on docs-repo."
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Load the release-notes config
+      id: config
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+      run: |
+        set -euo pipefail
+        "$GITHUB_ACTION_PATH/../scripts/config.sh" "$CONFIG" | tee -a "$GITHUB_OUTPUT"
+
+    - name: Check the inputs
+      shell: bash
+      env:
+        DRY_RUN: ${{ inputs.dry-run }}
+        OVERWRITE: ${{ inputs.overwrite }}
+        HAS_BOT_PAT: ${{ inputs.bot-pat != '' }}
+        HAS_BOT_EMAIL: ${{ inputs.bot-email != '' }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+      run: |
+        set -euo pipefail
+        case "$DRY_RUN" in true | false) ;; *) echo "::error::dry-run must be true or false, not '$DRY_RUN'"; exit 1 ;; esac
+        case "$OVERWRITE" in true | false) ;; *) echo "::error::overwrite must be true or false, not '$OVERWRITE'"; exit 1 ;; esac
+        [[ $DOCS_REPO =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "::error::docs-repo must be owner/name, not '$DOCS_REPO'"; exit 1; }
+        if [ "$DRY_RUN" = false ]; then
+          missing=""
+          [ "$HAS_BOT_PAT" = true ] || missing="$missing bot-pat"
+          [ "$HAS_BOT_EMAIL" = true ] || missing="$missing bot-email"
+          [ -z "$missing" ] || { echo "::error::Missing inputs:$missing (pass secrets.BOT_PAT and secrets.BOT_EMAIL)"; exit 1; }
+        fi
+
+    - name: Resolve the release
+      id: release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        VERSION: ${{ inputs.version }}
+        RELEASE_DATE: ${{ inputs.release-date }}
+        TAG_PREFIX: ${{ steps.config.outputs.tag_prefix }}
+        SKELETON: ${{ steps.config.outputs.skeleton }}
+        CHANGELOG: ${{ steps.config.outputs.changelog }}
+      run: |
+        set -euo pipefail
+        S="$GITHUB_ACTION_PATH/../scripts"
+        work="$RUNNER_TEMP/release-notes"
+        rm -rf "$work"; mkdir -p "$work/out"
+        "$S/ensure-history.sh"
+        if [ "$RELEASE_DATE" = published ]; then
+          RELEASE_DATE=$("$S/published-date.sh" --prefix "$TAG_PREFIX" --version "$VERSION")
+          [ -n "$RELEASE_DATE" ] || echo "::notice::No published GitHub release for $VERSION; dating the note from its tag."
+        fi
+        args=(--prefix "$TAG_PREFIX" --version "$VERSION" --skeleton "$SKELETON" --out "$work")
+        [ -z "$CHANGELOG" ] || args+=(--changelog "$CHANGELOG")
+        [ -z "$RELEASE_DATE" ] || args+=(--date "$RELEASE_DATE")
+        "$S/resolve-release.sh" "${args[@]}" | tee -a "$GITHUB_OUTPUT"
+
+    # Read with github-token: docs-website is public, and bot-pat stays out of every step that
+    # handles PR text.
+    - name: Read the accumulated bullets
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+        DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        NEXT_BRANCH: ${{ steps.config.outputs.next_branch }}
+        SKELETON: ${{ steps.config.outputs.skeleton }}
+        SKELETON_NAME: ${{ steps.config.outputs.skeleton_name }}
+      run: |
+        set -euo pipefail
+        next="$RUNNER_TEMP/release-notes/accumulated.mdx"
+        # Only "no such branch" (exit 2) means start from the skeleton; any other failure must stop
+        # the run, not silently drop the accumulated bullets.
+        rc=0
+        git ls-remote --exit-code --heads "https://github.com/$DOCS_REPO.git" "$NEXT_BRANCH" > /dev/null 2>&1 || rc=$?
+        case "$rc" in
+          0) gh api -H 'Accept: application/vnd.github.raw+json' "repos/$DOCS_REPO/contents/$DOCS_DIR/$SKELETON_NAME?ref=$NEXT_BRANCH" > "$next" ;;
+          2) cp "$SKELETON" "$next"; echo "No $NEXT_BRANCH branch on $DOCS_REPO; starting from $SKELETON." ;;
+          *) echo "::error::Could not check for $NEXT_BRANCH on $DOCS_REPO (git ls-remote exit $rc)"; exit 1 ;;
+        esac
+
+    - name: Build the release note
+      id: build
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        SUBJECT: ${{ steps.config.outputs.subject }}
+        FILE_PREFIX: ${{ steps.config.outputs.file_prefix }}
+        DOWNLOAD_LINK: ${{ steps.config.outputs.download_link }}
+        FALLBACK_TEXT: ${{ steps.config.outputs.fallback_text }}
+        CHANGELOG: ${{ steps.config.outputs.changelog }}
+        VERSION: ${{ steps.release.outputs.version }}
+        TAG: ${{ steps.release.outputs.tag }}
+        PREV_TAG: ${{ steps.release.outputs.prev_tag }}
+        DATE: ${{ steps.release.outputs.date }}
+        SLUG: ${{ steps.release.outputs.slug }}
+      run: |
+        set -euo pipefail
+        S="$GITHUB_ACTION_PATH/../scripts"
+        work="$RUNNER_TEMP/release-notes"
+        file="$FILE_PREFIX$SLUG.mdx"
+        args=(--subject "$SUBJECT" --version "$VERSION" --tag "$TAG" --prev-tag "$PREV_TAG" --date "$DATE"
+          --next "$work/accumulated.mdx" --out "$work/out/$file" --work "$work"
+          --tail-file "$work/tail.mdx" --fallback-text "$FALLBACK_TEXT")
+        [ -z "$CHANGELOG" ] || args+=(--changelog "$work/CHANGELOG.md")
+        if [ -n "$DOWNLOAD_LINK" ]; then
+          args+=(--download-link "$("$S/download-link.sh" "$DOWNLOAD_LINK" "$VERSION" "$TAG" "$work/package.json")")
+        fi
+        "$S/build-release.sh" "${args[@]}"
+        echo "file=$file" >> "$GITHUB_OUTPUT"
+        cat "$work/out/$file"
+
+    - name: Show the note in the job summary
+      shell: bash
+      env:
+        DRY_RUN: ${{ inputs.dry-run }}
+        FILE: ${{ steps.build.outputs.file }}
+      run: |
+        set -euo pipefail
+        work="$RUNNER_TEMP/release-notes"
+        {
+          echo "### Release notes: $FILE"
+          [ "$DRY_RUN" = false ] || { echo; echo "Dry run: nothing was changed on the docs repository."; }
+          echo
+          echo '````mdx'
+          cat "$work/out/$FILE"
+          echo '````'
+          echo
+          echo "### Docs PR description"
+          echo
+          cat "$work/pr-body.md"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Report what a real run would find (dry run)
+      if: inputs.dry-run == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        FORK_PAT: ${{ inputs.fork-pat }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+        DOCS_BASE: ${{ steps.config.outputs.docs_base }}
+        DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        SUBJECT: ${{ steps.config.outputs.subject }}
+        VERSION: ${{ steps.release.outputs.version }}
+        FILE: ${{ steps.build.outputs.file }}
+        BRANCH: ${{ steps.config.outputs.release_branch_prefix }}${{ steps.release.outputs.dashed }}
+      run: |
+        set -euo pipefail
+        work="$RUNNER_TEMP/release-notes"
+        "$GITHUB_ACTION_PATH/../scripts/publish-release-branch.sh" --dry-run --docs-repo "$DOCS_REPO" \
+          --docs-base "$DOCS_BASE" --docs-dir "$DOCS_DIR" --file "$FILE" --source "$work/out/$FILE" \
+          --branch "$BRANCH" --subject "$SUBJECT" --version "$VERSION" --body-file "$work/pr-body.md"
+
+    # Where the branch goes, and why a person's edits are never overwritten: see
+    # publish-release-branch.sh. bot-pat opens the PR; fork-pat, when set, holds the branch on the fork.
+    - name: Open or update the docs PR
+      if: inputs.dry-run != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.bot-pat }}
+        BOT_PAT: ${{ inputs.bot-pat }}
+        FORK_PAT: ${{ inputs.fork-pat }}
+        BOT_EMAIL: ${{ inputs.bot-email }}
+        OVERWRITE: ${{ inputs.overwrite }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+        DOCS_BASE: ${{ steps.config.outputs.docs_base }}
+        DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        SUBJECT: ${{ steps.config.outputs.subject }}
+        VERSION: ${{ steps.release.outputs.version }}
+        FILE: ${{ steps.build.outputs.file }}
+        BRANCH: ${{ steps.config.outputs.release_branch_prefix }}${{ steps.release.outputs.dashed }}
+      run: |
+        set -euo pipefail
+        work="$RUNNER_TEMP/release-notes"
+        gh auth setup-git
+        args=(--docs-repo "$DOCS_REPO" --docs-base "$DOCS_BASE" --docs-dir "$DOCS_DIR" --file "$FILE"
+          --source "$work/out/$FILE" --branch "$BRANCH" --subject "$SUBJECT" --version "$VERSION"
+          --body-file "$work/pr-body.md")
+        [ "$OVERWRITE" != true ] || args+=(--overwrite)
+        "$GITHUB_ACTION_PATH/../scripts/publish-release-branch.sh" "${args[@]}"
+
+    - name: Remove the released bullets from the next branch
+      if: inputs.dry-run != 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.bot-pat }}
+        BOT_EMAIL: ${{ inputs.bot-email }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+        DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
+        NEXT_BRANCH: ${{ steps.config.outputs.next_branch }}
+        SKELETON_NAME: ${{ steps.config.outputs.skeleton_name }}
+        SUBJECT: ${{ steps.config.outputs.subject }}
+        VERSION: ${{ steps.release.outputs.version }}
+      run: |
+        set -euo pipefail
+        S="$GITHUB_ACTION_PATH/../scripts"
+        work="$RUNNER_TEMP/release-notes"
+        rc=0
+        git ls-remote --exit-code --heads "https://github.com/$DOCS_REPO.git" "$NEXT_BRANCH" > /dev/null 2>&1 || rc=$?
+        case "$rc" in
+          0) ;;
+          2) echo "No $NEXT_BRANCH branch; nothing to prune."; exit 0 ;;
+          *) echo "::error::Could not check for $NEXT_BRANCH on $DOCS_REPO (git ls-remote exit $rc)"; exit 1 ;;
+        esac
+        gh repo clone "$DOCS_REPO" "$work/next" -- --depth 50 --branch "$NEXT_BRANCH"
+        file="$DOCS_DIR/$SKELETON_NAME"
+        # Bullets for PRs outside this release (merged after the tag) stay for the next one.
+        # shellcheck disable=SC2046 # one PR number per line
+        "$S/filter-bullets.sh" "$work/next/$file" drop $(cat "$work/release-prs.txt") > "$work/leftover.mdx"
+        cd "$work/next"
+        draft=$(gh pr list --repo "$DOCS_REPO" --head "$NEXT_BRANCH" --state open --json number --jq '.[0].number // empty')
+        if [ "$(grep -c '^\* ' "$work/leftover.mdx" || true)" = 0 ]; then
+          if [ -n "$draft" ]; then
+            gh pr close "$draft" --repo "$DOCS_REPO" --delete-branch \
+              --comment "$SUBJECT $VERSION was released; its notes moved to a release PR. The next merged PR recreates this branch."
+          else
+            git push origin --delete "$NEXT_BRANCH"
+          fi
+          exit 0
+        fi
+        cp "$work/leftover.mdx" "$file"
+        git config user.name newrelic-mobile-agent-bot
+        git config user.email "$BOT_EMAIL"
+        git add "$file"
+        if git diff --staged --quiet; then
+          echo "Nothing to prune: none of this release's bullets were on $NEXT_BRANCH."
+          exit 0
+        fi
+        git commit -q -m "chore: drop the $SUBJECT $VERSION bullets from the next release notes"
+        "$S/push-with-retry.sh" "$NEXT_BRANCH"

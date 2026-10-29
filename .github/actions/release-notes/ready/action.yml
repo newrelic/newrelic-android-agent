@@ -1,0 +1,49 @@
+name: Release notes - ready
+description: >-
+  Mark a release's docs-website PR, which generate opens as a draft, ready for review once a person
+  has checked the note, and comment on it with who did. Runs as the bot that opened the PR, so it
+  works for people without write access to docs-website.
+inputs:
+  version:
+    description: The release whose note was checked, bare (1.9.3) or as its tag (v1.9.3).
+    required: true
+  bot-pat:
+    description: The token generate opens the docs PR with (pull-requests write access to docs-repo).
+    required: true
+  docs-repo:
+    description: The docs repository, owner/name. Point it at a fork to test.
+    required: false
+    default: newrelic/docs-website
+  config:
+    description: Path of the release-notes config in the agent repository.
+    required: false
+    default: .github/release-notes.json
+
+runs:
+  using: composite
+  steps:
+    - name: Load the release-notes config
+      id: config
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+      run: |
+        set -euo pipefail
+        "$GITHUB_ACTION_PATH/../scripts/config.sh" "$CONFIG" | tee -a "$GITHUB_OUTPUT"
+
+    - name: Mark the docs PR ready for review
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.bot-pat }}
+        DOCS_REPO: ${{ inputs.docs-repo }}
+        VERSION: ${{ inputs.version }}
+        TAG_PREFIX: ${{ steps.config.outputs.tag_prefix }}
+        BRANCH_PREFIX: ${{ steps.config.outputs.release_branch_prefix }}
+        ACTOR: ${{ github.actor }}
+      run: |
+        set -euo pipefail
+        [ -n "$GH_TOKEN" ] || { echo "::error::Missing input bot-pat (pass secrets.BOT_PAT)"; exit 1; }
+        result=$("$GITHUB_ACTION_PATH/../scripts/mark-ready.sh" --repo "$DOCS_REPO" --branch-prefix "$BRANCH_PREFIX" \
+          --prefix "$TAG_PREFIX" --version "$VERSION" --actor "$ACTOR")
+        echo "$result"
+        echo "$result" >> "$GITHUB_STEP_SUMMARY"

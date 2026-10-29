@@ -1,0 +1,11 @@
+{
+  "subject": "Unity agent",
+  "docsFolder": "unity-release-notes",
+  "filePrefix": "unity-agent-",
+  "nextBranch": "unity-next",
+  "tagPrefix": "v",
+  "skeleton": "unity-agent-next.mdx",
+  "downloadLink": "https://github.com/newrelic/newrelic-unity-agent/releases/tag/{tag}",
+  "changelog": "CHANGELOG.md",
+  "fallbackText": "Updated native agent dependencies."
+}

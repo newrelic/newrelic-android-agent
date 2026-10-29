@@ -11,6 +11,10 @@ import java.util.List;
 
 public interface AnalyticsEventStore extends PayloadStore<AnalyticsEvent> {
 
+    interface LoadCallback {
+        void onLoaded(List<AnalyticsEvent> events);
+    }
+
     /**
      * Store an event
      *
@@ -27,6 +31,18 @@ public interface AnalyticsEventStore extends PayloadStore<AnalyticsEvent> {
     List<AnalyticsEvent> fetchAll();
 
     /**
+     * Load all stored events and deliver them to {@code callback}. Implementations backed by
+     * disk I/O should run the read on a background executor so startup does not block the
+     * calling (often main) thread; in-memory implementations may invoke {@code callback}
+     * synchronously.
+     */
+    default void fetchAll(LoadCallback callback) {
+        if (callback != null) {
+            callback.onLoaded(fetchAll());
+        }
+    }
+
+    /**
      * Returns the count of stored persistent events
      *
      * @return the count of stored persistent events
@@ -37,6 +53,14 @@ public interface AnalyticsEventStore extends PayloadStore<AnalyticsEvent> {
      * Clears all stored persistent events
      */
     public void clear();
+
+    /**
+     * Clears all stored persistent events without blocking the calling thread on disk I/O.
+     * Stores that perform I/O synchronously or in-memory can delegate to {@link #clear()}.
+     */
+    default void clearAsync() {
+        clear();
+    }
 
     /**
      * Delete a specific stored persistent event
