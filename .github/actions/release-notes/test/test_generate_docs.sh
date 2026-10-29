@@ -176,4 +176,31 @@ last2=$(tail -c2 "$o" | od -An -tx1 | tr -d ' \n')
 assert_eq "with an empty tail the output still ends with one newline" yes "$r"
 g --next "$n" "${ok_args[@]}" --tail-file "$tmp/missing.txt" --out "$o"; assert_eq "a missing --tail-file exits 2" 2 "$?"
 
+# ---- --pr-links false: only the trailing PR link of each body bullet goes ----
+{
+  printf '%s\n' '{/* release-note:feature */}' "* Added offline storage. ([#3]($u/3)) {/* short: Added offline storage */}"
+  printf '%s\n' "* Reverted [#5]($u/5) because it broke startup. ([#6]($u/6)) {/* short: Reverted 5 */} {/* flag: unlabelled */}"
+  printf '%s\n' "* See [#7]($u/7) for the details." '* Hand written bullet with no link.'
+  printf '%s\n' '{/* release-note:end */}'
+} > "$tmp/links.mdx"
+links_before=$(cat "$tmp/links.mdx")
+g --next "$tmp/links.mdx" "${ok_args[@]}" --pr-links false --out "$o" --flags-out "$fl"; rc=$?
+out=$(cat "$o")
+assert_eq "--pr-links false: exits 0" 0 "$rc"
+assert_not_contains "--pr-links false: no trailing PR link in the body" "$out" "))
+"
+assert_contains "--pr-links false: the bullet text stays" "$out" "- Added offline storage.
+"
+assert_contains "--pr-links false: a link inside the sentence stays" "$out" "- Reverted [#5]($u/5) because it broke startup.
+"
+assert_contains "--pr-links false: a bullet ending in a mid-text link stays" "$out" "- See [#7]($u/7) for the details."
+assert_contains "--pr-links false: a hand-written bullet is unchanged" "$out" "- Hand written bullet with no link."
+assert_eq "--pr-links false: --next is not modified" "$links_before" "$(cat "$tmp/links.mdx")"
+assert_eq "--pr-links false: flags still name the PR" "#6 unlabelled" "$(cat "$fl")"
+g --next "$tmp/links.mdx" "${ok_args[@]}" --pr-links true --out "$o"
+assert_contains "--pr-links true keeps the link" "$(cat "$o")" "- Added offline storage. ([#3]($u/3))"
+g --next "$tmp/links.mdx" "${ok_args[@]}" --out "$o"
+assert_contains "without --pr-links the link is kept" "$(cat "$o")" "- Added offline storage. ([#3]($u/3))"
+g --next "$tmp/links.mdx" "${ok_args[@]}" --pr-links no --out "$o"; assert_eq "--pr-links other than true or false exits 2" 2 "$?"
+
 finish

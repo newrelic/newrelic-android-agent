@@ -139,6 +139,7 @@ runs:
         DOWNLOAD_LINK: ${{ steps.config.outputs.download_link }}
         FALLBACK_TEXT: ${{ steps.config.outputs.fallback_text }}
         CHANGELOG: ${{ steps.config.outputs.changelog }}
+        PR_LINKS: ${{ steps.config.outputs.pr_links }}
         VERSION: ${{ steps.release.outputs.version }}
         TAG: ${{ steps.release.outputs.tag }}
         PREV_TAG: ${{ steps.release.outputs.prev_tag }}
@@ -151,7 +152,7 @@ runs:
         file="$FILE_PREFIX$SLUG.mdx"
         args=(--subject "$SUBJECT" --version "$VERSION" --tag "$TAG" --prev-tag "$PREV_TAG" --date "$DATE"
           --next "$work/accumulated.mdx" --out "$work/out/$file" --work "$work"
-          --tail-file "$work/tail.mdx" --fallback-text "$FALLBACK_TEXT")
+          --tail-file "$work/tail.mdx" --fallback-text "$FALLBACK_TEXT" --pr-links "$PR_LINKS")
         [ -z "$CHANGELOG" ] || args+=(--changelog "$work/CHANGELOG.md")
         if [ -n "$DOWNLOAD_LINK" ]; then
           args+=(--download-link "$("$S/download-link.sh" "$DOWNLOAD_LINK" "$VERSION" "$TAG" "$work/package.json")")

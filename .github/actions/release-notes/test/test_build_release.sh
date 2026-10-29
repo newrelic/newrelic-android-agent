@@ -47,6 +47,17 @@ assert_contains "CHANGELOG additions are listed" "$body" "- (enhancement) Update
 assert_not_contains "no ticket numbers in the PR text" "$body" "NR-"
 assert_contains "the log warns about the missing bullet" "$log" "::warning::Could not build a bullet for PR #14"
 
+# --pr-links false changes the note only: the PR text and the pruned PR list stay the same.
+cp "$work/pr-body.md" "$tmp/body-with-links.md"; cp "$work/release-prs.txt" "$tmp/prs-with-links.txt"
+build --changelog "$tmp/CHANGELOG.md" --tail-file "$tmp/tail.mdx" \
+  --download-link https://www.npmjs.com/package/newrelic-react-native-agent/v/1.9.3 --pr-links false > /dev/null; rc=$?
+assert_eq "--pr-links false: a release builds" 0 "$rc"
+assert_not_contains "--pr-links false: no PR link in the note" "$(cat "$out")" "/pull/"
+assert_contains "--pr-links false: the bullets stay" "$(cat "$out")" "- Added offline storage.
+"
+assert_eq "--pr-links false: the PR text is unchanged" "$(cat "$tmp/body-with-links.md")" "$(cat "$work/pr-body.md")"
+assert_eq "--pr-links false: release-prs.txt is unchanged" "$(cat "$tmp/prs-with-links.txt")" "$(cat "$work/release-prs.txt")"
+
 # Android: no CHANGELOG, no download-link placeholder, the Support statement tail.
 cp "$SKELETON" "$next"; rm -f "$out"
 fake_notes 12

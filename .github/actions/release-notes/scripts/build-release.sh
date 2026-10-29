@@ -4,8 +4,9 @@
 # entries, then write the release .mdx and the text of the docs-website PR.
 # Usage: build-release.sh --subject S --version V --tag T --prev-tag P --date D --next FILE
 #                         --out FILE --work DIR [--tail-file FILE] [--changelog FILE]
-#                         [--download-link URL] [--fallback-text TEXT]
+#                         [--download-link URL] [--fallback-text TEXT] [--pr-links true|false]
 #   --next  the accumulated next-release file (or the skeleton when there is none); not modified
+#   --pr-links  passed to generate-docs.sh (default true); false changes the note only
 #   --work  an existing directory for intermediate files. On success it holds:
 #             pr-body.md       the docs-website PR description
 #             release-prs.txt  the release's PR numbers, one per line (pruned from the next branch)
@@ -20,14 +21,14 @@ dir=$(cd "$(dirname "$0")" && pwd)
 . "$dir/lib.sh"
 
 subject="" version="" tag="" prev_tag="" date="" next="" out="" work="" tail_file="" changelog="" link=""
-fallback="Updated version."
+fallback="Updated version." pr_links=true
 while [ "$#" -gt 0 ]; do
   [ "$#" -ge 2 ] || { echo "$1 needs a value" >&2; exit 2; }
   case "$1" in
     --subject) subject=$2 ;; --version) version=$2 ;; --tag) tag=$2 ;; --prev-tag) prev_tag=$2 ;;
     --date) date=$2 ;; --next) next=$2 ;; --out) out=$2 ;; --work) work=$2 ;;
     --tail-file) tail_file=$2 ;; --changelog) changelog=$2 ;; --download-link) link=$2 ;;
-    --fallback-text) fallback=$2 ;;
+    --fallback-text) fallback=$2 ;; --pr-links) pr_links=$2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
   shift 2
@@ -93,7 +94,7 @@ fi
 
 generate() {
   "$dir/generate-docs.sh" --next "$src" --subject "$subject" --version "$version" --date "$date" \
-    --out "$out" --flags-out "$work/flags.txt" \
+    --out "$out" --flags-out "$work/flags.txt" --pr-links "$pr_links" \
     ${link:+--download-link "$link"} ${tail_file:+--tail-file "$tail_file"}
 }
 used_fallback=0 rc=0
