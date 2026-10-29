@@ -9,11 +9,13 @@ assert_eq "mdx_escape keeps inline code verbatim" 'Call `List<String>` and &lt;b
 assert_eq "mdx_escape escapes everything when backticks are unbalanced" 'a ` &lt;b&gt;' "$(mdx_escape 'a ` <b>')"
 assert_eq "mdx_escape leaves plain text alone" 'Fixed a crash.' "$(mdx_escape 'Fixed a crash.')"
 
-assert_eq "plain_short strips markup and asterisks" 'Fixed crash in Foo /' "$(plain_short 'Fixed `crash` in <Foo> */')"
-case "$(plain_short 'a **// b')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
-assert_eq "plain_short cannot splice a new */ together" ok "$r"
-case "$(plain_short '*{}/ x')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
-assert_eq "plain_short cannot splice */ across removed braces" ok "$r"
+assert_eq "note_summary strips markup and asterisks" 'Fixed crash in Foo /' "$(note_summary 'Fixed `crash` in <Foo> */')"
+case "$(note_summary 'a **// b')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
+assert_eq "note_summary cannot splice a new */ together" ok "$r"
+case "$(note_summary '*{}/ x')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
+assert_eq "note_summary cannot splice */ across removed braces" ok "$r"
+case "$(note_summary 'a `**/` b')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
+assert_eq "note_summary drops stars inside code spans too (its output goes in a comment)" ok "$r"
 assert_eq "yaml_quote doubles single quotes" "'it''s fine'" "$(yaml_quote "it's fine")"
 
 assert_eq "section_from_title fix" bug "$(section_from_title 'fix: crash on start')"
@@ -176,6 +178,27 @@ body=${cut%"$ELL"}
 [ "${#body}" -le 200 ] && r=ok || r="too long (${#body})"
 assert_eq "note_summary: the word cut keeps at most 200 bytes before the ellipsis" ok "$r"
 assert_eq "note_summary: the word cut ends on a whole word" "word" "${body##* }"
+eg="Fixed a build failure in apps that link the agent through a framework target, e.g. React Native apps built with use_frameworks! and static linkage, where the dSYM upload ran too early. The upload$(filler 10) now waits."
+assert_eq "note_summary: e.g. before a capital letter does not end a sentence" \
+  "Fixed a build failure in apps that link the agent through a framework target, e.g. React Native apps built with use_frameworks! and static linkage, where the dSYM upload ran too early" "$(note_summary "$eg")"
+assert_contains "note_summary: i.e. and a single-letter abbreviation do not end a sentence" \
+  "$(note_summary "Fixed it, i.e. Every call to Plan B. Then$(filler 40) more")" "i.e. Every call to Plan B. Then word"
+sig="Fixed \`NewRelic.recordError(_ error: Error, attributes: [String: Any]?)\` so that the attributes passed with a handled error are kept when the app is offline, and sent with the next harvest$(filler 8)."
+r=$(note_summary "$sig")
+assert_contains "note_summary: a colon inside a code span is not a clause end" "$r" "Fixed NewRelic.recordError(_ error: Error, attributes: [String: Any]?) so that"
+assert_eq "note_summary: ...so the text is cut with an ellipsis" "$ELL" "${r: -3}"
+assert_contains "note_summary: a sentence end inside a code span is not one" \
+  "$(note_summary "Logged \`Done. Next\` as text$(filler 40). Then more.")" "Logged Done. Next as text word"
+r=$(note_summary "Breaking: the deprecated NewRelic.setMaxEventBufferTime is removed$(filler 40) more")
+assert_contains "note_summary: a one-word lead-in before a colon is not the summary" "$r" "Breaking: the deprecated"
+r=$(note_summary "Session replay: masking rules now apply$(filler 40) more")
+assert_contains "note_summary: a two-word lead-in before a colon is not the summary" "$r" "Session replay: masking rules"
+assert_eq "note_summary: code-span stars are dropped by default (the stored short is a comment)" \
+  "Started capturing console. calls" "$(note_summary 'Started capturing `console.*` calls.')"
+assert_eq "bullet_summary: a star inside a code span is kept" "Started capturing console.* calls as logs" \
+  "$(bullet_summary '* Started capturing `console.*` calls as logs. ([#342](https://x/pull/342)) {/* short: x */}')"
+assert_eq "bullet_summary: emphasis stars outside code spans are dropped" "Added offline storage" \
+  "$(bullet_summary '* Added **offline** storage. ([#3](https://x/pull/3))')"
 
 
 # ---- extract_release_note_items: a list note gives one item per line ----
@@ -190,5 +213,11 @@ assert_eq "items: prose mixed with list lines is one item, as extract_release_no
 assert_eq "items: a one-line Release note: form is one item" "Added thing." \
   "$(extract_release_note_items "$(printf 'x\nRelease note: Added thing.\n')")"
 assert_eq "items: no note gives nothing" "" "$(extract_release_note_items "no note here")"
+assert_eq "items: a list with blank lines between its items gives every item" "Updated A.|Updated B.|Updated C." \
+  "$(extract_release_note_items "$(printf '## Release note\n\n- Updated A.\n\n- Updated B.\n- Updated C.\n\n## Files\n- x\n')" | paste -sd '|' -)"
+assert_eq "items: prose after a list item is not part of the note" "Added thing." \
+  "$(extract_release_note_items "$(printf '## Release note\n- Added thing.\n\nSome other text.\n- not this\n')" | paste -sd '|' -)"
+assert_eq "items: a list after a prose paragraph is not part of the note" "Intro sentence." \
+  "$(extract_release_note_items "$(printf '## Release note\nIntro sentence.\n\n- a\n- b\n')" | paste -sd '|' -)"
 
 finish

@@ -23,7 +23,7 @@ if [ -n "$HINT" ] && ! is_valid_section "$HINT"; then HINT=""; fi
 section=${HINT:-$(section_from_title "$PR_TITLE")}
 
 emit() { # text
-  jq -nc --arg bullet "$(defuse_comments "$(mdx_escape "$1")")" --arg short "$(note_summary "$(plain_short "$1")")" \
+  jq -nc --arg bullet "$(defuse_comments "$(mdx_escape "$1")")" --arg short "$(note_summary "$1")" \
     --arg section "$section" '{bullet: $bullet, short: $short, section: $section}'
 }
 

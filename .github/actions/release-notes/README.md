@@ -8,10 +8,12 @@ Flutter, Unity, .NET MAUI). A person edits every note before it is published.
 Every note has the template's layout: the frontmatter `subject`, `releaseDate`, `version`, the
 `features`, `enhancements`, `bugs` and `security` lists, then `downloadLink` (no `category:`), and a
 `### New features`, `### Improvements and enhancements`, `### Bug fixes` or `### Security updates`
-heading for each section that has bullets. Each frontmatter list item is the bullet's summary: the
-whole bullet when it is 200 characters or fewer, else its first sentence, else the text before its
-first colon, else the first 200 characters cut at a word with an ellipsis. Summaries are worked out
-again from the bullet text every time a note is built, so editing a bullet on the next draft is
+heading for each section that has bullets. Each frontmatter list item is the bullet's summary, as
+plain text: the whole bullet when it is 200 bytes or fewer (characters, for plain ASCII), else its
+first sentence, else the text before its first `: ` when that is three words or more, else the first
+200 bytes cut at a word with an ellipsis. Version numbers, `::`, e.g., i.e., single-letter
+abbreviations and anything inside a code span never end a sentence or a clause. Summaries are worked
+out again from the bullet text every time a note is built, so editing a bullet on the next draft is
 enough.
 
 - **`append`**, on every merged PR: builds the PR's bullet and adds it to the agent's `<agent>-next`
@@ -40,8 +42,8 @@ nothing in this folder names an agent.
    (`fix: guard against null filename (NR-1)` becomes "Guarded against null filename."). `N/A` in
    the section means "use the title". A paragraph of two or more lines that all start with `- ` or
    `* ` is a list: each line becomes its own bullet, all in the PR's one section and all linking the
-   PR (the native-agent bumps write one line per updated agent). A single `- ` line, or prose mixed
-   with list lines, is one bullet.
+   PR (the native-agent bumps write one line per updated agent); blank lines between the items are
+   fine. A single `- ` line, or prose mixed with list lines, is one bullet.
 2. **Section:** the PR's `release-note:*` label:
 
    | Label | Section |

@@ -82,7 +82,7 @@ printf '%s\n' "$entries" | while IFS="$(printf '\t')" read -r section entry; do
     case "$k" in *"$key"*) dup=1; break ;; esac
   done < "$keys"
   if [ "$dup" = 1 ]; then echo "duplicate: $text"; continue; fi
-  short=$(note_summary "$(plain_short "$text")")
+  short=$(note_summary "$text")
   "$dir/append-bullet.sh" --no-link "$next" "$section" "* $text {/* short: $short */}"
   printf '%s\n' "$key" >> "$keys"
   echo "added $section: $text"
