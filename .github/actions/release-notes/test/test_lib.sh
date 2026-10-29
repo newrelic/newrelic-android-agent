@@ -177,4 +177,18 @@ body=${cut%"$ELL"}
 assert_eq "note_summary: the word cut keeps at most 200 bytes before the ellipsis" ok "$r"
 assert_eq "note_summary: the word cut ends on a whole word" "word" "${body##* }"
 
+
+# ---- extract_release_note_items: a list note gives one item per line ----
+assert_eq "items: a two-line list gives two items" "Updated A.|Updated B." \
+  "$(extract_release_note_items "$(printf '## Release note\n\n- Updated A.\n- Updated B.\n')" | paste -sd '|' -)"
+assert_eq "items: * markers work too" "One.|Two." "$(extract_release_note_items "$(printf '## Release note\n* One.\n* Two.\n')" | paste -sd '|' -)"
+assert_eq "items: a single list line is one item without its dash" "Added thing." \
+  "$(extract_release_note_items "$(printf '## Release note\n- Added thing.\n')")"
+mixed="$(printf '## Release note\nIntro sentence.\n- a\n- b\n')"
+assert_eq "items: prose mixed with list lines is one item, as extract_release_note gives it" \
+  "$(extract_release_note "$mixed")" "$(extract_release_note_items "$mixed")"
+assert_eq "items: a one-line Release note: form is one item" "Added thing." \
+  "$(extract_release_note_items "$(printf 'x\nRelease note: Added thing.\n')")"
+assert_eq "items: no note gives nothing" "" "$(extract_release_note_items "no note here")"
+
 finish

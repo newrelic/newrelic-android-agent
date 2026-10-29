@@ -57,6 +57,19 @@ PR_TITLE="$(printf 'fix: a\001b\033c')" b | jq -e '.bullet | test("[[:cntrl:]]")
 out=$(PR_TITLE='fix: boring' PR_BODY="$(printf '## Release note\nAdded a feature people asked for.\n')" b)
 assert_eq "a release note changes the text but not the section" bug "$(jq -r .section <<<"$out")"
 out=$(PR_TITLE='fix: boring' PR_BODY="$(printf '## Release note\n- item one\n- item two\n')" b)
-assert_eq "list items in a note are joined, not dropped" "Item one - item two." "$(jq -r .bullet <<<"$out")"
+assert_eq "a two-item list note gives two bullets" "Item one.|Item two." "$(jq -r .bullet <<<"$out" | paste -sd '|' -)"
+assert_eq "each list bullet has its own short" "Item one|Item two" "$(jq -r .short <<<"$out" | paste -sd '|' -)"
+assert_eq "list bullets share the PR's section" "bug|bug" "$(jq -r .section <<<"$out" | paste -sd '|' -)"
+
+out=$(PR_TITLE='chore: bump natives' HINT_SECTION=enhancement PR_BODY="$(printf '## Release note\n\n- Updated the Native Android agent to version 7.8.4.\n- Updated the Native iOS agent to version 7.7.9.\n\n## Files\n')" b)
+assert_eq "a native-bump list gives one bullet per agent" \
+  "Updated the Native Android agent to version 7.8.4.|Updated the Native iOS agent to version 7.7.9." "$(jq -r .bullet <<<"$out" | paste -sd '|' -)"
+
+out=$(PR_TITLE='feat: x' PR_BODY="$(printf '## Release note\n- Added thing.\n')" b)
+assert_eq "a single list line stays one bullet, without its dash" "Added thing." "$(jq -r .bullet <<<"$out")"
+assert_eq "a single list line gives one JSON line" 1 "$(printf '%s\n' "$out" | grep -c .)"
+
+out=$(PR_TITLE='feat: x' PR_BODY="$(printf '## Release note\nIntro sentence.\n- a\n- b\n')" b)
+assert_eq "prose mixed with list lines stays one bullet" 1 "$(printf '%s\n' "$out" | grep -c .)"
 
 finish

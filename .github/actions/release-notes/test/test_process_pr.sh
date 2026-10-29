@@ -122,4 +122,14 @@ assert_contains "native agent bump uses the Release note text" "$(cat "$n")" '* 
 pr_json 331 'chore: Update native agents to v1.9.3' 'no release note' update-native-agents-1.9.3 '2026-10-05T00:00:00Z' '["enhancement","automated"]'
 assert_eq "an unlabelled native agent bump is left out as internal" "skipped #331: internal change (docs/test/ci/chore/build/style or Dependabot); add a release-note:* label to include it" "$(run 331)"
 
+
+# ---- a list-form release note gives one bullet per item ----
+cp "$SKELETON" "$n"
+pr_json 40 'chore: Update native agents to v1.9.4' "$(printf '## Release note\n\n- Updated the Native Android agent to version 7.8.5.\n- Updated the Native iOS agent to version 7.7.11.\n')" update-native-agents-1.9.4 '2026-10-01T00:00:00Z' '["release-note:enhancement"]'
+assert_eq "a list note reports one appended line" "appended #40 -> enhancement []" "$(run 40)"
+assert_eq "a list note gives two bullets, both linking the PR" 2 "$(grep -cF 'pull/40)' "$n")"
+assert_contains "the Android bullet" "$(cat "$n")" "* Updated the Native Android agent to version 7.8.5. ([#40]"
+assert_contains "the iOS bullet" "$(cat "$n")" "* Updated the Native iOS agent to version 7.7.11. ([#40]"
+assert_eq "a second run finds the PR already there" "skipped #40: already in next file" "$(run 40)"
+
 finish

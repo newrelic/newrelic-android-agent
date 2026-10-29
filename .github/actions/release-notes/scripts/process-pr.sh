@@ -48,14 +48,18 @@ fi
 # The skip rules above saw the whole body; the bullet needs only the top of it, and a huge
 # environment string would exceed the 128 KiB per-variable limit on Linux.
 built=$(PR_TITLE="$title" PR_BODY="${body:0:20000}" HINT_SECTION="$hint" "$dir/build-bullet.sh")
-bullet=$(jq -r '.bullet' <<<"$built")
-short=$(jq -r '.short' <<<"$built")
-section=$(jq -r '.section' <<<"$built")
+# One JSON line per bullet (a release note written as a list gives several), all in one section.
+# Flags go on the first bullet only, so the docs PR lists each flagged PR once.
+section=$(head -1 <<<"$built" | jq -r '.section')
+lines=() first=1
+while IFS= read -r b; do
+  [ -n "$b" ] || continue
+  line="* $(jq -r '.bullet' <<<"$b") ([#${pr}](${url})) {/* short: $(jq -r '.short' <<<"$b") */}"
+  if [ "$first" = 1 ]; then for f in $flags; do line="$line {/* flag: $f */}"; done; first=0; fi
+  lines+=("$line")
+done <<<"$built"
 
-line="* ${bullet} ([#${pr}](${url})) {/* short: ${short} */}"
-for f in $flags; do line="$line {/* flag: $f */}"; done
-
-"$dir/append-bullet.sh" "$next" "$section" "$line"
+"$dir/append-bullet.sh" "$next" "$section" "${lines[@]}"
 echo "appended #$pr -> $section [${flags# }]"
 
 if [ "${COMMENT_ON_UNLABELLED:-0}" = 1 ] && [ -n "$flags" ]; then
