@@ -61,6 +61,7 @@ env_of() { # ACTION STEP KEY: that step's env value
 assert_eq "append: process-pr gets labelledOnly" '${{ steps.config.outputs.labelled_only }}' "$(env_of append "Build and append the bullet" LABELLED_ONLY)"
 assert_eq "generate: build-release gets labelledOnly" '${{ steps.config.outputs.labelled_only }}' "$(env_of generate "Build the release note" LABELLED_ONLY)"
 assert_eq "generate: build-release gets prLinks" '${{ steps.config.outputs.pr_links }}' "$(env_of generate "Build the release note" PR_LINKS)"
+assert_eq "generate: the docs PR step gets readyForReview" '${{ steps.config.outputs.ready_for_review }}' "$(env_of generate "Open or update the docs PR" READY_FOR_REVIEW)"
 assert_eq "check: check-pr gets labelledOnly" '${{ steps.config.outputs.labelled_only }}' "$(env_of check "Check the PR" LABELLED_ONLY)"
 check_config=$(ruby -ryaml -e 's = YAML.load_file(ARGV[0])["runs"]["steps"].find { |s| s["name"] == "Validate the release-notes config" }; puts "id=#{s["id"]}", s["run"]' "$TEST_DIR/../check/action.yml")
 assert_contains "check: the config step has id config" "$check_config" "id=config

@@ -190,6 +190,7 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
         FORK_PAT: ${{ inputs.fork-pat }}
         DOCS_REPO: ${{ inputs.docs-repo }}
+        READY_FOR_REVIEW: ${{ steps.config.outputs.ready_for_review }}
         DOCS_BASE: ${{ steps.config.outputs.docs_base }}
         DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
         SUBJECT: ${{ steps.config.outputs.subject }}
@@ -199,9 +200,11 @@ runs:
       run: |
         set -euo pipefail
         work="$RUNNER_TEMP/release-notes"
-        "$GITHUB_ACTION_PATH/../scripts/publish-release-branch.sh" --dry-run --docs-repo "$DOCS_REPO" \
-          --docs-base "$DOCS_BASE" --docs-dir "$DOCS_DIR" --file "$FILE" --source "$work/out/$FILE" \
-          --branch "$BRANCH" --subject "$SUBJECT" --version "$VERSION" --body-file "$work/pr-body.md"
+        args=(--dry-run --docs-repo "$DOCS_REPO" --docs-base "$DOCS_BASE" --docs-dir "$DOCS_DIR" --file "$FILE"
+          --source "$work/out/$FILE" --branch "$BRANCH" --subject "$SUBJECT" --version "$VERSION"
+          --body-file "$work/pr-body.md")
+        [ "$READY_FOR_REVIEW" != true ] || args+=(--ready-for-review)
+        "$GITHUB_ACTION_PATH/../scripts/publish-release-branch.sh" "${args[@]}"
 
     # Where the branch goes, and why a person's edits are never overwritten: see
     # publish-release-branch.sh. bot-pat opens the PR; fork-pat, when set, holds the branch on the fork.
@@ -214,6 +217,7 @@ runs:
         FORK_PAT: ${{ inputs.fork-pat }}
         BOT_EMAIL: ${{ inputs.bot-email }}
         OVERWRITE: ${{ inputs.overwrite }}
+        READY_FOR_REVIEW: ${{ steps.config.outputs.ready_for_review }}
         DOCS_REPO: ${{ inputs.docs-repo }}
         DOCS_BASE: ${{ steps.config.outputs.docs_base }}
         DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
@@ -229,6 +233,7 @@ runs:
           --source "$work/out/$FILE" --branch "$BRANCH" --subject "$SUBJECT" --version "$VERSION"
           --body-file "$work/pr-body.md")
         [ "$OVERWRITE" != true ] || args+=(--overwrite)
+        [ "$READY_FOR_REVIEW" != true ] || args+=(--ready-for-review)
         "$GITHUB_ACTION_PATH/../scripts/publish-release-branch.sh" "${args[@]}"
 
     - name: Remove the released bullets from the next branch
