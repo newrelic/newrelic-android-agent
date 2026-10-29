@@ -27,7 +27,7 @@ fi
 [ -n "$text" ] || text=$(ensure_period "$(oneline "$PR_TITLE")")
 
 section=${HINT:-$(section_from_title "$PR_TITLE")}
-short=$(short_form "$(plain_short "$text")" 120)
+short=$(note_summary "$(plain_short "$text")")
 
 jq -nc --arg bullet "$(defuse_comments "$(mdx_escape "$text")")" --arg short "$short" --arg section "$section" \
   '{bullet: $bullet, short: $short, section: $section}'

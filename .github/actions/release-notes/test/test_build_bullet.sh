@@ -32,7 +32,8 @@ assert_eq "title text is MDX-escaped" 'Handled &#123;braces&#125; and &lt;tags&g
 long=$(printf 'word %.0s' $(seq 1 60))
 out=$(PR_TITLE="fix: $long" b)
 len=$(jq -r '.short | length' <<<"$out")
-[ "$len" -le 120 ] && r=ok || r="too long ($len)"; assert_eq "short is capped at 120 characters" ok "$r"
+[ "$len" -le 201 ] && r=ok || r="too long ($len)"; assert_eq "short is capped at 200 characters plus an ellipsis" ok "$r"
+assert_eq "a cut short ends with an ellipsis" "$(printf '\342\200\246')" "$(jq -r '.short[-1:]' <<<"$out")"
 
 PR_TITLE='' b >/dev/null 2>&1; assert_eq "empty title is an error" 1 "$?"
 

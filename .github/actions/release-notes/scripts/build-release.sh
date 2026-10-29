@@ -102,7 +102,7 @@ if [ "$rc" = 3 ]; then
   # Still open the PR, for a person to fill in.
   echo "::warning::No release-note bullets for $version; using \"$fallback\""
   text=$(defuse_comments "$(mdx_escape "$(ensure_period "$fallback")")")
-  "$dir/append-bullet.sh" --no-link "$src" enhancement "* $text {/* short: $(short_form "$(plain_short "$text")" 120) */}"
+  "$dir/append-bullet.sh" --no-link "$src" enhancement "* $text {/* short: $(note_summary "$(plain_short "$text")") */}"
   used_fallback=1
   generate
 elif [ "$rc" != 0 ]; then

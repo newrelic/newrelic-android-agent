@@ -284,6 +284,23 @@ short_form() { # text max
   printf '%s' "$s"
 }
 
+# The summary of a bullet's plain text (see plain_short) for the frontmatter lists, at most
+# SUMMARY_MAX bytes: the whole text, else its first sentence, else what comes before its first
+# ": ", else a word-boundary cut followed by an ellipsis. A sentence ends at . ! or ? followed by a
+# space and a capital letter, or at the end of the text, so "7.8.4", "e.g." and "::" never end one.
+# A trailing full stop is dropped, as short_form does.
+SUMMARY_MAX=200
+note_summary() { # text
+  local s first head
+  s=$(printf '%s' "$1" | sed -E 's/[.]+$//')
+  if [ "${#s}" -le "$SUMMARY_MAX" ]; then printf '%s' "$s"; return 0; fi
+  first=$(printf '%s' "$s" | sed -E 's/([.!?]) [A-Z].*$/\1/; s/[.]+$//')
+  if [ "$first" != "$s" ] && [ "${#first}" -le "$SUMMARY_MAX" ]; then printf '%s' "$first"; return 0; fi
+  case $s in *": "*) head=${s%%": "*} ;; *) head="" ;; esac
+  if [ -n "$head" ] && [ "${#head}" -le "$SUMMARY_MAX" ]; then printf '%s' "$head"; return 0; fi
+  printf '%s\342\200\246' "$(short_form "$s" "$SUMMARY_MAX")"
+}
+
 # skip_reason TITLE BODY HEAD_BRANCH [IS_FORK]
 # Prints why a PR can never appear in the release notes and returns 0; returns 1 when it can.
 # Shared by process-pr.sh (after merge) and check-pr.sh (on the open PR) so they cannot disagree.
