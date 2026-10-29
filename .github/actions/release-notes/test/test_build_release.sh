@@ -58,6 +58,12 @@ assert_contains "--pr-links false: the bullets stay" "$(cat "$out")" "- Added of
 assert_eq "--pr-links false: the PR text is unchanged" "$(cat "$tmp/body-with-links.md")" "$(cat "$work/pr-body.md")"
 assert_eq "--pr-links false: release-prs.txt is unchanged" "$(cat "$tmp/prs-with-links.txt")" "$(cat "$work/release-prs.txt")"
 
+# LABELLED_ONLY=true: an unlabelled PR is left out and listed in the PR text; a labelled one is built.
+LABELLED_ONLY=true build --tail-file "$tmp/tail.mdx" > /dev/null; rc=$?
+assert_eq "labelledOnly: a release builds" 0 "$rc"
+assert_contains "labelledOnly: the unlabelled PR is listed as left out" "$(cat "$work/pr-body.md")" "- $GITHUB_REPOSITORY#13: no release-note label"
+assert_contains "labelledOnly: a labelled fork PR still gets a bullet" "$(cat "$out")" "- Kept the session id across restarts."
+
 # Android: no CHANGELOG, no download-link placeholder, the Support statement tail.
 cp "$SKELETON" "$next"; rm -f "$out"
 fake_notes 12

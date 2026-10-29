@@ -138,4 +138,19 @@ out=$(PATH="$stubs:$PATH" PR_TITLE='fix: x' PR_BODY='' PR_HEAD=x PR_LABELS='rele
 assert_eq "an unexpected abort inside the check is exit 2, not 'needs a label'" 2 "$rc"
 assert_eq "...with nothing on stdout" "" "$out"
 
+
+# ---- LABELLED_ONLY=true: an unlabelled PR passes and is left out ----
+export LABELLED_ONLY=true
+run_check 'feat: add offline storage' '' NR-1 ''
+assert_eq "labelledOnly: an unlabelled PR passes" 0 "$rc"
+assert_contains "labelledOnly: says it is left out and how to include it" "$out" 'This PR is not included in the release notes: this repo only includes PRs with a release-note:* label. Add one to include it.'
+assert_not_contains "labelledOnly: no failure block" "$out" 'Fix before merging'
+run_check 'fix: something' '' NR-1 "$(printf 'release-note:bug\nrelease-note:feature')"
+assert_eq "labelledOnly: two labels still fail" 1 "$rc"
+run_check 'fix: something' '' NR-1 'release-note:bug'
+assert_contains "labelledOnly: a labelled PR is previewed" "$out" 'under **Bug fixes** (from its label)'
+LABELLED_ONLY=yes run_check 'fix: something' '' NR-1 'release-note:bug'
+assert_eq "LABELLED_ONLY other than true or false is exit 2" 2 "$rc"
+unset LABELLED_ONLY
+
 finish

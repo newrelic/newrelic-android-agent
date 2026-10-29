@@ -140,6 +140,7 @@ runs:
         FALLBACK_TEXT: ${{ steps.config.outputs.fallback_text }}
         CHANGELOG: ${{ steps.config.outputs.changelog }}
         PR_LINKS: ${{ steps.config.outputs.pr_links }}
+        LABELLED_ONLY: ${{ steps.config.outputs.labelled_only }}
         VERSION: ${{ steps.release.outputs.version }}
         TAG: ${{ steps.release.outputs.tag }}
         PREV_TAG: ${{ steps.release.outputs.prev_tag }}
