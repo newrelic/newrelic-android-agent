@@ -104,11 +104,15 @@ if [ "$rc" = 10 ] && [ "$internal" = 1 ]; then
 else
   built=$(PR_TITLE="$PR_TITLE" PR_BODY="${body:0:20000}" HINT_SECTION="$hint" "$dir/build-bullet.sh") \
     || { echo "check-pr.sh: could not build the preview" >&2; exit 2; }
-  section=$(jq -r '.section' <<<"$built")
+  # One JSON line per bullet (a release note written as a list gives several), all in one section.
+  section=$(head -1 <<<"$built" | jq -r '.section')
   if [ -n "$hint" ]; then origin="from its label"; else origin="guessed from the title; a label would make it certain"; fi
   echo "This PR will appear under **$(section_heading "$section")** ($origin) as:"
-  echo
-  echo "> $(preview_text "$(jq -r '.bullet' <<<"$built")")"
+  sep=""
+  while IFS= read -r b; do
+    printf '%s\n> %s\n' "${sep:-}" "$(preview_text "$(jq -r '.bullet' <<<"$b")")"
+    sep=">"
+  done <<<"$built"
 fi
 
 if [ -n "$errors" ]; then
