@@ -1,0 +1,30 @@
+name: Release notes - ready
+
+# Once you've checked a release's docs-website note, run this with its version: it marks the draft
+# docs PR that generate opened ready for review, as the bot that opened it, and comments with your
+# name. See .github/actions/release-notes/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release whose docs-website note you've checked, e.g. 7.8.4"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: develop # the shared code as reviewed now
+          persist-credentials: false
+      - uses: ./.github/actions/release-notes/ready
+        with:
+          version: ${{ inputs.version }}
+          bot-pat: ${{ secrets.BOT_PAT }}
+          docs-repo: ${{ vars.DOCS_REPO || 'newrelic/docs-website' }}

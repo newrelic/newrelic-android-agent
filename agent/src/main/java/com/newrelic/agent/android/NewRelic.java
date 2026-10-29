@@ -56,11 +56,14 @@ import java.util.Objects;
 
 
 /**
- * To bootstrap the New Relic Android agent, add the following line to your
- * application's initialization (usually your main activity's onCreate callback):
+ * To bootstrap the New Relic Android agent, add the following line to the onCreate callback of your
+ * {@code Application} subclass:
  * <code>
- * NewRelic.withApplicationToken("{your mobile app token}").start(this.getApplication());
+ * NewRelic.withApplicationToken("{your mobile app token}").start(this);
  * </code>
+ * Starting the agent there means it is running before any {@code Activity} exists, whichever
+ * {@code Activity} the app is launched into. Calling it from an {@code Activity}'s onCreate callback is still
+ * supported. The call is idempotent: a second call while the agent is running is ignored.
  */
 public final class NewRelic {
     private static final String UNKNOWN_HTTP_REQUEST_TYPE = "unknown";

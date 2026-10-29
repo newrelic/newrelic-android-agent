@@ -90,6 +90,46 @@ public class FileEventStoreTest {
     }
 
     @Test
+    public void fetchAllCallback_runsOffCallingThreadInFifoOrder() throws InterruptedException {
+        AnalyticsEvent a = new AnalyticsEvent("async-a");
+        AnalyticsEvent b = new AnalyticsEvent("async-b");
+        Assert.assertTrue(store.store(a));
+        Assert.assertTrue(store.store(b));
+
+        final long callerThreadId = Thread.currentThread().getId();
+        final AtomicInteger callbackThreadDifferent = new AtomicInteger(0);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final List<AnalyticsEvent> loaded = new java.util.ArrayList<>();
+
+        store.fetchAll(events -> {
+            if (Thread.currentThread().getId() != callerThreadId) {
+                callbackThreadDifferent.set(1);
+            }
+            loaded.addAll(events);
+            latch.countDown();
+        });
+
+        Assert.assertTrue("fetchAll(LoadCallback) should complete within timeout",
+                latch.await(5, TimeUnit.SECONDS));
+        Assert.assertEquals("Callback should run on EventStoreWriter thread, not caller thread",
+                1, callbackThreadDifferent.get());
+        Assert.assertEquals(2, loaded.size());
+    }
+
+    @Test
+    public void clearAsync_clearsStoreOffCallingThread() {
+        Assert.assertTrue(store.store(new AnalyticsEvent("to-clear-1")));
+        Assert.assertTrue(store.store(new AnalyticsEvent("to-clear-2")));
+        store.awaitWrites(5000);
+        Assert.assertEquals(2, store.count());
+
+        store.clearAsync();
+        store.awaitWrites(5000);
+
+        Assert.assertEquals(0, store.count());
+    }
+
+    @Test
     public void store_atCap_evictsOldestFirst() {
         config.setMaxCachedEventCount(3);
         store = new FileEventStore(context, config);

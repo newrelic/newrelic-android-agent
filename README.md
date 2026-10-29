@@ -93,6 +93,8 @@ The JDK 11 implementation provided by Android Studio is the default JDK used whe
 See [Configure with Gradle and Android Studio](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/install-configure/install-android-apps-gradle-android-studio) as well as
 the Android agent [compatibility and requirements](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/new-relic-android-compatibility-requirements/) documentation for an overview of what is supported by the Android agent.
 
+For where `NewRelic.start()` can be called (launcher `Activity` or `Application` class) and what changes, see [Where to call `NewRelic.start()`](docs/StartingTheAgent.md).
+
 ## Building
 
 The agent can be built from either the command line Gradle or Android Studio.

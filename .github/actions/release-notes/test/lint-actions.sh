@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lint the run: blocks of the three action.yml files, which actionlint does not cover:
+# Lint the run: blocks of every action.yml file, which actionlint does not cover:
 # - no ${{ }} expression inside a run: block (values reach the shell through env: only, so PR text
 #   can never be spliced into a script);
 # - every block is bash and passes shellcheck.

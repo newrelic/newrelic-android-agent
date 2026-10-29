@@ -77,7 +77,7 @@ public class Error extends HarvestableObject {
         this.timestamp = System.currentTimeMillis();
         this.deviceInfo = new DeviceInfo(agentImpl.getDeviceInformation(), agentImpl.getEnvironmentInformation());
         this.applicationInfo = new ApplicationInfo(agentImpl.getApplicationInformation());
-        this.sessionAttributes = getErrorSessionAttributes(sessionAttributes);
+        this.sessionAttributes = getErrorSessionAttributes(sessionAttributes, isBackgroundAtExit(event));
         this.agentName = agentImpl.getDeviceInformation().getAgentName();
         this.event = event;
         this.dataToken = Harvest.getHarvestConfiguration().getDataToken();
@@ -146,7 +146,61 @@ public class Error extends HarvestableObject {
         return Agent.getIsObfuscated();
     }
 
+    /**
+     * Whether the app was in the background when the process in an AEI event exited, as recorded by
+     * the OS (derived from {@code ApplicationExitInfo.getImportance()}).
+     *
+     * <p>An event with no exit-time state falls back to the live {@link ApplicationStateMonitor}
+     * state, so callers always get a definite answer.
+     */
+    public static boolean isBackgroundAtExit(HashMap<String, Object> event) {
+        final Object appState = (event == null) ? null : event.get(AnalyticsAttribute.APP_EXIT_APP_STATE_ATTRIBUTE);
+
+        if (AnalyticsAttribute.APP_EXIT_APP_STATE_BACKGROUND.equals(appState)) {
+            return true;
+        }
+        if (AnalyticsAttribute.APP_EXIT_APP_STATE_FOREGROUND.equals(appState)) {
+            return false;
+        }
+        return ApplicationStateMonitor.isAppInBackground();
+    }
+
     public Set<AnalyticsAttribute> getErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
+        final Set<AnalyticsAttribute> attrs = getCommonErrorSessionAttributes(sessionAttributes);
+
+        //Background Reporting
+        if (attrs != null && FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            if (ApplicationStateMonitor.isAppInBackground()) {
+                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
+                StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
+            }
+        }
+
+        return attrs;
+    }
+
+    /**
+     * For errors replayed from a prior process (AEI): stamps {@code background} {@code true} or
+     * {@code false} from the app state at exit, not from the live {@link ApplicationStateMonitor}
+     * state, which describes the current launch rather than the exit being reported.
+     */
+    public Set<AnalyticsAttribute> getErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes, boolean backgroundAtExit) {
+        final Set<AnalyticsAttribute> attrs = getCommonErrorSessionAttributes(sessionAttributes);
+
+        //Background Reporting
+        if (attrs != null && FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
+            // replace any stale value frozen into the prior session's attributes
+            attrs.removeIf(attr -> AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME.equals(attr.getName()));
+            attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, backgroundAtExit));
+            if (backgroundAtExit) {
+                StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
+            }
+        }
+
+        return attrs;
+    }
+
+    private Set<AnalyticsAttribute> getCommonErrorSessionAttributes(Set<AnalyticsAttribute> sessionAttributes) {
         if (sessionAttributes == null) {
             return null;
         }
@@ -156,14 +210,6 @@ public class Error extends HarvestableObject {
             if (!Agent.hasReachableNetworkConnection(null)) {
                 attrs.add(new AnalyticsAttribute(AnalyticsAttribute.OFFLINE_NAME_ATTRIBUTE, true));
                 StatsEngine.notice().inc(MetricNames.OFFLINE_STORAGE_CRASH_COUNT);
-            }
-        }
-
-        //Background Reporting
-        if (FeatureFlag.featureEnabled(FeatureFlag.BackgroundReporting)) {
-            if (ApplicationStateMonitor.isAppInBackground()) {
-                attrs.add(new AnalyticsAttribute(AnalyticsAttribute.BACKGROUND_ATTRIBUTE_NAME, true));
-                StatsEngine.notice().inc(MetricNames.BACKGROUND_CRASH_COUNT);
             }
         }
 

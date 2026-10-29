@@ -26,6 +26,12 @@ public class WebViewInstrumentationCallbacks {
 
     private static final Map<WebView, WebViewState> states = new WeakHashMap<>();
 
+    private static final String PLATFORM_WEBKIT_PACKAGE = "android.webkit.";
+
+    // Keyed weakly by WebView class so the answer is computed once per class without pinning it.
+    // Only touched from synchronized methods.
+    private static final Map<Class<?>, Boolean> setterOverrides = new WeakHashMap<>();
+
     /**
      * Per-WebView instrumentation state. Held in a WeakHashMap so tracking a WebView never
      * keeps it (and its Activity) alive.
@@ -194,6 +200,14 @@ public class WebViewInstrumentationCallbacks {
      * could neither be read nor distinguished from "no client set" — and installing blind would
      * silently drop the host app's callbacks. On those API levels the wrapper arrives only via
      * {@link #setWebViewClientCalled}, which carries the delegate by construction.
+     *
+     * Also skipped when the WebView's class overrides {@code setWebViewClient} (see
+     * {@link #overridesSetWebViewClient}): the client read back here is the one the framework is
+     * really using, but an override may store whatever it is handed somewhere else entirely. A
+     * wrapper pushed through it would replace the host app's own client in that field and wrap the
+     * app's internal client, which forwards straight back to the wrapper. That cannot be undone
+     * afterwards, so the install is never attempted; page loads are still reported by the
+     * instrumented {@code onPageFinished} fallback.
      */
     @TargetApi(Build.VERSION_CODES.O)
     static synchronized void ensureNRClientInstalled(WebView webView) {
@@ -206,6 +220,11 @@ public class WebViewInstrumentationCallbacks {
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             log.debug("Skipping NR WebViewClient install below API 26: existing client cannot be preserved");
+            return;
+        }
+        if (overridesSetWebViewClient(webView)) {
+            log.debug("Skipping NR WebViewClient install: " + webView.getClass().getName()
+                    + " overrides setWebViewClient");
             return;
         }
         try {
@@ -223,6 +242,28 @@ public class WebViewInstrumentationCallbacks {
         } catch (Throwable t) {
             log.error("Failed to install NR WebViewClient", t);
         }
+    }
+
+    /**
+     * Whether a class other than the platform's own overrides {@code setWebViewClient} for this
+     * WebView. Whether such an override forwards to {@code super} cannot be known from outside, so
+     * any override counts. Fails safe: if the method cannot be resolved, report an override so the
+     * install is skipped rather than risked.
+     */
+    private static boolean overridesSetWebViewClient(WebView webView) {
+        Class<?> type = webView.getClass();
+        Boolean overridden = setterOverrides.get(type);
+        if (overridden == null) {
+            try {
+                Class<?> declaring = type.getMethod("setWebViewClient", WebViewClient.class).getDeclaringClass();
+                overridden = !declaring.getName().startsWith(PLATFORM_WEBKIT_PACKAGE);
+            } catch (Throwable t) {
+                log.debug("Could not resolve setWebViewClient on " + type.getName() + "; treating it as overridden");
+                overridden = Boolean.TRUE;
+            }
+            setterOverrides.put(type, overridden);
+        }
+        return overridden;
     }
 
     /**
