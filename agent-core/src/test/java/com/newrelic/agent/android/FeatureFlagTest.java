@@ -8,6 +8,7 @@ package com.newrelic.agent.android;
 import static com.newrelic.agent.android.FeatureFlag.AnalyticsEvents;
 import static com.newrelic.agent.android.FeatureFlag.AppStartMetrics;
 import static com.newrelic.agent.android.FeatureFlag.ApplicationExitReporting;
+import static com.newrelic.agent.android.FeatureFlag.AutomaticMobileViewTracing;
 import static com.newrelic.agent.android.FeatureFlag.BackgroundReporting;
 import static com.newrelic.agent.android.FeatureFlag.CrashReporting;
 import static com.newrelic.agent.android.FeatureFlag.DefaultInteractions;
@@ -19,6 +20,7 @@ import static com.newrelic.agent.android.FeatureFlag.HttpResponseBodyCapture;
 import static com.newrelic.agent.android.FeatureFlag.InteractionTracing;
 import static com.newrelic.agent.android.FeatureFlag.JSError;
 import static com.newrelic.agent.android.FeatureFlag.LogReporting;
+import static com.newrelic.agent.android.FeatureFlag.ManualMobileViewTracing;
 import static com.newrelic.agent.android.FeatureFlag.NetworkErrorRequests;
 import static com.newrelic.agent.android.FeatureFlag.NetworkRequests;
 import static com.newrelic.agent.android.FeatureFlag.OfflineStorage;
@@ -77,6 +79,8 @@ public class FeatureFlagTest {
         Assert.assertFalse("FedRamp is disabled by default", FeatureFlag.featureEnabled(FedRampEnabled));
         Assert.assertFalse("OfflineStorage is disabled by default", FeatureFlag.featureEnabled(OfflineStorage));
         Assert.assertFalse("BackgroundReporting is disabled by default", FeatureFlag.featureEnabled(BackgroundReporting));
+        Assert.assertFalse("AutomaticMobileViewTracing is disabled by default", FeatureFlag.featureEnabled(AutomaticMobileViewTracing));
+        Assert.assertFalse("ManualMobileViewTracing is disabled by default", FeatureFlag.featureEnabled(ManualMobileViewTracing));
     }
 
     @Test
