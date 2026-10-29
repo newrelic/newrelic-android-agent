@@ -2,8 +2,11 @@
 # Turn an accumulated next-release .mdx into the final release-notes .mdx.
 # Usage: generate-docs.sh --next FILE --subject TEXT --version VER --date YYYY-MM-DD --out FILE
 #                         [--download-link URL] [--tail-file FILE] [--flags-out FILE]
-# - Fills the four frontmatter arrays from each bullet's {/* short: ... */} comment.
-# - Deletes every section whose array is empty; keeps `category:` present and blank.
+# - Writes the docs-website release-notes template layout: subject, releaseDate, version, the four
+#   frontmatter arrays, then downloadLink; no category line; "### <Section>" headings.
+# - Fills the arrays with each bullet's summary, recomputed from its text (bullet_summary), so a
+#   {/* short: ... */} comment written under an older rule never reaches the note.
+# - Deletes every section whose array is empty.
 # - Ends the note with the contents of --tail-file (what follows the end marker in the agent's
 #   skeleton, e.g. Android's Support statement), or, without --tail-file, with whatever follows the
 #   {/* release-note:end */} marker in --next. Either way it is copied verbatim.
@@ -57,12 +60,7 @@ while IFS= read -r l || [ -n "$l" ]; do
       continue ;;
     '* '*)
       [ -n "$section" ] || { echo "bullet before any section marker: $l" >&2; exit 2; }
-      short=$(printf '%s\n' "$l" | sed -En 's/.*\{\/\* short: ([^{}]*) \*\/\}.*/\1/p')
-      if [ -z "$short" ]; then
-        # No short comment: derive one from the bullet text minus its trailing PR link.
-        short=$(printf '%s' "$l" | strip_comments | sed -E 's/^\* //; s/ \(\[#[0-9]+\]\([^)]*\)\)$//')
-        short=$(plain_short "$short")
-      fi
+      short=$(bullet_summary "$l")
       pr=$(printf '%s\n' "$l" | bullet_pr_number)
       for f in $(printf '%s\n' "$l" | grep -oE '\{/\* flag: [a-z-]+ \*/\}' | sed -E 's/.*flag: ([a-z-]+).*/\1/'); do
         printf '#%s %s\n' "${pr:-hand-written}" "$f" >> "$tmp/flags"
@@ -94,13 +92,12 @@ emit_array() { # section
   printf 'subject: %s\n' "$subject"
   printf "releaseDate: '%s'\n" "$date"
   printf 'version: %s\n' "$version"
-  [ -z "$link" ] || printf "downloadLink: '%s'\n" "$link"
-  printf 'category:\n'
   for s in $SECTIONS; do emit_array "$s"; done
+  [ -z "$link" ] || printf "downloadLink: '%s'\n" "$link"
   printf -- '---\n'
   for s in $SECTIONS; do
     [ -s "$tmp/$s.body" ] || continue
-    printf '\n## %s\n\n' "$(section_heading "$s")"
+    printf '\n### %s\n\n' "$(section_heading "$s")"
     cat "$tmp/$s.body"
   done
   # The tail (Android's Support statement; nothing for the hybrid agents) follows the sections.

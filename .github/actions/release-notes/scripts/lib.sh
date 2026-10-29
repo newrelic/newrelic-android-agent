@@ -301,6 +301,13 @@ note_summary() { # text
   printf '%s\342\200\246' "$(short_form "$s" "$SUMMARY_MAX")"
 }
 
+# The frontmatter summary of one bullet line of a next file: its text without the "* ", the
+# {/* */} comments, the trailing PR link and the MDX escapes, through plain_short and note_summary.
+bullet_summary() { # line
+  note_summary "$(plain_short "$(printf '%s' "$1" | strip_comments |
+    sed -E 's/^\* //; s/ \(\[#[0-9]+\]\([^)]*\)\)$//; s/&(lt|gt|#123|#125);//g')")"
+}
+
 # skip_reason TITLE BODY HEAD_BRANCH [IS_FORK]
 # Prints why a PR can never appear in the release notes and returns 0; returns 1 when it can.
 # Shared by process-pr.sh (after merge) and check-pr.sh (on the open PR) so they cannot disagree.

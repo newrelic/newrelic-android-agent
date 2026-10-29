@@ -19,18 +19,16 @@ out=$(cat "$o")
 assert_contains "subject is the React Native agent" "$out" "
 subject: React Native agent
 "
-assert_contains "frontmatter has blank category" "$out" "
-category:
-"
+assert_not_contains "no category line (the template drops it for single-track subjects)" "$out" "category:"
 assert_contains "downloadLink emitted" "$out" "downloadLink: 'https://www.npmjs.com/package/newrelic-react-native-agent/v/1.9.3'"
 assert_contains "features array populated" "$out" "features:
   - 'Added offline storage'"
 assert_contains "bugs array populated and YAML-quoted" "$out" "bugs:
   - 'Fixed a crash on Foo startup'
   - 'Fixed Bob''s bug'"
-assert_contains "short derived for hand-written bullet" "$out" "  - 'Hand written bullet with no link or short.'"
+assert_contains "short derived for hand-written bullet" "$out" "  - 'Hand written bullet with no link or short'"
 assert_contains "empty security array present" "$out" "security: []"
-assert_not_contains "empty security section deleted" "$out" "## Security updates"
+assert_not_contains "empty security section deleted" "$out" "### Security updates"
 assert_not_contains "comments stripped from body" "$out" "{/*"
 assert_contains "bug bullet in body with dash and link" "$out" "- Fixed a crash on \`Foo\` startup. ([#1]($u/1))"
 assert_not_contains "no Support statement for React Native" "$out" "Support statement"
@@ -41,7 +39,28 @@ assert_contains "text after the end marker is still kept" "$(cat "$tmp/tail.out"
 
 ## Kept"
 assert_eq "flags file lists flagged PRs" "#2 unlabelled" "$(cat "$fl")"
-assert_eq "section order feature before bug" "1" "$(printf '%s\n' "$out" | grep -n -e '^## ' | sed -n '1p;2p;3p;4p' | awk -F: '/New features/{f=$1} /Bug fixes/{b=$1} END{print (f<b)}')"
+assert_eq "section order feature before bug" "1" "$(printf '%s\n' "$out" | grep -n -e '^### ' | sed -n '1p;2p;3p;4p' | awk -F: '/New features/{f=$1} /Bug fixes/{b=$1} END{print (f<b)}')"
+
+# ---- the docs-website template layout ----
+assert_contains "sections use the template's ### headings" "$out" "
+### Bug fixes
+"
+assert_eq "no ## section headings" "" "$(printf '%s\n' "$out" | grep -E '^## (New features|Improvements and enhancements|Bug fixes|Security updates)$')"
+line_of() { printf '%s\n' "$out" | grep -n -m1 -E "$1" | cut -d: -f1; }
+[ "$(line_of '^downloadLink:')" -gt "$(line_of '^security:')" ] && r=after || r=before
+assert_eq "downloadLink comes after the four lists, as in the template" after "$r"
+assert_eq "the four lists keep the template order" "features enhancements bugs security" \
+  "$(printf '%s\n' "$out" | grep -oE '^(features|enhancements|bugs|security):' | tr -d : | tr '\n' ' ' | sed 's/ $//')"
+
+# ---- every summary is recomputed from the bullet text (stored shorts may be old 120-character cuts) ----
+cp "$SKELETON" "$n"
+a bug "* Fixed the opt-in Swift Package Manager integration (\`NEWRELIC_USE_SPM=1\`): apps no longer crash at launch with \`Library not loaded: @rpath/NewRelic.framework/NewRelic\`, archives no longer fail on a duplicate xcframework signature, and the iOS agent resolves to the newest 7.7.x release. ([#334]($u/334)) {/* short: Fixed the opt-in Swift Package Manager integration (NEWRELIC_USE_SPM=1): apps no longer crash at launch with Library not */}"
+a enhancement "* Handled &#123;braces&#125; and &lt;tags&gt;. ([#5]($u/5)) {/* short: Handled braces and tags */}"
+gen; out=$(cat "$o")
+assert_contains "a stored fragment is replaced by the recomputed summary" "$out" "bugs:
+  - 'Fixed the opt-in Swift Package Manager integration (NEWRELIC_USE_SPM=1)'"
+assert_not_contains "the stored fragment is gone" "$out" "Library not'"
+assert_contains "MDX entities don't leak into a summary" "$out" "  - 'Handled braces and tags'"
 
 gen; assert_not_contains "downloadLink key omitted when no link" "$(cat "$o")" "downloadLink"
 
@@ -116,7 +135,8 @@ if command -v ruby >/dev/null 2>&1; then
   i=100
   for sh in '- dash' 'a: b' '# hash' 'yes' 'null' '123' "it's" 'back\slash' '[x]' '---' 'caf'$'\303\251'; do
     i=$((i + 1))
-    printf '%s\n' "* H$i. ([#$i]($u/$i)) {/* short: $sh */}" >> "$tmp/hostile.txt"
+    # Summaries come from the bullet text now, so the hostile value is the text.
+    printf '%s\n' "* $sh ([#$i]($u/$i)) {/* short: H$i */}" >> "$tmp/hostile.txt"
   done
   awk -v h="$tmp/hostile.txt" '{ print } /^## Bug fixes$/ { print ""; while ((getline line < h) > 0) print line }' "$skel" > "$tmp/hostile.mdx"
   g --next "$tmp/hostile.mdx" "${ok_args[@]}" --out "$o"
