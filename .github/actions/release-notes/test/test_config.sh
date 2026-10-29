@@ -81,4 +81,20 @@ printf '{' > "$tmp/c.json"; (cd "$tmp" && "$SCRIPTS/config.sh" c.json > /dev/nul
 (cd "$tmp" && "$SCRIPTS/config.sh" missing.json > /dev/null 2>&1); assert_eq "a missing config exits 2" 2 "$?"
 (cd "$tmp" && "$SCRIPTS/config.sh" > /dev/null 2>&1); assert_eq "no argument exits 2" 2 "$?"
 
+
+# ---- the optional booleans: prLinks, labelledOnly, readyForReview ----
+assert_contains "prLinks defaults to true" "$rn" "pr_links=true"
+assert_contains "labelledOnly defaults to false" "$rn" "labelled_only=false"
+assert_contains "readyForReview defaults to false" "$rn" "ready_for_review=false"
+printf '%s' "$base" | jq '.prLinks = false | .labelledOnly = true | .readyForReview = true' > "$tmp/b.json"
+out=$(cd "$tmp" && "$SCRIPTS/config.sh" b.json 2>&1); rc=$?
+assert_eq "the three booleans set: exits 0" 0 "$rc"
+assert_contains "prLinks false is printed" "$out" "pr_links=false"
+assert_contains "labelledOnly true is printed" "$out" "labelled_only=true"
+assert_contains "readyForReview true is printed" "$out" "ready_for_review=true"
+try "prLinks as a string" '.prLinks = "no"' '"prLinks" must be true or false'
+try "labelledOnly as a number" '.labelledOnly = 1' '"labelledOnly" must be true or false'
+try "readyForReview as null" '.readyForReview = null' '"readyForReview" must be true or false'
+try "a string field given a boolean" '.tagPrefix = true' '"tagPrefix" must be a single-line string'
+
 finish

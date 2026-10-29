@@ -122,4 +122,34 @@ assert_contains "native agent bump uses the Release note text" "$(cat "$n")" '* 
 pr_json 331 'chore: Update native agents to v1.9.3' 'no release note' update-native-agents-1.9.3 '2026-10-05T00:00:00Z' '["enhancement","automated"]'
 assert_eq "an unlabelled native agent bump is left out as internal" "skipped #331: internal change (docs/test/ci/chore/build/style or Dependabot); add a release-note:* label to include it" "$(run 331)"
 
+
+# ---- a list-form release note gives one bullet per item ----
+cp "$SKELETON" "$n"
+pr_json 40 'chore: Update native agents to v1.9.4' "$(printf '## Release note\n\n- Updated the Native Android agent to version 7.8.5.\n- Updated the Native iOS agent to version 7.7.11.\n')" update-native-agents-1.9.4 '2026-10-01T00:00:00Z' '["release-note:enhancement"]'
+assert_eq "a list note reports one appended line" "appended #40 -> enhancement []" "$(run 40)"
+assert_eq "a list note gives two bullets, both linking the PR" 2 "$(grep -cF 'pull/40)' "$n")"
+assert_contains "the Android bullet" "$(cat "$n")" "* Updated the Native Android agent to version 7.8.5. ([#40]"
+assert_contains "the iOS bullet" "$(cat "$n")" "* Updated the Native iOS agent to version 7.7.11. ([#40]"
+assert_eq "a second run finds the PR already there" "skipped #40: already in next file" "$(run 40)"
+
+
+# ---- LABELLED_ONLY=true: only labelled PRs become bullets ----
+cp "$SKELETON" "$n"; : > "$STUB_COMMENT_LOG"
+lo() { LABELLED_ONLY=true COMMENT_ON_UNLABELLED=1 "$SCRIPTS/process-pr.sh" "$1" "$n"; }
+pr_json 50 'feat: add offline storage' '' NR-50 '2026-10-01T00:00:00Z' '[]'
+assert_eq "labelledOnly: an unlabelled feature PR is skipped" "skipped #50: no release-note label" "$(lo 50)"
+assert_eq "labelledOnly: the skipped PR gets no comment" "" "$(cat "$STUB_COMMENT_LOG")"
+assert_not_contains "labelledOnly: the skipped PR gets no bullet" "$(cat "$n")" "pull/50)"
+pr_json 51 'feat: add offline storage' '' NR-51 '2026-10-01T00:00:00Z' '["release-note:feature"]'
+assert_eq "labelledOnly: a labelled PR is appended" "appended #51 -> feature []" "$(lo 51)"
+pr_json 52 'fix: two labels' '' NR-52 '2026-10-01T00:00:00Z' '["release-note:bug","release-note:feature"]'
+assert_eq "labelledOnly: a two-label PR is still appended and flagged" "appended #52 -> bug [conflicting-labels]" "$(lo 52)"
+pr_json 53 'Sync main into develop' '' develop '2026-10-01T00:00:00Z' '["release-note:enhancement"]'
+assert_eq "labelledOnly: a labelled sync PR is still a bridge PR" "skipped #53: bridge or revert PR" "$(lo 53)"
+pr_json 54 'feat: hidden' 'internal [skip-docs]' NR-54 '2026-10-01T00:00:00Z' '["release-note:feature"]'
+assert_eq "labelledOnly: a labelled [skip-docs] PR is still skipped" "skipped #54: [skip-docs]" "$(lo 54)"
+pr_json 55 'feat: add a retry setting' '' NR-55 '2026-10-01T00:00:00Z' '[]'
+assert_eq "LABELLED_ONLY=false keeps an unlabelled PR, flagged" "appended #55 -> feature [unlabelled]" "$(LABELLED_ONLY=false "$SCRIPTS/process-pr.sh" 55 "$n")"
+LABELLED_ONLY=yes "$SCRIPTS/process-pr.sh" 56 "$n" > /dev/null 2>&1; assert_eq "LABELLED_ONLY other than true or false exits 2" 2 "$?"
+
 finish

@@ -2,10 +2,11 @@
 # Build and append the release-note bullet for one merged PR.
 # Usage: process-pr.sh PR_NUMBER NEXT_FILE
 # Env:   GITHUB_REPOSITORY (owner/name), GH_TOKEN for gh,
-#        COMMENT_ON_UNLABELLED=1 to ask for a label on the PR when it has none or too many.
+#        COMMENT_ON_UNLABELLED=1 to ask for a label on the PR when it has none or too many,
+#        LABELLED_ONLY=true to leave out every PR with no release-note:* label (labelledOnly).
 # A PR with no release-note:* label is flagged "unlabelled"; one with several is flagged
 # "conflicting-labels". Either way it is included (section guessed from the title) unless it is an
-# internal change with NO label at all.
+# internal change with NO label at all, or LABELLED_ONLY is true and it has no label.
 # Prints one status line: "appended #N -> section [flags]" or "skipped #N: reason".
 set -euo pipefail
 dir=$(cd "$(dirname "$0")" && pwd)
@@ -16,6 +17,8 @@ pr=$1 next=$2
 case $pr in '' | *[!0-9]*) echo "PR_NUMBER must be a number: $pr" >&2; exit 2 ;; esac
 [ -f "$next" ] || { echo "missing file: $next" >&2; exit 2; }
 repo=${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}
+labelled_only=${LABELLED_ONLY:-false}
+case $labelled_only in true | false) ;; *) echo "LABELLED_ONLY must be true or false: $labelled_only" >&2; exit 2 ;; esac
 
 if file_has_pr "$next" "$pr"; then echo "skipped #$pr: already in next file"; exit 0; fi
 
@@ -39,6 +42,9 @@ case "$rc" in
   *) echo "label classification failed for #$pr (exit $rc)" >&2; exit 1 ;;
 esac
 
+# labelledOnly: a PR with no label at all is left out (a label added later includes it at release).
+if [ "$rc" = 10 ] && [ "$labelled_only" = true ]; then echo "skipped #$pr: no release-note label"; exit 0; fi
+
 # Only a PR with no label at all can be dropped as internal: any release-note:* label includes it.
 if [ "$rc" = 10 ] && is_internal_pr "$title" "$head"; then
   echo "skipped #$pr: internal change (docs/test/ci/chore/build/style or Dependabot); add a release-note:* label to include it"
@@ -48,14 +54,18 @@ fi
 # The skip rules above saw the whole body; the bullet needs only the top of it, and a huge
 # environment string would exceed the 128 KiB per-variable limit on Linux.
 built=$(PR_TITLE="$title" PR_BODY="${body:0:20000}" HINT_SECTION="$hint" "$dir/build-bullet.sh")
-bullet=$(jq -r '.bullet' <<<"$built")
-short=$(jq -r '.short' <<<"$built")
-section=$(jq -r '.section' <<<"$built")
+# One JSON line per bullet (a release note written as a list gives several), all in one section.
+# Flags go on the first bullet only, so the docs PR lists each flagged PR once.
+section=$(head -1 <<<"$built" | jq -r '.section')
+lines=() first=1
+while IFS= read -r b; do
+  [ -n "$b" ] || continue
+  line="* $(jq -r '.bullet' <<<"$b") ([#${pr}](${url})) {/* short: $(jq -r '.short' <<<"$b") */}"
+  if [ "$first" = 1 ]; then for f in $flags; do line="$line {/* flag: $f */}"; done; first=0; fi
+  lines+=("$line")
+done <<<"$built"
 
-line="* ${bullet} ([#${pr}](${url})) {/* short: ${short} */}"
-for f in $flags; do line="$line {/* flag: $f */}"; done
-
-"$dir/append-bullet.sh" "$next" "$section" "$line"
+"$dir/append-bullet.sh" "$next" "$section" "${lines[@]}"
 echo "appended #$pr -> $section [${flags# }]"
 
 if [ "${COMMENT_ON_UNLABELLED:-0}" = 1 ] && [ -n "$flags" ]; then

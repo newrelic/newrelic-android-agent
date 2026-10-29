@@ -32,7 +32,8 @@ assert_eq "title text is MDX-escaped" 'Handled &#123;braces&#125; and &lt;tags&g
 long=$(printf 'word %.0s' $(seq 1 60))
 out=$(PR_TITLE="fix: $long" b)
 len=$(jq -r '.short | length' <<<"$out")
-[ "$len" -le 120 ] && r=ok || r="too long ($len)"; assert_eq "short is capped at 120 characters" ok "$r"
+[ "$len" -le 201 ] && r=ok || r="too long ($len)"; assert_eq "short is capped at 200 characters plus an ellipsis" ok "$r"
+assert_eq "a cut short ends with an ellipsis" "$(printf '\342\200\246')" "$(jq -r '.short[-1:]' <<<"$out")"
 
 PR_TITLE='' b >/dev/null 2>&1; assert_eq "empty title is an error" 1 "$?"
 
@@ -56,6 +57,19 @@ PR_TITLE="$(printf 'fix: a\001b\033c')" b | jq -e '.bullet | test("[[:cntrl:]]")
 out=$(PR_TITLE='fix: boring' PR_BODY="$(printf '## Release note\nAdded a feature people asked for.\n')" b)
 assert_eq "a release note changes the text but not the section" bug "$(jq -r .section <<<"$out")"
 out=$(PR_TITLE='fix: boring' PR_BODY="$(printf '## Release note\n- item one\n- item two\n')" b)
-assert_eq "list items in a note are joined, not dropped" "Item one - item two." "$(jq -r .bullet <<<"$out")"
+assert_eq "a two-item list note gives two bullets" "Item one.|Item two." "$(jq -r .bullet <<<"$out" | paste -sd '|' -)"
+assert_eq "each list bullet has its own short" "Item one|Item two" "$(jq -r .short <<<"$out" | paste -sd '|' -)"
+assert_eq "list bullets share the PR's section" "bug|bug" "$(jq -r .section <<<"$out" | paste -sd '|' -)"
+
+out=$(PR_TITLE='chore: bump natives' HINT_SECTION=enhancement PR_BODY="$(printf '## Release note\n\n- Updated the Native Android agent to version 7.8.4.\n- Updated the Native iOS agent to version 7.7.9.\n\n## Files\n')" b)
+assert_eq "a native-bump list gives one bullet per agent" \
+  "Updated the Native Android agent to version 7.8.4.|Updated the Native iOS agent to version 7.7.9." "$(jq -r .bullet <<<"$out" | paste -sd '|' -)"
+
+out=$(PR_TITLE='feat: x' PR_BODY="$(printf '## Release note\n- Added thing.\n')" b)
+assert_eq "a single list line stays one bullet, without its dash" "Added thing." "$(jq -r .bullet <<<"$out")"
+assert_eq "a single list line gives one JSON line" 1 "$(printf '%s\n' "$out" | grep -c .)"
+
+out=$(PR_TITLE='feat: x' PR_BODY="$(printf '## Release note\nIntro sentence.\n- a\n- b\n')" b)
+assert_eq "prose mixed with list lines stays one bullet" 1 "$(printf '%s\n' "$out" | grep -c .)"
 
 finish

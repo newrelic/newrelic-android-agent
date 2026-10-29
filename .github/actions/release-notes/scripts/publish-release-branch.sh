@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Put one release's docs-website note on its release branch and open (or update) the draft docs PR.
+# Put one release's docs-website note on its release branch and open (or update) the docs PR: a draft,
+# or ready for review with --ready-for-review (readyForReview). An existing PR keeps its state.
 # The branch goes to the head repo of the release's open PR when there is one, else to the bot's fork
 # of docs-repo when FORK_PAT is set, else to docs-repo itself. The PR is always on docs-repo.
 # Usage: publish-release-branch.sh --docs-repo OWNER/NAME --docs-base BRANCH --docs-dir DIR --file NAME
-#          --source PATH --branch BRANCH --subject S --version V --body-file PATH [--overwrite] [--dry-run]
+#          --source PATH --branch BRANCH --subject S --version V --body-file PATH [--overwrite]
+#          [--ready-for-review] [--dry-run]
 # Env: BOT_PAT    the docs-repo token: gh calls on docs-repo and pushes to it (not needed for --dry-run)
 #      FORK_PAT   optional: the token of the account whose fork <login>/<docs-repo name> holds the
 #                 branches; used to look the fork up, sync its base branch, and push to it
@@ -17,11 +19,12 @@ set -euo pipefail
 export LC_ALL=C # ASCII patterns only; see lib.sh
 
 docs_repo="" docs_base="" docs_dir="" file="" source="" branch="" subject="" version="" body_file=""
-overwrite=false dry_run=false
+overwrite=false dry_run=false ready=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --overwrite) overwrite=true; shift; continue ;;
     --dry-run) dry_run=true; shift; continue ;;
+    --ready-for-review) ready=true; shift; continue ;;
   esac
   [ "$#" -ge 2 ] || { echo "$1 needs a value" >&2; exit 2; }
   case "$1" in
@@ -93,7 +96,9 @@ echo "target=$target"
 [ -z "$pr_number" ] || echo "existing PR #$pr_number: $pr_url"
 
 if [ "$dry_run" = true ]; then
-  plan="A real run would push $branch to $target and open a draft PR on $docs_repo"
+  kind_of_pr="a draft PR"
+  [ "$ready" = false ] || kind_of_pr="a PR ready for review"
+  plan="A real run would push $branch to $target and open $kind_of_pr on $docs_repo"
   [ -z "$pr_number" ] || plan="A real run would push $branch to $target and update $pr_url"
   echo "::notice::$plan."
   [ -z "${GITHUB_STEP_SUMMARY:-}" ] || printf '\n%s.\n' "$plan" >> "$GITHUB_STEP_SUMMARY"
@@ -166,9 +171,15 @@ if [ -n "$pr_number" ]; then
 fi
 head_ref=$branch
 [ "$target" = "$docs_repo" ] || head_ref="${target%%/*}:$branch"
+draft=(--draft) create_body=$body_file
+if [ "$ready" = true ]; then
+  draft=() create_body="$work/body.md"
+  { cat "$body_file"; printf '\n%s\n' "Opened ready for review: readyForReview is set for this agent."; } > "$create_body"
+fi
 create_pr() { # extra-args...
-  GH_TOKEN=$BOT_PAT gh pr create --repo "$docs_repo" --base "$docs_base" --head "$head_ref" --draft \
-    --title "$subject $version release notes" --label documentation --body-file "$body_file" "$@"
+  # ${draft[@]+...}: bash 3.2 treats an empty array as unset under set -u.
+  GH_TOKEN=$BOT_PAT gh pr create --repo "$docs_repo" --base "$docs_base" --head "$head_ref" ${draft[@]+"${draft[@]}"} \
+    --title "$subject $version release notes" --label documentation --body-file "$create_body" "$@"
 }
 if ! url=$(create_pr 2> "$work/create.err"); then
   # Allowing maintainer edits needs push access to the head repo, which the org-scoped BOT_PAT

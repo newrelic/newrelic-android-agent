@@ -20,12 +20,13 @@ runs:
   using: composite
   steps:
     - name: Validate the release-notes config
+      id: config
       shell: bash
       env:
         CONFIG: ${{ inputs.config }}
       run: |
         set -euo pipefail
-        "$GITHUB_ACTION_PATH/../scripts/config.sh" "$CONFIG" > /dev/null
+        "$GITHUB_ACTION_PATH/../scripts/config.sh" "$CONFIG" >> "$GITHUB_OUTPUT"
 
     - name: Check the PR
       id: check
@@ -36,6 +37,7 @@ runs:
         PR_HEAD: ${{ github.event.pull_request.head.ref }}
         PR_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
         PR_LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        LABELLED_ONLY: ${{ steps.config.outputs.labelled_only }}
       run: |
         set -uo pipefail
         [ -n "$PR_TITLE" ] || { echo "::error::The check action needs a pull_request event."; exit 1; }
