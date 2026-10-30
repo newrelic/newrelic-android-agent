@@ -10,6 +10,7 @@ import com.newrelic.agent.android.api.common.CarrierType;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.api.common.WanType;
 import com.newrelic.agent.android.api.v1.Defaults;
+import com.newrelic.agent.android.distributedtracing.InFlightTraces;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.logging.AgentLog;
 import com.newrelic.agent.android.logging.AgentLogManager;
@@ -73,9 +74,18 @@ public class TransactionState {
 
     public void setTrace(TraceContext traceContext) {
         if (!isSent()) {
+            // A trace this transaction lets go of will never reach end(), so it is no longer in flight
+            releaseInFlightTrace(this.trace, traceContext);
             this.trace = traceContext;
         } else {
+            releaseInFlightTrace(traceContext, this.trace);
             log.debug("setCatPayload(...) called on TransactionState in " + state.toString() + " state");
+        }
+    }
+
+    private static void releaseInFlightTrace(TraceContext dropped, TraceContext kept) {
+        if (dropped != null && dropped != kept) {
+            InFlightTraces.getInstance().traceFinished(dropped.getTraceId());
         }
     }
 
@@ -214,6 +224,11 @@ public class TransactionState {
             state = State.COMPLETE;
             endTime = System.currentTimeMillis();
             TraceMachine.exitMethod();
+
+            // The request is no longer in flight: log records written from here on don't carry its trace
+            if (trace != null) {
+                InFlightTraces.getInstance().traceFinished(trace.getTraceId());
+            }
         }
         return toTransactionData();
     }

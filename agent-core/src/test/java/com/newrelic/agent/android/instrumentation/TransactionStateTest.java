@@ -5,12 +5,16 @@
 
 package com.newrelic.agent.android.instrumentation;
 
+import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.api.common.TransactionData;
 import com.newrelic.agent.android.api.v1.Defaults;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
+import com.newrelic.agent.android.distributedtracing.InFlightTraces;
+import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.test.mock.Providers;
 
 import org.apache.http.HttpStatus;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,6 +27,12 @@ public class TransactionStateTest {
     @Before
     public void setUp() throws Exception {
         transactionState = Providers.provideTransactionState();
+    }
+
+    @After
+    public void tearDown() {
+        InFlightTraces.getInstance().reset();
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
     }
 
     @Test
@@ -44,6 +54,92 @@ public class TransactionStateTest {
         Assert.assertFalse(transactionState.isComplete());
         TransactionData transactionData = transactionState.end();
         Assert.assertNotNull(transactionData);
+    }
+
+    @Test
+    public void endRemovesTheTraceFromTheInFlightTraces() throws Exception {
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+        InFlightTraces.getInstance().reset();
+
+        final TraceContext traceContext = DistributedTracing.getInstance().startTrace(transactionState);
+        transactionState.setTrace(traceContext);
+        Assert.assertNotNull(InFlightTraces.getInstance().currentTraceAttributes());
+
+        transactionState.end();
+
+        Assert.assertNull(InFlightTraces.getInstance().currentTraceAttributes());
+    }
+
+    @Test
+    public void endLeavesOtherInFlightTracesAlone() throws Exception {
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+        InFlightTraces.getInstance().reset();
+
+        final TransactionState other = Providers.provideTransactionState();
+        final TraceContext otherTrace = DistributedTracing.getInstance().startTrace(other);
+        other.setTrace(otherTrace);
+        final TraceContext trace = DistributedTracing.getInstance().startTrace(transactionState);
+        transactionState.setTrace(trace);
+
+        transactionState.end();
+
+        Assert.assertEquals(otherTrace.getTraceId(),
+                InFlightTraces.getInstance().currentTraceAttributes().get(DistributedTracing.NR_TRACE_ID_ATTRIBUTE));
+        other.end();
+        Assert.assertNull(InFlightTraces.getInstance().currentTraceAttributes());
+    }
+
+    @Test
+    public void endWithoutATraceDoesNotThrow() throws Exception {
+        Assert.assertNull(transactionState.getTrace());
+        transactionState.end();
+        transactionState.end();
+    }
+
+    @Test
+    public void setTraceFinishesATraceItReplaces() throws Exception {
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+        InFlightTraces.getInstance().reset();
+
+        final TraceContext first = DistributedTracing.getInstance().startTrace(transactionState);
+        transactionState.setTrace(first);
+        final TraceContext second = DistributedTracing.getInstance().startTrace(transactionState);
+        transactionState.setTrace(second);
+
+        Assert.assertEquals(second.getTraceId(),
+                InFlightTraces.getInstance().currentTraceAttributes().get(DistributedTracing.NR_TRACE_ID_ATTRIBUTE));
+
+        transactionState.end();
+
+        Assert.assertNull("The replaced trace must not be left in flight", InFlightTraces.getInstance().currentTraceAttributes());
+    }
+
+    @Test
+    public void setTraceFinishesATraceItRejects() throws Exception {
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+        InFlightTraces.getInstance().reset();
+
+        transactionState.end();
+        final TraceContext late = DistributedTracing.getInstance().startTrace(transactionState);
+        Assert.assertNotNull(InFlightTraces.getInstance().currentTraceAttributes());
+
+        transactionState.setTrace(late);
+
+        Assert.assertNull(transactionState.getTrace());
+        Assert.assertNull("The rejected trace must not be left in flight", InFlightTraces.getInstance().currentTraceAttributes());
+    }
+
+    @Test
+    public void setTraceWithTheTraceAlreadySetKeepsItInFlight() throws Exception {
+        FeatureFlag.enableFeature(FeatureFlag.DistributedTracing);
+        InFlightTraces.getInstance().reset();
+
+        final TraceContext traceContext = DistributedTracing.getInstance().startTrace(transactionState);
+        transactionState.setTrace(traceContext);
+        transactionState.setTrace(traceContext);
+
+        Assert.assertNotNull(InFlightTraces.getInstance().currentTraceAttributes());
+        Assert.assertSame(traceContext, transactionState.getTrace());
     }
 
     @Test
