@@ -122,6 +122,9 @@ names the field at fault.
 iOS (plain `7.7.11` tags, unlabelled release and sync PRs, notes without PR links) adds
 `"tagPrefix": ""`, `"labelledOnly": true` and `"prLinks": false`.
 
+Android adds `"readyForReview": true`: its docs PRs open ready for review, so nobody has to run
+`release-notes-ready.yml`. The note can still be edited on the fork after that.
+
 The CHANGELOG parser takes the version's section from a heading of any level whose text starts with
 the version (`# 7.1.12`, `## 1.6.13`, `### 1.3.2`, `## v1.9.2 (date)`, `## [1.3.2] - date`) to the
 next such heading. Other headings inside it name the section: security, fix/bug, feature or "New in
@@ -423,7 +426,8 @@ One-time setup, signed in as the bot account:
 branches on docs-website, and an already open PR is always updated where its branch is.
 
 To edit a note: open the docs PR, follow its branch to the fork, and edit the file there (the GitHub
-web editor works) or push to the branch with git. Then run `release-notes-ready.yml`. GitHub opens
+web editor works) or push to the branch with git. Then run `release-notes-ready.yml`, unless the
+agent sets `readyForReview` and the PR is already ready for review. GitHub opens
 these PRs without "allow edits by maintainers" (`BOT_PAT` has no access to the bot's fork; the live
 check showed `maintainerCanModify: false`), so the docs team suggests changes rather than pushing
 them. If GitHub ever refuses the request outright, generate retries without it and says so.
