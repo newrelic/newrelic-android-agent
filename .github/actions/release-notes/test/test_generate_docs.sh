@@ -57,8 +57,8 @@ cp "$SKELETON" "$n"
 a bug "* Fixed the opt-in Swift Package Manager integration (\`NEWRELIC_USE_SPM=1\`): apps no longer crash at launch with \`Library not loaded: @rpath/NewRelic.framework/NewRelic\`, archives no longer fail on a duplicate xcframework signature, and the iOS agent resolves to the newest 7.7.x release. ([#334]($u/334)) {/* short: Fixed the opt-in Swift Package Manager integration (NEWRELIC_USE_SPM=1): apps no longer crash at launch with Library not */}"
 a enhancement "* Handled &#123;braces&#125; and &lt;tags&gt;. ([#5]($u/5)) {/* short: Handled braces and tags */}"
 gen; out=$(cat "$o")
-assert_contains "a stored fragment is replaced by the recomputed summary" "$out" "bugs:
-  - 'Fixed the opt-in Swift Package Manager integration (NEWRELIC_USE_SPM=1)'"
+assert_contains "a stored fragment is replaced by the whole text" "$out" "bugs:
+  - 'Fixed the opt-in Swift Package Manager integration (NEWRELIC_USE_SPM=1): apps no longer crash at launch with Library not loaded: @rpath/NewRelic.framework/NewRelic, archives no longer fail on a duplicate xcframework signature, and the iOS agent resolves to the newest 7.7.x release'"
 assert_not_contains "the stored fragment is gone" "$out" "Library not'"
 assert_contains "MDX entities don't leak into a summary" "$out" "  - 'Handled braces and tags'"
 

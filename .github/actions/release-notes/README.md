@@ -8,13 +8,10 @@ Flutter, Unity, .NET MAUI). A person edits every note before it is published.
 Every note has the template's layout: the frontmatter `subject`, `releaseDate`, `version`, the
 `features`, `enhancements`, `bugs` and `security` lists, then `downloadLink` (no `category:`), and a
 `### New features`, `### Improvements and enhancements`, `### Bug fixes` or `### Security updates`
-heading for each section that has bullets. Each frontmatter list item is the bullet's summary, as
-plain text: the whole bullet when it is 200 bytes or fewer (characters, for plain ASCII), else its
-first sentence, else the text before its first `: ` when that is three words or more, else the first
-200 bytes cut at a word with an ellipsis. Version numbers, `::`, e.g., i.e., single-letter
-abbreviations and anything inside a code span never end a sentence or a clause. Summaries are worked
-out again from the bullet text every time a note is built, so editing a bullet on the next draft is
-enough.
+heading for each section that has bullets. Each frontmatter list item is the whole bullet as plain
+text, on one line and without its PR link, markup or final full stop. It is never shortened: the docs
+team asked for whole sentences (docs-website#26416). Frontmatter items are worked out again from the
+bullet text every time a note is built, so editing a bullet on the next draft is enough.
 
 - **`append`**, on every merged PR: builds the PR's bullet and adds it to the agent's `<agent>-next`
   branch on `newrelic/docs-website`, behind a draft "next release notes" PR that is never merged.
@@ -124,6 +121,9 @@ names the field at fault.
 
 iOS (plain `7.7.11` tags, unlabelled release and sync PRs, notes without PR links) adds
 `"tagPrefix": ""`, `"labelledOnly": true` and `"prLinks": false`.
+
+Android adds `"readyForReview": true`: its docs PRs open ready for review, so nobody has to run
+`release-notes-ready.yml`. The note can still be edited on the fork after that.
 
 The CHANGELOG parser takes the version's section from a heading of any level whose text starts with
 the version (`# 7.1.12`, `## 1.6.13`, `### 1.3.2`, `## v1.9.2 (date)`, `## [1.3.2] - date`) to the
@@ -426,7 +426,8 @@ One-time setup, signed in as the bot account:
 branches on docs-website, and an already open PR is always updated where its branch is.
 
 To edit a note: open the docs PR, follow its branch to the fork, and edit the file there (the GitHub
-web editor works) or push to the branch with git. Then run `release-notes-ready.yml`. GitHub opens
+web editor works) or push to the branch with git. Then run `release-notes-ready.yml`, unless the
+agent sets `readyForReview` and the PR is already ready for review. GitHub opens
 these PRs without "allow edits by maintainers" (`BOT_PAT` has no access to the bot's fork; the live
 check showed `maintainerCanModify: false`), so the docs team suggests changes rather than pushing
 them. If GitHub ever refuses the request outright, generate retries without it and says so.
