@@ -2,7 +2,8 @@
 # PR-time release-notes check: does this open PR have what the release-notes automation needs,
 # and what will it turn into? Prints a Markdown report on stdout.
 # Env:  PR_TITLE (required), PR_BODY, PR_HEAD (head branch), PR_LABELS (one label per line),
-#       PR_FORK ("true" when the PR comes from a fork)
+#       PR_FORK ("true" when the PR comes from a fork),
+#       LABELLED_ONLY ("true": a PR with no release-note:* label passes and is left out)
 # Exit: 0 passed (suggestions allowed), 1 the PR needs fixing (missing or conflicting label),
 #       2 the check itself could not run (nothing is written to stdout in that case, so a
 #       half-built report can never be posted as if it were a result).
@@ -32,6 +33,8 @@ body=${PR_BODY:-}
 head=${PR_HEAD:-}
 fork=${PR_FORK:-false}
 labels=${PR_LABELS:-}
+labelled_only=${LABELLED_ONLY:-false}
+case $labelled_only in true | false) ;; *) echo "check-pr.sh: LABELLED_ONLY must be true or false" >&2; exit 2 ;; esac
 
 errors="" warnings=""
 err() { errors="$errors- $1"$'\n'; }
@@ -66,7 +69,12 @@ is_internal_pr "$PR_TITLE" "$head" && internal=1
 case "$rc" in
   0) ;;
   10)
-    if [ "$internal" = 1 ]; then
+    if [ "$labelled_only" = true ]; then
+      echo '### Release notes check: passed'
+      echo
+      echo "This PR is not included in the release notes: this repo only includes PRs with a release-note:* label. Add one to include it."
+      exit 0
+    elif [ "$internal" = 1 ]; then
       hint=""
     else
       hint=""
@@ -104,11 +112,15 @@ if [ "$rc" = 10 ] && [ "$internal" = 1 ]; then
 else
   built=$(PR_TITLE="$PR_TITLE" PR_BODY="${body:0:20000}" HINT_SECTION="$hint" "$dir/build-bullet.sh") \
     || { echo "check-pr.sh: could not build the preview" >&2; exit 2; }
-  section=$(jq -r '.section' <<<"$built")
+  # One JSON line per bullet (a release note written as a list gives several), all in one section.
+  section=$(head -1 <<<"$built" | jq -r '.section')
   if [ -n "$hint" ]; then origin="from its label"; else origin="guessed from the title; a label would make it certain"; fi
   echo "This PR will appear under **$(section_heading "$section")** ($origin) as:"
-  echo
-  echo "> $(preview_text "$(jq -r '.bullet' <<<"$built")")"
+  sep=""
+  while IFS= read -r b; do
+    printf '%s\n> %s\n' "${sep:-}" "$(preview_text "$(jq -r '.bullet' <<<"$b")")"
+    sep=">"
+  done <<<"$built"
 fi
 
 if [ -n "$errors" ]; then
