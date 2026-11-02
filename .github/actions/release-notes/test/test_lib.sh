@@ -157,42 +157,24 @@ assert_eq "skip_reason: [skip-docs] still applies to fork PRs" "[skip-docs]" "$(
 # ---- note_summary: the frontmatter summary of a bullet ----
 filler() { local s="" i; for ((i = 0; i < $1; i++)); do s="$s word"; done; printf '%s' "$s"; } # " word" x N
 ELL=$(printf '\342\200\246')
-assert_eq "note_summary: a short text is kept whole (the combined native bump)" \
+assert_eq "note_summary: the combined native bump is kept whole" \
   "Updated the Native Android agent to version 7.8.4. Updated the Native iOS agent to version 7.7.9" \
   "$(note_summary 'Updated the Native Android agent to version 7.8.4. Updated the Native iOS agent to version 7.7.9.')"
 assert_eq "note_summary: the trailing full stop is dropped" "Fixed a crash" "$(note_summary 'Fixed a crash.')"
 long="Fixed a crash on the harvest thread. The agent copied its internal session attributes$(filler 40) during a harvest."
-assert_eq "note_summary: a long text gives its first sentence" "Fixed a crash on the harvest thread" "$(note_summary "$long")"
-spm="Fixed the opt-in Swift Package Manager integration (NEWRELIC_USE_SPM=1): apps no longer crash at launch with Library not loaded: @rpath/NewRelic.framework/NewRelic, archives no longer fail on a duplicate xcframework signature, and the iOS agent resolves to the newest 7.7.x release."
-assert_eq "note_summary: one long sentence gives what comes before its first colon" \
-  "Fixed the opt-in Swift Package Manager integration (NEWRELIC_USE_SPM=1)" "$(note_summary "$spm")"
-ver="Updated the agent to 7.8.4 e.g. for apps on iOS 15 and later, which$(filler 40) more"
-r=$(note_summary "$ver")
-assert_contains "note_summary: version dots and e.g. do not end a sentence" "$r" "Updated the agent to 7.8.4 e.g. for apps on iOS 15 and later, which word"
-assert_eq "note_summary: with no sentence end or colon it is cut with an ellipsis" "$ELL" "${r: -3}"
-dc="Fixed a crash in SessionAttributeManager::generateJSONObject on the harvest thread, which$(filler 40) more"
-r=$(note_summary "$dc")
-assert_contains "note_summary: a double colon is not a clause end" "$r" "Fixed a crash in SessionAttributeManager::generateJSONObject on the harvest thread, which"
-cut=$(note_summary "aaa$(filler 70)")
-body=${cut%"$ELL"}
-[ "${#body}" -le 200 ] && r=ok || r="too long (${#body})"
-assert_eq "note_summary: the word cut keeps at most 200 bytes before the ellipsis" ok "$r"
-assert_eq "note_summary: the word cut ends on a whole word" "word" "${body##* }"
-eg="Fixed a build failure in apps that link the agent through a framework target, e.g. React Native apps built with use_frameworks! and static linkage, where the dSYM upload ran too early. The upload$(filler 10) now waits."
-assert_eq "note_summary: e.g. before a capital letter does not end a sentence" \
-  "Fixed a build failure in apps that link the agent through a framework target, e.g. React Native apps built with use_frameworks! and static linkage, where the dSYM upload ran too early" "$(note_summary "$eg")"
-assert_contains "note_summary: i.e. and a single-letter abbreviation do not end a sentence" \
-  "$(note_summary "Fixed it, i.e. Every call to Plan B. Then$(filler 40) more")" "i.e. Every call to Plan B. Then word"
+assert_eq "note_summary: a long text with several sentences is kept whole" "${long%.}" "$(note_summary "$long")"
+anr='Fixed ANRs and other app exits reported on the next launch missing the `background` attribute when they happened while the app was in the background; the attribute is now `true` or `false` based on the app'"'"'s state when the process exited.'
+assert_eq "note_summary: one sentence over 200 characters is kept whole (docs-website#26416)" \
+  "Fixed ANRs and other app exits reported on the next launch missing the background attribute when they happened while the app was in the background; the attribute is now true or false based on the app's state when the process exited" \
+  "$(note_summary "$anr")"
+r=$(note_summary "aaa$(filler 70)")
+assert_eq "note_summary: a very long text keeps every word" "aaa$(filler 70)" "$r"
+case $r in *"$ELL") r=ellipsis ;; *) r=none ;; esac
+assert_eq "note_summary: never ends with an ellipsis" none "$r"
 sig="Fixed \`NewRelic.recordError(_ error: Error, attributes: [String: Any]?)\` so that the attributes passed with a handled error are kept when the app is offline, and sent with the next harvest$(filler 8)."
-r=$(note_summary "$sig")
-assert_contains "note_summary: a colon inside a code span is not a clause end" "$r" "Fixed NewRelic.recordError(_ error: Error, attributes: [String: Any]?) so that"
-assert_eq "note_summary: ...so the text is cut with an ellipsis" "$ELL" "${r: -3}"
-assert_contains "note_summary: a sentence end inside a code span is not one" \
-  "$(note_summary "Logged \`Done. Next\` as text$(filler 40). Then more.")" "Logged Done. Next as text word"
-r=$(note_summary "Breaking: the deprecated NewRelic.setMaxEventBufferTime is removed$(filler 40) more")
-assert_contains "note_summary: a one-word lead-in before a colon is not the summary" "$r" "Breaking: the deprecated"
-r=$(note_summary "Session replay: masking rules now apply$(filler 40) more")
-assert_contains "note_summary: a two-word lead-in before a colon is not the summary" "$r" "Session replay: masking rules"
+assert_eq "note_summary: a long text with a code span keeps the span's text" \
+  "Fixed NewRelic.recordError(_ error: Error, attributes: [String: Any]?) so that the attributes passed with a handled error are kept when the app is offline, and sent with the next harvest$(filler 8)" \
+  "$(note_summary "$sig")"
 assert_eq "note_summary: code-span stars are dropped by default (the stored short is a comment)" \
   "Started capturing console. calls" "$(note_summary 'Started capturing `console.*` calls.')"
 assert_eq "bullet_summary: a star inside a code span is kept" "Started capturing console.* calls as logs" \

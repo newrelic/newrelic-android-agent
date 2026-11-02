@@ -8,13 +8,10 @@ Flutter, Unity, .NET MAUI). A person edits every note before it is published.
 Every note has the template's layout: the frontmatter `subject`, `releaseDate`, `version`, the
 `features`, `enhancements`, `bugs` and `security` lists, then `downloadLink` (no `category:`), and a
 `### New features`, `### Improvements and enhancements`, `### Bug fixes` or `### Security updates`
-heading for each section that has bullets. Each frontmatter list item is the bullet's summary, as
-plain text: the whole bullet when it is 200 bytes or fewer (characters, for plain ASCII), else its
-first sentence, else the text before its first `: ` when that is three words or more, else the first
-200 bytes cut at a word with an ellipsis. Version numbers, `::`, e.g., i.e., single-letter
-abbreviations and anything inside a code span never end a sentence or a clause. Summaries are worked
-out again from the bullet text every time a note is built, so editing a bullet on the next draft is
-enough.
+heading for each section that has bullets. Each frontmatter list item is the whole bullet as plain
+text, on one line and without its PR link, markup or final full stop. It is never shortened: the docs
+team asked for whole sentences (docs-website#26416). Frontmatter items are worked out again from the
+bullet text every time a note is built, so editing a bullet on the next draft is enough.
 
 - **`append`**, on every merged PR: builds the PR's bullet and adds it to the agent's `<agent>-next`
   branch on `newrelic/docs-website`, behind a draft "next release notes" PR that is never merged.
