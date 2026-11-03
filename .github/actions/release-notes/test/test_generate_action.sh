@@ -28,7 +28,7 @@ mkdir -p "$RUNNER_TEMP/release-notes/out"
 printf 'note\n' > "$RUNNER_TEMP/release-notes/out/react-native-agent-193.mdx"
 printf 'body\n' > "$RUNNER_TEMP/release-notes/pr-body.md"
 run_open() { # FORK_PAT value; the env the action passes
-  (cd "$tmp" && GH_TOKEN=b BOT_PAT=b FORK_PAT=$1 BOT_EMAIL=bot@example.com OVERWRITE=false \
+  (cd "$tmp" && GH_TOKEN=b BOT_PAT=b FORK_PAT=$1 BOT_EMAIL=bot@example.com OVERWRITE=false READY_FOR_REVIEW=false \
     DOCS_REPO=newrelic/docs-website DOCS_BASE=develop DOCS_DIR=notes SUBJECT='React Native agent' VERSION=1.9.3 \
     FILE=react-native-agent-193.mdx BRANCH=$BRANCH \
     bash --noprofile --norc -e -o pipefail -c "$(step "Open or update the docs PR")")

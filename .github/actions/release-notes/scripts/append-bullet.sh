@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Insert one bullet at the end of a section of a next-release .mdx file.
-# Usage: append-bullet.sh [--no-link] FILE SECTION BULLET_LINE
+# Insert one or more bullets, in order, at the end of a section of a next-release .mdx file.
+# Usage: append-bullet.sh [--no-link] FILE SECTION BULLET_LINE [BULLET_LINE...]
 #   SECTION: feature | enhancement | bug | security
-# BULLET_LINE must be one line, start with "* " and end with the PR link (".../pull/N)"). It comes
-# from untrusted PR text, so anything else is refused (exit 2) rather than written into the file.
-# Idempotent: a bullet whose PR number is already in FILE is not added again (exit 0).
+# Each BULLET_LINE must be one line, start with "* " and end with the PR link (".../pull/N)"), and
+# all of them must link the same PR (a release note written as a list). They come from untrusted
+# PR text, so anything else is refused (exit 2) rather than written into the file.
+# Idempotent: when the PR is already in FILE, nothing is added (exit 0).
 # --no-link drops the PR-link requirement and the duplicate check, for bullets that have no PR
 # (CHANGELOG.md entries; changelog-bullets.sh does its own duplicate check).
 set -euo pipefail
@@ -12,25 +13,31 @@ set -euo pipefail
 
 no_link=0
 if [ "${1:-}" = --no-link ]; then no_link=1; shift; fi
-[ "$#" -eq 3 ] || { echo "usage: $0 [--no-link] FILE SECTION BULLET_LINE" >&2; exit 2; }
-file=$1 section=$2 line=$3
+[ "$#" -ge 3 ] || { echo "usage: $0 [--no-link] FILE SECTION BULLET_LINE [BULLET_LINE...]" >&2; exit 2; }
+file=$1 section=$2
+shift 2
 
 is_valid_section "$section" || { echo "unknown section: $section" >&2; exit 2; }
 [ -f "$file" ] || { echo "missing file: $file" >&2; exit 2; }
 
-case $line in
-  *$'\n'* | *$'\r'*) echo "bullet must be a single line" >&2; exit 2 ;;
-  '* '*) ;;
-  *) echo "bullet must start with '* '" >&2; exit 2 ;;
-esac
-if [ "$no_link" = 0 ]; then
-  pr=$(printf '%s\n' "$line" | bullet_pr_number)
-  [ -n "$pr" ] || { echo "bullet must end with a PR link (.../pull/N)" >&2; exit 2; }
-
-  if file_has_pr "$file" "$pr"; then
-    echo "PR #$pr already present in $file; skipping." >&2
-    exit 0
+pr="" lines=""
+for line in "$@"; do
+  case $line in
+    *$'\n'* | *$'\r'*) echo "bullet must be a single line" >&2; exit 2 ;;
+    '* '*) ;;
+    *) echo "bullet must start with '* '" >&2; exit 2 ;;
+  esac
+  if [ "$no_link" = 0 ]; then
+    this=$(printf '%s\n' "$line" | bullet_pr_number)
+    [ -n "$this" ] || { echo "bullet must end with a PR link (.../pull/N)" >&2; exit 2; }
+    [ -z "$pr" ] || [ "$this" = "$pr" ] || { echo "bullets for different PRs (#$pr, #$this) in one call" >&2; exit 2; }
+    pr=$this
   fi
+  lines="${lines:+$lines$'\n'}$line"
+done
+if [ "$no_link" = 0 ] && file_has_pr "$file" "$pr"; then
+  echo "PR #$pr already present in $file; skipping." >&2
+  exit 0
 fi
 
 marker=$(section_marker "$section")
@@ -44,7 +51,7 @@ tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
 
 # ENVIRON (not awk -v) so backslashes in PR titles are not interpreted as escapes.
-MARKER="$marker" LINE="$line" awk '
+MARKER="$marker" LINES="$lines" awk '
   { lines[NR] = $0 }
   END {
     start = 0
@@ -57,7 +64,7 @@ MARKER="$marker" LINE="$line" awk '
       print lines[i]
       if (i == last) {
         if (lines[last] !~ /^\* /) print ""
-        print ENVIRON["LINE"]
+        print ENVIRON["LINES"]
       }
     }
   }

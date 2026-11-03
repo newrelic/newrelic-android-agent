@@ -9,11 +9,13 @@ assert_eq "mdx_escape keeps inline code verbatim" 'Call `List<String>` and &lt;b
 assert_eq "mdx_escape escapes everything when backticks are unbalanced" 'a ` &lt;b&gt;' "$(mdx_escape 'a ` <b>')"
 assert_eq "mdx_escape leaves plain text alone" 'Fixed a crash.' "$(mdx_escape 'Fixed a crash.')"
 
-assert_eq "plain_short strips markup and asterisks" 'Fixed crash in Foo /' "$(plain_short 'Fixed `crash` in <Foo> */')"
-case "$(plain_short 'a **// b')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
-assert_eq "plain_short cannot splice a new */ together" ok "$r"
-case "$(plain_short '*{}/ x')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
-assert_eq "plain_short cannot splice */ across removed braces" ok "$r"
+assert_eq "note_summary strips markup and asterisks" 'Fixed crash in Foo /' "$(note_summary 'Fixed `crash` in <Foo> */')"
+case "$(note_summary 'a **// b')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
+assert_eq "note_summary cannot splice a new */ together" ok "$r"
+case "$(note_summary '*{}/ x')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
+assert_eq "note_summary cannot splice */ across removed braces" ok "$r"
+case "$(note_summary 'a `**/` b')" in *'*/'*) r=spliced ;; *) r=ok ;; esac
+assert_eq "note_summary drops stars inside code spans too (its output goes in a comment)" ok "$r"
 assert_eq "yaml_quote doubles single quotes" "'it''s fine'" "$(yaml_quote "it's fine")"
 
 assert_eq "section_from_title fix" bug "$(section_from_title 'fix: crash on start')"
@@ -151,5 +153,53 @@ skip_reason 'fix: x' '' develop true > /dev/null && r=skip || r=keep; assert_eq 
 skip_reason 'fix: x' '' release/1.0 true > /dev/null && r=skip || r=keep; assert_eq "skip_reason: a fork PR from release/1.0 is an ordinary change" keep "$r"
 assert_eq "skip_reason: title rules still apply to fork PRs" "bridge or revert PR" "$(skip_reason 'Revert something' '' main true)"
 assert_eq "skip_reason: [skip-docs] still applies to fork PRs" "[skip-docs]" "$(skip_reason 'fix: x' 'a [skip-docs]' main true)"
+
+# ---- note_summary: the frontmatter summary of a bullet ----
+filler() { local s="" i; for ((i = 0; i < $1; i++)); do s="$s word"; done; printf '%s' "$s"; } # " word" x N
+ELL=$(printf '\342\200\246')
+assert_eq "note_summary: the combined native bump is kept whole" \
+  "Updated the Native Android agent to version 7.8.4. Updated the Native iOS agent to version 7.7.9" \
+  "$(note_summary 'Updated the Native Android agent to version 7.8.4. Updated the Native iOS agent to version 7.7.9.')"
+assert_eq "note_summary: the trailing full stop is dropped" "Fixed a crash" "$(note_summary 'Fixed a crash.')"
+long="Fixed a crash on the harvest thread. The agent copied its internal session attributes$(filler 40) during a harvest."
+assert_eq "note_summary: a long text with several sentences is kept whole" "${long%.}" "$(note_summary "$long")"
+anr='Fixed ANRs and other app exits reported on the next launch missing the `background` attribute when they happened while the app was in the background; the attribute is now `true` or `false` based on the app'"'"'s state when the process exited.'
+assert_eq "note_summary: one sentence over 200 characters is kept whole (docs-website#26416)" \
+  "Fixed ANRs and other app exits reported on the next launch missing the background attribute when they happened while the app was in the background; the attribute is now true or false based on the app's state when the process exited" \
+  "$(note_summary "$anr")"
+r=$(note_summary "aaa$(filler 70)")
+assert_eq "note_summary: a very long text keeps every word" "aaa$(filler 70)" "$r"
+case $r in *"$ELL") r=ellipsis ;; *) r=none ;; esac
+assert_eq "note_summary: never ends with an ellipsis" none "$r"
+sig="Fixed \`NewRelic.recordError(_ error: Error, attributes: [String: Any]?)\` so that the attributes passed with a handled error are kept when the app is offline, and sent with the next harvest$(filler 8)."
+assert_eq "note_summary: a long text with a code span keeps the span's text" \
+  "Fixed NewRelic.recordError(_ error: Error, attributes: [String: Any]?) so that the attributes passed with a handled error are kept when the app is offline, and sent with the next harvest$(filler 8)" \
+  "$(note_summary "$sig")"
+assert_eq "note_summary: code-span stars are dropped by default (the stored short is a comment)" \
+  "Started capturing console. calls" "$(note_summary 'Started capturing `console.*` calls.')"
+assert_eq "bullet_summary: a star inside a code span is kept" "Started capturing console.* calls as logs" \
+  "$(bullet_summary '* Started capturing `console.*` calls as logs. ([#342](https://x/pull/342)) {/* short: x */}')"
+assert_eq "bullet_summary: emphasis stars outside code spans are dropped" "Added offline storage" \
+  "$(bullet_summary '* Added **offline** storage. ([#3](https://x/pull/3))')"
+
+
+# ---- extract_release_note_items: a list note gives one item per line ----
+assert_eq "items: a two-line list gives two items" "Updated A.|Updated B." \
+  "$(extract_release_note_items "$(printf '## Release note\n\n- Updated A.\n- Updated B.\n')" | paste -sd '|' -)"
+assert_eq "items: * markers work too" "One.|Two." "$(extract_release_note_items "$(printf '## Release note\n* One.\n* Two.\n')" | paste -sd '|' -)"
+assert_eq "items: a single list line is one item without its dash" "Added thing." \
+  "$(extract_release_note_items "$(printf '## Release note\n- Added thing.\n')")"
+mixed="$(printf '## Release note\nIntro sentence.\n- a\n- b\n')"
+assert_eq "items: prose mixed with list lines is one item, as extract_release_note gives it" \
+  "$(extract_release_note "$mixed")" "$(extract_release_note_items "$mixed")"
+assert_eq "items: a one-line Release note: form is one item" "Added thing." \
+  "$(extract_release_note_items "$(printf 'x\nRelease note: Added thing.\n')")"
+assert_eq "items: no note gives nothing" "" "$(extract_release_note_items "no note here")"
+assert_eq "items: a list with blank lines between its items gives every item" "Updated A.|Updated B.|Updated C." \
+  "$(extract_release_note_items "$(printf '## Release note\n\n- Updated A.\n\n- Updated B.\n- Updated C.\n\n## Files\n- x\n')" | paste -sd '|' -)"
+assert_eq "items: prose after a list item is not part of the note" "Added thing." \
+  "$(extract_release_note_items "$(printf '## Release note\n- Added thing.\n\nSome other text.\n- not this\n')" | paste -sd '|' -)"
+assert_eq "items: a list after a prose paragraph is not part of the note" "Intro sentence." \
+  "$(extract_release_note_items "$(printf '## Release note\nIntro sentence.\n\n- a\n- b\n')" | paste -sd '|' -)"
 
 finish
