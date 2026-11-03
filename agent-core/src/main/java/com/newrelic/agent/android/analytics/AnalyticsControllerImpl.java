@@ -841,6 +841,58 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
     }
 
     /**
+     * API: Record MobileView event from passed name and attributes
+     *
+     * @param name
+     * @param eventAttributes
+     * @return True if added to event pool
+     */
+    public boolean recordMobileViewEvent(String name, Map<String, Object> eventAttributes) {
+        try {
+            log.audit("AnalyticsControllerImpl.recordMobileViewEvent(" + name + ", " + eventAttributes + ")");
+
+            if (!isInitializedAndEnabled()) {
+                return false;
+            }
+
+            Set<AnalyticsAttribute> attributes = new HashSet<>();
+            attributes.addAll(validator.toValidatedAnalyticsAttributes(eventAttributes));
+
+            return addEvent(name, AnalyticsEventCategory.MobileView, AnalyticsEvent.EVENT_TYPE_MOBILE_VIEW, attributes);
+        } catch (Exception e) {
+            log.error(String.format("Error occurred while recording MobileView event [%s]: ", name), e);
+        }
+
+        return false;
+    }
+
+    /**
+     * API: Record MobileViewTiming event from passed attributes. The event is nameless: its
+     * identity is carried by the timingName attribute.
+     *
+     * @param eventAttributes map of attributes to attach to this event.
+     * @return true if successfully recorded the event.
+     */
+    public boolean recordMobileViewTimingEvent(Map<String, Object> eventAttributes) {
+        try {
+            log.audit("AnalyticsControllerImpl.recordMobileViewTimingEvent(" + eventAttributes + ")");
+
+            if (!isInitializedAndEnabled()) {
+                return false;
+            }
+
+            Set<AnalyticsAttribute> attributes = new HashSet<>();
+            attributes.addAll(validator.toValidatedAnalyticsAttributes(eventAttributes));
+
+            return addEvent(AnalyticsEvent.EVENT_NAME_IS_TYPE, AnalyticsEventCategory.MobileViewTiming, AnalyticsEvent.EVENT_TYPE_MOBILE_VIEW_TIMING, attributes);
+        } catch (Exception e) {
+            log.error("Error occurred while recording MobileViewTiming event: ", e);
+        }
+
+        return false;
+    }
+
+    /**
      * Records an event without validating attributes! Only for internal event use!
      *
      * @param name            name attribute. can be the same as eventType.
@@ -967,7 +1019,7 @@ public class AnalyticsControllerImpl extends HarvestAdapter implements Analytics
         return txn.getStatusCode() > 0 && txn.getStatusCode() < 400;
     }
 
-    private boolean isInitializedAndEnabled() {
+    public boolean isInitializedAndEnabled() {
         if (!initialized.get()) {
             log.warn("Analytics controller is not initialized!");
             return false;

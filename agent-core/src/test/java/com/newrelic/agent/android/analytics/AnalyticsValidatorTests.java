@@ -125,6 +125,8 @@ public class AnalyticsValidatorTests {
         Assert.assertTrue(validator.isReservedEventType(AnalyticsEvent.EVENT_TYPE_MOBILE_BREADCRUMB));
         Assert.assertTrue(validator.isReservedEventType(AnalyticsEvent.EVENT_TYPE_MOBILE_CRASH));
         Assert.assertTrue(validator.isReservedEventType(AnalyticsEvent.EVENT_TYPE_MOBILE_USER_ACTION));
+        Assert.assertTrue(validator.isReservedEventType(AnalyticsEvent.EVENT_TYPE_MOBILE_VIEW));
+        Assert.assertTrue(validator.isReservedEventType(AnalyticsEvent.EVENT_TYPE_MOBILE_VIEW_TIMING));
 
         Assert.assertFalse(validator.isReservedEventType(AnalyticsAttribute.EVENT_TIMESTAMP_ATTRIBUTE));
         Assert.assertFalse(validator.isReservedEventType("Mobile-Request"));
