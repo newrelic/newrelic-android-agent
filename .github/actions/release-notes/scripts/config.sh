@@ -14,18 +14,24 @@ jq -e 'type == "object"' "$config" > /dev/null 2>&1 || { echo "$config: not a JS
 
 REQUIRED="subject docsFolder filePrefix nextBranch tagPrefix skeleton"
 OPTIONAL="downloadLink changelog fallbackText"
+BOOLEAN="prLinks labelledOnly readyForReview" # optional, true or false
 
 errors=""
 bad() { errors="$errors$config: $1"$'\n'; }
 has() { jq -e --arg k "$1" 'has($k)' "$config" > /dev/null; }
 get() { jq -r --arg k "$1" '.[$k] // ""' "$config"; }
+flag() { jq -r --arg k "$1" --argjson d "$2" 'if has($k) then .[$k] else $d end' "$config"; } # KEY DEFAULT
 
 while IFS= read -r k; do
-  [ -n "$k" ] && bad "unknown field \"$k\" (known: $REQUIRED $OPTIONAL)"
-done <<< "$(jq -r --arg known "$REQUIRED $OPTIONAL" '($known | split(" ")) as $ok | keys[] | select(. as $k | $ok | index([$k]) | not)' "$config")"
+  [ -n "$k" ] && bad "unknown field \"$k\" (known: $REQUIRED $OPTIONAL $BOOLEAN)"
+done <<< "$(jq -r --arg known "$REQUIRED $OPTIONAL $BOOLEAN" '($known | split(" ")) as $ok | keys[] | select(. as $k | $ok | index([$k]) | not)' "$config")"
 while IFS= read -r k; do
   [ -n "$k" ] && bad "\"$k\" must be a single-line string"
-done <<< "$(jq -r 'to_entries[] | select((.value | type) != "string" or (.value | explode | any(. < 32 or . == 127))) | .key' "$config")"
+done <<< "$(jq -r --arg bools "$BOOLEAN" '($bools | split(" ")) as $b | to_entries[] | select(.key as $k | $b | index([$k]) | not)
+  | select((.value | type) != "string" or (.value | explode | any(. < 32 or . == 127))) | .key' "$config")"
+for k in $BOOLEAN; do
+  if has "$k" && [ "$(jq -r --arg k "$k" '.[$k] | type' "$config")" != boolean ]; then bad "\"$k\" must be true or false"; fi
+done
 for k in $REQUIRED; do has "$k" || bad "missing required field \"$k\""; done
 [ -z "$errors" ] || { printf '%s' "$errors" >&2; exit 2; }
 
@@ -33,6 +39,7 @@ subject=$(get subject) docs_folder=$(get docsFolder) file_prefix=$(get filePrefi
 next_branch=$(get nextBranch) tag_prefix=$(get tagPrefix) skeleton=$(get skeleton)
 download_link=$(get downloadLink) changelog=$(get changelog) fallback_text=$(get fallbackText)
 has fallbackText || fallback_text="Updated version."
+pr_links=$(flag prLinks true) labelled_only=$(flag labelledOnly false) ready_for_review=$(flag readyForReview false)
 
 name_re='^[A-Za-z0-9-]+$'
 path_re='^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$'
@@ -91,4 +98,7 @@ skeleton_name=$(basename "$skeleton")
 download_link=$download_link
 changelog=$changelog
 fallback_text=$(oneline "$fallback_text")
+pr_links=$pr_links
+labelled_only=$labelled_only
+ready_for_review=$ready_for_review
 OUT

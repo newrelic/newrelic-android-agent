@@ -75,6 +75,19 @@ public class FileEventStore extends AbstractFileStore<AnalyticsEvent> implements
     }
 
     @Override
+    public void fetchAll(final LoadCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        writeExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                callback.onLoaded(fetchAllInternal());
+            }
+        });
+    }
+
+    @Override
     public int count() {
         return countInternal();
     }
@@ -95,6 +108,16 @@ public class FileEventStore extends AbstractFileStore<AnalyticsEvent> implements
     @Override
     public void clear() {
         clearInternal();
+    }
+
+    @Override
+    public void clearAsync() {
+        writeExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                clearInternal();
+            }
+        });
     }
 
     /**

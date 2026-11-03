@@ -16,6 +16,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -74,6 +75,56 @@ public class StreamsTest {
     public void slurpBytes() throws IOException {
         byte[] bytes = Streams.slurpBytes(new FileInputStream(testInputFile));
         Assert.assertTrue(bytes.length == EXPECTED_BYTES);
+    }
+
+    @Test
+    public void slurpBytesWithBufferSize() throws IOException {
+        byte[] expected = Streams.slurpBytes(new FileInputStream(testInputFile));
+        // smaller than the input (many reads), exactly the input, and larger than the input
+        for (int bufferSize : new int[]{TINY_BUFFER_SIZE, EXPECTED_BYTES, Streams.DEFAULT_BUFFER_SIZE}) {
+            // expectedSize smaller than, equal to, and larger than the input: the result must not depend on it
+            for (int expectedSize : new int[]{0, EXPECTED_BYTES, Streams.DEFAULT_BUFFER_SIZE}) {
+                Assert.assertArrayEquals("bufferSize " + bufferSize + ", expectedSize " + expectedSize,
+                        expected, Streams.slurpBytes(new FileInputStream(testInputFile), bufferSize, expectedSize));
+            }
+        }
+    }
+
+    @Test
+    public void slurpStringFromFileMatchesStream() throws IOException {
+        String encoding = StandardCharsets.UTF_8.toString();
+        Assert.assertEquals(
+                Streams.slurpString(new FileInputStream(testInputFile), encoding),
+                Streams.slurpString(testInputFile, encoding));
+    }
+
+    @Test
+    public void slurpStringFromEmptyFile() throws IOException {
+        Assert.assertEquals("", Streams.slurpString(testOutputFile, StandardCharsets.UTF_8.toString()));
+    }
+
+    @Test
+    public void bufferSizeForFileIsItsLengthClamped() {
+        final int min = 16 * 1024;
+        Assert.assertEquals(min, Streams.MIN_FILE_BUFFER_SIZE);
+        Assert.assertEquals(min, Streams.bufferSizeFor(0));
+        Assert.assertEquals(min, Streams.bufferSizeFor(EXPECTED_BYTES));
+        Assert.assertEquals(min, Streams.bufferSizeFor(min - 1));
+        Assert.assertEquals(min + 1, Streams.bufferSizeFor(min + 1));
+        Assert.assertEquals(Streams.DEFAULT_BUFFER_SIZE, Streams.bufferSizeFor(Streams.DEFAULT_BUFFER_SIZE));
+        Assert.assertEquals(Streams.DEFAULT_BUFFER_SIZE, Streams.bufferSizeFor(Long.MAX_VALUE));
+    }
+
+    @Test
+    public void slurpStringFromFileLargerThanTheBufferFloor() throws IOException {
+        // spans several reads of the 16K floor, and is longer than the default buffer
+        final byte[] content = new byte[Streams.DEFAULT_BUFFER_SIZE * 2 + 123];
+        Arrays.fill(content, (byte) 'x');
+        try (FileOutputStream out = new FileOutputStream(testOutputFile)) {
+            out.write(content);
+        }
+        Assert.assertEquals(new String(content, StandardCharsets.UTF_8),
+                Streams.slurpString(testOutputFile, StandardCharsets.UTF_8.toString()));
     }
 
     @Test

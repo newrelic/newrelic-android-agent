@@ -97,12 +97,6 @@ mdx_escape() {
   }'
 }
 
-# Plain text safe inside a {/* short: ... */} comment and a YAML string: no markup at all.
-# Every * is dropped (not just "*/") because removing "*/" once can splice a new one together.
-plain_short() {
-  oneline "$(printf '%s' "$1" | sed -E 's/[`{}<>*]//g')"
-}
-
 # YAML single-quoted scalar.
 yaml_quote() {
   printf "'%s'" "$(printf '%s' "$1" | sed "s/'/''/g")"
@@ -229,8 +223,44 @@ is_internal_title() {
 # HTML comments (PR template hints) are ignored. Prints nothing when there is no usable note.
 # Placeholder answers (n/a, none, tbd, "-") count as no note.
 extract_release_note() {
-  text=$(printf '%s\n' "$1" | tr -d '\r' | awk '
-    BEGIN { incomment = 0; state = 0; para = "" }
+  local text
+  text=$(release_note_lines "$1" | paste -sd ' ' -)
+  text=$(oneline "$(printf '%s' "$text" | sed -E 's/^[-*][ ]+//')")
+  is_placeholder_note "$text" && return 0
+  printf '%s' "$text"
+}
+
+# The release note as one item per line: a paragraph of two or more lines that are all list items
+# ("- " or "* ") gives one item per line, its marker stripped; anything else gives the single item
+# extract_release_note returns. Placeholder items are dropped. Prints nothing when there is no note.
+extract_release_note_items() {
+  local lines count l item
+  lines=$(release_note_lines "$1")
+  count=$(printf '%s\n' "$lines" | grep -c . || true)
+  if [ "$count" -ge 2 ] && ! printf '%s\n' "$lines" | grep -qvE '^[-*][ ]+'; then
+    while IFS= read -r l; do
+      item=$(oneline "$(printf '%s' "$l" | sed -E 's/^[-*][ ]+//')")
+      is_placeholder_note "$item" || printf '%s\n' "$item"
+    done <<< "$lines"
+  else
+    item=$(extract_release_note "$1")
+    [ -z "$item" ] || printf '%s\n' "$item"
+  fi
+}
+
+# Placeholder answers (n/a, none, tbd, "-", not applicable, or nothing) are not a release note.
+is_placeholder_note() { # text
+  case $(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[.]+$//') in
+    '' | n/a | na | none | tbd | - | 'not applicable') return 0 ;;
+  esac
+  return 1
+}
+
+# The lines of a PR description's release-note paragraph, trimmed, one per line, in the forms
+# extract_release_note documents (HTML comments removed). Prints nothing when there is none.
+release_note_lines() {
+  printf '%s\n' "$1" | tr -d '\r' | awk '
+    BEGIN { incomment = 0; state = 0; n = 0; alllist = 1 }
     {
       line = $0
       out = ""
@@ -247,24 +277,26 @@ extract_release_note() {
       }
       low = tolower(out)
       if (state == 2) next
+      # state 3: after a blank line that followed list items only. Another list item continues the
+      # list (a list with blank lines between its items); anything else ends the note.
+      if (state == 3) {
+        if (out ~ /^[ \t]*$/) next
+        if (out ~ /^[ \t]*[-*] +/) state = 1; else { state = 2; next }
+      }
       if (state == 1) {
-        if (out ~ /^[ \t]*$/) { if (para != "") state = 2; next }
+        if (out ~ /^[ \t]*$/) { if (n > 0) state = (alllist ? 3 : 2); next }
         if (out ~ /^[ \t]*#/) { state = 2; next }
         gsub(/^[ \t]+|[ \t]+$/, "", out)
-        para = (para == "" ? out : para " " out)
+        if (out !~ /^[-*] +/) alllist = 0
+        para[++n] = out
         next
       }
       if (low ~ /^[ \t]*#+[ \t]*release notes?[ \t]*:?[ \t]*$/) { state = 1; next }
       if (low ~ /^[ \t]*release notes?[ \t]*:[ \t]*[^ \t]/) {
-        sub(/^[^:]*:[ \t]*/, "", out); gsub(/[ \t]+$/, "", out); para = out; state = 2; next
+        sub(/^[^:]*:[ \t]*/, "", out); gsub(/[ \t]+$/, "", out); para[++n] = out; state = 2; next
       }
     }
-    END { print para }')
-  text=$(oneline "$(printf '%s' "$text" | sed -E 's/^[-*][ ]+//')")
-  case $(printf '%s' "$text" | tr '[:upper:]' '[:lower:]' | sed -E 's/[.]+$//') in
-    '' | n/a | na | none | tbd | - | 'not applicable') return 0 ;;
-  esac
-  printf '%s' "$text"
+    END { for (i = 1; i <= n; i++) print para[i] }'
 }
 
 # Shorten to at most N characters, cutting at a word boundary; drops a trailing full stop.
@@ -282,6 +314,39 @@ short_form() { # text max
     s=$(printf '%s' "$cut" | iconv -f UTF-8 -t UTF-8 -c 2> /dev/null)
   fi
   printf '%s' "$s"
+}
+
+# The summary of a bullet's text for the frontmatter lists, as plain text safe inside a
+# {/* short: ... */} comment and a YAML string (no ` { } < > or *; every * goes, not just "*/",
+# because removing "*/" once can splice a new one together). It is the whole text on one line, never
+# shortened: a cut summary drops what the change does (docs-website#26416). A trailing full stop
+# is dropped, as short_form does.
+# keep-stars keeps the * inside code spans (`console.*`), for the rendered note only: the writers
+# store the summary in a {/* short: ... */} comment.
+note_summary() { # text [keep-stars]
+  local s
+  s=$(oneline "$(printf '%s' "$1" | sed -E 's/[{}<>]//g')")
+  # Code-span stars become \002 when they are kept (oneline removed any already there), and are
+  # turned back after the other stars and the backticks go.
+  printf '%s' "$s" | awk -v keep="${2:-}" '{
+    out = ""; rest = $0
+    while ((i = index(rest, "`")) > 0) {
+      after = substr(rest, i + 1); j = index(after, "`")
+      if (j == 0) break
+      code = substr(after, 1, j - 1)
+      if (keep == "keep-stars") gsub(/\*/, "\002", code)
+      out = out substr(rest, 1, i - 1) code; rest = substr(after, j + 1)
+    }
+    printf "%s", out rest
+  }' | tr -d '`*' | sed -E 's/[.]+$//' | tr '\002' '*'
+}
+
+# The frontmatter summary of one bullet line of a next file: its text without the "* ", the
+# {/* */} comments, the trailing PR link and the MDX escapes, through note_summary. It goes into a
+# YAML string, not a comment, so code-span stars are kept.
+bullet_summary() { # line
+  note_summary "$(printf '%s' "$1" | strip_comments |
+    sed -E 's/^\* //; s/ \(\[#[0-9]+\]\([^)]*\)\)$//; s/&(lt|gt|#123|#125);//g')" keep-stars
 }
 
 # skip_reason TITLE BODY HEAD_BRANCH [IS_FORK]

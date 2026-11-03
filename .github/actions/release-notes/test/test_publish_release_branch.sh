@@ -12,7 +12,8 @@ pub() {
     --version 1.9.3 --body-file "$tmp/body.md" "$@"
 }
 reset() {
-  rm -f "$FAKE_GH"/*.json "$FAKE_GH"/*.log "$FAKE_GH"/*-fail "$FAKE_GH/merge-upstream.sh" "$FAKE_GH/on-base"
+  rm -f "$FAKE_GH"/*.json "$FAKE_GH"/*.log "$FAKE_GH"/*-fail "$FAKE_GH/merge-upstream.sh" "$FAKE_GH/on-base" \
+    "$FAKE_GH/body.md"
   unset FORK_PAT GH_TOKEN
 }
 calls() { cat "$FAKE_GH/calls.log" 2> /dev/null; }
@@ -135,6 +136,31 @@ assert_contains "the PR is today's draft, title and label" "$(calls)" \
   "pr create --repo newrelic/docs-website --base develop --head $BRANCH --draft --title React Native agent 1.9.3 release notes --label documentation"
 assert_eq "the commit message is today's" "docs: add React Native agent 1.9.3 release notes" "$(git -C "$UP" log -1 --format=%s "$BRANCH")"
 assert_eq "the commit is the bot's" "newrelic-mobile-agent-bot bot@example.com" "$(git -C "$UP" log -1 --format='%an %ae' "$BRANCH")"
+assert_not_contains "without --ready-for-review the PR text has no ready line" "$(cat "$FAKE_GH/body.md")" "Opened ready for review"
+
+# --- --ready-for-review (readyForReview) ---
+reset; repos; publish_env
+out=$(pub --ready-for-review 2> "$tmp/err"); rc=$?
+assert_eq "ready for review: exits 0" 0 "$rc"
+assert_contains "ready for review: the PR is opened" "$out" "opened https://github.com/newrelic/docs-website/pull/999"
+assert_not_contains "ready for review: the PR is not a draft" "$(grep '^pr create' "$FAKE_GH/calls.log")" "--draft"
+assert_contains "ready for review: the PR text says why" "$(cat "$FAKE_GH/body.md")" "Opened ready for review: readyForReview is set for this agent."
+assert_contains "ready for review: the rest of the PR text is kept" "$(cat "$FAKE_GH/body.md")" "body"
+assert_eq "ready for review: the body file passed in is unchanged" "body" "$(cat "$tmp/body.md")"
+
+reset; repos; publish_env; fake_open_pr 26303 newrelic
+out=$(pub --ready-for-review 2> "$tmp/err"); rc=$?
+assert_eq "ready for review, existing PR: exits 0" 0 "$rc"
+assert_contains "ready for review, existing PR: only its text is refreshed" "$(calls)" "pr edit 26303 --repo newrelic/docs-website --body-file"
+assert_not_contains "ready for review, existing PR: no new PR" "$(calls)" "pr create"
+assert_not_contains "ready for review, existing PR: its draft state is left alone" "$(calls)" "pr ready"
+assert_not_contains "ready for review, existing PR: its text gets no ready line" "$(cat "$FAKE_GH/body.md")" "Opened ready for review"
+
+reset; export GH_TOKEN=g
+out=$(pub --dry-run --ready-for-review 2> /dev/null)
+assert_contains "ready for review: a dry run says so" "$out" \
+  "::notice::A real run would push $BRANCH to newrelic/docs-website and open a PR ready for review on newrelic/docs-website."
+unset GH_TOKEN
 
 reset; repos; publish_env; export FORK_PAT=f; fake_fork newrelic/docs-website
 out=$(pub 2> "$tmp/err"); rc=$?

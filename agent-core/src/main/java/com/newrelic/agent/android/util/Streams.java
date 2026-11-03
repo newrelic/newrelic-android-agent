@@ -22,6 +22,8 @@ import java.util.stream.Stream;
 
 public class Streams {
     public static final int DEFAULT_BUFFER_SIZE = 1024 * 64;
+    static final int MIN_FILE_BUFFER_SIZE = 1024 * 16;
+    private static final int DEFAULT_RESULT_CAPACITY = 32;     // ByteArrayOutputStream's own default
 
     private Streams() {
     }
@@ -70,6 +72,23 @@ public class Streams {
     }
 
     /**
+     * Same as {@link #slurpBytes(InputStream)}, but for streams whose length is known up front, so
+     * a small input doesn't allocate {@link #DEFAULT_BUFFER_SIZE} for copying plus a result buffer
+     * that grows by doubling.
+     *
+     * @param in           stream to read to the end
+     * @param bufferSize   copy buffer size
+     * @param expectedSize initial capacity of the result; the result still grows if the stream is longer
+     */
+    public static byte[] slurpBytes(final InputStream in, final int bufferSize, final int expectedSize) throws IOException {
+        try (final ByteArrayOutputStream out = new ByteArrayOutputStream(expectedSize)) {
+            copy(in, out, bufferSize);
+            out.flush();
+            return out.toByteArray();
+        }
+    }
+
+    /**
      * Return contents of an InputStream as an encoded String.
      *
      * @param in
@@ -89,9 +108,14 @@ public class Streams {
      * @throws IOException
      */
     public static String slurpString(final InputStream in, final String encoding) throws IOException {
+        return slurpString(in, encoding, DEFAULT_BUFFER_SIZE, DEFAULT_RESULT_CAPACITY);
+    }
+
+    private static String slurpString(final InputStream in, final String encoding, final int bufferSize, final int expectedSize) throws IOException {
         String result = "";
         try {
-            result = new String(slurpBytes(in), (null == encoding || encoding.isEmpty()) ? StandardCharsets.UTF_8.name() : encoding);
+            final byte[] bytes = slurpBytes(in, bufferSize, expectedSize);
+            result = new String(bytes, (null == encoding || encoding.isEmpty()) ? StandardCharsets.UTF_8.name() : encoding);
         } catch (Exception ex) {
             ex.printStackTrace();
         } finally {
@@ -109,7 +133,17 @@ public class Streams {
      * @throws IOException
      */
     public static String slurpString(File file, final String encoding) throws IOException {
-        return slurpString(new FileInputStream(file), encoding);
+        final long length = file.length();
+        return slurpString(new FileInputStream(file), encoding, bufferSizeFor(length), (int) Math.min(length, DEFAULT_BUFFER_SIZE));
+    }
+
+    /**
+     * Copy buffer for reading a whole file of the given length: the length itself, clamped between
+     * {@link #MIN_FILE_BUFFER_SIZE} and {@link #DEFAULT_BUFFER_SIZE}, so a small file doesn't pay
+     * for the default buffer but is still read in a few large chunks.
+     */
+    static int bufferSizeFor(long fileLength) {
+        return (int) Math.max(MIN_FILE_BUFFER_SIZE, Math.min(DEFAULT_BUFFER_SIZE, fileLength));
     }
 
     /**

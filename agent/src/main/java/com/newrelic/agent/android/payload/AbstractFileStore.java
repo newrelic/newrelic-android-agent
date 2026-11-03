@@ -114,7 +114,7 @@ public abstract class AbstractFileStore<T> {
         if (files.length == 0) {
             return result;
         }
-        Arrays.sort(files, Comparator.comparingLong(File::lastModified));
+        sortByLastModified(files);
         for (File f : files) {
             try {
                 result.add(parseFile(f));
@@ -221,7 +221,7 @@ public abstract class AbstractFileStore<T> {
         if (files.length < maxCount) {
             return;
         }
-        Arrays.sort(files, Comparator.comparingLong(File::lastModified));
+        sortByLastModified(files);
         int i = 0;
         while (files.length - i >= maxCount && i < files.length) {
             if (files[i].delete()) {
@@ -233,6 +233,29 @@ public abstract class AbstractFileStore<T> {
             }
             i++;
         }
+    }
+
+    /**
+     * Sort {@code files} oldest-first by {@link File#lastModified()}, calling {@code stat()} once
+     * per file up front rather than {@code O(N log N)} times inside the sort comparator.
+     */
+    private static void sortByLastModified(File[] files) {
+        if (files.length <= 1) {
+            return;
+        }
+        final int n = files.length;
+        final long[] mtimes = new long[n];
+        final Integer[] indices = new Integer[n];
+        for (int i = 0; i < n; i++) {
+            mtimes[i] = files[i].lastModified();
+            indices[i] = i;
+        }
+        Arrays.sort(indices, (a, b) -> Long.compare(mtimes[a], mtimes[b]));
+        final File[] sorted = new File[n];
+        for (int i = 0; i < n; i++) {
+            sorted[i] = files[indices[i]];
+        }
+        System.arraycopy(sorted, 0, files, 0, n);
     }
 
     private boolean writeAtomic(String safeName, String json) {
