@@ -156,6 +156,7 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         COMMENT_ON_UNLABELLED: ${{ inputs.dry-run == 'true' && '0' || '1' }}
+        LABELLED_ONLY: ${{ steps.config.outputs.labelled_only }}
         PR_NUMBER: ${{ inputs.pr-number }}
         DOCS_DIR: ${{ steps.config.outputs.docs_dir }}
         SKELETON_NAME: ${{ steps.config.outputs.skeleton_name }}

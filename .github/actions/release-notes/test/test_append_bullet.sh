@@ -81,4 +81,17 @@ for x in "$tmp"/*; do
 done
 assert_eq "no stray temp files beside the target" "" "$stray"
 
+
+# ---- several bullets for one PR (a list-form release note) go in together ----
+fresh
+l1="* Updated A. ([#7]($url/7)) {/* short: Updated A */}"
+l2="* Updated B. ([#7]($url/7)) {/* short: Updated B */}"
+"$SCRIPTS/append-bullet.sh" "$f" enhancement "$l1" "$l2"; rc=$?
+assert_eq "two bullets for one PR: exit 0" 0 "$rc"
+assert_eq "two bullets for one PR: both are added, in order" "$l1|$l2" "$(grep -F "pull/7)" "$f" | paste -sd '|' -)"
+"$SCRIPTS/append-bullet.sh" "$f" enhancement "$l1" "$l2" 2> /dev/null
+assert_eq "a second call for the same PR adds nothing" 2 "$(grep -cF "pull/7)" "$f")"
+"$SCRIPTS/append-bullet.sh" "$f" enhancement "$l1" "* Other. ([#8]($url/8))" > /dev/null 2>&1; rc=$?
+assert_eq "bullets for different PRs in one call are refused" 2 "$rc"
+
 finish
