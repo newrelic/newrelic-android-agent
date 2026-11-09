@@ -75,7 +75,17 @@ public class NativeReporting extends HarvestAdapter {
         boolean isRooted = false;
         if (isInitialized()) {
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_NDK_ROOTED_DEVICE);
-            isRooted = AgentNDK.getInstance().isRooted();
+            try {
+                isRooted = AgentNDK.getInstance().isRooted();
+            } catch (Exception | LinkageError e) {
+                // Root detection is best-effort. RootBeer (via AgentNDK) shells out to `mount`
+                // and can throw unchecked exceptions on some OEM firmware (NR-641986), and
+                // agent-ndk is resolved independently of this agent, so its method
+                // descriptors can differ at runtime. Either would otherwise escape start() on
+                // the app-state monitor thread and crash the host app, so treat the device as
+                // not rooted and carry on.
+                log.error("NativeReporting: unable to determine root status: " + e);
+            }
         }
         return isRooted;
     }
