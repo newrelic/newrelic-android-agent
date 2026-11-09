@@ -8,7 +8,6 @@ package com.newrelic.agent.android.analytics;
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.harvest.HttpTransaction;
-import com.newrelic.agent.android.util.Constants;
 
 import java.util.Set;
 
@@ -38,13 +37,6 @@ public class NetworkRequestErrorEvent extends AnalyticsEvent {
         String appData = httpTransaction.getAppData();
         if (!(appData == null || appData.isEmpty())) {
             attributes.add(new AnalyticsAttribute(AnalyticsAttribute.APP_DATA_ATTRIBUTE, appData));
-        }
-
-        if (httpTransaction.getParams() != null) {
-            String contentType = httpTransaction.getParams().get(Constants.Transactions.CONTENT_TYPE);
-            if (!(contentType == null || contentType.isEmpty())) {
-                attributes.add(new AnalyticsAttribute(AnalyticsAttribute.CONTENT_TYPE_ATTRIBUTE, contentType));
-            }
         }
 
         return attributes;

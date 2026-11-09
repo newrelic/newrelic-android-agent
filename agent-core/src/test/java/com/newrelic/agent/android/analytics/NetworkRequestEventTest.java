@@ -19,6 +19,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class NetworkRequestEventTest {
@@ -60,9 +62,38 @@ public class NetworkRequestEventTest {
         Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.RESPONSE_TIME_ATTRIBUTE));
         Assert.assertNull(getAttributeByName(attributes, AnalyticsAttribute.BYTES_SENT_ATTRIBUTE));
         Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.BYTES_RECEIVED_ATTRIBUTE));
-        Assert.assertNotNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_TYPE));
-        Assert.assertNotNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_LENGTH));
+        Assert.assertNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_TYPE));
+        Assert.assertNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_LENGTH));
+        Assert.assertEquals("text/html; charset=UTF-8", getAttributeByName(attributes, AnalyticsAttribute.CONTENT_TYPE_ATTRIBUTE).getStringValue());
+    }
 
+    @Test
+    public void testInternalParamsAreNotEmittedButTrackedHeadersAre() throws Exception {
+        Map<String, String> params = new HashMap<>();
+        params.put(Constants.Transactions.CONTENT_TYPE, "application/json");
+        params.put(Constants.Transactions.CONTENT_LENGTH, "42");
+        params.put("X-Tracked-Header", "tracked-value");
+        httpTransaction.setParams(params);
+
+        Collection<AnalyticsAttribute> attributes = NetworkRequestEvent.createNetworkEvent(httpTransaction).getAttributeSet();
+
+        Assert.assertNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_TYPE));
+        Assert.assertNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_LENGTH));
+        Assert.assertEquals("application/json", getAttributeByName(attributes, AnalyticsAttribute.CONTENT_TYPE_ATTRIBUTE).getStringValue());
+        Assert.assertEquals("tracked-value", getAttributeByName(attributes, "X-Tracked-Header").getStringValue());
+        Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.BYTES_RECEIVED_ATTRIBUTE));
+    }
+
+    @Test
+    public void testEmptyContentTypeIsNotEmitted() throws Exception {
+        Map<String, String> params = new HashMap<>();
+        params.put(Constants.Transactions.CONTENT_TYPE, "");
+        httpTransaction.setParams(params);
+
+        Set<AnalyticsAttribute> attributes = NetworkRequestEvent.createDefaultAttributeSet(httpTransaction);
+
+        Assert.assertNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_TYPE));
+        Assert.assertNull(getAttributeByName(attributes, AnalyticsAttribute.CONTENT_TYPE_ATTRIBUTE));
     }
 
     @Test
