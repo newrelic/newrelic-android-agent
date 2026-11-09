@@ -31,6 +31,7 @@ import org.robolectric.RobolectricTestRunner;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.UUID;
@@ -166,6 +167,28 @@ public class NativeReportingTest {
     @Test
     public void isRooted() {
         NativeReporting.isRooted();
+        Assert.assertTrue(statsEngineContains(MetricNames.SUPPORTABILITY_NDK_ROOTED_DEVICE));
+    }
+
+    @Test
+    public void isRootedSurvivesRootDetectionFailure() throws Exception {
+        // NR-641986: root detection is best-effort. RootBeer throws unchecked exceptions on
+        // some OEM firmware (an NPE from Scanner/StreamDecoder reading `mount` output), which
+        // escaped NativeReporting.start() and killed the host app on foreground. An AgentNDK
+        // without a ManagedContext makes RootBeer dereference a null Context on its first check,
+        // raising the same class of failure. (AgentNDK.isRooted() is final, so it can't be stubbed.)
+        final Field singleton = AgentNDK.class.getDeclaredField("agentNdk");
+        singleton.setAccessible(true);
+        final Object original = singleton.get(null);
+
+        try {
+            singleton.set(null, new AgentNDK());
+
+            Assert.assertFalse(NativeReporting.isRooted());
+        } finally {
+            singleton.set(null, original);
+        }
+
         Assert.assertTrue(statsEngineContains(MetricNames.SUPPORTABILITY_NDK_ROOTED_DEVICE));
     }
 
