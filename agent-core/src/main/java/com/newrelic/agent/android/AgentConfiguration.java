@@ -97,6 +97,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private JSErrorStore jsErrorStore;
     private SessionContextStore sessionContextStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
+    private boolean applicationFrameworkExplicit = false;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
     private String entityGuid;
@@ -268,6 +269,24 @@ public class AgentConfiguration implements HarvestConfigurable {
 
     public void setApplicationFramework(ApplicationFramework ApplicationFramework) {
         this.applicationFramework = ApplicationFramework;
+        this.applicationFrameworkExplicit = (ApplicationFramework != null);
+    }
+
+    /**
+     * True once a caller (normally a hybrid SDK, through NewRelic.withApplicationFramework) has
+     * chosen the framework. A detected framework does not count.
+     */
+    public boolean isApplicationFrameworkExplicit() {
+        return applicationFrameworkExplicit;
+    }
+
+    /**
+     * Apply a framework the agent detected on its own. Unlike setApplicationFramework() this does
+     * not mark the framework explicit, so a later explicit call still wins. The framework version
+     * is not touched.
+     */
+    public void applyDetectedApplicationFramework(ApplicationFramework detected) {
+        this.applicationFramework = detected;
     }
 
     public String getApplicationFrameworkVersion() {

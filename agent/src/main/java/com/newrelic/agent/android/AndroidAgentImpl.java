@@ -82,6 +82,7 @@ import com.newrelic.agent.android.tracing.TraceMachine;
 import com.newrelic.agent.android.util.ActivityLifecycleBackgroundListener;
 import com.newrelic.agent.android.util.AndroidDecoder;
 import com.newrelic.agent.android.util.AndroidEncoder;
+import com.newrelic.agent.android.util.ApplicationFrameworkResolver;
 import com.newrelic.agent.android.util.ComposeChecker;
 import com.newrelic.agent.android.util.KmpChecker;
 import com.newrelic.agent.android.util.Connectivity;
@@ -148,6 +149,11 @@ public class AndroidAgentImpl implements
         // We want an Application context, not an Activity context.
         this.context = appContext(context);
         this.agentConfiguration = agentConfiguration;
+
+        // Work out the hybrid framework before anything reads it: device information, the analytics
+        // system attributes, the saved connect information and supportability metric names all
+        // capture it on first use.
+        resolveApplicationFramework(this.context, this.agentConfiguration);
 
         resolveBuildId(this.context);
 
@@ -771,6 +777,22 @@ public class AndroidAgentImpl implements
 
     public String getNetworkWanType() {
         return Connectivity.wanType(context);
+    }
+
+    /**
+     * Fails open even when the Kotlin runtime backing {@link ApplicationFrameworkResolver} cannot be
+     * linked: undetected platform is a reporting gap, a failed start is no telemetry at all. A
+     * failure reports the default platform, Native, unless a hybrid SDK already chose one.
+     */
+    private static void resolveApplicationFramework(final Context context, final AgentConfiguration agentConfiguration) {
+        try {
+            ApplicationFrameworkResolver.resolve(context, agentConfiguration);
+        } catch (Throwable t) {
+            log.error("Unable to resolve the application framework, reporting Native: " + t);
+            if (!agentConfiguration.isApplicationFrameworkExplicit()) {
+                agentConfiguration.applyDetectedApplicationFramework(ApplicationFramework.Native);
+            }
+        }
     }
 
     /**

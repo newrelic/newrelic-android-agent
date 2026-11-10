@@ -160,6 +160,44 @@ public class AgentConfigurationTest {
     }
 
     @Test
+    public void applicationFrameworkIsNotExplicitByDefault() {
+        Assert.assertFalse(agentConfiguration.isApplicationFrameworkExplicit());
+        Assert.assertEquals(ApplicationFramework.Native, agentConfiguration.getApplicationFramework());
+    }
+
+    @Test
+    public void settingApplicationFrameworkMarksItExplicit() {
+        agentConfiguration.setApplicationFramework(ApplicationFramework.Native);
+        Assert.assertTrue(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void settingNullApplicationFrameworkDoesNotMarkItExplicit() {
+        agentConfiguration.setApplicationFramework(null);
+        Assert.assertFalse(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void detectedApplicationFrameworkIsAppliedWithoutMarkingItExplicit() {
+        final String versionBefore = agentConfiguration.getApplicationFrameworkVersion();
+
+        agentConfiguration.applyDetectedApplicationFramework(ApplicationFramework.Flutter);
+
+        Assert.assertEquals(ApplicationFramework.Flutter, agentConfiguration.getApplicationFramework());
+        Assert.assertEquals(versionBefore, agentConfiguration.getApplicationFrameworkVersion());
+        Assert.assertFalse(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void explicitCallAfterDetectionOverridesAndMarksItExplicit() {
+        agentConfiguration.applyDetectedApplicationFramework(ApplicationFramework.Flutter);
+        agentConfiguration.setApplicationFramework(ApplicationFramework.ReactNative);
+
+        Assert.assertEquals(ApplicationFramework.ReactNative, agentConfiguration.getApplicationFramework());
+        Assert.assertTrue(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
     public void shouldParseCapacitorApplicationFramework() {
         agentConfiguration.setApplicationFramework(ApplicationFramework.Capacitor);
         Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Capacitor);
