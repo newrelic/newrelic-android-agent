@@ -7,6 +7,8 @@ package com.newrelic.agent.android.util
 
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.ApplicationFramework
+import com.newrelic.agent.android.stats.StatsEngine
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -20,7 +22,17 @@ class ApplicationFrameworkResolverTest {
     @Before
     fun setUp() {
         configuration = AgentConfiguration()
+        StatsEngine.reset()
     }
+
+    @After
+    fun tearDown() {
+        StatsEngine.reset()
+    }
+
+    /** The detection supportability metrics recorded so far. */
+    private fun detectionMetrics(): List<String> =
+        StatsEngine.SUPPORTABILITY.statsMap.keys.filter { it.contains("HybridPlatform/Detected/") }.sorted()
 
     private val flutterActivity = "io.flutter.embedding.android.FlutterActivity"
 
@@ -118,5 +130,53 @@ class ApplicationFrameworkResolverTest {
         }
 
         assertFalse(consulted)
+    }
+
+    // --- supportability metrics ---
+
+    private val detectedFlutter = "Supportability/Mobile/Android/HybridPlatform/Detected/Flutter"
+
+    @Test
+    fun aDetectedFrameworkThatIsUsedIsCounted() {
+        ApplicationFrameworkResolver.resolve(configuration) { ApplicationFramework.Flutter }
+
+        assertEquals(listOf(detectedFlutter), detectionMetrics())
+        assertEquals(1, StatsEngine.SUPPORTABILITY.statsMap[detectedFlutter]!!.count)
+    }
+
+    @Test
+    fun nothingDetectedCountsNothing() {
+        ApplicationFrameworkResolver.resolve(configuration) { null }
+
+        assertEquals(emptyList<String>(), detectionMetrics())
+    }
+
+    @Test
+    fun anAppThatSetItsFrameworkExplicitlyIsNeverCounted() {
+        configuration.applicationFramework = ApplicationFramework.Flutter
+
+        ApplicationFrameworkResolver.resolve(configuration) { ApplicationFramework.Flutter }
+        ApplicationFrameworkResolver.resolve(configuration) { ApplicationFramework.Capacitor }
+
+        assertEquals(emptyList<String>(), detectionMetrics())
+        assertEquals(ApplicationFramework.Flutter, configuration.applicationFramework)
+    }
+
+    @Test
+    fun aFailingDetectorCountsNothingAndLeavesAnExplicitFrameworkAlone() {
+        configuration.applicationFramework = ApplicationFramework.Cordova
+
+        ApplicationFrameworkResolver.resolve(configuration) { throw IllegalStateException("boom") }
+
+        assertEquals(emptyList<String>(), detectionMetrics())
+        assertEquals(ApplicationFramework.Cordova, configuration.applicationFramework)
+    }
+
+    @Test
+    fun aFailingDetectorOnANonExplicitAppCountsNothing() {
+        ApplicationFrameworkResolver.resolve(configuration) { throw IllegalStateException("boom") }
+
+        assertEquals(emptyList<String>(), detectionMetrics())
+        assertEquals(ApplicationFramework.Native, configuration.applicationFramework)
     }
 }

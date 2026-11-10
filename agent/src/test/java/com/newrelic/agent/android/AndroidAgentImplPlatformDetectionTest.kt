@@ -11,10 +11,12 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import com.facebook.react.ReactApplication
+import com.newrelic.agent.android.stats.StatsEngine
 import io.flutter.embedding.android.FlutterActivity
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,6 +38,7 @@ class AndroidAgentImplPlatformDetectionTest {
     @Before
     fun setUp() {
         Agent.setImpl(null)
+        StatsEngine.reset()
         spyContext = SpyContext()
         agentConfiguration = AgentConfiguration().apply {
             applicationToken = "ab20dfe5-96d2-4c6d-b975-3fe9d8778dfc"
@@ -46,7 +49,10 @@ class AndroidAgentImplPlatformDetectionTest {
     fun tearDown() {
         Agent.stop()
         Agent.setImpl(null)
+        StatsEngine.reset()
     }
+
+    private fun metricNames(): Set<String> = StatsEngine.SUPPORTABILITY.statsMap.keys
 
     private fun declareLauncherActivity(className: String) {
         // read these before stubbing: calling the spy context inside the stubbing chain is rejected
@@ -85,6 +91,8 @@ class AndroidAgentImplPlatformDetectionTest {
         assertEquals(ApplicationFramework.Flutter, impl.deviceInformation.applicationFramework)
         assertEquals(ApplicationFramework.Flutter, agentConfiguration.applicationFramework)
         assertFalse(agentConfiguration.isApplicationFrameworkExplicit)
+        // the framework is a literal path segment, so it is not rewritten by the agent still in use at this point
+        assertTrue(metricNames().contains("Supportability/Mobile/Android/HybridPlatform/Detected/Flutter"))
     }
 
     @Test
@@ -96,6 +104,8 @@ class AndroidAgentImplPlatformDetectionTest {
 
         val impl = Agent.getImpl() as AndroidAgentImpl
         assertEquals(ApplicationFramework.ReactNative, impl.deviceInformation.applicationFramework)
+        // an app that names its own framework is not one of the hybrid apps being counted
+        assertFalse(metricNames().any { it.contains("HybridPlatform/Detected/") })
     }
 
     @Test
@@ -104,5 +114,6 @@ class AndroidAgentImplPlatformDetectionTest {
 
         val impl = Agent.getImpl() as AndroidAgentImpl
         assertEquals(ApplicationFramework.Native, impl.deviceInformation.applicationFramework)
+        assertFalse(metricNames().any { it.contains("HybridPlatform/Detected/") })
     }
 }
