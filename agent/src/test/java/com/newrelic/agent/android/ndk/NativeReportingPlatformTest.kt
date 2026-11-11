@@ -10,6 +10,7 @@ import com.newrelic.agent.android.ApplicationFramework
 import com.newrelic.agent.android.agentdata.AgentDataController
 import com.newrelic.agent.android.agentdata.AgentDataReporter
 import com.newrelic.agent.android.analytics.AnalyticsAttribute
+import com.newrelic.agent.android.analytics.AnalyticsControllerImpl
 import com.newrelic.agent.android.crash.Crash
 import com.newrelic.agent.android.crash.CrashReporter
 import io.mockk.every
@@ -143,5 +144,21 @@ class NativeReportingPlatformTest {
         listener.onNativeCrash(sample("crash-2024.sample"))
 
         assertEquals("Cordova", crashPlatform())
+    }
+
+    @Test
+    fun aPlatformTheCrashedSessionAlreadyRecordedWinsOverTheConfiguredFramework() {
+        // the configured framework is only a fallback: a crash flushed on a later launch keeps the platform
+        // of the session that crashed (AnalyticsAttribute equality is by name, and a Set keeps the first)
+        configure(ApplicationFramework.Cordova)
+        mockkStatic(AnalyticsControllerImpl::class)
+        val controller = mockk<AnalyticsControllerImpl>(relaxed = true)
+        every { AnalyticsControllerImpl.getInstance() } returns controller
+        every { controller.sessionAttributes } returns
+            mutableSetOf(AnalyticsAttribute(AnalyticsAttribute.APPLICATION_PLATFORM_ATTRIBUTE, "Flutter"))
+
+        listener.onNativeCrash(sample("crash-2024.sample"))
+
+        assertEquals("Flutter", crashPlatform())
     }
 }

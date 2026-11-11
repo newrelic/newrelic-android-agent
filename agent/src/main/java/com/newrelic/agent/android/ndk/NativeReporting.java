@@ -197,6 +197,9 @@ public class NativeReporting extends HarvestAdapter {
 
             NativeException exceptionToHandle = new NativeCrashException(crashAsString);
 
+            // A fallback only: AnalyticsAttribute equality is by name and a Set keeps the first of two equal
+            // elements, so a platform the crashed session already recorded wins over the configured framework.
+            // That is intended: a crash flushed on the next launch keeps the platform of the session that crashed.
             sessionAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.APPLICATION_PLATFORM_ATTRIBUTE, platformAttributeValue()));
             sessionAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.NATIVE_CRASH, true));
             sessionAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.NATIVE_EXCEPTION_MESSAGE_ATTRIBUTE, exceptionToHandle.getNativeStackTrace().getExceptionMessage()));
