@@ -9,6 +9,7 @@ import android.content.Context;
 
 import com.newrelic.agent.android.Agent;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.ApplicationFramework;
 import com.newrelic.agent.android.NewRelic;
 import com.newrelic.agent.android.agentdata.AgentDataController;
 import com.newrelic.agent.android.agentdata.AgentDataReporter;
@@ -143,6 +144,15 @@ public class NativeReporting extends HarvestAdapter {
         StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_NDK_REPORTS_FLUSH);
     }
 
+    /**
+     * The platform to report on native crashes, exceptions and ANRs: the app's configured
+     * application framework, spelled the same way as the session's platform attribute.
+     */
+    static String platformAttributeValue() {
+        final ApplicationFramework framework = AgentConfiguration.getInstance().getApplicationFramework();
+
+        return (framework != null ? framework : ApplicationFramework.Native).toString();
+    }
 
     static class NativeCrashException extends NativeException {
         public NativeCrashException(String crashAsString) {
@@ -187,7 +197,7 @@ public class NativeReporting extends HarvestAdapter {
 
             NativeException exceptionToHandle = new NativeCrashException(crashAsString);
 
-            sessionAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.APPLICATION_PLATFORM_ATTRIBUTE, "native"));
+            sessionAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.APPLICATION_PLATFORM_ATTRIBUTE, platformAttributeValue()));
             sessionAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.NATIVE_CRASH, true));
             sessionAttributes.add(new AnalyticsAttribute(AnalyticsAttribute.NATIVE_EXCEPTION_MESSAGE_ATTRIBUTE, exceptionToHandle.getNativeStackTrace().getExceptionMessage()));
 
@@ -214,7 +224,7 @@ public class NativeReporting extends HarvestAdapter {
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_NDK_REPORTS_EXCEPTION);
 
             Map<String, Object> exceptionAttributes = new HashMap<String, Object>() {{
-                put(AnalyticsAttribute.APPLICATION_PLATFORM_ATTRIBUTE, "native");
+                put(AnalyticsAttribute.APPLICATION_PLATFORM_ATTRIBUTE, platformAttributeValue());
                 put(AnalyticsAttribute.UNHANDLED_NATIVE_EXCEPTION, true);
             }};
 
@@ -240,7 +250,7 @@ public class NativeReporting extends HarvestAdapter {
             StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_NDK_REPORTS_ANR);
 
             Map<String, Object> exceptionAttributes = new HashMap<String, Object>() {{
-                put(AnalyticsAttribute.APPLICATION_PLATFORM_ATTRIBUTE, "native");
+                put(AnalyticsAttribute.APPLICATION_PLATFORM_ATTRIBUTE, platformAttributeValue());
                 put(AnalyticsAttribute.ANR, true);
             }};
 
