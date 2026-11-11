@@ -290,7 +290,18 @@ public class AgentConfiguration implements HarvestConfigurable {
      * is not touched.
      */
     public void applyDetectedApplicationFramework(ApplicationFramework detected) {
-        this.applicationFramework = detected;
+        this.applicationFramework = (detected != null) ? detected : ApplicationFramework.Native;
+    }
+
+    /**
+     * Apply the framework version a hybrid SDK declared in the app's resources. Like
+     * applyDetectedApplicationFramework() this does not mark anything explicit. A null or blank
+     * version is ignored, so the default (the agent's own version) stays.
+     */
+    public void applyDetectedApplicationFrameworkVersion(String detectedVersion) {
+        if (detectedVersion != null && !detectedVersion.trim().isEmpty()) {
+            this.applicationFrameworkVersion = detectedVersion.trim();
+        }
     }
 
     public String getApplicationFrameworkVersion() {

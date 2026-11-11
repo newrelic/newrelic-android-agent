@@ -87,4 +87,49 @@ class ApplicationFrameworkResourceTest {
         every { resources.getString(resourceId) } throws NotFoundException("gone")
         assertNull(ApplicationFrameworkResource.read(context))
     }
+
+    // --- the framework version ---
+
+    private val versionId = 0x7f0c000b
+
+    private fun declareVersion(value: String) {
+        every { resources.getIdentifier("com_newrelic_application_framework_version", "string", packageName) } returns versionId
+        every { resources.getString(versionId) } returns value
+    }
+
+    @Test
+    fun versionResourceNameMatchesWhatHybridAgentsShip() {
+        assertEquals("com_newrelic_application_framework_version", ApplicationFrameworkResource.VERSION_NAME)
+    }
+
+    @Test
+    fun appWithoutTheVersionResourceHasNoVersion() {
+        every { resources.getIdentifier("com_newrelic_application_framework_version", "string", packageName) } returns 0
+        assertNull(ApplicationFrameworkResource.readVersion(context))
+    }
+
+    @Test
+    fun theDeclaredVersionIsRead() {
+        declareVersion("1.9.4")
+        assertEquals("1.9.4", ApplicationFrameworkResource.readVersion(context))
+    }
+
+    @Test
+    fun surroundingWhitespaceInTheVersionIsIgnored() {
+        declareVersion("  1.9.4\n")
+        assertEquals("1.9.4", ApplicationFrameworkResource.readVersion(context))
+    }
+
+    @Test
+    fun aBlankVersionIsIgnored() {
+        declareVersion("   ")
+        assertNull(ApplicationFrameworkResource.readVersion(context))
+    }
+
+    @Test
+    fun aVersionThatCannotBeReadIsIgnored() {
+        declareVersion("1.9.4")
+        every { resources.getString(versionId) } throws NotFoundException("gone")
+        assertNull(ApplicationFrameworkResource.readVersion(context))
+    }
 }

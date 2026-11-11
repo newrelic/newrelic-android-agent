@@ -175,4 +175,61 @@ class ApplicationFrameworkResolverTest {
         assertEquals(emptyList<String>(), detectionMetrics())
         assertEquals(ApplicationFramework.Native, configuration.applicationFramework)
     }
+
+    // --- the framework version ---
+
+    @Test
+    fun aDeclaredVersionIsUsedWithTheFramework() {
+        ApplicationFrameworkResolver.resolve(configuration, { ApplicationFramework.Flutter }) { "1.3.5" }
+
+        assertEquals(ApplicationFramework.Flutter, configuration.applicationFramework)
+        assertEquals("1.3.5", configuration.applicationFrameworkVersion)
+        assertFalse(configuration.isApplicationFrameworkExplicit)
+    }
+
+    @Test
+    fun noDeclaredVersionKeepsTheDefault() {
+        val before = configuration.applicationFrameworkVersion
+
+        ApplicationFrameworkResolver.resolve(configuration, { ApplicationFramework.Flutter }) { null }
+
+        assertEquals(before, configuration.applicationFrameworkVersion)
+    }
+
+    @Test
+    fun aVersionWithoutAFrameworkIsIgnored() {
+        val before = configuration.applicationFrameworkVersion
+
+        ApplicationFrameworkResolver.resolve(configuration, { null }) { "1.3.5" }
+
+        assertEquals(before, configuration.applicationFrameworkVersion)
+    }
+
+    @Test
+    fun theVersionIsNotReadWhenTheFrameworkIsExplicit() {
+        configuration.applicationFramework = ApplicationFramework.Cordova
+        configuration.applicationFrameworkVersion = "7.1.14"
+        var consulted = false
+
+        ApplicationFrameworkResolver.resolve(configuration, { ApplicationFramework.Flutter }) {
+            consulted = true
+            "1.3.5"
+        }
+
+        assertFalse(consulted)
+        assertEquals("7.1.14", configuration.applicationFrameworkVersion)
+    }
+
+    @Test
+    fun aFailingVersionReadKeepsTheDetectedFramework() {
+        val before = configuration.applicationFrameworkVersion
+
+        ApplicationFrameworkResolver.resolve(configuration, { ApplicationFramework.Flutter }) {
+            throw IllegalStateException("boom")
+        }
+
+        assertEquals(ApplicationFramework.Flutter, configuration.applicationFramework)
+        assertEquals(before, configuration.applicationFrameworkVersion)
+        assertEquals(listOf(detectedFlutter), detectionMetrics())
+    }
 }

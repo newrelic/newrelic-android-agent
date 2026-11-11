@@ -311,4 +311,36 @@ public class AgentConfigurationTest {
         String sessionId3 = config.getSessionID();
         Assert.assertEquals(sessionId2, sessionId3);
     }
+
+    @Test
+    public void applyDetectedApplicationFrameworkVersionSetsTheVersionWithoutMarkingTheFrameworkExplicit() {
+        final AgentConfiguration configuration = new AgentConfiguration();
+
+        configuration.applyDetectedApplicationFrameworkVersion(" 1.3.5 ");
+
+        Assert.assertEquals("1.3.5", configuration.getApplicationFrameworkVersion());
+        Assert.assertFalse(configuration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void applyDetectedApplicationFrameworkVersionIgnoresNullAndBlank() {
+        final AgentConfiguration configuration = new AgentConfiguration();
+        final String before = configuration.getApplicationFrameworkVersion();
+
+        configuration.applyDetectedApplicationFrameworkVersion(null);
+        configuration.applyDetectedApplicationFrameworkVersion("   ");
+
+        Assert.assertEquals(before, configuration.getApplicationFrameworkVersion());
+    }
+
+    @Test
+    public void applyDetectedApplicationFrameworkWithNullFallsBackToNativeAndStaysNotExplicit() {
+        final AgentConfiguration configuration = new AgentConfiguration();
+        configuration.applyDetectedApplicationFramework(ApplicationFramework.Flutter);
+
+        configuration.applyDetectedApplicationFramework(null);
+
+        Assert.assertEquals(ApplicationFramework.Native, configuration.getApplicationFramework());
+        Assert.assertFalse(configuration.isApplicationFrameworkExplicit());
+    }
 }

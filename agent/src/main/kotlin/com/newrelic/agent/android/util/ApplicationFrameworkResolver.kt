@@ -28,10 +28,20 @@ object ApplicationFrameworkResolver {
 
     @JvmStatic
     fun resolve(context: Context, agentConfiguration: AgentConfiguration) {
-        resolve(agentConfiguration) { ApplicationFrameworkResource.read(context) }
+        resolve(agentConfiguration, { ApplicationFrameworkResource.read(context) }) {
+            ApplicationFrameworkResource.readVersion(context)
+        }
     }
 
     internal fun resolve(agentConfiguration: AgentConfiguration, detect: () -> ApplicationFramework?) {
+        resolve(agentConfiguration, detect, { null })
+    }
+
+    internal fun resolve(
+        agentConfiguration: AgentConfiguration,
+        detect: () -> ApplicationFramework?,
+        detectVersion: () -> String?
+    ) {
         if (agentConfiguration.isApplicationFrameworkExplicit) {
             return
         }
@@ -44,6 +54,7 @@ object ApplicationFrameworkResolver {
 
             if (detected != null) {
                 agentConfiguration.applyDetectedApplicationFramework(detected)
+                applyVersion(agentConfiguration, detectVersion)
                 log.debug("Detected application framework $detected in $elapsedMicros us")
                 count(
                     MetricNames.SUPPORTABILITY_MOBILE_ANDROID_HYBRID_PLATFORM_DETECTED
@@ -55,6 +66,18 @@ object ApplicationFrameworkResolver {
         } catch (t: Throwable) {
             log.error("Application framework detection failed, reporting Native: $t")
             fallBackToNative(agentConfiguration)
+        }
+    }
+
+    /**
+     * The version only refines a framework that was found. If it cannot be read the default stays, and
+     * the framework already applied is kept: a missing version must never undo a correct platform.
+     */
+    private fun applyVersion(agentConfiguration: AgentConfiguration, detectVersion: () -> String?) {
+        try {
+            agentConfiguration.applyDetectedApplicationFrameworkVersion(detectVersion())
+        } catch (t: Throwable) {
+            AgentLogManager.getAgentLog().debug("Could not read the application framework version: $t")
         }
     }
 

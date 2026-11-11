@@ -44,14 +44,19 @@ class AndroidAgentImplPlatformDetectionTest {
     private fun metricNames(): Set<String> = StatsEngine.SUPPORTABILITY.statsMap.keys
 
     /** Gives the app the framework string resource that a hybrid SDK ships. */
-    private fun declareFrameworkResource(value: String) {
+    private fun declareFrameworkResource(value: String, version: String? = null) {
         val context = spyContext.context
         val resourceId = 0x7f0c00aa
+        val versionId = 0x7f0c00ab
         // read these before stubbing: calling the spy context inside the stubbing chain is rejected
         val packageName = context.packageName
         val resources = spy(context.resources)
         doReturn(resourceId).`when`(resources).getIdentifier(ApplicationFrameworkResource.NAME, "string", packageName)
         doReturn(value).`when`(resources).getString(resourceId)
+        if (version != null) {
+            doReturn(versionId).`when`(resources).getIdentifier(ApplicationFrameworkResource.VERSION_NAME, "string", packageName)
+            doReturn(version).`when`(resources).getString(versionId)
+        }
         doReturn(resources).`when`(context).resources
     }
 
@@ -77,6 +82,27 @@ class AndroidAgentImplPlatformDetectionTest {
         assertFalse(agentConfiguration.isApplicationFrameworkExplicit)
         // the framework is a literal path segment, so it is not rewritten by the agent still in use at this point
         assertTrue(metricNames().contains("Supportability/Mobile/Android/HybridPlatform/Detected/Flutter"))
+    }
+
+    @Test
+    fun theDeclaredVersionIsInDeviceInformationFromTheFirstRead() {
+        declareFrameworkResource("Flutter", "1.3.5")
+
+        AndroidAgentImpl.init(spyContext.context, agentConfiguration)
+
+        val impl = Agent.getImpl() as AndroidAgentImpl
+        assertEquals(ApplicationFramework.Flutter, impl.deviceInformation.applicationFramework)
+        assertEquals("1.3.5", impl.deviceInformation.applicationFrameworkVersion)
+    }
+
+    @Test
+    fun withoutADeclaredVersionTheAgentVersionIsKept() {
+        declareFrameworkResource("Flutter")
+
+        AndroidAgentImpl.init(spyContext.context, agentConfiguration)
+
+        val impl = Agent.getImpl() as AndroidAgentImpl
+        assertEquals(Agent.getVersion(), impl.deviceInformation.applicationFrameworkVersion)
     }
 
     @Test
