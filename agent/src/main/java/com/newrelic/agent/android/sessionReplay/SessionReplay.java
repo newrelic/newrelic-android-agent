@@ -8,6 +8,8 @@ import android.os.Handler;
 import android.view.View;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -68,7 +70,16 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     protected static final AgentLog log = AgentLogManager.getAgentLog();
     private static boolean isFirstChunk = true;
     private static final AtomicBoolean takeFullSnapshot = new AtomicBoolean(true);
-    private static SessionReplayModeManager modeManager;
+    private static volatile SessionReplayModeManager modeManager;
+
+    // Process-lifetime: listeners survive deInitialize() and session restarts (NR-645445).
+    // The mode source is read under the notifier's lock, so it must not take other locks.
+    private static final SessionReplayConfigNotifier configNotifier = new SessionReplayConfigNotifier(
+            () -> {
+                SessionReplayMode mode = getCurrentMode();
+                return mode != null ? mode : SessionReplayMode.OFF;
+            },
+            SessionReplayConfigNotifier.mainThreadExecutor());
 
     // Guards against double-init. initSessionReplay is invoked from both agent boot and
     // onHarvestConnected; without this flag the second call would recreate the processor,
@@ -568,14 +579,16 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @return true if mode was successfully transitioned to FULL, false otherwise
      */
     public static boolean switchModeOnError() {
-        if (modeManager != null && modeManager.getCurrentMode() == SessionReplayMode.ERROR) {
-            boolean modeChanged = modeManager.transitionTo(SessionReplayMode.FULL, "ErrorDetected");
+        SessionReplayModeManager manager = modeManager;
+        if (manager != null && manager.getCurrentMode() == SessionReplayMode.ERROR) {
+            boolean modeChanged = manager.transitionTo(SessionReplayMode.FULL, "ErrorDetected");
             if (modeChanged) {
                 // Stop the sliding window timer when switching to FULL mode
                 stopSlidingWindowTimer();
                 // Force a full snapshot to ensure we have complete data from this point forward
                 setTakeFullSnapshot(true);
                 persistSrState(true, true);
+                notifyModeChanged();
                 return true;
             }
         }
@@ -655,13 +668,15 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @return true if recording was stopped and harvest triggered, false if already stopped/disabled
      */
     public static boolean pauseReplay() {
-        if (modeManager == null) {
+        SessionReplayModeManager manager = modeManager;
+        if (manager == null) {
             return false;
         }
-        boolean modeChanged = modeManager.transitionTo(SessionReplayMode.OFF, "APIPauseReplay");
+        boolean modeChanged = manager.transitionTo(SessionReplayMode.OFF, "APIPauseReplay");
         if (modeChanged) {
             stopSlidingWindowTimer();
             stopRecording();
+            notifyModeChanged();
             return true;
         }
         return false;
@@ -674,10 +689,62 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @return The current SessionReplayMode (OFF, ERROR, or FULL), or null if not initialized
      */
     public static SessionReplayMode getCurrentMode() {
-        if (modeManager == null) {
+        SessionReplayModeManager manager = modeManager;
+        if (manager == null) {
             return null;
         }
-        return modeManager.getCurrentMode();
+        return manager.getCurrentMode();
+    }
+
+    /**
+     * Registers a listener for changes to the resolved Session Replay configuration and the
+     * current recording mode. See {@link SessionReplayConfigListener} for when it is called.
+     * <p>
+     * Listeners are called on the main thread, in the order the changes happened. May be called
+     * before the agent starts. The listener stays registered across sessions until removed. If a
+     * state was reported already, the listener is called once with the latest one. That replay is
+     * also delivered asynchronously on the main thread, not inside this call.
+     *
+     * @param listener the listener; null is ignored, and adding the same instance twice is a no-op
+     */
+    public static void addConfigListener(@Nullable SessionReplayConfigListener listener) {
+        configNotifier.add(listener);
+    }
+
+    /**
+     * Unregisters a listener added with {@link #addConfigListener}. Unknown or null listeners are ignored.
+     *
+     * @param listener the listener to remove
+     */
+    public static void removeConfigListener(@Nullable SessionReplayConfigListener listener) {
+        configNotifier.remove(listener);
+    }
+
+    /**
+     * Agent-internal: tells the listeners the configuration and recording mode as they are now.
+     * Called by {@code AndroidAgentImpl} for the changes it coordinates.
+     *
+     * @param configuration the resolved configuration to report; null is ignored. The listeners
+     *                      receive a copy taken now, so later changes to this object are not seen.
+     */
+    public static void notifyConfigListeners(@Nullable SessionReplayConfiguration configuration) {
+        if (configuration != null) {
+            configNotifier.publish(configuration);
+        }
+    }
+
+    @VisibleForTesting
+    static void resetConfigListeners() {
+        configNotifier.reset();
+    }
+
+    private static void notifyModeChanged() {
+        SessionReplayModeManager manager = modeManager;
+        AgentConfiguration configuration = agentConfiguration;
+        if (manager == null || configuration == null) {
+            return; // the session ended meanwhile; session end is silent
+        }
+        notifyConfigListeners(configuration.getSessionReplayConfiguration());
     }
 
     /**
@@ -700,12 +767,13 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * @return true if transition was successful, false otherwise
      */
     public static boolean transitionToMode(SessionReplayMode newMode, String trigger) {
-        if (modeManager == null) {
+        SessionReplayModeManager manager = modeManager;
+        if (manager == null) {
             log.warn("SessionReplay: transitionToMode called but SessionReplay not initialized");
             return false;
         }
 
-        SessionReplayMode currentMode = modeManager.getCurrentMode();
+        SessionReplayMode currentMode = manager.getCurrentMode();
 
         // If transitioning from ERROR to FULL, stop the sliding window timer
         if (currentMode == SessionReplayMode.ERROR && newMode == SessionReplayMode.FULL) {
@@ -713,6 +781,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             setTakeFullSnapshot(true);
         }
 
-        return modeManager.transitionTo(newMode, trigger);
+        boolean modeChanged = manager.transitionTo(newMode, trigger);
+        if (modeChanged) {
+            notifyModeChanged();
+        }
+        return modeChanged;
     }
 }
