@@ -31,6 +31,10 @@ import com.newrelic.agent.android.logging.NullAgentLog;
 import com.newrelic.agent.android.measurement.HttpTransactionMeasurement;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
+import com.newrelic.agent.android.mobileview.MobileViewAppearance;
+import com.newrelic.agent.android.mobileview.MobileViewContext;
+import com.newrelic.agent.android.mobileview.MobileViewTiming;
+import com.newrelic.agent.android.mobileview.UiPlatform;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
 import com.newrelic.agent.android.sessionReplay.CompositeEventListener;
@@ -988,6 +992,151 @@ public final class NewRelic {
             breadcrumbAttributes.put(AnalyticsAttribute.EVENT_NAME_ATTRIBUTE, breadcrumbName);
         }
         return AnalyticsControllerImpl.getInstance().recordBreadcrumb(breadcrumbName, breadcrumbAttributes);
+    }
+
+    /**
+     * Manually records a MobileView event for the given view name. Use this to track screens
+     * that automatic MobileView tracking cannot capture (e.g. React Native screens, or views
+     * you want to rename). Requires the {@link FeatureFlag#ManualMobileViewTracing} feature
+     * flag to be enabled.
+     *
+     * @param viewName Name of the view to record as currently visible.
+     * @return Returns true if the MobileView event was successfully recorded.
+     */
+    public static boolean setCurrentView(String viewName) {
+        return setCurrentView(viewName, null);
+    }
+
+    /**
+     * Manually records a MobileView event for the given view name and attributes. Use this to
+     * track screens that automatic MobileView tracking cannot capture (e.g. React Native
+     * screens, or views you want to rename). Requires the
+     * {@link FeatureFlag#ManualMobileViewTracing} feature flag to be enabled.
+     *
+     * <p>The {@code uiPlatform} attribute on the recorded event is always {@link
+     * UiPlatform#ANDROID}. Callers that need to report a different platform (e.g. a
+     * React Native or Flutter bridge) should use {@link #setCurrentView(String, Map, UiPlatform)}.
+     *
+     * @param viewName   Name of the view to record as currently visible.
+     * @param attributes A map of key-value pairs holding the event attributes. The values must
+     *                    be of type String, Double, or Boolean.
+     * @return Returns true if the MobileView event was successfully recorded.
+     */
+    public static boolean setCurrentView(String viewName, Map<String, Object> attributes) {
+        return setCurrentView(viewName, attributes, UiPlatform.ANDROID);
+    }
+
+    /**
+     * Manually records a MobileView event for the given view name, attributes, and UI platform.
+     * Use this to track screens that automatic MobileView tracking cannot capture (e.g. React
+     * Native or Flutter screens). Requires the {@link FeatureFlag#ManualMobileViewTracing}
+     * feature flag to be enabled.
+     *
+     * @param viewName   Name of the view to record as currently visible.
+     * @param attributes A map of key-value pairs holding the event attributes. The values must
+     *                    be of type String, Double, or Boolean.
+     * @param uiPlatform The UI platform the view was rendered with, e.g. {@link
+     *                    UiPlatform#ANDROID} or {@link UiPlatform#COMPOSE}.
+     * @return Returns true if the MobileView event was successfully recorded.
+     */
+    public static boolean setCurrentView(String viewName, Map<String, Object> attributes, UiPlatform uiPlatform) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "setCurrentView"));
+
+        if (!FeatureFlag.featureEnabled(FeatureFlag.ManualMobileViewTracing)) {
+            log.debug("NewRelic.setCurrentView: ManualMobileViewTracing feature flag is disabled, ignoring.");
+            return false;
+        }
+
+        if (viewName == null || viewName.isEmpty()) {
+            log.error("NewRelic.setCurrentView: viewName must not be null or empty.");
+            return false;
+        }
+
+        if (uiPlatform == null) {
+            log.error("NewRelic.setCurrentView: uiPlatform must not be null.");
+            return false;
+        }
+
+        try {
+            return MobileViewContext.getInstance().onViewAppeared(
+                    new MobileViewAppearance(viewName, uiPlatform)
+                            .attributes(attributes)) != null;
+        } catch (Exception e) {
+            log.error("NewRelic.setCurrentView: ", e);
+            return false;
+        }
+    }
+
+    /**
+     * Standard {@link #markViewTiming(String)} / {@link #recordViewTiming(String, double)} name for
+     * the moment a screen is fully loaded and no longer showing placeholders. The same string on every
+     * New Relic mobile agent, so dashboards line up across apps.
+     */
+    public static final String TIME_TO_FULL_DISPLAY = MobileViewTiming.TIME_TO_FULL_DISPLAY;
+
+    /**
+     * Standard timing name for the moment a screen responds to touches.
+     */
+    public static final String TIME_TO_INTERACTIVE = MobileViewTiming.TIME_TO_INTERACTIVE;
+
+    /**
+     * Records how long something took on the current view, as a MobileViewTiming event. The duration
+     * is measured by the agent, from the moment the current view's construction began (or, if that
+     * was not observed, from when it appeared) until this call.
+     *
+     * <p>Fails, returning false, when no view is currently tracked: with no zero point, a wrong number
+     * is worse than none. Use {@link #recordViewTiming(String, double)} to supply the duration yourself.
+     *
+     * <p>Active when either the {@link FeatureFlag#AutomaticMobileViewTracing} or
+     * {@link FeatureFlag#ManualMobileViewTracing} feature flag is enabled. A timing is rejected, and the
+     * reason logged as a warning, when the name is empty, longer than 128 characters or
+     * {@code timeToInitialDisplay} (which the agent records itself), or when the view already has 16
+     * timings.
+     *
+     * @param name Timing name, e.g. {@link #TIME_TO_FULL_DISPLAY}.
+     * @return Returns true if the timing was recorded.
+     */
+    public static boolean markViewTiming(String name) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "markViewTiming"));
+
+        try {
+            return MobileViewTiming.getInstance().mark(name);
+        } catch (Exception e) {
+            log.error("NewRelic.markViewTiming: ", e);
+            return false;
+        }
+    }
+
+    /**
+     * Records a MobileViewTiming event with a duration you have already measured, for cases where the
+     * current view's construction is the wrong zero point (for example a prefetch that began before
+     * navigation, or a duration measured by another SDK, or a "loadMore" page load).
+     *
+     * <p>Unlike {@link #markViewTiming(String)}, this works with no view tracked: the event is then
+     * recorded without view identity.
+     *
+     * <p>Active when either the {@link FeatureFlag#AutomaticMobileViewTracing} or
+     * {@link FeatureFlag#ManualMobileViewTracing} feature flag is enabled. A timing is rejected, and the
+     * reason logged as a warning, when the name is empty, longer than 128 characters or
+     * {@code timeToInitialDisplay}, when the duration is not finite, negative or over 600000 ms, or when
+     * the view already has 16 timings.
+     *
+     * @param name         Timing name, e.g. {@link #TIME_TO_FULL_DISPLAY}.
+     * @param milliseconds Duration in milliseconds, not seconds.
+     * @return Returns true if the timing was recorded.
+     */
+    public static boolean recordViewTiming(String name, double milliseconds) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "recordViewTiming"));
+
+        try {
+            return MobileViewTiming.getInstance().record(name, milliseconds);
+        } catch (Exception e) {
+            log.error("NewRelic.recordViewTiming: ", e);
+            return false;
+        }
     }
 
     /**
