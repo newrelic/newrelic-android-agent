@@ -130,6 +130,9 @@ public class AndroidAgentImpl implements
 
     private final Context context;
     private SavedState savedState;
+    // The agent connects only when it has no valid saved state, so a configuration saved by an
+    // earlier launch is what this launch samples from. Read before anything can clear savedState.
+    private final boolean savedStateHadRemoteConfiguration;
 
     private final Lock lock = new ReentrantLock();
 
@@ -158,6 +161,7 @@ public class AndroidAgentImpl implements
         resolveBuildId(this.context);
 
         this.savedState = new SavedState(this.context);
+        this.savedStateHadRemoteConfiguration = savedState.hasRemoteConfiguration();
         this.offlineStorageInstance = new OfflineStorage(context);
 
         if (isDisabled()) {
@@ -297,6 +301,13 @@ public class AndroidAgentImpl implements
         PayloadController.initialize(agentConfiguration);
 
         initializeFeaturesWithCoordination(context, agentConfiguration);
+
+        // The agent doesn't call /connect on every launch. A saved configuration is what this
+        // session just sampled from, so report it now instead of waiting for the harvester.
+        if (savedStateHadRemoteConfiguration) {
+            SessionReplay.notifyConfigListeners(agentConfiguration.getSessionReplayConfiguration());
+        }
+
         Measurements.initialize();
         log.info(MessageFormat.format("New Relic Agent v{0}", Agent.getVersion()));
         log.verbose(MessageFormat.format("Application token: {0}", agentConfiguration.getApplicationToken()));
@@ -857,6 +868,7 @@ public class AndroidAgentImpl implements
                 SessionReplay.initSessionReplay(SessionReplayMode.FULL);
                 AnalyticsControllerImpl.getInstance().setAttribute(AnalyticsAttribute.SESSION_REPLAY_ENABLED, true);
                 activateLoggingForSessionReplay();
+                SessionReplay.notifyConfigListeners(AgentConfiguration.getInstance().getSessionReplayConfiguration());
                 log.info("recordReplay: SessionReplay initialized in FULL mode");
                 return true;
             } catch (Exception e) {
@@ -1306,11 +1318,16 @@ public class AndroidAgentImpl implements
         }
 
         agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
+
+        // Last, so listeners get the configuration the connect (or the saved state) resolved,
+        // including a disabled one, for which session replay never initializes.
+        SessionReplay.notifyConfigListeners(agentConfiguration.getSessionReplayConfiguration());
     }
 
     @Override
     public void onHarvestConfigurationChanged() {
         agentConfiguration.updateConfiguration(savedState.getHarvestConfiguration());
+        SessionReplay.notifyConfigListeners(agentConfiguration.getSessionReplayConfiguration());
     }
 
     @Override
@@ -1331,5 +1348,8 @@ public class AndroidAgentImpl implements
         if (savedContext != null) {
             initializeFeaturesWithCoordination(savedContext, agentConfiguration);
         }
+
+        // deInitialize() above is silent; this reports the new session's sampling result
+        SessionReplay.notifyConfigListeners(agentConfiguration.getSessionReplayConfiguration());
     }
 }
