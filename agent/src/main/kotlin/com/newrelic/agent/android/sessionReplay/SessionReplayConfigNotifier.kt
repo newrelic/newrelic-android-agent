@@ -21,17 +21,21 @@ internal fun interface SessionReplayModeSource {
  * One instance lives for the process, so listeners stay registered across sessions and agent
  * restarts.
  *
- * [publish] copies the configuration and reads the mode under [lock], remembers the result as
- * the latest state, and posts one delivery task to [executor]. Doing both under one lock keeps
- * delivery in publish order and makes the last notification carry the final state, even when the
- * harvest thread and the main thread change state at the same time.
+ * [publish] builds the [SessionReplayConfigMap] from the configuration and the current mode,
+ * remembers it as the latest state, and posts one delivery task to [executor], all under [lock].
+ * Doing all three under one lock keeps delivery in publish order and makes the last notification
+ * carry the final state, even when the harvest thread and the main thread change state at the
+ * same time.
+ *
+ * The map is the snapshot: later harvests update the live configuration in place, and delivery
+ * happens later on the main thread.
  */
 internal class SessionReplayConfigNotifier(
     private val modeSource: SessionReplayModeSource,
     private val executor: Executor,
 ) {
 
-    private class State(val configuration: SessionReplayConfiguration, val mode: SessionReplayMode)
+    private class State(val configuration: Map<String, Any>)
 
     private val lock = Any()
     private val listeners = CopyOnWriteArraySet<SessionReplayConfigListener>()
@@ -76,7 +80,7 @@ internal class SessionReplayConfigNotifier(
     fun publish(configuration: SessionReplayConfiguration) {
         try {
             synchronized(lock) {
-                val state = State(copyOf(configuration), modeSource.currentMode())
+                val state = State(SessionReplayConfigMap.create(configuration, modeSource.currentMode()))
                 last = state
                 val targets = listeners.toList()
                 if (targets.isEmpty()) return
@@ -105,7 +109,7 @@ internal class SessionReplayConfigNotifier(
     private fun deliver(listener: SessionReplayConfigListener, state: State) {
         if (!listeners.contains(listener)) return
         try {
-            listener.onSessionReplayConfigChanged(state.configuration, state.mode)
+            listener.onSessionReplayConfigChanged(state.configuration)
         } catch (t: Throwable) {
             AgentLogManager.getAgentLog().error("SessionReplay: config listener ${listener.javaClass.name} failed: $t")
         }
@@ -114,17 +118,6 @@ internal class SessionReplayConfigNotifier(
     private fun log(message: String) {
         AgentLogManager.getAgentLog().error("SessionReplay: $message")
     }
-
-    /**
-     * The live object is updated in place by every config update, and delivery happens later on
-     * another thread, so listeners get a copy. [SessionReplayConfiguration.setConfiguration] copies
-     * only the raw fields, so the derived masking sets are rebuilt on the copy from its rules.
-     */
-    private fun copyOf(configuration: SessionReplayConfiguration): SessionReplayConfiguration =
-        SessionReplayConfiguration().also {
-            it.setConfiguration(configuration)
-            it.processCustomMaskingRules()
-        }
 
     companion object {
         /** An executor that runs work on the main thread, in the order it was posted. */

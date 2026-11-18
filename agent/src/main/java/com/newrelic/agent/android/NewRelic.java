@@ -33,6 +33,7 @@ import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.metric.MetricUnit;
 import com.newrelic.agent.android.rum.AppApplicationLifeCycle;
 import com.newrelic.agent.android.sessionReplay.SessionReplay;
+import com.newrelic.agent.android.sessionReplay.SessionReplayConfigMap;
 import com.newrelic.agent.android.sessionReplay.CompositeEventListener;
 import com.newrelic.agent.android.sessionReplay.TextMaskingStrategy;
 import com.newrelic.agent.android.stats.StatsEngine;
@@ -66,7 +67,7 @@ public final class NewRelic {
 
     private static final AgentLog log = AgentLogManager.getAgentLog();
     protected static final AgentConfiguration agentConfiguration = AgentConfiguration.getInstance();
-    protected static boolean started = false;
+    protected static volatile boolean started = false;
     protected static boolean isShutdown = false;
 
     boolean loggingEnabled = true;
@@ -1481,6 +1482,32 @@ public final class NewRelic {
             log.error("pauseReplay: Failed to stop recording: " + e.getMessage(), e);
             return false;
         }
+    }
+
+    /**
+     * Returns the resolved Session Replay configuration and the mode that is recording now, for
+     * hybrid agents. Callable from any thread. The returned map is immutable and reflects the
+     * configuration and mode at the moment it is read; it may briefly reflect a configuration
+     * update that is in progress on the harvest thread.
+     * <p>
+     * Keys: {@code enabled}, {@code mode} ("default" / "custom"), {@code recordingMode} ("off" /
+     * "error" / "full"), {@code maskApplicationText}, {@code maskUserInputText},
+     * {@code maskAllImages}, {@code maskAllUserTouches}. {@code recordingMode} is "off" whenever
+     * Session Replay is disabled, otherwise the mode that is currently recording.
+     * <p>
+     * Before the agent starts, after {@link #shutdown()} (deliberately), and whenever Session
+     * Replay is disabled, the map is exactly {@code {enabled: false, recordingMode: "off"}}.
+     * <p>
+     * The same map is what {@link SessionReplay#addConfigListener} listeners receive.
+     */
+    public static Map<String, Object> getSessionReplayConfiguration() {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "getSessionReplayConfiguration"));
+
+        if (!started) {
+            return SessionReplayConfigMap.off();
+        }
+        return SessionReplayConfigMap.create(agentConfiguration.getSessionReplayConfiguration(), SessionReplay.getCurrentMode());
     }
 
 }

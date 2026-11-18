@@ -28,9 +28,21 @@ package com.newrelic.agent.android.sessionReplay
  * the latest values.
  *
  * Threading: listeners are called on the main thread, in the order the changes happened.
- * Return quickly. The arguments describe the state at the moment of the change: the
- * configuration is a copy, so it does not change afterwards, and it must be treated as
- * read-only.
+ * Return quickly. The map describes the state at the moment of the change; it is immutable and
+ * does not change afterwards.
+ *
+ * The map is the same one `NewRelic.getSessionReplayConfiguration()` returns. When Session
+ * Replay is enabled it has the keys [SessionReplayConfigMap.ENABLED] (`true`),
+ * [SessionReplayConfigMap.MODE] (`"default"` or `"custom"`),
+ * [SessionReplayConfigMap.RECORDING_MODE] (`"off"`, `"error"` or `"full"`), and the Boolean
+ * flags [SessionReplayConfigMap.MASK_APPLICATION_TEXT],
+ * [SessionReplayConfigMap.MASK_USER_INPUT_TEXT], [SessionReplayConfigMap.MASK_ALL_IMAGES] and
+ * [SessionReplayConfigMap.MASK_ALL_USER_TOUCHES]. When it is disabled the map is exactly
+ * `{enabled: false, recordingMode: "off"}`.
+ *
+ * `recordingMode` is `"off"` whenever the configuration is not enabled, otherwise the mode that
+ * is currently recording (not the sampling result). Hybrid agents that start or stop their own capture should follow
+ * `recordingMode`.
  *
  * The same values can arrive more than once (a `/connect` that changes the configuration
  * reports both the connect and the change; a saved configuration is reported at start and
@@ -46,8 +58,8 @@ package com.newrelic.agent.android.sessionReplay
 fun interface SessionReplayConfigListener {
 
     /**
-     * @param configuration the resolved configuration; check [SessionReplayConfiguration.isEnabled]
-     * @param mode the current recording mode, [SessionReplayMode.OFF] when nothing is recording
+     * @param configuration the resolved configuration and the current recording mode, as
+     * described above
      */
-    fun onSessionReplayConfigChanged(configuration: SessionReplayConfiguration, mode: SessionReplayMode)
+    fun onSessionReplayConfigChanged(configuration: @JvmSuppressWildcards Map<String, Any>)
 }

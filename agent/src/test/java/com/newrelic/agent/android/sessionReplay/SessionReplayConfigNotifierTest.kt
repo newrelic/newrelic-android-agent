@@ -7,7 +7,7 @@ package com.newrelic.agent.android.sessionReplay
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -39,13 +39,16 @@ class SessionReplayConfigNotifierTest {
         }
     }
 
-    private class Call(val configuration: SessionReplayConfiguration, val mode: SessionReplayMode)
+    private class Call(val configuration: Map<String, Any>) {
+        val recordingMode get() = configuration["recordingMode"]
+        val enabled get() = configuration["enabled"]
+    }
 
     private class Recorder : SessionReplayConfigListener {
         val calls = mutableListOf<Call>()
 
-        override fun onSessionReplayConfigChanged(configuration: SessionReplayConfiguration, mode: SessionReplayMode) {
-            calls.add(Call(configuration, mode))
+        override fun onSessionReplayConfigChanged(configuration: Map<String, Any>) {
+            calls.add(Call(configuration))
         }
     }
 
@@ -81,8 +84,8 @@ class SessionReplayConfigNotifierTest {
 
         for (recorder in listOf(first, second)) {
             assertEquals(1, recorder.calls.size)
-            assertTrue(recorder.calls[0].configuration.isEnabled)
-            assertEquals(SessionReplayMode.FULL, recorder.calls[0].mode)
+            assertEquals(true, recorder.calls[0].enabled)
+            assertEquals("full", recorder.calls[0].recordingMode)
         }
     }
 
@@ -107,8 +110,7 @@ class SessionReplayConfigNotifierTest {
         live.setMaskAllImages(false) // the harvest thread keeps updating the live object
         executor.drain()
 
-        assertTrue(recorder.calls[0].configuration.isMaskAllImages)
-        assertNotSame(live, recorder.calls[0].configuration)
+        assertEquals(true, recorder.calls[0].configuration["maskAllImages"])
     }
 
     @Test
@@ -121,7 +123,7 @@ class SessionReplayConfigNotifierTest {
         mode = SessionReplayMode.FULL
         executor.drain()
 
-        assertEquals(SessionReplayMode.ERROR, recorder.calls[0].mode)
+        assertEquals("error", recorder.calls[0].recordingMode)
     }
 
     @Test
@@ -137,10 +139,7 @@ class SessionReplayConfigNotifierTest {
         notifier.publish(config())
         executor.drain()
 
-        assertEquals(
-            listOf(SessionReplayMode.ERROR, SessionReplayMode.FULL, SessionReplayMode.OFF),
-            recorder.calls.map { it.mode }
-        )
+        assertEquals(listOf("error", "full", "off"), recorder.calls.map { it.recordingMode })
     }
 
     @Test
@@ -163,7 +162,7 @@ class SessionReplayConfigNotifierTest {
         executor.drain()
 
         assertEquals(8 * 200, recorder.calls.size)
-        assertEquals(finalMode, recorder.calls.last().mode)
+        assertEquals(finalMode.value, recorder.calls.last().recordingMode)
     }
 
     @Test
@@ -171,8 +170,8 @@ class SessionReplayConfigNotifierTest {
         val before = Recorder()
         val after = Recorder()
         notifier.add(before)
-        notifier.add(SessionReplayConfigListener { _, _ -> throw IllegalStateException("listener bug") })
-        notifier.add(SessionReplayConfigListener { _, _ -> throw NoSuchMethodError("linked against an older agent") })
+        notifier.add(SessionReplayConfigListener { throw IllegalStateException("listener bug") })
+        notifier.add(SessionReplayConfigListener { throw NoSuchMethodError("linked against an older agent") })
         notifier.add(after)
 
         notifier.publish(config())
@@ -194,8 +193,8 @@ class SessionReplayConfigNotifierTest {
         executor.drain()
 
         assertEquals(1, late.calls.size)
-        assertTrue(late.calls[0].configuration.isEnabled)
-        assertEquals(SessionReplayMode.FULL, late.calls[0].mode)
+        assertEquals(true, late.calls[0].enabled)
+        assertEquals("full", late.calls[0].recordingMode)
     }
 
     @Test
@@ -220,7 +219,7 @@ class SessionReplayConfigNotifierTest {
         notifier.add(late)
         executor.drain()
 
-        assertEquals(listOf(SessionReplayMode.FULL), late.calls.map { it.mode })
+        assertEquals(listOf("full"), late.calls.map { it.recordingMode })
     }
 
     @Test
@@ -236,7 +235,7 @@ class SessionReplayConfigNotifierTest {
 
         assertEquals(1, early.calls.size)
         assertEquals(1, late.calls.size)
-        assertEquals(SessionReplayMode.FULL, late.calls[0].mode)
+        assertEquals("full", late.calls[0].recordingMode)
     }
 
     @Test
@@ -283,7 +282,7 @@ class SessionReplayConfigNotifierTest {
         notifier.add(late)
         executor.drain()
 
-        assertEquals(listOf(SessionReplayMode.ERROR), late.calls.map { it.mode })
+        assertEquals(listOf("error"), late.calls.map { it.recordingMode })
     }
 
     @Test
@@ -304,36 +303,48 @@ class SessionReplayConfigNotifierTest {
     }
 
     @Test
-    fun theSnapshotKeepsTheDerivedMaskingSets() {
-        val rule = SessionReplayConfiguration.CustomMaskingRule().apply {
-            setIdentifier("class")
-            setOperator("equals")
-            setType("mask")
-            setName(listOf("com.example.SecretView"))
-        }
-        val tagRule = SessionReplayConfiguration.CustomMaskingRule().apply {
-            setIdentifier("tag")
-            setOperator("equals")
-            setType("mask")
-            setName(listOf("secret-tag"))
-        }
-        val live = config().apply {
-            setCustomMaskingRules(listOf(rule, tagRule))
-            processCustomMaskingRules()
-        }
+    fun aDisabledConfigurationIsReportedAsOffEvenWhileTheModeSourceSaysFull() {
+        val recorder = Recorder()
+        notifier.add(recorder)
+        mode = SessionReplayMode.FULL // nothing resets the mode manager when a later config disables replay
+
+        notifier.publish(config(enabled = false))
+        executor.drain()
+
+        assertEquals(mapOf<String, Any>("enabled" to false, "recordingMode" to "off"), recorder.calls[0].configuration)
+    }
+
+    @Test
+    fun anEnabledConfigurationDeliversAllSevenKeys() {
+        val recorder = Recorder()
+        notifier.add(recorder)
+        mode = SessionReplayMode.ERROR
+
+        notifier.publish(config(enabled = true, maskAllImages = false))
+        executor.drain()
+
+        assertEquals(
+            setOf(
+                "enabled", "mode", "recordingMode", "maskApplicationText", "maskUserInputText",
+                "maskAllImages", "maskAllUserTouches",
+            ),
+            recorder.calls[0].configuration.keys
+        )
+        assertEquals("error", recorder.calls[0].recordingMode)
+        assertEquals(false, recorder.calls[0].configuration["maskAllImages"])
+    }
+
+    @Test
+    fun theDeliveredMapIsUnmodifiable() {
         val recorder = Recorder()
         notifier.add(recorder)
 
-        notifier.publish(live)
+        notifier.publish(config())
         executor.drain()
 
-        val delivered = recorder.calls[0].configuration
-        assertTrue(delivered.maskedViewClasses.contains("com.example.SecretView"))
-        assertTrue(delivered.maskedViewTags.contains("secret-tag"))
-        assertEquals(live.maskedViewClasses, delivered.maskedViewClasses)
-        assertEquals(live.maskedViewTags, delivered.maskedViewTags)
-        assertEquals(live.unmaskedViewClasses, delivered.unmaskedViewClasses)
-        assertEquals(live.unmaskedViewTags, delivered.unmaskedViewTags)
+        @Suppress("UNCHECKED_CAST")
+        val delivered = recorder.calls[0].configuration as MutableMap<String, Any>
+        assertThrows(UnsupportedOperationException::class.java) { delivered["enabled"] = false }
     }
 
     @Test
@@ -358,7 +369,7 @@ class SessionReplayConfigNotifierTest {
         notifier.publish(config())
         executor.drain()
 
-        assertEquals(listOf(SessionReplayMode.FULL), recorder.calls.map { it.mode })
+        assertEquals(listOf("full"), recorder.calls.map { it.recordingMode })
     }
 
     @Test
@@ -367,7 +378,7 @@ class SessionReplayConfigNotifierTest {
         executor.drain()
         val recorder = Recorder()
 
-        notifier.add(SessionReplayConfigListener { _, _ -> throw IllegalStateException("listener bug") })
+        notifier.add(SessionReplayConfigListener { throw IllegalStateException("listener bug") })
         notifier.add(recorder)
         executor.drain() // must not throw
 

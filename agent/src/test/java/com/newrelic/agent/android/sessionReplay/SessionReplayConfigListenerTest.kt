@@ -26,8 +26,8 @@ class SessionReplayConfigListenerTest {
 
     private lateinit var application: Application
     private lateinit var agentConfiguration: AgentConfiguration
-    private val calls = mutableListOf<Pair<SessionReplayConfiguration, SessionReplayMode>>()
-    private val listener = SessionReplayConfigListener { configuration, mode -> calls.add(configuration to mode) }
+    private val calls = mutableListOf<Map<String, Any>>()
+    private val listener = SessionReplayConfigListener { configuration -> calls.add(configuration) }
 
     @Before
     fun setUp() {
@@ -49,7 +49,7 @@ class SessionReplayConfigListenerTest {
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
 
-    private fun modes() = calls.map { it.second }
+    private fun modes() = calls.map { it["recordingMode"] }
 
     @Test
     fun errorSwitchingToFullNotifiesOnceWithTheFullMode() {
@@ -59,8 +59,8 @@ class SessionReplayConfigListenerTest {
         assertTrue(SessionReplay.switchModeOnError())
         idle()
 
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
-        assertTrue(calls[0].first.isEnabled)
+        assertEquals(listOf("full"), modes())
+        assertEquals(true, calls[0]["enabled"])
     }
 
     @Test
@@ -92,7 +92,7 @@ class SessionReplayConfigListenerTest {
         assertTrue(SessionReplay.pauseReplay())
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
+        assertEquals(listOf("off"), modes())
     }
 
     @Test
@@ -129,7 +129,7 @@ class SessionReplayConfigListenerTest {
         assertFalse(SessionReplay.transitionToMode(SessionReplayMode.FULL, "test"))
         idle()
 
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
+        assertEquals(listOf("full"), modes())
     }
 
     @Test
@@ -153,7 +153,7 @@ class SessionReplayConfigListenerTest {
         SessionReplay.notifyConfigListeners(agentConfiguration.sessionReplayConfiguration)
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
+        assertEquals(listOf("off"), modes())
     }
 
     @Test
@@ -166,7 +166,7 @@ class SessionReplayConfigListenerTest {
         SessionReplay.switchModeOnError()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
+        assertEquals(listOf("full"), modes())
     }
 
     @Test
@@ -177,7 +177,7 @@ class SessionReplayConfigListenerTest {
         SessionReplay.pauseReplay()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
+        assertEquals(listOf("off"), modes())
     }
 
     @Test
@@ -201,7 +201,7 @@ class SessionReplayConfigListenerTest {
         SessionReplay.addConfigListener(listener)
         idle()
 
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
+        assertEquals(listOf("full"), modes())
     }
 
     @Test
@@ -215,7 +215,7 @@ class SessionReplayConfigListenerTest {
         live.setMaskAllImages(true) // a later harvest changes the live object
         idle()
 
-        assertFalse(calls[0].first.isMaskAllImages)
+        assertEquals(false, calls[0]["maskAllImages"])
     }
 
     @Test
@@ -228,7 +228,7 @@ class SessionReplayConfigListenerTest {
         SessionReplay.switchModeOnError()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
+        assertEquals(listOf("full"), modes())
     }
 
     @Test
@@ -239,7 +239,7 @@ class SessionReplayConfigListenerTest {
         SessionReplay.onError()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
+        assertEquals(listOf("full"), modes())
     }
 
     @Test
@@ -250,7 +250,7 @@ class SessionReplayConfigListenerTest {
         assertTrue(SessionReplay.pauseReplay())
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
+        assertEquals(listOf("off"), modes())
     }
 
     @Test
@@ -261,7 +261,7 @@ class SessionReplayConfigListenerTest {
         assertTrue(SessionReplay.transitionToMode(SessionReplayMode.OFF, "test"))
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
+        assertEquals(listOf("off"), modes())
     }
 
     @Test
@@ -273,6 +273,19 @@ class SessionReplayConfigListenerTest {
         assertTrue(calls.isEmpty())
 
         idle()
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
+        assertEquals(listOf("full"), modes())
+    }
+
+    @Test
+    fun aNotificationAfterTheConfigurationWasDisabledReportsOffWhileTheModeManagerHoldsFull() {
+        start(SessionReplayMode.FULL)
+        SessionReplay.addConfigListener(listener)
+        agentConfiguration.sessionReplayConfiguration.isEnabled = false // a later harvest disables replay
+
+        SessionReplay.notifyConfigListeners(agentConfiguration.sessionReplayConfiguration)
+        idle()
+
+        assertEquals(SessionReplayMode.FULL, SessionReplay.getCurrentMode())
+        assertEquals(listOf(mapOf<String, Any>("enabled" to false, "recordingMode" to "off")), calls)
     }
 }

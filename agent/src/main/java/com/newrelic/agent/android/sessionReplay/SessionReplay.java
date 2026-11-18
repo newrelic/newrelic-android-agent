@@ -698,11 +698,13 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     /**
      * Registers a listener for changes to the resolved Session Replay configuration and the
-     * current recording mode. See {@link SessionReplayConfigListener} for when it is called.
+     * current recording mode. Each call receives an immutable map built by
+     * {@link SessionReplayConfigMap}; see {@link SessionReplayConfigListener} for its keys and for
+     * when it is called.
      * <p>
      * Listeners are called on the main thread, in the order the changes happened. May be called
      * before the agent starts. The listener stays registered across sessions until removed. If a
-     * state was reported already, the listener is called once with the latest one. That replay is
+     * map was reported already, the listener is called once with the latest one. That replay is
      * also delivered asynchronously on the main thread, not inside this call.
      *
      * @param listener the listener; null is ignored, and adding the same instance twice is a no-op
@@ -725,7 +727,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * Called by {@code AndroidAgentImpl} for the changes it coordinates.
      *
      * @param configuration the resolved configuration to report; null is ignored. The listeners
-     *                      receive a copy taken now, so later changes to this object are not seen.
+     *                      receive an immutable map snapshot built at the time of this call, so
+     *                      later changes to this object are not seen.
      */
     public static void notifyConfigListeners(@Nullable SessionReplayConfiguration configuration) {
         if (configuration != null) {

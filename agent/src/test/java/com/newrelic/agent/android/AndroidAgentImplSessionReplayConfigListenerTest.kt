@@ -20,6 +20,7 @@ import com.newrelic.agent.android.stats.StatsEngine
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -34,9 +35,13 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
     private lateinit var spyContext: SpyContext
     private lateinit var agentConfiguration: AgentConfiguration
     private var agent: AndroidAgentImpl? = null
-    private val calls = mutableListOf<Pair<SessionReplayConfiguration, SessionReplayMode>>()
-    private val listener = SessionReplayConfigListener { configuration, mode -> calls.add(configuration to mode) }
+    private val calls = mutableListOf<Map<String, Any>>()
+    private val listener = SessionReplayConfigListener { configuration -> calls.add(configuration) }
+    private val offShape = mapOf<String, Any>("enabled" to false, "recordingMode" to "off")
     private var exitReportingWasEnabled = false
+    private var wasStarted = false
+    private var sharedApplicationToken: String? = null
+    private val sharedSessionReplayConfiguration = SessionReplayConfiguration()
 
     @Before
     fun setUp() {
@@ -50,6 +55,9 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         // keeps onHarvestConnected() from reading the app's exit reasons, which this test doesn't need
         exitReportingWasEnabled = FeatureFlag.featureEnabled(FeatureFlag.ApplicationExitReporting)
         FeatureFlag.disableFeature(FeatureFlag.ApplicationExitReporting)
+        wasStarted = NewRelic.started
+        sharedApplicationToken = AgentConfiguration.getInstance().applicationToken
+        sharedSessionReplayConfiguration.setConfiguration(AgentConfiguration.getInstance().sessionReplayConfiguration)
     }
 
     @After
@@ -58,7 +66,10 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         agent?.stop(false)
         Agent.setImpl(null)
         SessionReplay.deInitialize()
+        AgentConfiguration.getInstance().sessionReplayConfiguration.setConfiguration(sharedSessionReplayConfiguration)
         AgentConfiguration.getInstance().sessionReplayConfiguration.isEnabled = false
+        AgentConfiguration.getInstance().applicationToken = sharedApplicationToken
+        NewRelic.started = wasStarted
         SessionReplayConfigListenerTestSupport.reset()
         if (exitReportingWasEnabled) FeatureFlag.enableFeature(FeatureFlag.ApplicationExitReporting)
         StatsEngine.reset()
@@ -66,7 +77,7 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
 
-    private fun modes() = calls.map { it.second }
+    private fun modes() = calls.map { it["recordingMode"] }
 
     /** Saves a Session Replay configuration the way an earlier connect would have. */
     private fun saveSessionReplayConfiguration(configure: SessionReplayConfiguration.() -> Unit) {
@@ -143,8 +154,15 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         startAgent()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
-        assertTrue(calls[0].first.isEnabled)
+        assertEquals(listOf("off"), modes())
+        assertEquals(true, calls[0]["enabled"])
+        assertEquals(
+            setOf(
+                "enabled", "mode", "recordingMode", "maskApplicationText", "maskUserInputText",
+                "maskAllImages", "maskAllUserTouches",
+            ),
+            calls[0].keys
+        )
     }
 
     @Test
@@ -156,8 +174,8 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         SessionReplay.addConfigListener(listener)
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
-        assertTrue(calls[0].first.isEnabled)
+        assertEquals(listOf("off"), modes())
+        assertEquals(true, calls[0]["enabled"])
     }
 
     @Test
@@ -168,8 +186,8 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         startAgent()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
-        assertFalse(calls[0].first.isEnabled)
+        assertEquals(listOf("off"), modes())
+        assertEquals(offShape, calls[0])
     }
 
     @Test
@@ -183,7 +201,7 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
     }
 
     @Test
-    fun harvestConnectReportsTheConfigurationAfterItWasUpdatedEvenWhenDisabled() {
+    fun harvestConnectReportsADisabledConfiguration() {
         val impl = startedAgent()
         savedConfiguration(impl).setMaskAllImages(false) // what the connect response resolved
         assertFalse(savedConfiguration(impl).isEnabled)
@@ -191,22 +209,42 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         impl.onHarvestConnected()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
-        assertFalse(calls[0].first.isEnabled)
-        assertFalse("must be the configuration after updateConfiguration ran", calls[0].first.isMaskAllImages)
+        assertEquals(listOf(offShape), calls)
         assertNull("a disabled configuration does not initialize session replay", SessionReplay.getCurrentMode())
+    }
+
+    @Test
+    fun harvestConnectReportsTheConfigurationAfterItWasUpdated() {
+        val impl = startedAgent()
+        assertFalse(agentConfiguration.sessionReplayConfiguration.isEnabled)
+        savedConfiguration(impl).apply {
+            sampleToOff()
+            setMaskAllImages(false) // what the connect response resolved
+        }
+
+        impl.onHarvestConnected()
+        idle()
+
+        // the agent configuration was disabled before the connect, so enabled == true can only
+        // come from the configuration updateConfiguration produced
+        assertEquals(listOf("off"), modes())
+        assertEquals(true, calls[0]["enabled"])
+        assertEquals("must be the configuration after updateConfiguration ran", false, calls[0]["maskAllImages"])
     }
 
     @Test
     fun aConfigurationChangeIsReported() {
         val impl = startedAgent()
-        savedConfiguration(impl).setMaskAllUserTouches(true)
+        savedConfiguration(impl).apply {
+            sampleToOff()
+            setMaskAllUserTouches(true)
+        }
 
         impl.onHarvestConfigurationChanged()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
-        assertTrue(calls[0].first.isMaskAllUserTouches)
+        assertEquals(listOf("off"), modes())
+        assertEquals(true, calls[0]["maskAllUserTouches"])
     }
 
     @Test
@@ -220,8 +258,8 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         impl.onSessionRestarted()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
-        assertTrue(calls[0].first.isEnabled)
+        assertEquals(listOf("off"), modes())
+        assertEquals(true, calls[0]["enabled"])
     }
 
     @Test
@@ -231,8 +269,8 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         impl.onSessionRestarted()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
-        assertFalse(calls[0].first.isEnabled)
+        assertEquals(listOf("off"), modes())
+        assertEquals(offShape, calls[0])
     }
 
     @Test
@@ -243,8 +281,8 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         impl.onSessionRestarted()
         idle()
 
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
-        assertTrue(calls[0].first.isEnabled)
+        assertEquals(listOf("full"), modes())
+        assertEquals(true, calls[0]["enabled"])
     }
 
     @Test
@@ -254,7 +292,7 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
 
         restartSessionInTheBackground(impl)
 
-        assertEquals("the recorder was skipped, so nothing is recording", listOf(SessionReplayMode.OFF), modes())
+        assertEquals("the recorder was skipped, so nothing is recording", listOf("off"), modes())
     }
 
     private fun startRecording(mode: SessionReplayMode) {
@@ -273,7 +311,7 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         assertFalse(AndroidAgentImpl.pauseReplay())
         idle()
 
-        assertEquals(listOf(SessionReplayMode.OFF), modes())
+        assertEquals(listOf("off"), modes())
     }
 
     @Test
@@ -284,7 +322,7 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         assertTrue(AndroidAgentImpl.recordReplay())
         idle()
 
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
+        assertEquals(listOf("full"), modes())
     }
 
     @Test
@@ -316,7 +354,7 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
         assertTrue(AndroidAgentImpl.recordReplay())
         idle()
 
-        assertEquals(listOf(SessionReplayMode.FULL), modes())
+        assertEquals(listOf("full"), modes())
     }
 
     @Test
@@ -350,6 +388,84 @@ class AndroidAgentImplSessionReplayConfigListenerTest {
 
         // Documents the known gap; expected to change if the gap is closed.
         assertTrue("observed: recordReplay() reports success", started)
-        assertEquals("observed: reported as off, since SessionReplay.initialize() never ran", listOf(SessionReplayMode.OFF), modes())
+        assertEquals("observed: reported as off, since SessionReplay.initialize() never ran", listOf("off"), modes())
+    }
+
+    @Test
+    fun disablingTheConfigurationWhileRecordingReportsOffAlthoughTheModeManagerStillHoldsAMode() {
+        val impl = startedAgent()
+        impl.configureToSampleFull()
+        startRecording(SessionReplayMode.FULL)
+        idle()
+        calls.clear()
+        savedConfiguration(impl).isEnabled = false // a later harvest disables replay
+
+        impl.onHarvestConfigurationChanged()
+        idle()
+        assertEquals(listOf(offShape), calls)
+        assertNotNull("nothing resets the mode when replay is disabled", SessionReplay.getCurrentMode())
+
+        impl.onSessionRestarted()
+        idle()
+        assertEquals(listOf(offShape, offShape), calls)
+        assertNotNull("a disabled configuration does not deinitialize either", SessionReplay.getCurrentMode())
+    }
+
+    @Test
+    fun disablingTheConfigurationWhileRecordingThenConnectingReportsOff() {
+        val impl = startedAgent()
+        impl.configureToSampleFull()
+        startRecording(SessionReplayMode.FULL)
+        idle()
+        calls.clear()
+        savedConfiguration(impl).isEnabled = false // what the connect response resolved
+
+        impl.onHarvestConnected()
+        idle()
+
+        assertEquals(listOf(offShape), calls)
+        assertNotNull("nothing resets the mode when replay is disabled", SessionReplay.getCurrentMode())
+    }
+
+    /**
+     * NewRelic.start() builds the agent on the shared AgentConfiguration, which is what
+     * NewRelic.getSessionReplayConfiguration() reads, so these tests do the same.
+     */
+    private fun startedAgentOnTheSharedConfiguration(): AndroidAgentImpl {
+        agentConfiguration = AgentConfiguration.getInstance().apply {
+            applicationToken = "ab20dfe5-96d2-4c6d-b975-3fe9d8778dfc"
+        }
+        val impl = startedAgent()
+        NewRelic.started = true
+        return impl
+    }
+
+    @Test
+    fun theGetterAgreesWithTheLastNotificationWhileRecording() {
+        val impl = startedAgentOnTheSharedConfiguration()
+        impl.configureToSampleFull()
+        startRecording(SessionReplayMode.FULL)
+        savedConfiguration(impl).setMaskAllUserTouches(true)
+
+        impl.onHarvestConfigurationChanged()
+        idle()
+
+        assertEquals("full", calls.last()["recordingMode"])
+        assertEquals(true, calls.last()["maskAllUserTouches"])
+        assertEquals(calls.last(), NewRelic.getSessionReplayConfiguration())
+    }
+
+    @Test
+    fun theGetterAgreesWithTheLastNotificationOnceDisabled() {
+        val impl = startedAgentOnTheSharedConfiguration()
+        impl.configureToSampleFull()
+        startRecording(SessionReplayMode.FULL)
+        savedConfiguration(impl).isEnabled = false
+
+        impl.onHarvestConfigurationChanged()
+        idle()
+
+        assertEquals(offShape, calls.last())
+        assertEquals(calls.last(), NewRelic.getSessionReplayConfiguration())
     }
 }
