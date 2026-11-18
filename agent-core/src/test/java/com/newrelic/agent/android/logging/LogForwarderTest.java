@@ -21,11 +21,14 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.zip.GZIPInputStream;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -55,6 +58,28 @@ public class LogForwarderTest extends LoggingTests {
     @Test
     public void getPayload() throws IOException {
         Assert.assertTrue(Arrays.equals(Streams.readAllBytes(logDataReport), logForwarder.getPayload().getBytes()));
+    }
+
+    @Test
+    public void retryShouldNotRecompressPayload() throws Exception {
+        byte[] firstAttempt = logForwarder.getPayload().getBytes();
+
+        // a retry builds a new forwarder from the same (already compressed) rollup file
+        LogForwarder retryForwarder = new LogForwarder(logDataReport, AgentConfiguration.getInstance());
+        byte[] retryAttempt = retryForwarder.getPayload().getBytes();
+
+        Assert.assertArrayEquals(firstAttempt, retryAttempt);
+
+        try (GZIPInputStream in = new GZIPInputStream(new ByteArrayInputStream(retryAttempt))) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[1024];
+            for (int n; (n = in.read(buf)) != -1; ) {
+                out.write(buf, 0, n);
+            }
+            byte[] decoded = out.toByteArray();
+            Assert.assertFalse("Payload should be gzip-compressed exactly once",
+                    decoded.length > 1 && decoded[0] == (byte) 0x1f && decoded[1] == (byte) 0x8b);
+        }
     }
 
     @Test
