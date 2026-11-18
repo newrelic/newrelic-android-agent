@@ -124,6 +124,8 @@ public class FileBackedPayload extends Payload {
 
     /**
      * GZIP compress the payload file.
+     * <p>
+     * If replace is true and the file is already compressed, the file is left untouched.
      *
      * @param payloadFile File to be compressed
      * @param replace     Delete the passed file, rename the compressed file to the pass file name
@@ -131,6 +133,12 @@ public class FileBackedPayload extends Payload {
      * @throws IOException
      */
     public File compress(final File payloadFile, boolean replace) throws IOException {
+        if (replace && isCompressed(payloadFile)) {
+            // Compressing in place again would gzip the gzip, which the collector rejects
+            isCompressed = true;
+            return payloadFile;
+        }
+
         File compressedFile = new File(payloadFile.getAbsolutePath() + ".gz");
 
         try (FileInputStream fis = new FileInputStream(payloadFile);
