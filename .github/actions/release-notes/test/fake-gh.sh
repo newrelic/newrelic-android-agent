@@ -15,12 +15,14 @@
 #   "api repos/O/N/contents/PATH" succeeds only when $FAKE_GH/on-base exists.
 # $FAKE_GH/list-fail, ready-fail, comment-fail and merge-fail make the matching command fail.
 # Every call is appended to $FAKE_GH/calls.log, and "$GH_TOKEN|$1 $2" to $FAKE_GH/tokens.log.
+# The file given to --body-file is copied to $FAKE_GH/body.md.
 FAKE_GH=$(mktemp -d)
 mkdir "$FAKE_GH/bin"
 cat > "$FAKE_GH/bin/gh" << 'STUB'
 #!/usr/bin/env bash
 echo "$*" >> "$FAKE_GH/calls.log"
 echo "${GH_TOKEN:-}|$1 $2" >> "$FAKE_GH/tokens.log"
+prev=""; for a in "$@"; do [ "$prev" != --body-file ] || cp "$a" "$FAKE_GH/body.md"; prev=$a; done
 jq_expr=""; prev=""; for a in "$@"; do [ "$prev" = --jq ] && jq_expr=$a; prev=$a; done
 # out FILE: print FILE through the call's --jq filter, like gh does.
 out() { if [ -n "$jq_expr" ]; then jq -r "$jq_expr" "$1"; else cat "$1"; fi; }

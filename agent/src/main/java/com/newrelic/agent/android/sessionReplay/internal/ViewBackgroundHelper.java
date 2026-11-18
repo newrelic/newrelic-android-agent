@@ -79,13 +79,20 @@ public class ViewBackgroundHelper {
             // InsetDrawable wraps another drawable, try to get the color from the wrapped drawable
             return getDrawableColor(((InsetDrawable) drawable).getDrawable());
         } else if (drawable instanceof RippleDrawable) {
-            // RippleDrawable has different states and layers.
-            // The underlying content is often the drawable at index 0 or 1.
-            // This is a simplified approach, the actual background color might be complex.
+            // RippleDrawable(color, content, mask) holds [content, mask]. The mask only defines the
+            // ripple's shape, so skip it and use the first content layer that yields a color
+            // (e.g. MaterialButton keeps its fill in the content and leaves the mask without one).
             RippleDrawable rippleDrawable = (RippleDrawable) drawable;
-            // On some APIs, the content might be at index 1
-            if (rippleDrawable.getNumberOfLayers() > 1) {
-                return getDrawableColor(rippleDrawable.getDrawable(1));
+            Drawable mask = rippleDrawable.findDrawableByLayerId(android.R.id.mask);
+
+            for (int i = 0; i < rippleDrawable.getNumberOfLayers(); i++) {
+                Drawable layer = rippleDrawable.getDrawable(i);
+                if (layer != null && layer != mask) {
+                    String color = getDrawableColor(layer);
+                    if (!color.isEmpty()) {
+                        return color;
+                    }
+                }
             }
         } else if (drawable instanceof LayerDrawable) {
             // LayerDrawable is a stack of drawables.

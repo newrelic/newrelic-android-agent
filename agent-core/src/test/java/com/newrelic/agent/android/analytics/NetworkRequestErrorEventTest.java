@@ -11,6 +11,7 @@ import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.distributedtracing.DistributedTracing;
 import com.newrelic.agent.android.harvest.HttpTransaction;
 import com.newrelic.agent.android.test.mock.Providers;
+import com.newrelic.agent.android.util.Constants;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -19,6 +20,8 @@ import org.junit.Test;
 
 import java.util.Base64;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class NetworkRequestErrorEventTest {
@@ -55,6 +58,22 @@ public class NetworkRequestErrorEventTest {
         Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.RESPONSE_BODY_ATTRIBUTE));
         Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.APP_DATA_ATTRIBUTE));
         Assert.assertNotNull(getAttributeByName(attributes, AnalyticsAttribute.CONTENT_TYPE_ATTRIBUTE));
+    }
+
+    @Test
+    public void testInternalParamsAreNotEmittedButTrackedHeadersAre() throws Exception {
+        Map<String, String> params = new HashMap<>();
+        params.put(Constants.Transactions.CONTENT_TYPE, "application/json");
+        params.put(Constants.Transactions.CONTENT_LENGTH, "42");
+        params.put("X-Tracked-Header", "tracked-value");
+        httpTransaction.setParams(params);
+
+        Collection<AnalyticsAttribute> attributes = NetworkRequestErrorEvent.createHttpErrorEvent(httpTransaction).getAttributeSet();
+
+        Assert.assertNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_TYPE));
+        Assert.assertNull(getAttributeByName(attributes, Constants.Transactions.CONTENT_LENGTH));
+        Assert.assertEquals("application/json", getAttributeByName(attributes, AnalyticsAttribute.CONTENT_TYPE_ATTRIBUTE).getStringValue());
+        Assert.assertEquals("tracked-value", getAttributeByName(attributes, "X-Tracked-Header").getStringValue());
     }
 
     @Test

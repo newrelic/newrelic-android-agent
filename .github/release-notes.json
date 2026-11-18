@@ -5,5 +5,6 @@
   "nextBranch": "android-next",
   "tagPrefix": "",
   "skeleton": "android-agent-next.mdx",
-  "downloadLink": "https://central.sonatype.com/artifact/com.newrelic.agent.android/android-agent"
+  "downloadLink": "https://central.sonatype.com/artifact/com.newrelic.agent.android/android-agent",
+  "readyForReview": true
 }

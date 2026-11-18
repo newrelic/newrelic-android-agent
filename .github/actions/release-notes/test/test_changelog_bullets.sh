@@ -111,4 +111,13 @@ cp "$SKELETON" "$n"
 "$SCRIPTS/append-bullet.sh" --no-link "$n" bug "* No link."; assert_eq "--no-link accepts a link-less bullet" 0 "$?"
 "$SCRIPTS/append-bullet.sh" --no-link "$n" bug "No star." > /dev/null 2>&1; assert_eq "--no-link still requires '* '" 2 "$?"
 
+
+# ---- a CHANGELOG line equal to one list bullet appears once ----
+cp "$SKELETON" "$n"
+"$SCRIPTS/append-bullet.sh" "$n" enhancement "* Updated the Native Android agent to version 7.8.5. ([#40]($u/40))" "* Updated the Native iOS agent to version 7.7.11. ([#40]($u/40))"
+printf '%s\n' '# Changelog' '## 1.9.4' '' '## Improvements' '' '- Updated the Native Android agent to version 7.8.5.' '- Updated the Native iOS agent to version 7.7.11.' > "$c"
+r=$(cb 1.9.4)
+assert_eq "both CHANGELOG lines match a list bullet" 2 "$(printf '%s\n' "$r" | grep -c '^duplicate: ')"
+assert_eq "no CHANGELOG line is added again" 2 "$(grep -c 'Updated the Native' "$n")"
+
 finish

@@ -8,6 +8,7 @@ package com.newrelic.agent.android.analytics;
 import com.newrelic.agent.android.FeatureFlag;
 import com.newrelic.agent.android.distributedtracing.TraceContext;
 import com.newrelic.agent.android.harvest.HttpTransaction;
+import com.newrelic.agent.android.util.Constants;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -64,6 +65,17 @@ public class NetworkRequestEvent extends AnalyticsEvent {
 
         if (txn.getParams() != null) {
             for (String key : txn.getParams().keySet()) {
+                // content_type and content_length are agent bookkeeping, not tracked headers
+                if (Constants.Transactions.CONTENT_LENGTH.equals(key)) {
+                    continue;     // duplicates bytesReceived
+                }
+                if (Constants.Transactions.CONTENT_TYPE.equals(key)) {
+                    String contentType = txn.getParams().get(key);
+                    if (!(contentType == null || contentType.isEmpty())) {
+                        attributes.add(new AnalyticsAttribute(AnalyticsAttribute.CONTENT_TYPE_ATTRIBUTE, contentType));
+                    }
+                    continue;
+                }
                 attributes.add(new AnalyticsAttribute(key, txn.getParams().get(key)));
             }
         }
