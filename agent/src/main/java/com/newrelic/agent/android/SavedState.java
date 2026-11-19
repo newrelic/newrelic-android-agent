@@ -343,6 +343,14 @@ public class SavedState extends HarvestAdapter {
         return prefs.contains(key);
     }
 
+    /**
+     * @return true if an earlier connect saved a remote configuration (session replay, logs,
+     * application exit). Without one, the in-memory configuration is only the defaults.
+     */
+    boolean hasRemoteConfiguration() {
+        return has(PREF_REMOTE_CONFIGURATION);
+    }
+
     @Override
     public void onHarvestConnected() {
         saveHarvestConfiguration(Harvest.getHarvestConfiguration());
