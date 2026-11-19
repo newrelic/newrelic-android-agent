@@ -724,7 +724,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * ({@link #getCurrentMode()}: null, OFF and ERROR are disabled), the empty check and the UTF-8
      * size check. The batch is parsed and written on a worker thread.
      *
-     * @param eventsJSON  a JSON array of rrweb events
+     * @param eventsJSON   a JSON array of rrweb events
      * @param rrwebVersion the rrweb version of the encoder. Accepted now so the signature is final;
      *                     the upload still carries the agent's own version until a later change
      * @return a {@link SessionReplayIngestStatus} value
