@@ -15,6 +15,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.ApplicationFramework;
 import com.newrelic.agent.android.sessioncontext.SessionContextStore;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
@@ -79,6 +80,20 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             SessionReplayEventIngestor.singleThreadExecutor(),
             SessionReplayFileManager::appendRawEvents,
             () -> StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INGEST_PARSE_FAILED));
+
+    /**
+     * True when another SDK captures and encodes the replay and hands the events to
+     * {@link #recordSessionReplayEvents}. Flutter draws its own surface, so native capture would
+     * record it as a blank screen and write native frames into the same file as Flutter's events.
+     * <p>
+     * Derived from the platform on every call, so a session restart re-evaluates it.
+     */
+    @VisibleForTesting
+    static boolean isExternalCaptureSource() {
+        AgentConfiguration configuration = agentConfiguration;
+        return configuration != null
+                && configuration.getApplicationFramework() == ApplicationFramework.Flutter;
+    }
 
     // Process-lifetime: listeners survive deInitialize() and session restarts (NR-645445).
     // The mode source is read under the notifier's lock, so it must not take other locks.
@@ -169,7 +184,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         modeManager.transitionTo(mode, "Initialization");
 
         sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application,modeManager);
-        registerCallbacks();
+        if (isExternalCaptureSource()) {
+            log.debug("SessionReplay: native capture is suppressed, the platform captures its own replay");
+        } else {
+            registerCallbacks();
+        }
 
         if (listenerRegistered.compareAndSet(false, true)) {
             ApplicationStateMonitor.getInstance().addApplicationStateListener(instance);
@@ -351,6 +370,13 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             startSlidingWindowTimer();
         } else if (mode == SessionReplayMode.FULL) {
             persistSrState(true, true);
+        }
+
+        if (isExternalCaptureSource()) {
+            // The harvest listener, snapshot flag, sliding window and persisted state above stay.
+            // Only native capture is skipped: the Curtains listener, the draw interceptor and the touch interceptor.
+            log.debug("SessionReplay: native capture is suppressed, not attaching view interceptors");
+            return;
         }
 
         // curtains.Curtains is a main-thread-only, non-thread-safe API (NR-608999): every
