@@ -72,6 +72,14 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private static final AtomicBoolean takeFullSnapshot = new AtomicBoolean(true);
     private static volatile SessionReplayModeManager modeManager;
 
+    // Flutter captures and encodes its own replay and hands the rrweb events to
+    // recordSessionReplayEvents(). One worker thread parses and appends them, so Dart's order is kept.
+    private static final SessionReplayEventIngestor eventIngestor = new SessionReplayEventIngestor(
+            SessionReplay::getCurrentMode,
+            SessionReplayEventIngestor.singleThreadExecutor(),
+            SessionReplayFileManager::appendRawEvents,
+            () -> StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INGEST_PARSE_FAILED));
+
     // Process-lifetime: listeners survive deInitialize() and session restarts (NR-645445).
     // The mode source is read under the notifier's lock, so it must not take other locks.
     private static final SessionReplayConfigNotifier configNotifier = new SessionReplayConfigNotifier(
@@ -680,6 +688,23 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return true;
         }
         return false;
+    }
+
+    /**
+     * Stores rrweb events that were captured and encoded outside the agent, such as by the Flutter
+     * plugin, for the agent's next upload.
+     * <p>
+     * Safe to call from any thread. On the calling thread this only runs the gate
+     * ({@link #getCurrentMode()}: null, OFF and ERROR are disabled), the empty check and the UTF-8
+     * size check. The batch is parsed and written on a worker thread.
+     *
+     * @param eventsJSON  a JSON array of rrweb events
+     * @param rrwebVersion the rrweb version of the encoder. Accepted now so the signature is final;
+     *                     the upload still carries the agent's own version until a later change
+     * @return a {@link SessionReplayIngestStatus} value
+     */
+    public static String recordSessionReplayEvents(String eventsJSON, String rrwebVersion) {
+        return eventIngestor.record(eventsJSON);
     }
 
     /**

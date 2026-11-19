@@ -1429,6 +1429,26 @@ public final class NewRelic {
     }
 
     /**
+     * Hands rrweb events that were captured and encoded outside the agent, such as by the Flutter
+     * plugin, to session replay. The agent uploads them the way it uploads its own replay.
+     * <p>
+     * Safe to call from any thread. Nothing is parsed or compressed on the calling thread.
+     *
+     * @param eventsJSON   a JSON array of rrweb events
+     * @param rrwebVersion the rrweb version of the encoder that produced the events
+     * @return {@code "accepted"} if the agent took the batch; {@code "dropped_disabled"} if session
+     * replay is not recording (not sampled, paused, session ended, disabled, error mode, or the agent
+     * has not started); {@code "dropped_invalid"} if the batch is empty or over 1,000,000 bytes of
+     * UTF-8. Drop a batch that was not accepted; do not retry it.
+     */
+    public static String recordSessionReplayEvents(String eventsJSON, String rrwebVersion) {
+        StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
+                .replace(MetricNames.TAG_NAME, "recordSessionReplayEvents"));
+
+        return SessionReplay.recordSessionReplayEvents(eventsJSON, rrwebVersion);
+    }
+
+    /**
      * Starts or transitions session replay to full recording mode programmatically.
      * This API allows developers to trigger session replay recording on-demand, even if not
      * enabled via configuration sampling.
