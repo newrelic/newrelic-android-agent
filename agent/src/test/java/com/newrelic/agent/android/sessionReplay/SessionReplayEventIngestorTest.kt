@@ -129,13 +129,17 @@ class SessionReplayEventIngestorTest {
 
     @Test
     fun record_doesNotParseOrWriteOnTheCallingThread() {
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("not json"))
+        assertEquals("a malformed batch is not parsed until the worker runs", 0, parseFailures)
+
         val status = ingestor.record("""[{"type":4}]""")
 
         assertEquals(SessionReplayIngestStatus.ACCEPTED, status)
         assertTrue("nothing is written until the worker runs", sink.appended.isEmpty())
-        assertEquals(1, executor.size())
+        assertEquals(2, executor.size())
 
         executor.drain()
+        assertEquals(1, parseFailures)
         assertEquals(1, sink.appended.size)
     }
 
@@ -155,10 +159,12 @@ class SessionReplayEventIngestorTest {
     fun eventsAreWrittenCompactWithTheirValuesIntact() {
         val meta = """{"type":4,"data":{"href":"https://x","width":1080,"height":1920},"timestamp":1700000000000}"""
         val diff = """{"type":3,"data":{"source":0,"x":1.50},"timestamp":1700000000001}"""
-        ingestor.record("[ $meta , $diff ]")
+        val spaced = """{ "type" : 3 , "data" : { "source" : 0 } }"""
+        val spacedCompact = """{"type":3,"data":{"source":0}}"""
+        ingestor.record("[ $meta , $diff , $spaced ]")
         executor.drain()
 
-        assertEquals(listOf(listOf(meta, diff)), sink.appended)
+        assertEquals(listOf(listOf(meta, diff, spacedCompact)), sink.appended)
     }
 
     @Test
