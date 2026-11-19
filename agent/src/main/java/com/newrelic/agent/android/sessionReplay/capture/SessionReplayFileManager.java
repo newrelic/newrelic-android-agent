@@ -192,6 +192,36 @@ public class SessionReplayFileManager {
         submitFileWriteTask(fileWriteTask);
     }
 
+    /**
+     * Appends already-serialized events, one per line, to the working session replay file.
+     * <p>
+     * Unlike {@link #addFrameToFile}, this runs on the caller's thread and takes {@code fileSyncLock}
+     * itself instead of going through {@code fileWriteExecutor}: that pool has several threads, so
+     * tasks submitted to it can be reordered, and ingested events must keep the order Dart sent.
+     *
+     * @param lines one JSON object per element, without a trailing newline
+     * @return true if every line was written; false if there is no writer (the session ended) or the write failed
+     */
+    public static boolean appendRawEvents(List<String> lines) {
+        synchronized (fileSyncLock) {
+            BufferedWriter writer = workingSessionReplayFileWriter.get();
+            if (writer == null) {
+                return false;
+            }
+            try {
+                for (String line : lines) {
+                    writer.write(line);
+                    writer.newLine();
+                }
+                writer.flush();
+                return true;
+            } catch (IOException e) {
+                log.error("Error appending " + lines.size() + " ingested event(s) to file: " + e.getMessage(), e);
+                return false;
+            }
+        }
+    }
+
     public void clearWorkingFileWhileRunningSession() {
         Callable<Void> clearFileTask = new Callable<Void>() {
             @Override

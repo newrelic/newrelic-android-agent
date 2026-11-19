@@ -143,6 +143,41 @@ public class SessionReplayFileManagerTest {
         return null;
     }
 
+    @Test
+    public void appendRawEvents_writesOneLinePerEventInOrder() {
+        StringWriter sink = new StringWriter();
+        SessionReplayFileManager.workingSessionReplayFileWriter.set(new BufferedWriter(sink));
+
+        boolean written = SessionReplayFileManager.appendRawEvents(
+                java.util.Arrays.asList("{\"type\":4}", "{\"type\":2}"));
+
+        Assert.assertTrue(written);
+        String eol = System.lineSeparator();
+        Assert.assertEquals("{\"type\":4}" + eol + "{\"type\":2}" + eol, sink.toString());
+    }
+
+    @Test
+    public void appendRawEvents_returnsFalseWhenThereIsNoWriter() {
+        SessionReplayFileManager.workingSessionReplayFileWriter.set(null);
+
+        Assert.assertFalse(SessionReplayFileManager.appendRawEvents(
+                java.util.Collections.singletonList("{}")));
+    }
+
+    @Test
+    public void appendRawEvents_returnsFalseWhenTheWriteFails() {
+        BufferedWriter failingWriter = new BufferedWriter(new StringWriter()) {
+            @Override
+            public void write(String str) throws IOException {
+                throw new IOException("write failed");
+            }
+        };
+        SessionReplayFileManager.workingSessionReplayFileWriter.set(failingWriter);
+
+        Assert.assertFalse(SessionReplayFileManager.appendRawEvents(
+                java.util.Collections.singletonList("{}")));
+    }
+
     private static final class TrackingBufferedWriter extends BufferedWriter {
         private boolean closed;
 
