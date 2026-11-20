@@ -42,22 +42,22 @@ class SessionReplayRecordEventsTest {
 
     @Test
     fun beforeSessionReplayStartsTheStatusIsDisabled() {
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]", "2.0.0"))
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
     }
 
     @Test
     fun fullModeAcceptsAndRejectsInvalidBatches() {
         initialize(SessionReplayMode.FULL)
 
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("[]", "2.0.0"))
-        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, SessionReplay.recordSessionReplayEvents("", "2.0.0"))
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, SessionReplay.recordSessionReplayEvents(""))
     }
 
     @Test
     fun errorModeIsDisabledUntilErrorModeShips() {
         initialize(SessionReplayMode.ERROR)
 
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]", "2.0.0"))
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
     }
 
     @Test
@@ -65,10 +65,10 @@ class SessionReplayRecordEventsTest {
         initialize(SessionReplayMode.FULL)
 
         assertTrue(SessionReplay.pauseReplay())
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]", "2.0.0"))
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
 
         assertTrue(SessionReplay.transitionToMode(SessionReplayMode.FULL, "test"))
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("[]", "2.0.0"))
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("[]"))
     }
 
     @Test
@@ -76,16 +76,16 @@ class SessionReplayRecordEventsTest {
         initialize(SessionReplayMode.FULL)
         SessionReplay.deInitialize()
 
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]", "2.0.0"))
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
     }
 
     @Test
     fun theNewRelicEntryReturnsTheSameStatus() {
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, NewRelic.recordSessionReplayEvents("[]", "2.0.0"))
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, NewRelic.recordSessionReplayEvents("[]"))
 
         initialize(SessionReplayMode.FULL)
 
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, NewRelic.recordSessionReplayEvents("[]", "2.0.0"))
-        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, NewRelic.recordSessionReplayEvents(null, "2.0.0"))
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, NewRelic.recordSessionReplayEvents("[]"))
+        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, NewRelic.recordSessionReplayEvents(null))
     }
 }

@@ -727,11 +727,9 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      *
      * @param eventsJSON   compact rrweb events, one JSON object per line (newline-delimited, not a JSON
      *                     array), with no raw newline inside an event
-     * @param rrwebVersion the rrweb version of the encoder. Accepted now so the signature is final;
-     *                     the upload still carries the agent's own version until a later change
      * @return a {@link SessionReplayIngestStatus} value
      */
-    public static String recordSessionReplayEvents(String eventsJSON, String rrwebVersion) {
+    public static String recordSessionReplayEvents(String eventsJSON) {
         return eventIngestor.record(eventsJSON);
     }
 

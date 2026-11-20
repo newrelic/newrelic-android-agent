@@ -1439,20 +1439,17 @@ public final class NewRelic {
      *
      * @param eventsJSON   compact rrweb events, one JSON object per line (newline-delimited, not a JSON
      *                     array), with no raw newline inside an event
-     * @param rrwebVersion the rrweb version of the encoder that produced the events. Accepted so the
-     *                     signature is final; the upload still carries the agent's own rrweb version
-     *                     for now
      * @return {@code "accepted"} if the agent took the batch; {@code "dropped_disabled"} if session
      * replay is not recording (not sampled, paused, session ended, disabled, error mode, or the agent
      * has not started) or the agent could not queue the batch; {@code "dropped_invalid"} if the batch
      * is null, empty or blank, or over 1,000,000 bytes of UTF-8. Drop a batch that was not accepted;
      * do not retry it.
      */
-    public static String recordSessionReplayEvents(String eventsJSON, String rrwebVersion) {
+    public static String recordSessionReplayEvents(String eventsJSON) {
         StatsEngine.notice().inc(MetricNames.SUPPORTABILITY_API
                 .replace(MetricNames.TAG_NAME, "recordSessionReplayEvents"));
 
-        return SessionReplay.recordSessionReplayEvents(eventsJSON, rrwebVersion);
+        return SessionReplay.recordSessionReplayEvents(eventsJSON);
     }
 
     /**
