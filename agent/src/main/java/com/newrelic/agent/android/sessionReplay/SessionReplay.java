@@ -74,11 +74,12 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private static volatile SessionReplayModeManager modeManager;
 
     // Flutter captures and encodes its own replay and hands the rrweb events to
-    // recordSessionReplayEvents(). One worker thread splits them into lines and appends them, so Dart's order is kept.
+    // recordSessionReplayEvents(). One worker thread parses and appends them, so Dart's order is kept.
     private static final SessionReplayEventIngestor eventIngestor = new SessionReplayEventIngestor(
             SessionReplay::getCurrentMode,
             SessionReplayEventIngestor.singleThreadExecutor(),
-            SessionReplayFileManager::appendRawEvents);
+            SessionReplayFileManager::appendRawEvents,
+            () -> StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INGEST_PARSE_FAILED));
 
     /**
      * True when another SDK captures and encodes the replay and hands the events to
@@ -721,12 +722,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * <p>
      * Safe to call from any thread. On the calling thread this only runs the gate
      * ({@link #getCurrentMode()}: null, OFF and ERROR are disabled), the empty check and the UTF-8
-     * size check. The text is split into lines and written on a worker thread. It is not parsed or
-     * validated here: the encoder owns validity, and a line that is not a JSON object is skipped
-     * when the upload is built.
+     * size check. The batch is parsed and written on a worker thread. A batch that is not a JSON
+     * array of objects is dropped there, with a log line and a supportability metric, and gets no status.
      *
-     * @param eventsJSON   compact rrweb events, one JSON object per line (newline-delimited, not a JSON
-     *                     array), with no raw newline inside an event
+     * @param eventsJSON a JSON array of rrweb events, in play order
      * @return a {@link SessionReplayIngestStatus} value
      */
     public static String recordSessionReplayEvents(String eventsJSON) {

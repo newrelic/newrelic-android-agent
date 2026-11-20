@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.sessionReplay
 
+import com.google.gson.JsonParser
 import com.newrelic.agent.android.logging.AgentLogManager
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -23,19 +24,19 @@ internal fun interface SessionReplayIngestSink {
  * Takes rrweb events that were captured and encoded outside the agent (the Flutter plugin) and
  * stores them in the session replay buffer.
  *
- * The events arrive newline-delimited: compact JSON, one event per line. The agent does not parse
- * or validate them. The encoder owns validity, and a line that is not a JSON object is skipped
- * when the upload is built, because that reader already parses every line.
+ * A batch is a JSON array of rrweb events in play order. The events are kept as Dart sent them;
+ * they are not decoded into the agent's own event types.
  *
  * [record] runs on the caller's thread and does only the cheap checks: the gate, the empty check
- * and the UTF-8 size. The text is split into lines and written on [executor]. That executor must
- * run tasks one at a time in submission order, because Dart's order has to survive: each Meta is
+ * and the UTF-8 size. The batch is parsed and written on [executor]. That executor must run tasks
+ * one at a time in submission order, because Dart's order has to survive: each Meta is
  * immediately followed by its FullSnapshot.
  */
 internal class SessionReplayEventIngestor(
     private val modeSource: SessionReplayIngestModeSource,
     private val executor: Executor,
     private val sink: SessionReplayIngestSink,
+    private val onParseFailed: Runnable,
 ) {
 
     /** @return one of the [SessionReplayIngestStatus] values */
@@ -62,7 +63,14 @@ internal class SessionReplayEventIngestor(
 
     private fun append(events: String) {
         try {
-            val lines = splitLines(events)
+            val lines = parseLines(events)
+            if (lines == null) {
+                // a batch that does not parse would be a bug in our encoder, so it gets no status
+                log("dropped a batch that is not a JSON array of objects")
+                onParseFailed.run()
+                return
+            }
+            if (lines.isEmpty()) return
             if (!sink.append(lines)) {
                 AgentLogManager.getAgentLog().debug("SessionReplay: ingested events were not written, there is no working file")
             }
@@ -71,12 +79,22 @@ internal class SessionReplayEventIngestor(
         }
     }
 
-    /** The non-blank lines of [events], each trimmed, in order. Splits on `\n`, `\r\n` and `\r`. */
-    private fun splitLines(events: String): List<String> {
-        val lines = ArrayList<String>()
-        for (line in events.lineSequence()) {
-            val trimmed = line.trim()
-            if (trimmed.isNotEmpty()) lines.add(trimmed)
+    /**
+     * The events as Dart sent them, one compact JSON object each. Returns null if the text is not a
+     * JSON array whose elements are all objects, so a bad batch is dropped whole.
+     */
+    private fun parseLines(events: String): List<String>? {
+        val root = try {
+            JsonParser.parseString(events)
+        } catch (e: Exception) {
+            return null
+        }
+        if (!root.isJsonArray) return null
+        val elements = root.asJsonArray
+        val lines = ArrayList<String>(elements.size())
+        for (element in elements) {
+            if (!element.isJsonObject) return null
+            lines.add(element.toString())
         }
         return lines
     }
@@ -89,7 +107,7 @@ internal class SessionReplayEventIngestor(
         /** The most UTF-8 bytes one call may carry. */
         const val MAX_BATCH_BYTES = 1_000_000
 
-        /** One daemon thread, so batches are split and appended in the order they were recorded. */
+        /** One daemon thread, so batches are parsed and appended in the order they were recorded. */
         @JvmStatic
         fun singleThreadExecutor(): Executor =
             Executors.newSingleThreadExecutor { runnable ->

@@ -1433,12 +1433,11 @@ public final class NewRelic {
      * plugin, to session replay. The agent uploads them the way it uploads its own replay.
      * <p>
      * Safe to call from any thread. On the calling thread this only checks whether session replay is
-     * recording and the size of the batch; the text is split into lines and stored on a background
-     * thread. The events are not parsed, validated or compressed here, so the encoder must send valid
-     * events.
+     * recording and the size of the batch; the batch is parsed and stored on a background thread, and
+     * nothing is compressed here. A batch that is not a JSON array of objects is dropped there, after
+     * the call has returned {@code "accepted"}.
      *
-     * @param eventsJSON   compact rrweb events, one JSON object per line (newline-delimited, not a JSON
-     *                     array), with no raw newline inside an event
+     * @param eventsJSON a JSON array of rrweb events, in play order
      * @return {@code "accepted"} if the agent took the batch; {@code "dropped_disabled"} if session
      * replay is not recording (not sampled, paused, session ended, disabled, error mode, or the agent
      * has not started) or the agent could not queue the batch; {@code "dropped_invalid"} if the batch

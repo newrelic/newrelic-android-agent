@@ -47,6 +47,7 @@ class SessionReplayEventIngestorTest {
 
     private lateinit var executor: QueueExecutor
     private lateinit var sink: Sink
+    private var parseFailures = 0
     private var mode: SessionReplayMode? = SessionReplayMode.FULL
     private lateinit var ingestor: SessionReplayEventIngestor
 
@@ -54,8 +55,14 @@ class SessionReplayEventIngestorTest {
     fun setUp() {
         executor = QueueExecutor()
         sink = Sink()
+        parseFailures = 0
         mode = SessionReplayMode.FULL
-        ingestor = SessionReplayEventIngestor({ mode }, executor, sink)
+        ingestor = SessionReplayEventIngestor(
+            { mode },
+            executor,
+            sink,
+            { parseFailures++ },
+        )
     }
 
     // ---- gate ----
@@ -64,7 +71,7 @@ class SessionReplayEventIngestorTest {
     fun gate_nullOffAndErrorModesAreDisabled() {
         for (closed in listOf(null, SessionReplayMode.OFF, SessionReplayMode.ERROR)) {
             mode = closed
-            assertEquals("mode=$closed", SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record("{}"))
+            assertEquals("mode=$closed", SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record("[]"))
         }
         assertEquals("nothing is queued for a disabled gate", 0, executor.size())
     }
@@ -72,7 +79,7 @@ class SessionReplayEventIngestorTest {
     @Test
     fun gate_fullModeIsAccepted() {
         mode = SessionReplayMode.FULL
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("{}"))
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("[]"))
     }
 
     @Test
@@ -91,6 +98,14 @@ class SessionReplayEventIngestorTest {
         assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, ingestor.record(""))
         assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, ingestor.record("   \n\t"))
         assertEquals(0, executor.size())
+    }
+
+    @Test
+    fun emptyArrayIsAcceptedAndAppendsNothing() {
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("[]"))
+        executor.drain()
+        assertTrue(sink.appended.isEmpty())
+        assertEquals(0, parseFailures)
     }
 
     @Test
@@ -113,21 +128,25 @@ class SessionReplayEventIngestorTest {
     // ---- off the calling thread ----
 
     @Test
-    fun record_doesNotWriteOnTheCallingThread() {
-        val status = ingestor.record("""{"type":4}""")
+    fun record_doesNotParseOrWriteOnTheCallingThread() {
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("not json"))
+        assertEquals("a malformed batch is not parsed until the worker runs", 0, parseFailures)
+
+        val status = ingestor.record("""[{"type":4}]""")
 
         assertEquals(SessionReplayIngestStatus.ACCEPTED, status)
         assertTrue("nothing is written until the worker runs", sink.appended.isEmpty())
-        assertEquals(1, executor.size())
+        assertEquals(2, executor.size())
 
         executor.drain()
-        assertEquals(listOf(listOf("""{"type":4}""")), sink.appended)
+        assertEquals(1, parseFailures)
+        assertEquals(1, sink.appended.size)
     }
 
     @Test
     fun batchesAreAppendedInTheOrderTheyWereRecorded() {
-        ingestor.record("""{"type":4,"n":1}""")
-        ingestor.record("{\"type\":2,\"n\":2}\n{\"type\":3,\"n\":3}")
+        ingestor.record("""[{"type":4,"n":1}]""")
+        ingestor.record("""[{"type":2,"n":2},{"type":3,"n":3}]""")
         executor.drain()
 
         assertEquals(
@@ -139,43 +158,44 @@ class SessionReplayEventIngestorTest {
     // ---- what is stored ----
 
     @Test
-    fun linesAreStoredVerbatim() {
+    fun eventsAreWrittenCompactWithTheirValuesIntact() {
         val meta = """{"type":4,"data":{"href":"https://x","width":1080,"height":1920},"timestamp":1700000000000}"""
         val diff = """{"type":3,"data":{"source":0,"x":1.50},"timestamp":1700000000001}"""
         val spaced = """{ "type" : 3 , "data" : { "source" : 0 } }"""
-        ingestor.record("$meta\n$diff\n$spaced")
+        val spacedCompact = """{"type":3,"data":{"source":0}}"""
+        ingestor.record("[ $meta , $diff , $spaced ]")
         executor.drain()
 
-        assertEquals("nothing is re-encoded: numbers, key order and inner whitespace survive", listOf(listOf(meta, diff, spaced)), sink.appended)
+        assertEquals(listOf(listOf(meta, diff, spacedCompact)), sink.appended)
     }
 
     @Test
-    fun blankLinesAndAllLineEndingsAreHandled() {
-        ingestor.record("\n  {\"a\":1}  \r\n\r\n{\"b\":2}\r{\"c\":3}\n\n")
+    fun batchesThatAreNotAnArrayOfObjectsAreDroppedWholeAndCounted() {
+        for (bad in listOf("not json", """{"a":1}""", "[1,2]", """[{"type":4}, 5]""")) {
+            assertEquals("bad=$bad", SessionReplayIngestStatus.ACCEPTED, ingestor.record(bad))
+        }
         executor.drain()
 
-        assertEquals(listOf(listOf("""{"a":1}""", """{"b":2}""", """{"c":3}""")), sink.appended)
-    }
+        assertTrue("a bad batch writes nothing, not even its good events", sink.appended.isEmpty())
+        assertEquals(4, parseFailures)
 
-    @Test
-    fun contentIsNotValidated() {
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("not json"))
+        ingestor.record("""[{"type":4}]""")
         executor.drain()
-
-        assertEquals("Dart validates; a bad line is skipped later, when the upload is built", listOf(listOf("not json")), sink.appended)
+        assertEquals("the next good batch still lands", listOf(listOf("""{"type":4}""")), sink.appended)
     }
 
     @Test
     fun aSinkThatCannotWriteDoesNotBreakTheIngestor() {
         sink.result = false
-        ingestor.record("""{"type":4}""")
+        ingestor.record("""[{"type":4}]""")
         executor.drain()
 
         sink.result = true
-        ingestor.record("""{"type":2}""")
+        ingestor.record("""[{"type":2}]""")
         executor.drain()
 
         assertEquals(2, sink.appended.size)
+        assertEquals(0, parseFailures)
     }
 
     @Test
@@ -184,9 +204,10 @@ class SessionReplayEventIngestorTest {
             { SessionReplayMode.FULL },
             Executor { throw java.util.concurrent.RejectedExecutionException("shut down") },
             sink,
+            { parseFailures++ },
         )
 
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, rejecting.record("{}"))
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, rejecting.record("[]"))
     }
 
     // ---- the production executor ----
