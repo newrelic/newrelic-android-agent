@@ -12,6 +12,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.ApplicationFramework
 import com.newrelic.agent.android.NewRelic
+import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFileManager
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -65,6 +66,52 @@ class SessionReplayRecordEventsTest {
 
         assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents(""))
         assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents(null))
+    }
+
+    private fun singleton(): SessionReplay {
+        val field = SessionReplay::class.java.getDeclaredField("instance")
+        field.isAccessible = true
+        return field.get(null) as SessionReplay
+    }
+
+    /** The events are written by the ingest thread, so poll the working file instead of assuming a time. */
+    private fun awaitEventsInFile(expected: Int) {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (System.currentTimeMillis() < deadline) {
+            if (SessionReplayFileManager.readEventsAsJsonArray().size() == expected) return
+            Thread.sleep(25)
+        }
+        assertEquals("events in the working file", expected, SessionReplayFileManager.readEventsAsJsonArray().size())
+    }
+
+    @Test
+    fun eventsAreWrittenToTheWorkingFileWhenNoHarvestIsRunning() {
+        initialize(SessionReplayMode.FULL)
+        SessionReplay.initSessionReplay(SessionReplayMode.FULL)
+
+        assertEquals(
+            SessionReplayIngestStatus.ACCEPTED,
+            SessionReplay.recordSessionReplayEvents("""[{"type":4,"timestamp":1},{"type":2,"timestamp":2}]"""),
+        )
+
+        awaitEventsInFile(2)
+    }
+
+    @Test
+    fun eventsRecordedDuringAHarvestAreWrittenInOrderOnceItFinalizes() {
+        initialize(SessionReplayMode.FULL)
+        SessionReplay.initSessionReplay(SessionReplayMode.FULL)
+        val session = singleton()
+
+        session.onHarvestBefore()
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":4,"timestamp":1}]"""))
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":2,"timestamp":2}]"""))
+        session.onHarvestFinalize()
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":3,"timestamp":3}]"""))
+
+        awaitEventsInFile(3)
+        val events = SessionReplayFileManager.readEventsAsJsonArray()
+        assertEquals(listOf(4, 2, 3), (0 until events.size()).map { events[it].asJsonObject["type"].asInt })
     }
 
     @Test

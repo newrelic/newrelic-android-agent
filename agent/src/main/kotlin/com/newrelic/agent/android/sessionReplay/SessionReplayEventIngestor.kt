@@ -21,6 +21,14 @@ internal fun interface SessionReplayIngestSink {
 }
 
 /**
+ * Whether a harvest is reading the working file right now. This is the same flag native frames
+ * use: anything written between the harvest's read and its clear would be wiped by the clear.
+ */
+internal fun interface SessionReplayIngestHarvestGuard {
+    fun isHarvesting(): Boolean
+}
+
+/**
  * Takes rrweb events that were captured and encoded outside the agent (the Flutter plugin) and
  * stores them in the session replay buffer.
  *
@@ -32,13 +40,23 @@ internal fun interface SessionReplayIngestSink {
  * the upload is built. The batch is parsed and written on [executor]. That executor must run tasks
  * one at a time in submission order, because Dart's order has to survive: each Meta is
  * immediately followed by its FullSnapshot.
+ *
+ * While a harvest is running ([harvestGuard]), parsed batches are held in memory instead of being
+ * written, as native frames are. They are written in order by [flushAfterHarvest]. The holding
+ * happens on the ingest thread, and so does the flush, so a batch that arrives after the harvest
+ * can never be written ahead of one that was held.
  */
 internal class SessionReplayEventIngestor(
     private val modeSource: SessionReplayIngestModeSource,
     private val executor: Executor,
     private val sink: SessionReplayIngestSink,
+    private val harvestGuard: SessionReplayIngestHarvestGuard,
     private val onParseFailed: Runnable,
 ) {
+
+    // Only touched on the ingest thread.
+    private val held = ArrayList<List<String>>()
+    private var holding = false
 
     /** @return one of the [SessionReplayIngestStatus] values */
     fun record(events: String?): String {
@@ -72,11 +90,49 @@ internal class SessionReplayEventIngestor(
                 return
             }
             if (lines.isEmpty()) return
-            if (!sink.append(lines)) {
-                AgentLogManager.getAgentLog().debug("SessionReplay: ingested events were not written, there is no working file")
-            }
+            write(lines)
         } catch (e: Exception) {
             log("could not store a batch: $e")
+        }
+    }
+
+    /** Writes [lines], or holds them if a harvest is running or earlier batches are still held. */
+    private fun write(lines: List<String>) {
+        if (holding || harvestGuard.isHarvesting()) {
+            holding = true
+            held.add(lines)
+            return
+        }
+        writeNow(lines)
+    }
+
+    private fun writeNow(lines: List<String>) {
+        if (!sink.append(lines)) {
+            AgentLogManager.getAgentLog().debug("SessionReplay: ingested events were not written, there is no working file")
+        }
+    }
+
+    /**
+     * Call when a harvest has finished reading the file. Writes the batches that were held, in the
+     * order they arrived, on the ingest thread. Batches already queued behind this call are still
+     * held until it runs, so they stay behind the held ones.
+     */
+    fun flushAfterHarvest() {
+        try {
+            executor.execute { flushHeld() }
+        } catch (e: Exception) {
+            log("could not queue the flush after a harvest: $e")
+        }
+    }
+
+    private fun flushHeld() {
+        try {
+            for (lines in held) writeNow(lines)
+        } catch (e: Exception) {
+            log("could not write held batches: $e")
+        } finally {
+            held.clear()
+            holding = false
         }
     }
 

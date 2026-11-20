@@ -49,6 +49,7 @@ class SessionReplayEventIngestorTest {
     private lateinit var sink: Sink
     private var parseFailures = 0
     private var mode: SessionReplayMode? = SessionReplayMode.FULL
+    private var harvesting = false
     private lateinit var ingestor: SessionReplayEventIngestor
 
     @Before
@@ -57,10 +58,12 @@ class SessionReplayEventIngestorTest {
         sink = Sink()
         parseFailures = 0
         mode = SessionReplayMode.FULL
+        harvesting = false
         ingestor = SessionReplayEventIngestor(
             { mode },
             executor,
             sink,
+            { harvesting },
             { parseFailures++ },
         )
     }
@@ -218,10 +221,85 @@ class SessionReplayEventIngestorTest {
             { SessionReplayMode.FULL },
             Executor { throw java.util.concurrent.RejectedExecutionException("shut down") },
             sink,
+            { false },
             { parseFailures++ },
         )
 
         assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, rejecting.record("[]"))
+    }
+
+    // ---- the harvest guard ----
+
+    @Test
+    fun batchesThatArriveDuringAHarvestAreHeldUntilItIsFlushed() {
+        harvesting = true
+        ingestor.record("""[{"type":4,"n":1}]""")
+        ingestor.record("""[{"type":2,"n":2}]""")
+        executor.drain()
+
+        assertTrue("nothing is written while the harvest reads the file", sink.appended.isEmpty())
+
+        harvesting = false
+        ingestor.flushAfterHarvest()
+        executor.drain()
+
+        assertEquals(
+            "held batches are written in the order they arrived",
+            listOf(listOf("""{"type":4,"n":1}"""), listOf("""{"type":2,"n":2}""")),
+            sink.appended,
+        )
+    }
+
+    @Test
+    fun aBatchThatArrivesAfterTheHarvestButBeforeTheFlushDoesNotOvertakeHeldBatches() {
+        harvesting = true
+        ingestor.record("""[{"n":1}]""")
+        executor.drain()
+
+        // the harvest ends and a new batch is queued before the flush task runs
+        harvesting = false
+        ingestor.record("""[{"n":2}]""")
+        ingestor.flushAfterHarvest()
+        ingestor.record("""[{"n":3}]""")
+        executor.drain()
+
+        assertEquals(
+            listOf(listOf("""{"n":1}"""), listOf("""{"n":2}"""), listOf("""{"n":3}""")),
+            sink.appended,
+        )
+    }
+
+    @Test
+    fun batchesAreWrittenAtOnceWhenNoHarvestIsRunning() {
+        ingestor.record("""[{"n":1}]""")
+        executor.drain()
+
+        assertEquals(listOf(listOf("""{"n":1}""")), sink.appended)
+    }
+
+    @Test
+    fun flushingWithNothingHeldIsHarmless() {
+        ingestor.flushAfterHarvest()
+        executor.drain()
+
+        assertTrue(sink.appended.isEmpty())
+
+        ingestor.record("""[{"n":1}]""")
+        executor.drain()
+        assertEquals(1, sink.appended.size)
+    }
+
+    @Test
+    fun anExecutorThatRejectsTheFlushDoesNotThrow() {
+        val rejecting = SessionReplayEventIngestor(
+            { SessionReplayMode.FULL },
+            Executor { throw java.util.concurrent.RejectedExecutionException("shut down") },
+            sink,
+            { false },
+            { parseFailures++ },
+        )
+
+        rejecting.flushAfterHarvest()
     }
 
     // ---- the production executor ----

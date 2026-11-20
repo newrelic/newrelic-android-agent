@@ -81,6 +81,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             () -> isExternalCaptureSource() ? getCurrentMode() : null,
             SessionReplayEventIngestor.singleThreadExecutor(),
             SessionReplayFileManager::appendRawEvents,
+            // a lambda, not isHarvesting::get: the flag is declared further down, so a method reference
+            // would read it while this field is initialized, when it is still null. The class name is
+            // needed because javac rejects a simple-name reference to a field declared later.
+            () -> SessionReplay.isHarvesting.get(),
             () -> StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INGEST_PARSE_FAILED));
 
     /**
@@ -530,6 +534,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // lock is released regardless of whether the upload later succeeds or fails.
         isHarvesting.set(false);
         log.debug("SessionReplay: Harvest finalized, resuming frame and touch writes");
+
+        // Write the Flutter batches that were held during the harvest. This runs on the ingest thread,
+        // so they land in order and ahead of any batch that arrives after the harvest.
+        eventIngestor.flushAfterHarvest();
 
         // Flush any frames that were buffered during harvest
         if (!frameBufferDuringHarvest.isEmpty()) {
