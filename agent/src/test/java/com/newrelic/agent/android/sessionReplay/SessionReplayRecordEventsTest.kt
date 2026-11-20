@@ -116,6 +116,26 @@ class SessionReplayRecordEventsTest {
     }
 
     @Test
+    fun batchesHeldDuringAHarvestSurviveTheFileClearOnHarvest() {
+        initialize(SessionReplayMode.FULL)
+        SessionReplay.initSessionReplay(SessionReplayMode.FULL)
+        val session = singleton()
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":4,"timestamp":1}]"""))
+        awaitEventsInFile(1)
+
+        // a real harvest over a non-empty file: onHarvest() reads it and clears it
+        session.onHarvestBefore()
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":4,"timestamp":2},{"type":2,"timestamp":3}]"""))
+        session.onHarvest()
+        session.onHarvestFinalize()
+
+        awaitEventsInFile(2)
+        val events = SessionReplayFileManager.readEventsAsJsonArray()
+        assertEquals(listOf(4, 2), (0 until events.size()).map { events[it].asJsonObject["type"].asInt })
+        assertEquals(listOf(2L, 3L), (0 until events.size()).map { events[it].asJsonObject["timestamp"].asLong })
+    }
+
+    @Test
     fun beforeSessionReplayStartsTheStatusIsDisabled() {
         assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
     }

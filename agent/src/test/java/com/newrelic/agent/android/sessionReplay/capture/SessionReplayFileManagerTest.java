@@ -143,6 +143,35 @@ public class SessionReplayFileManagerTest {
         return null;
     }
 
+    /**
+     * onHarvest() clears the file and onHarvestFinalize() then flushes held batches and buffered frames
+     * on other threads. The clear has to be done by the time it returns, or a flush can be written
+     * first and then truncated.
+     */
+    @Test
+    public void clearWorkingFileWhileRunningSession_hasClearedTheFileWhenItReturns() throws Exception {
+        File file = SessionReplayFileManager.getWorkingSessionReplayFile();
+        SessionReplayFileManager.workingSessionReplayFile = file;
+        SessionReplayFileManager.replaceWorkingSessionReplayFileWriter(file, false);
+        SessionReplayFileManager manager = new SessionReplayFileManager(null);
+
+        for (int i = 0; i < 50; i++) {
+            // what the harvest read
+            Assert.assertTrue(SessionReplayFileManager.appendRawEvents(
+                    java.util.Collections.singletonList("{\"type\":4,\"n\":" + i + "}")));
+
+            manager.clearWorkingFileWhileRunningSession();
+
+            // what the flush after the harvest writes
+            Assert.assertTrue(SessionReplayFileManager.appendRawEvents(
+                    java.util.Collections.singletonList("{\"type\":2,\"n\":" + i + "}")));
+
+            com.google.gson.JsonArray events = SessionReplayFileManager.readEventsAsJsonArray();
+            Assert.assertEquals("iteration " + i + ": only the flush may remain", 1, events.size());
+            Assert.assertEquals("iteration " + i, 2, events.get(0).getAsJsonObject().get("type").getAsInt());
+        }
+    }
+
     @Test
     public void appendRawEvents_writesOneLinePerEventInOrder() {
         StringWriter sink = new StringWriter();

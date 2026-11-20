@@ -222,35 +222,35 @@ public class SessionReplayFileManager {
         }
     }
 
+    /**
+     * Empties the working file and reopens its writer, on the calling thread.
+     * <p>
+     * This is synchronous on purpose. {@code onHarvest()} calls it, and {@code onHarvestFinalize()}
+     * then releases the writes that were held back during the harvest (buffered frames and touches,
+     * ingested events) on other threads. If the clear were queued on the file-write pool, one of those
+     * writes could run first and the clear would then truncate it.
+     */
     public void clearWorkingFileWhileRunningSession() {
-        Callable<Void> clearFileTask = new Callable<Void>() {
-            @Override
-            public Void call() throws Exception {
-                synchronized (fileSyncLock) {
-                    try {
-                        // Close the current writer if it exists
-                        closeWorkingSessionReplayFileWriter();
+        synchronized (fileSyncLock) {
+            try {
+                // Close the current writer if it exists
+                closeWorkingSessionReplayFileWriter();
 
-                        // Clear the file contents by creating a new empty file
-                        if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
-                            // Truncate the file by creating a new FileWriter in overwrite mode
-                            try (java.io.FileWriter fw = new java.io.FileWriter(workingSessionReplayFile, false)) {
-                                // Writing nothing effectively clears the file
-                            }
-                        }
-                        // Reinitialize the writer for new content
-                        if (workingSessionReplayFile != null) {
-                            replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, true);
-                        }
-                    } catch (IOException e) {
-                        log.error("Error clearing working session replay file", e);
+                // Clear the file contents by creating a new empty file
+                if (workingSessionReplayFile != null && workingSessionReplayFile.exists()) {
+                    // Truncate the file by creating a new FileWriter in overwrite mode
+                    try (java.io.FileWriter fw = new java.io.FileWriter(workingSessionReplayFile, false)) {
+                        // Writing nothing effectively clears the file
                     }
                 }
-                return null;
+                // Reinitialize the writer for new content
+                if (workingSessionReplayFile != null) {
+                    replaceWorkingSessionReplayFileWriter(workingSessionReplayFile, true);
+                }
+            } catch (IOException e) {
+                log.error("Error clearing working session replay file", e);
             }
-        };
-
-        submitFileWriteTask(clearFileTask);
+        }
     }
 
     /**
