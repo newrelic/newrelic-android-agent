@@ -87,11 +87,10 @@ class SessionReplayEventIngestorTest {
     }
 
     @Test
-    fun gate_disabledWinsOverEmptyAndUnencodable() {
+    fun gate_disabledWinsOverEmpty() {
         mode = SessionReplayMode.OFF
         assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, ingestor.record(""))
         assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, ingestor.record(null))
-        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, ingestor.record("[\uD800]"))
     }
 
     // ---- validation ----
@@ -120,27 +119,18 @@ class SessionReplayEventIngestorTest {
     }
 
     @Test
-    fun textThatCannotBeEncodedAsUtf8IsInvalid() {
-        for (bad in listOf("[\uD800]", "[\uDC00]", "a\uD83D", "\uDE00\uD83D", "[{\"x\":\"\uD83D\"}]")) {
-            assertEquals("bad=${bad.map { it.code.toString(16) }}", Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID, ingestor.record(bad))
-        }
-        assertEquals("nothing is queued for an unencodable batch", 0, executor.size())
-    }
-
-    @Test
     fun wellFormedTextIsAcceptedIncludingSurrogatePairs() {
         assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("""[{"t":"aé中"}]"""))
         assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("[{\"t\":\"😀\"}]"))
     }
 
     @Test
-    fun canEncodeAsUtf8_followsSurrogateRules() {
-        for (good in listOf("", "abc", "é", "中文", "😀", "a😀b")) {
-            assertTrue("good=$good", SessionReplayEventIngestor.canEncodeAsUtf8(good))
-        }
-        for (bad in listOf("\uD800", "\uDC00", "\uDC00\uD800", "a\uD800b", "\uD800𐀀", "x\uD83D")) {
-            assertEquals("bad=${bad.map { it.code.toString(16) }}", false, SessionReplayEventIngestor.canEncodeAsUtf8(bad))
-        }
+    fun anUnpairedSurrogateIsNotCheckedAndStillReachesTheSink() {
+        // record() does not scan the text; the file writer replaces what it cannot encode
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("[{\"x\":\"\uD83D\"}]"))
+        executor.drain()
+        assertEquals(1, sink.appended.size)
+        assertEquals(0, parseFailures)
     }
 
     // ---- off the calling thread ----
@@ -322,6 +312,6 @@ class SessionReplayEventIngestorTest {
 
         assertTrue(done.await(5, TimeUnit.SECONDS))
         assertEquals(listOf(1, 2, 3), order)
-        assertEquals(setOf("SessionReplayIngest"), threadNames)
+        assertEquals(setOf("NR_SessionReplayIngest-1"), threadNames)
     }
 }

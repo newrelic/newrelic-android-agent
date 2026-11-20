@@ -1433,8 +1433,8 @@ public final class NewRelic {
      * plugin, to session replay. The agent uploads them the way it uploads its own replay.
      * <p>
      * Safe to call from any thread. On the calling thread this only checks whether session replay is
-     * recording and that the text can be encoded as UTF-8; the batch is parsed and stored on a
-     * background thread, and nothing is compressed here. There is no size cap on a call. A batch that
+     * recording; the batch is parsed and stored on a background thread, and nothing is
+     * compressed or scanned here. There is no size cap on a call. A batch that
      * is not a JSON array of objects is dropped there, after the call has returned {@code "accepted"}.
      *
      * @param eventsJSON a JSON array of rrweb events, in play order
@@ -1442,7 +1442,7 @@ public final class NewRelic {
      * replay is not recording (not sampled, paused, session ended, disabled, error mode, or the agent
      * has not started), the application framework is not Flutter (for example an add-to-app host that
      * starts the agent itself), or the agent could not queue the batch; {@code "dropped_invalid"} if the batch
-     * is null, empty or blank, or cannot be encoded as UTF-8. Drop a batch that was not accepted; do
+     * is null, empty or blank. Drop a batch that was not accepted; do
      * not retry it.
      */
     public static String recordSessionReplayEvents(String eventsJSON) {

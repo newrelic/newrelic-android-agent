@@ -8,6 +8,7 @@ package com.newrelic.agent.android.sessionReplay
 import com.google.gson.JsonParser
 import com.newrelic.agent.android.logging.AgentLogManager
 import com.newrelic.agent.android.util.Constants
+import com.newrelic.agent.android.util.NamedThreadFactory
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
@@ -29,6 +30,11 @@ internal fun interface SessionReplayIngestHarvestGuard {
     fun isHarvesting(): Boolean
 }
 
+/** Called when a batch is not a JSON array of objects and is dropped whole. */
+internal fun interface SessionReplayIngestParseFailureListener {
+    fun onParseFailed()
+}
+
 /**
  * Takes rrweb events that were captured and encoded outside the agent (the Flutter plugin) and
  * stores them in the session replay buffer.
@@ -36,9 +42,10 @@ internal fun interface SessionReplayIngestHarvestGuard {
  * A batch is a JSON array of rrweb events in play order. The events are kept as Dart sent them;
  * they are not decoded into the agent's own event types.
  *
- * [record] runs on the caller's thread and does only the cheap checks: the gate, the empty check
- * and the UTF-8 check. There is no size cap: the reporter's 1 MB limit applies after gzip, when
- * the upload is built. The batch is parsed and written on [executor]. That executor must run tasks
+ * [record] runs on the caller's thread and does only the cheap checks: the gate and the empty
+ * check. It never scans the text, because a batch can be several MB and this is usually the UI
+ * thread. There is no size cap: the reporter's 1 MB limit applies after gzip, when the upload is
+ * built. The batch is parsed and written on [executor]. That executor must run tasks
  * one at a time in submission order, because Dart's order has to survive: each Meta is
  * immediately followed by its FullSnapshot.
  *
@@ -52,8 +59,10 @@ internal class SessionReplayEventIngestor(
     private val executor: Executor,
     private val sink: SessionReplayIngestSink,
     private val harvestGuard: SessionReplayIngestHarvestGuard,
-    private val onParseFailed: Runnable,
+    private val parseFailureListener: SessionReplayIngestParseFailureListener,
 ) {
+
+    private val log = AgentLogManager.getAgentLog()
 
     // Only touched on the ingest thread.
     private val held = ArrayList<List<String>>()
@@ -61,14 +70,12 @@ internal class SessionReplayEventIngestor(
 
     /** @return one of the [Constants.SessionReplay] `INGEST_STATUS_*` values */
     fun record(events: String?): String {
-        val mode = modeSource.currentMode()
-        if (mode == null || mode == SessionReplayMode.OFF || mode == SessionReplayMode.ERROR) {
-            return Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED
+        // only FULL is recording; a mode added later stays closed until it is listed here
+        when (modeSource.currentMode()) {
+            SessionReplayMode.FULL -> Unit
+            else -> return Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED
         }
-        if (events == null || events.isBlank()) {
-            return Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID
-        }
-        if (!canEncodeAsUtf8(events)) {
+        if (events.isNullOrBlank()) {
             return Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID
         }
         return try {
@@ -76,7 +83,7 @@ internal class SessionReplayEventIngestor(
             Constants.SessionReplay.INGEST_STATUS_ACCEPTED
         } catch (e: Exception) {
             // this is a public API called from the plugin; nothing may escape into the host app
-            log("could not queue a batch: $e")
+            logError("could not queue a batch: $e")
             Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED
         }
     }
@@ -86,14 +93,14 @@ internal class SessionReplayEventIngestor(
             val lines = parseLines(events)
             if (lines == null) {
                 // a batch that does not parse would be a bug in our encoder, so it gets no status
-                log("dropped a batch that is not a JSON array of objects")
-                onParseFailed.run()
+                logError("dropped a batch that is not a JSON array of objects")
+                parseFailureListener.onParseFailed()
                 return
             }
             if (lines.isEmpty()) return
             write(lines)
         } catch (e: Exception) {
-            log("could not store a batch: $e")
+            logError("could not store a batch: $e")
         }
     }
 
@@ -109,7 +116,7 @@ internal class SessionReplayEventIngestor(
 
     private fun writeNow(lines: List<String>) {
         if (!sink.append(lines)) {
-            AgentLogManager.getAgentLog().debug("SessionReplay: ingested events were not written, there is no working file")
+            log.debug("SessionReplay: ingested events were not written, there is no working file")
         }
     }
 
@@ -122,7 +129,7 @@ internal class SessionReplayEventIngestor(
         try {
             executor.execute { flushHeld() }
         } catch (e: Exception) {
-            log("could not queue the flush after a harvest: $e")
+            logError("could not queue the flush after a harvest: $e")
         }
     }
 
@@ -130,7 +137,7 @@ internal class SessionReplayEventIngestor(
         try {
             for (lines in held) writeNow(lines)
         } catch (e: Exception) {
-            log("could not write held batches: $e")
+            logError("could not write held batches: $e")
         } finally {
             held.clear()
             holding = false
@@ -157,37 +164,14 @@ internal class SessionReplayEventIngestor(
         return lines
     }
 
-    private fun log(message: String) {
-        AgentLogManager.getAgentLog().error("SessionReplay: $message")
+    private fun logError(message: String) {
+        log.error("SessionReplay: $message")
     }
 
     companion object {
-        /** One daemon thread, so batches are parsed and appended in the order they were recorded. */
+        /** One thread, so batches are parsed and appended in the order they were recorded. */
         @JvmStatic
         fun singleThreadExecutor(): Executor =
-            Executors.newSingleThreadExecutor { runnable ->
-                Thread(runnable, "SessionReplayIngest").apply { isDaemon = true }
-            }
-
-        /**
-         * Whether [text] can be encoded as UTF-8: every high surrogate is followed by a low one, and
-         * no low surrogate stands alone. Walks the chars without allocating, because [record] runs
-         * on the main thread and the text can be large.
-         */
-        @JvmStatic
-        fun canEncodeAsUtf8(text: CharSequence): Boolean {
-            var i = 0
-            while (i < text.length) {
-                val c = text[i]
-                if (Character.isHighSurrogate(c)) {
-                    if (i + 1 >= text.length || !Character.isLowSurrogate(text[i + 1])) return false
-                    i++
-                } else if (Character.isLowSurrogate(c)) {
-                    return false
-                }
-                i++
-            }
-            return true
-        }
+            Executors.newSingleThreadExecutor(NamedThreadFactory("SessionReplayIngest"))
     }
 }

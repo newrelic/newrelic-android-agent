@@ -732,8 +732,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * <p>
      * Safe to call from any thread. On the calling thread this only runs the gate
      * ({@link #getCurrentMode()}: null, OFF and ERROR are disabled, and so is every call when the
-     * application framework is not Flutter), the empty check and the UTF-8 check. There is no size cap. The batch is parsed and written on a worker thread. A batch that is not a JSON
-     * array of objects is dropped there, with a log line and a supportability metric, and gets no status.
+     * application framework is not Flutter), and the empty check. There is no size cap and the text is not scanned. The batch is parsed and written on a worker
+     * thread. A batch that is not a JSON array of objects is dropped there, with a log line and a supportability metric, and gets no status.
      *
      * @param eventsJSON a JSON array of rrweb events, in play order
      * @return one of the {@code Constants.SessionReplay.INGEST_STATUS_*} values

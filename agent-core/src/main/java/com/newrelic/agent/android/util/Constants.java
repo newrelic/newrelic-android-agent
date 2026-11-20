@@ -56,7 +56,7 @@ public final class Constants {
         // Not recording: off, error mode, agent not started, or the framework is not Flutter; also when the
         // batch could not be queued. Drop the batch, don't retry.
         public static final String INGEST_STATUS_DROPPED_DISABLED = "dropped_disabled";
-        // The batch is empty or cannot be encoded as UTF-8. Drop the batch, don't retry.
+        // The batch is null, empty or blank. Drop the batch, don't retry.
         public static final String INGEST_STATUS_DROPPED_INVALID = "dropped_invalid";
 
         // URL parameters
