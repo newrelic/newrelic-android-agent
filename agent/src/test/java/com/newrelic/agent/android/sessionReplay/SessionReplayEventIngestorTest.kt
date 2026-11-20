@@ -5,6 +5,7 @@
 
 package com.newrelic.agent.android.sessionReplay
 
+import com.newrelic.agent.android.util.Constants
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -74,7 +75,7 @@ class SessionReplayEventIngestorTest {
     fun gate_nullOffAndErrorModesAreDisabled() {
         for (closed in listOf(null, SessionReplayMode.OFF, SessionReplayMode.ERROR)) {
             mode = closed
-            assertEquals("mode=$closed", SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record("[]"))
+            assertEquals("mode=$closed", Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, ingestor.record("[]"))
         }
         assertEquals("nothing is queued for a disabled gate", 0, executor.size())
     }
@@ -82,30 +83,30 @@ class SessionReplayEventIngestorTest {
     @Test
     fun gate_fullModeIsAccepted() {
         mode = SessionReplayMode.FULL
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("[]"))
     }
 
     @Test
     fun gate_disabledWinsOverEmptyAndUnencodable() {
         mode = SessionReplayMode.OFF
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record(""))
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record(null))
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record("[\uD800]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, ingestor.record(""))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, ingestor.record(null))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, ingestor.record("[\uD800]"))
     }
 
     // ---- validation ----
 
     @Test
     fun emptyNullAndBlankAreInvalid() {
-        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, ingestor.record(null))
-        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, ingestor.record(""))
-        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, ingestor.record("   \n\t"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID, ingestor.record(null))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID, ingestor.record(""))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID, ingestor.record("   \n\t"))
         assertEquals(0, executor.size())
     }
 
     @Test
     fun emptyArrayIsAcceptedAndAppendsNothing() {
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("[]"))
         executor.drain()
         assertTrue(sink.appended.isEmpty())
         assertEquals(0, parseFailures)
@@ -114,22 +115,22 @@ class SessionReplayEventIngestorTest {
     @Test
     fun thereIsNoSizeCap() {
         // the reporter's 1 MB limit applies after gzip, at upload time; nothing is capped when a batch comes in
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("a".repeat(2_000_000)))
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("中".repeat(1_000_000)))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("a".repeat(2_000_000)))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("中".repeat(1_000_000)))
     }
 
     @Test
     fun textThatCannotBeEncodedAsUtf8IsInvalid() {
         for (bad in listOf("[\uD800]", "[\uDC00]", "a\uD83D", "\uDE00\uD83D", "[{\"x\":\"\uD83D\"}]")) {
-            assertEquals("bad=${bad.map { it.code.toString(16) }}", SessionReplayIngestStatus.DROPPED_INVALID, ingestor.record(bad))
+            assertEquals("bad=${bad.map { it.code.toString(16) }}", Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID, ingestor.record(bad))
         }
         assertEquals("nothing is queued for an unencodable batch", 0, executor.size())
     }
 
     @Test
     fun wellFormedTextIsAcceptedIncludingSurrogatePairs() {
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("""[{"t":"aé中"}]"""))
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("[{\"t\":\"😀\"}]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("""[{"t":"aé中"}]"""))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("[{\"t\":\"😀\"}]"))
     }
 
     @Test
@@ -146,12 +147,12 @@ class SessionReplayEventIngestorTest {
 
     @Test
     fun record_doesNotParseOrWriteOnTheCallingThread() {
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("not json"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record("not json"))
         assertEquals("a malformed batch is not parsed until the worker runs", 0, parseFailures)
 
         val status = ingestor.record("""[{"type":4}]""")
 
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, status)
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, status)
         assertTrue("nothing is written until the worker runs", sink.appended.isEmpty())
         assertEquals(2, executor.size())
 
@@ -189,7 +190,7 @@ class SessionReplayEventIngestorTest {
     @Test
     fun batchesThatAreNotAnArrayOfObjectsAreDroppedWholeAndCounted() {
         for (bad in listOf("not json", """{"a":1}""", "[1,2]", """[{"type":4}, 5]""")) {
-            assertEquals("bad=$bad", SessionReplayIngestStatus.ACCEPTED, ingestor.record(bad))
+            assertEquals("bad=$bad", Constants.SessionReplay.INGEST_STATUS_ACCEPTED, ingestor.record(bad))
         }
         executor.drain()
 
@@ -225,7 +226,7 @@ class SessionReplayEventIngestorTest {
             { parseFailures++ },
         )
 
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, rejecting.record("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, rejecting.record("[]"))
     }
 
     // ---- the harvest guard ----

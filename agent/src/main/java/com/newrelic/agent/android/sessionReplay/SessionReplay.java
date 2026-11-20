@@ -736,7 +736,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * array of objects is dropped there, with a log line and a supportability metric, and gets no status.
      *
      * @param eventsJSON a JSON array of rrweb events, in play order
-     * @return a {@link SessionReplayIngestStatus} value
+     * @return one of the {@code Constants.SessionReplay.INGEST_STATUS_*} values
      */
     public static String recordSessionReplayEvents(String eventsJSON) {
         return eventIngestor.record(eventsJSON);

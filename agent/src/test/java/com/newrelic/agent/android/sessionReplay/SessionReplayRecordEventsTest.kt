@@ -13,6 +13,7 @@ import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.ApplicationFramework
 import com.newrelic.agent.android.NewRelic
 import com.newrelic.agent.android.sessionReplay.capture.SessionReplayFileManager
+import com.newrelic.agent.android.util.Constants
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -49,23 +50,23 @@ class SessionReplayRecordEventsTest {
         // add-to-app: the host app starts the agent itself, so the framework stays Native
         initialize(SessionReplayMode.FULL, ApplicationFramework.Native)
 
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, NewRelic.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, NewRelic.recordSessionReplayEvents("[]"))
     }
 
     @Test
     fun otherHybridFrameworksAreDisabledToo() {
         initialize(SessionReplayMode.FULL, ApplicationFramework.ReactNative)
 
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
     }
 
     @Test
     fun theFrameworkGateWinsOverAnInvalidBatch() {
         initialize(SessionReplayMode.FULL, ApplicationFramework.Native)
 
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents(""))
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents(null))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents(""))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents(null))
     }
 
     private fun singleton(): SessionReplay {
@@ -90,7 +91,7 @@ class SessionReplayRecordEventsTest {
         SessionReplay.initSessionReplay(SessionReplayMode.FULL)
 
         assertEquals(
-            SessionReplayIngestStatus.ACCEPTED,
+            Constants.SessionReplay.INGEST_STATUS_ACCEPTED,
             SessionReplay.recordSessionReplayEvents("""[{"type":4,"timestamp":1},{"type":2,"timestamp":2}]"""),
         )
 
@@ -104,10 +105,10 @@ class SessionReplayRecordEventsTest {
         val session = singleton()
 
         session.onHarvestBefore()
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":4,"timestamp":1}]"""))
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":2,"timestamp":2}]"""))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":4,"timestamp":1}]"""))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":2,"timestamp":2}]"""))
         session.onHarvestFinalize()
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":3,"timestamp":3}]"""))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, SessionReplay.recordSessionReplayEvents("""[{"type":3,"timestamp":3}]"""))
 
         awaitEventsInFile(3)
         val events = SessionReplayFileManager.readEventsAsJsonArray()
@@ -116,22 +117,22 @@ class SessionReplayRecordEventsTest {
 
     @Test
     fun beforeSessionReplayStartsTheStatusIsDisabled() {
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
     }
 
     @Test
     fun fullModeAcceptsAndRejectsInvalidBatches() {
         initialize(SessionReplayMode.FULL)
 
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("[]"))
-        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, SessionReplay.recordSessionReplayEvents(""))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID, SessionReplay.recordSessionReplayEvents(""))
     }
 
     @Test
     fun errorModeIsDisabledUntilErrorModeShips() {
         initialize(SessionReplayMode.ERROR)
 
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
     }
 
     @Test
@@ -139,10 +140,10 @@ class SessionReplayRecordEventsTest {
         initialize(SessionReplayMode.FULL)
 
         assertTrue(SessionReplay.pauseReplay())
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
 
         assertTrue(SessionReplay.transitionToMode(SessionReplayMode.FULL, "test"))
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, SessionReplay.recordSessionReplayEvents("[]"))
     }
 
     @Test
@@ -150,16 +151,16 @@ class SessionReplayRecordEventsTest {
         initialize(SessionReplayMode.FULL)
         SessionReplay.deInitialize()
 
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
     }
 
     @Test
     fun theNewRelicEntryReturnsTheSameStatus() {
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, NewRelic.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED, NewRelic.recordSessionReplayEvents("[]"))
 
         initialize(SessionReplayMode.FULL)
 
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, NewRelic.recordSessionReplayEvents("[]"))
-        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, NewRelic.recordSessionReplayEvents(null))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_ACCEPTED, NewRelic.recordSessionReplayEvents("[]"))
+        assertEquals(Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID, NewRelic.recordSessionReplayEvents(null))
     }
 }

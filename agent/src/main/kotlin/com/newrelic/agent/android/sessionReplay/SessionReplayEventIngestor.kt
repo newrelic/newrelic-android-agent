@@ -7,6 +7,7 @@ package com.newrelic.agent.android.sessionReplay
 
 import com.google.gson.JsonParser
 import com.newrelic.agent.android.logging.AgentLogManager
+import com.newrelic.agent.android.util.Constants
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
@@ -58,25 +59,25 @@ internal class SessionReplayEventIngestor(
     private val held = ArrayList<List<String>>()
     private var holding = false
 
-    /** @return one of the [SessionReplayIngestStatus] values */
+    /** @return one of the [Constants.SessionReplay] `INGEST_STATUS_*` values */
     fun record(events: String?): String {
         val mode = modeSource.currentMode()
         if (mode == null || mode == SessionReplayMode.OFF || mode == SessionReplayMode.ERROR) {
-            return SessionReplayIngestStatus.DROPPED_DISABLED
+            return Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED
         }
         if (events == null || events.isBlank()) {
-            return SessionReplayIngestStatus.DROPPED_INVALID
+            return Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID
         }
         if (!canEncodeAsUtf8(events)) {
-            return SessionReplayIngestStatus.DROPPED_INVALID
+            return Constants.SessionReplay.INGEST_STATUS_DROPPED_INVALID
         }
         return try {
             executor.execute { append(events) }
-            SessionReplayIngestStatus.ACCEPTED
+            Constants.SessionReplay.INGEST_STATUS_ACCEPTED
         } catch (e: Exception) {
             // this is a public API called from the plugin; nothing may escape into the host app
             log("could not queue a batch: $e")
-            SessionReplayIngestStatus.DROPPED_DISABLED
+            Constants.SessionReplay.INGEST_STATUS_DROPPED_DISABLED
         }
     }
 

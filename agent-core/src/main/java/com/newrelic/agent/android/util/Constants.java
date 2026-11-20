@@ -50,6 +50,15 @@ public final class Constants {
         public static final String PAYLOAD_TYPE_STANDARD = "standard";
         public static final String CONTENT_ENCODING_GZIP = "gzip";
 
+        // Statuses returned by NewRelic.recordSessionReplayEvents. A status never starts or stops capture.
+        // Taken: the agent stored the batch for its next upload.
+        public static final String INGEST_STATUS_ACCEPTED = "accepted";
+        // Not recording: off, error mode, agent not started, or the framework is not Flutter; also when the
+        // batch could not be queued. Drop the batch, don't retry.
+        public static final String INGEST_STATUS_DROPPED_DISABLED = "dropped_disabled";
+        // The batch is empty or cannot be encoded as UTF-8. Drop the batch, don't retry.
+        public static final String INGEST_STATUS_DROPPED_INVALID = "dropped_invalid";
+
         // URL parameters
         public static final String URL_TYPE_PARAM = "type=SessionReplay";
         public static final String URL_APP_ID_PARAM = "app_id=";
