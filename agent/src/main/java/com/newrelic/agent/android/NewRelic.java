@@ -1440,7 +1440,8 @@ public final class NewRelic {
      * @param eventsJSON a JSON array of rrweb events, in play order
      * @return {@code "accepted"} if the agent took the batch; {@code "dropped_disabled"} if session
      * replay is not recording (not sampled, paused, session ended, disabled, error mode, or the agent
-     * has not started) or the agent could not queue the batch; {@code "dropped_invalid"} if the batch
+     * has not started), the application framework is not Flutter (for example an add-to-app host that
+     * starts the agent itself), or the agent could not queue the batch; {@code "dropped_invalid"} if the batch
      * is null, empty or blank, or cannot be encoded as UTF-8. Drop a batch that was not accepted; do
      * not retry it.
      */

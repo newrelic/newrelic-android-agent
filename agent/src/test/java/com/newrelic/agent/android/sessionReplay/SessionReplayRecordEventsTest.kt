@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.newrelic.agent.android.AgentConfiguration
+import com.newrelic.agent.android.ApplicationFramework
 import com.newrelic.agent.android.NewRelic
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -36,8 +37,34 @@ class SessionReplayRecordEventsTest {
         SessionReplay.deInitialize()
     }
 
-    private fun initialize(mode: SessionReplayMode) {
-        SessionReplay.initialize(application, Handler(Looper.getMainLooper()), AgentConfiguration(), mode)
+    /** The Flutter plugin sets the framework before the agent starts, so the default here is Flutter. */
+    private fun initialize(mode: SessionReplayMode, framework: ApplicationFramework = ApplicationFramework.Flutter) {
+        val configuration = AgentConfiguration().apply { applicationFramework = framework }
+        SessionReplay.initialize(application, Handler(Looper.getMainLooper()), configuration, mode)
+    }
+
+    @Test
+    fun aNativeFrameworkIsDisabledEvenWhenRecordingInFullMode() {
+        // add-to-app: the host app starts the agent itself, so the framework stays Native
+        initialize(SessionReplayMode.FULL, ApplicationFramework.Native)
+
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, NewRelic.recordSessionReplayEvents("[]"))
+    }
+
+    @Test
+    fun otherHybridFrameworksAreDisabledToo() {
+        initialize(SessionReplayMode.FULL, ApplicationFramework.ReactNative)
+
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents("[]"))
+    }
+
+    @Test
+    fun theFrameworkGateWinsOverAnInvalidBatch() {
+        initialize(SessionReplayMode.FULL, ApplicationFramework.Native)
+
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents(""))
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, SessionReplay.recordSessionReplayEvents(null))
     }
 
     @Test

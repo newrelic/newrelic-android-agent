@@ -14,8 +14,9 @@ object SessionReplayIngestStatus {
     const val ACCEPTED = "accepted"
 
     /**
-     * Recording is off, in error mode, or the agent has not started. Also returned if the agent
-     * could not queue the batch. Drop the batch, don't retry.
+     * Recording is off, in error mode, or the agent has not started, or the application framework
+     * is not Flutter (for example an add-to-app host that starts the agent itself). Also returned
+     * if the agent could not queue the batch. Drop the batch, don't retry.
      */
     const val DROPPED_DISABLED = "dropped_disabled"
 

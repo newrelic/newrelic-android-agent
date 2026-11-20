@@ -75,8 +75,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
     // Flutter captures and encodes its own replay and hands the rrweb events to
     // recordSessionReplayEvents(). One worker thread parses and appends them, so Dart's order is kept.
+    // The gate is closed unless the framework is Flutter: an add-to-app host starts the agent itself, so
+    // its framework stays Native, native capture stays on, and Dart's events would mix with native frames.
     private static final SessionReplayEventIngestor eventIngestor = new SessionReplayEventIngestor(
-            SessionReplay::getCurrentMode,
+            () -> isExternalCaptureSource() ? getCurrentMode() : null,
             SessionReplayEventIngestor.singleThreadExecutor(),
             SessionReplayFileManager::appendRawEvents,
             () -> StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INGEST_PARSE_FAILED));
@@ -721,8 +723,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * plugin, for the agent's next upload.
      * <p>
      * Safe to call from any thread. On the calling thread this only runs the gate
-     * ({@link #getCurrentMode()}: null, OFF and ERROR are disabled), the empty check and the UTF-8
-     * check. There is no size cap. The batch is parsed and written on a worker thread. A batch that is not a JSON
+     * ({@link #getCurrentMode()}: null, OFF and ERROR are disabled, and so is every call when the
+     * application framework is not Flutter), the empty check and the UTF-8 check. There is no size cap. The batch is parsed and written on a worker thread. A batch that is not a JSON
      * array of objects is dropped there, with a log line and a supportability metric, and gets no status.
      *
      * @param eventsJSON a JSON array of rrweb events, in play order
