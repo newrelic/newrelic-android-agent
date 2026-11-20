@@ -189,10 +189,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Transition to the provided mode if not already in it
         modeManager.transitionTo(mode, "Initialization");
 
-        sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application,modeManager);
         if (isExternalCaptureSource()) {
             log.debug("SessionReplay: native capture is suppressed, the platform captures its own replay");
+            sessionReplayActivityLifecycleCallbacks = null;
         } else {
+            sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application,modeManager);
             registerCallbacks();
         }
 
@@ -320,7 +321,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     private static void unregisterCallbacks() {
-        application.unregisterActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
+        // null when native capture is suppressed: nothing was registered
+        if (sessionReplayActivityLifecycleCallbacks != null) {
+            application.unregisterActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
+        }
     }
 
     public static void initSessionReplay(SessionReplayMode mode) {
@@ -328,7 +332,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             log.debug("Session replay already initialized; skipping duplicate init for mode: " + mode);
             return;
         }
-        viewDrawInterceptor = new ViewDrawInterceptor(instance,agentConfiguration);
+        // the draw interceptor only exists for native capture
+        viewDrawInterceptor = isExternalCaptureSource() ? null : new ViewDrawInterceptor(instance,agentConfiguration);
         processor = new SessionReplayProcessor();
         // Initialize file manager
         instance.fileManager = new SessionReplayFileManager(processor);
@@ -414,6 +419,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
 
     public static void stopRecording() {
+        if (isExternalCaptureSource()) {
+            // startRecording() never attached anything, and Curtains is shared with the host app and
+            // its libraries, so there is nothing of ours to clear
+            return;
+        }
         // See NR-608999: Curtains access must stay confined to the main thread.
         uiThreadHandler.post(() -> {
             if (viewDrawInterceptor != null) {

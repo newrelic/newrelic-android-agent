@@ -12,8 +12,11 @@ import androidx.test.core.app.ApplicationProvider
 import com.newrelic.agent.android.AgentConfiguration
 import com.newrelic.agent.android.ApplicationFramework
 import curtains.Curtains
+import curtains.OnRootViewsChangedListener
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -45,6 +48,7 @@ class SessionReplayFlutterSuppressionTest {
         application = Mockito.mock(Application::class.java)
         whenever(application.applicationContext).thenReturn(application)
         whenever(application.resources).thenReturn(real.resources)
+        whenever(application.cacheDir).thenReturn(real.cacheDir)
 
         shadowLooper = Shadows.shadowOf(Looper.getMainLooper())
         shadowLooper.pause()
@@ -132,4 +136,51 @@ class SessionReplayFlutterSuppressionTest {
 
         Mockito.verify(application, times(1)).registerActivityLifecycleCallbacks(any())
     }
+
+    @Test
+    fun flutter_stopRecordingLeavesOtherCurtainsListenersAlone() {
+        // Curtains is shared with the host app and its libraries; Flutter never added a listener, so
+        // pausing must not clear theirs
+        val hostListener = OnRootViewsChangedListener { _, _ -> }
+        Curtains.onRootViewsChangedListeners.add(hostListener)
+        initialize(ApplicationFramework.Flutter)
+
+        assertTrue(SessionReplay.pauseReplay())
+        shadowLooper.idle()
+
+        assertTrue(Curtains.onRootViewsChangedListeners.contains(hostListener))
+    }
+
+    @Test
+    fun native_stopRecordingClearsTheCurtainsListeners() {
+        val listener = OnRootViewsChangedListener { _, _ -> }
+        Curtains.onRootViewsChangedListeners.add(listener)
+        initialize(ApplicationFramework.Native)
+
+        assertTrue(SessionReplay.pauseReplay())
+        shadowLooper.idle()
+
+        assertEquals(0, Curtains.onRootViewsChangedListeners.size)
+    }
+
+    @Test
+    fun flutter_doesNotAllocateTheNativeCaptureObjects() {
+        initialize(ApplicationFramework.Flutter)
+        SessionReplay.initSessionReplay(SessionReplayMode.FULL)
+
+        assertNull(staticField("sessionReplayActivityLifecycleCallbacks"))
+        assertNull(staticField("viewDrawInterceptor"))
+    }
+
+    @Test
+    fun native_allocatesTheNativeCaptureObjects() {
+        initialize(ApplicationFramework.Native)
+        SessionReplay.initSessionReplay(SessionReplayMode.FULL)
+
+        assertNotNull(staticField("sessionReplayActivityLifecycleCallbacks"))
+        assertNotNull(staticField("viewDrawInterceptor"))
+    }
+
+    private fun staticField(name: String): Any? =
+        SessionReplay::class.java.getDeclaredField(name).apply { isAccessible = true }.get(null)
 }
