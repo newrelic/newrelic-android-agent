@@ -143,6 +143,70 @@ public class SessionReplayFileManagerTest {
         return null;
     }
 
+    /**
+     * onHarvest() clears the file and onHarvestFinalize() then flushes held batches and buffered frames
+     * on other threads. The clear has to be done by the time it returns, or a flush can be written
+     * first and then truncated.
+     */
+    @Test
+    public void clearWorkingFileWhileRunningSession_hasClearedTheFileWhenItReturns() throws Exception {
+        File file = SessionReplayFileManager.getWorkingSessionReplayFile();
+        SessionReplayFileManager.workingSessionReplayFile = file;
+        SessionReplayFileManager.replaceWorkingSessionReplayFileWriter(file, false);
+        SessionReplayFileManager manager = new SessionReplayFileManager(null);
+
+        for (int i = 0; i < 50; i++) {
+            // what the harvest read
+            Assert.assertTrue(SessionReplayFileManager.appendRawEvents(
+                    java.util.Collections.singletonList("{\"type\":4,\"n\":" + i + "}")));
+
+            manager.clearWorkingFileWhileRunningSession();
+
+            // what the flush after the harvest writes
+            Assert.assertTrue(SessionReplayFileManager.appendRawEvents(
+                    java.util.Collections.singletonList("{\"type\":2,\"n\":" + i + "}")));
+
+            com.google.gson.JsonArray events = SessionReplayFileManager.readEventsAsJsonArray();
+            Assert.assertEquals("iteration " + i + ": only the flush may remain", 1, events.size());
+            Assert.assertEquals("iteration " + i, 2, events.get(0).getAsJsonObject().get("type").getAsInt());
+        }
+    }
+
+    @Test
+    public void appendRawEvents_writesOneLinePerEventInOrder() {
+        StringWriter sink = new StringWriter();
+        SessionReplayFileManager.workingSessionReplayFileWriter.set(new BufferedWriter(sink));
+
+        boolean written = SessionReplayFileManager.appendRawEvents(
+                java.util.Arrays.asList("{\"type\":4}", "{\"type\":2}"));
+
+        Assert.assertTrue(written);
+        String eol = System.lineSeparator();
+        Assert.assertEquals("{\"type\":4}" + eol + "{\"type\":2}" + eol, sink.toString());
+    }
+
+    @Test
+    public void appendRawEvents_returnsFalseWhenThereIsNoWriter() {
+        SessionReplayFileManager.workingSessionReplayFileWriter.set(null);
+
+        Assert.assertFalse(SessionReplayFileManager.appendRawEvents(
+                java.util.Collections.singletonList("{}")));
+    }
+
+    @Test
+    public void appendRawEvents_returnsFalseWhenTheWriteFails() {
+        BufferedWriter failingWriter = new BufferedWriter(new StringWriter()) {
+            @Override
+            public void write(String str) throws IOException {
+                throw new IOException("write failed");
+            }
+        };
+        SessionReplayFileManager.workingSessionReplayFileWriter.set(failingWriter);
+
+        Assert.assertFalse(SessionReplayFileManager.appendRawEvents(
+                java.util.Collections.singletonList("{}")));
+    }
+
     private static final class TrackingBufferedWriter extends BufferedWriter {
         private boolean closed;
 

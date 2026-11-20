@@ -15,6 +15,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.newrelic.agent.android.AgentConfiguration;
+import com.newrelic.agent.android.ApplicationFramework;
 import com.newrelic.agent.android.sessioncontext.SessionContextStore;
 import com.newrelic.agent.android.analytics.AnalyticsControllerImpl;
 import com.newrelic.agent.android.analytics.AnalyticsEvent;
@@ -71,6 +72,34 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     private static boolean isFirstChunk = true;
     private static final AtomicBoolean takeFullSnapshot = new AtomicBoolean(true);
     private static volatile SessionReplayModeManager modeManager;
+
+    // Flutter captures and encodes its own replay and hands the rrweb events to
+    // recordSessionReplayEvents(). One worker thread parses and appends them, so Dart's order is kept.
+    // The gate is closed unless the framework is Flutter: an add-to-app host starts the agent itself, so
+    // its framework stays Native, native capture stays on, and Dart's events would mix with native frames.
+    private static final SessionReplayEventIngestor eventIngestor = new SessionReplayEventIngestor(
+            () -> isExternalCaptureSource() ? getCurrentMode() : null,
+            SessionReplayEventIngestor.singleThreadExecutor(),
+            SessionReplayFileManager::appendRawEvents,
+            // a lambda, not isHarvesting::get: the flag is declared further down, so a method reference
+            // would read it while this field is initialized, when it is still null. The class name is
+            // needed because javac rejects a simple-name reference to a field declared later.
+            () -> SessionReplay.isHarvesting.get(),
+            () -> StatsEngine.SUPPORTABILITY.inc(MetricNames.SUPPORTABILITY_SESSION_REPLAY_INGEST_PARSE_FAILED));
+
+    /**
+     * True when another SDK captures and encodes the replay and hands the events to
+     * {@link #recordSessionReplayEvents}. Flutter draws its own surface, so native capture would
+     * record it as a blank screen and write native frames into the same file as Flutter's events.
+     * <p>
+     * Derived from the platform on every call, so a session restart re-evaluates it.
+     */
+    @VisibleForTesting
+    static boolean isExternalCaptureSource() {
+        AgentConfiguration configuration = agentConfiguration;
+        return configuration != null
+                && configuration.getApplicationFramework() == ApplicationFramework.Flutter;
+    }
 
     // Process-lifetime: listeners survive deInitialize() and session restarts (NR-645445).
     // The mode source is read under the notifier's lock, so it must not take other locks.
@@ -160,8 +189,13 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // Transition to the provided mode if not already in it
         modeManager.transitionTo(mode, "Initialization");
 
-        sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application,modeManager);
-        registerCallbacks();
+        if (isExternalCaptureSource()) {
+            log.debug("SessionReplay: native capture is suppressed, the platform captures its own replay");
+            sessionReplayActivityLifecycleCallbacks = null;
+        } else {
+            sessionReplayActivityLifecycleCallbacks = new SessionReplayActivityLifecycleCallbacks(instance,application,modeManager);
+            registerCallbacks();
+        }
 
         if (listenerRegistered.compareAndSet(false, true)) {
             ApplicationStateMonitor.getInstance().addApplicationStateListener(instance);
@@ -287,7 +321,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
     }
 
     private static void unregisterCallbacks() {
-        application.unregisterActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
+        // null when native capture is suppressed: nothing was registered
+        if (sessionReplayActivityLifecycleCallbacks != null) {
+            application.unregisterActivityLifecycleCallbacks(sessionReplayActivityLifecycleCallbacks);
+        }
     }
 
     public static void initSessionReplay(SessionReplayMode mode) {
@@ -295,7 +332,8 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             log.debug("Session replay already initialized; skipping duplicate init for mode: " + mode);
             return;
         }
-        viewDrawInterceptor = new ViewDrawInterceptor(instance,agentConfiguration);
+        // the draw interceptor only exists for native capture
+        viewDrawInterceptor = isExternalCaptureSource() ? null : new ViewDrawInterceptor(instance,agentConfiguration);
         processor = new SessionReplayProcessor();
         // Initialize file manager
         instance.fileManager = new SessionReplayFileManager(processor);
@@ -345,6 +383,13 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             persistSrState(true, true);
         }
 
+        if (isExternalCaptureSource()) {
+            // The harvest listener, snapshot flag, sliding window and persisted state above stay.
+            // Only native capture is skipped: the Curtains listener, the draw interceptor and the touch interceptor.
+            log.debug("SessionReplay: native capture is suppressed, not attaching view interceptors");
+            return;
+        }
+
         // curtains.Curtains is a main-thread-only, non-thread-safe API (NR-608999): every
         // access must happen inside this single post() so the calling thread never races
         // the main thread on Curtains' internal LazyThreadSafetyMode.NONE delegate. The
@@ -374,6 +419,11 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
 
 
     public static void stopRecording() {
+        if (isExternalCaptureSource()) {
+            // startRecording() never attached anything, and Curtains is shared with the host app and
+            // its libraries, so there is nothing of ours to clear
+            return;
+        }
         // See NR-608999: Curtains access must stay confined to the main thread.
         uiThreadHandler.post(() -> {
             if (viewDrawInterceptor != null) {
@@ -494,6 +544,10 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
         // lock is released regardless of whether the upload later succeeds or fails.
         isHarvesting.set(false);
         log.debug("SessionReplay: Harvest finalized, resuming frame and touch writes");
+
+        // Write the Flutter batches that were held during the harvest. This runs on the ingest thread,
+        // so they land in order and ahead of any batch that arrives after the harvest.
+        eventIngestor.flushAfterHarvest();
 
         // Flush any frames that were buffered during harvest
         if (!frameBufferDuringHarvest.isEmpty()) {
@@ -680,6 +734,22 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
             return true;
         }
         return false;
+    }
+
+    /**
+     * Stores rrweb events that were captured and encoded outside the agent, such as by the Flutter
+     * plugin, for the agent's next upload.
+     * <p>
+     * Safe to call from any thread. On the calling thread this only runs the gate
+     * ({@link #getCurrentMode()}: null, OFF and ERROR are disabled, and so is every call when the
+     * application framework is not Flutter), and the empty check. There is no size cap and the text is not scanned. The batch is parsed and written on a worker
+     * thread. A batch that is not a JSON array of objects is dropped there, with a log line and a supportability metric, and gets no status.
+     *
+     * @param eventsJSON a JSON array of rrweb events, in play order
+     * @return one of the {@code Constants.SessionReplay.INGEST_STATUS_*} values
+     */
+    public static String recordSessionReplayEvents(String eventsJSON) {
+        return eventIngestor.record(eventsJSON);
     }
 
     /**
