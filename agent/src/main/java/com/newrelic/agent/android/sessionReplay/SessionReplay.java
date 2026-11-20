@@ -722,7 +722,7 @@ public class SessionReplay implements OnFrameTakenListener, HarvestLifecycleAwar
      * <p>
      * Safe to call from any thread. On the calling thread this only runs the gate
      * ({@link #getCurrentMode()}: null, OFF and ERROR are disabled), the empty check and the UTF-8
-     * size check. The batch is parsed and written on a worker thread. A batch that is not a JSON
+     * check. There is no size cap. The batch is parsed and written on a worker thread. A batch that is not a JSON
      * array of objects is dropped there, with a log line and a supportability metric, and gets no status.
      *
      * @param eventsJSON a JSON array of rrweb events, in play order

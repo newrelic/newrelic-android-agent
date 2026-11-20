@@ -28,7 +28,8 @@ internal fun interface SessionReplayIngestSink {
  * they are not decoded into the agent's own event types.
  *
  * [record] runs on the caller's thread and does only the cheap checks: the gate, the empty check
- * and the UTF-8 size. The batch is parsed and written on [executor]. That executor must run tasks
+ * and the UTF-8 check. There is no size cap: the reporter's 1 MB limit applies after gzip, when
+ * the upload is built. The batch is parsed and written on [executor]. That executor must run tasks
  * one at a time in submission order, because Dart's order has to survive: each Meta is
  * immediately followed by its FullSnapshot.
  */
@@ -48,7 +49,7 @@ internal class SessionReplayEventIngestor(
         if (events == null || events.isBlank()) {
             return SessionReplayIngestStatus.DROPPED_INVALID
         }
-        if (utf8Length(events) > MAX_BATCH_BYTES) {
+        if (!canEncodeAsUtf8(events)) {
             return SessionReplayIngestStatus.DROPPED_INVALID
         }
         return try {
@@ -104,9 +105,6 @@ internal class SessionReplayEventIngestor(
     }
 
     companion object {
-        /** The most UTF-8 bytes one call may carry. */
-        const val MAX_BATCH_BYTES = 1_000_000
-
         /** One daemon thread, so batches are parsed and appended in the order they were recorded. */
         @JvmStatic
         fun singleThreadExecutor(): Executor =
@@ -115,28 +113,24 @@ internal class SessionReplayEventIngestor(
             }
 
         /**
-         * The UTF-8 size of [text], counted without allocating the byte array, because [record]
-         * runs on the main thread and the text can be 1 MB. An unpaired surrogate is counted as 3
-         * bytes, which over-estimates by 2 (the encoder writes one byte for it).
+         * Whether [text] can be encoded as UTF-8: every high surrogate is followed by a low one, and
+         * no low surrogate stands alone. Walks the chars without allocating, because [record] runs
+         * on the main thread and the text can be large.
          */
         @JvmStatic
-        fun utf8Length(text: CharSequence): Int {
-            var bytes = 0
+        fun canEncodeAsUtf8(text: CharSequence): Boolean {
             var i = 0
             while (i < text.length) {
                 val c = text[i]
-                when {
-                    c.code < 0x80 -> bytes += 1
-                    c.code < 0x800 -> bytes += 2
-                    Character.isHighSurrogate(c) && i + 1 < text.length && Character.isLowSurrogate(text[i + 1]) -> {
-                        bytes += 4
-                        i++
-                    }
-                    else -> bytes += 3
+                if (Character.isHighSurrogate(c)) {
+                    if (i + 1 >= text.length || !Character.isLowSurrogate(text[i + 1])) return false
+                    i++
+                } else if (Character.isLowSurrogate(c)) {
+                    return false
                 }
                 i++
             }
-            return bytes
+            return true
         }
     }
 }

@@ -83,11 +83,11 @@ class SessionReplayEventIngestorTest {
     }
 
     @Test
-    fun gate_disabledWinsOverEmptyAndOversize() {
+    fun gate_disabledWinsOverEmptyAndUnencodable() {
         mode = SessionReplayMode.OFF
         assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record(""))
         assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record(null))
-        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record("a".repeat(1_000_001)))
+        assertEquals(SessionReplayIngestStatus.DROPPED_DISABLED, ingestor.record("[\uD800]"))
     }
 
     // ---- validation ----
@@ -109,19 +109,33 @@ class SessionReplayEventIngestorTest {
     }
 
     @Test
-    fun sizeLimitIsCountedInUtf8Bytes() {
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("a".repeat(1_000_000)))
-        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, ingestor.record("a".repeat(1_000_001)))
-
-        // 3 bytes per char: 333,333 chars = 999,999 bytes fits, 400,000 chars = 1,200,000 bytes does not
-        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("中".repeat(333_333)))
-        assertEquals(SessionReplayIngestStatus.DROPPED_INVALID, ingestor.record("中".repeat(400_000)))
+    fun thereIsNoSizeCap() {
+        // the reporter's 1 MB limit applies after gzip, at upload time; nothing is capped when a batch comes in
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("a".repeat(2_000_000)))
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("中".repeat(1_000_000)))
     }
 
     @Test
-    fun utf8Length_matchesTheEncoderForWellFormedText() {
-        for (text in listOf("", "abc", "é", "中文", "😀", "a😀b")) {
-            assertEquals(text, text.toByteArray(Charsets.UTF_8).size, SessionReplayEventIngestor.utf8Length(text))
+    fun textThatCannotBeEncodedAsUtf8IsInvalid() {
+        for (bad in listOf("[\uD800]", "[\uDC00]", "a\uD83D", "\uDE00\uD83D", "[{\"x\":\"\uD83D\"}]")) {
+            assertEquals("bad=${bad.map { it.code.toString(16) }}", SessionReplayIngestStatus.DROPPED_INVALID, ingestor.record(bad))
+        }
+        assertEquals("nothing is queued for an unencodable batch", 0, executor.size())
+    }
+
+    @Test
+    fun wellFormedTextIsAcceptedIncludingSurrogatePairs() {
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("""[{"t":"aé中"}]"""))
+        assertEquals(SessionReplayIngestStatus.ACCEPTED, ingestor.record("[{\"t\":\"😀\"}]"))
+    }
+
+    @Test
+    fun canEncodeAsUtf8_followsSurrogateRules() {
+        for (good in listOf("", "abc", "é", "中文", "😀", "a😀b")) {
+            assertTrue("good=$good", SessionReplayEventIngestor.canEncodeAsUtf8(good))
+        }
+        for (bad in listOf("\uD800", "\uDC00", "\uDC00\uD800", "a\uD800b", "\uD800𐀀", "x\uD83D")) {
+            assertEquals("bad=${bad.map { it.code.toString(16) }}", false, SessionReplayEventIngestor.canEncodeAsUtf8(bad))
         }
     }
 

@@ -19,6 +19,6 @@ object SessionReplayIngestStatus {
      */
     const val DROPPED_DISABLED = "dropped_disabled"
 
-    /** The batch is empty or over 1,000,000 bytes of UTF-8. Drop the batch, don't retry. */
+    /** The batch is empty or cannot be encoded as UTF-8. Drop the batch, don't retry. */
     const val DROPPED_INVALID = "dropped_invalid"
 }
