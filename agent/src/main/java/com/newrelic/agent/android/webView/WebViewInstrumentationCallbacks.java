@@ -18,6 +18,7 @@ import com.newrelic.agent.android.logging.AgentLogManager;
 import com.newrelic.agent.android.metric.MetricNames;
 import com.newrelic.agent.android.stats.StatsEngine;
 
+import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -35,10 +36,23 @@ public class WebViewInstrumentationCallbacks {
     /**
      * Per-WebView instrumentation state. Held in a WeakHashMap so tracking a WebView never
      * keeps it (and its Activity) alive.
+     *
+     * A WeakHashMap only releases an entry once nothing but the map reaches its key, so the value
+     * must not reach the key either. The wrapper's delegate is the host app's own client, which
+     * commonly references the WebView or its Activity, so the wrapper is held weakly here. The
+     * WebView itself holds the installed client strongly for as long as it is in use.
      */
     static final class WebViewState {
         boolean jsInterfaceInjected;
-        NRWebViewClient nrClient;
+        private WeakReference<NRWebViewClient> nrClient;
+
+        NRWebViewClient getNrClient() {
+            return nrClient != null ? nrClient.get() : null;
+        }
+
+        void setNrClient(NRWebViewClient client) {
+            nrClient = client != null ? new WeakReference<>(client) : null;
+        }
     }
 
     private static synchronized WebViewState stateFor(WebView webView) {
@@ -215,7 +229,7 @@ public class WebViewInstrumentationCallbacks {
             return;
         }
         WebViewState state = stateFor(webView);
-        if (state.nrClient != null) {
+        if (state.getNrClient() != null) {
             return;
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -230,7 +244,7 @@ public class WebViewInstrumentationCallbacks {
         try {
             WebViewClient existing = webView.getWebViewClient();
             if (existing instanceof NRWebViewClient) {
-                state.nrClient = (NRWebViewClient) existing;
+                state.setNrClient((NRWebViewClient) existing);
                 return;
             }
             NRWebViewClient wrapper = new NRWebViewClient(existing);
@@ -238,7 +252,7 @@ public class WebViewInstrumentationCallbacks {
             // Recorded only after the install actually succeeded. Recording first would make
             // hasNRClient() claim a wrapper that isn't there, suppressing the fallback path and
             // losing the page load from both paths at once.
-            state.nrClient = wrapper;
+            state.setNrClient(wrapper);
         } catch (Throwable t) {
             log.error("Failed to install NR WebViewClient", t);
         }
@@ -328,12 +342,13 @@ public class WebViewInstrumentationCallbacks {
         }
         try {
             WebViewState state = stateFor(webView);
-            if (state.nrClient != null) {
-                state.nrClient.setDelegate(client != null ? client : new WebViewClient());
-                return state.nrClient;  // re-parent rather than stacking a second wrapper
+            NRWebViewClient existing = state.getNrClient();
+            if (existing != null) {
+                existing.setDelegate(client != null ? client : new WebViewClient());
+                return existing;        // re-parent rather than stacking a second wrapper
             }
             NRWebViewClient wrapper = new NRWebViewClient(client);
-            state.nrClient = wrapper;
+            state.setNrClient(wrapper);
             return wrapper;
         } catch (Throwable t) {
             log.error("Failed to wrap WebViewClient; using the original", t);
@@ -362,6 +377,6 @@ public class WebViewInstrumentationCallbacks {
             }
         }
         WebViewState state = states.get(webView);   // deliberately not stateFor(): no entry created
-        return state != null && state.nrClient != null;
+        return state != null && state.getNrClient() != null;
     }
 }
