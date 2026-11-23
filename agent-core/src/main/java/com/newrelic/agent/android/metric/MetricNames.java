@@ -88,6 +88,8 @@ public class MetricNames {
     public static final String SUPPORTABILITY_MOBILE_ANDROID = "Supportability/Mobile/Android/";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_JETPACK_COMPOSE = SUPPORTABILITY_MOBILE_ANDROID + "JetPackCompose";
     public static final String SUPPORTABILITY_MOBILE_ANDROID_HYBRID_PLATFORM_KMP = SUPPORTABILITY_MOBILE_ANDROID + "HybridPlatform/KMP";
+    // The agent detected the application framework itself and used it: a hybrid app that sent no framework name
+    public static final String SUPPORTABILITY_MOBILE_ANDROID_HYBRID_PLATFORM_DETECTED = SUPPORTABILITY_MOBILE_ANDROID + "HybridPlatform/Detected/<detectedFramework>";
     public static final String SUPPORTABILITY_NDK = SUPPORTABILITY_MOBILE_ANDROID + "NDK/";
     public static final String SUPPORTABILITY_NDK_INIT = SUPPORTABILITY_NDK + "Init";
     public static final String SUPPORTABILITY_NDK_START = SUPPORTABILITY_NDK + "Start";
@@ -161,6 +163,9 @@ public class MetricNames {
     public static final String TAG_STATE = "<state>";
     public static final String TAG_FRAMEWORK = "<framework>";
     public static final String TAG_FRAMEWORK_VERSION = "<frameworkVersion>";
+    // Unlike <framework>, this is filled in by the caller: StatsEngine.SUPPORTABILITY resolves <framework> from
+    // the agent in use, which is not yet the real one while the framework is still being decided at start
+    public static final String TAG_DETECTED_FRAMEWORK = "<detectedFramework>";
     public static final String TAG_DESTINATION = "<destination>";
     public static final String TAG_SUBDESTINATION = "<subdestination>";
 

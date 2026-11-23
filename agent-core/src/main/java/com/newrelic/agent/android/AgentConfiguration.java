@@ -97,6 +97,7 @@ public class AgentConfiguration implements HarvestConfigurable {
     private JSErrorStore jsErrorStore;
     private SessionContextStore sessionContextStore;
     private ApplicationFramework applicationFramework = ApplicationFramework.Native;
+    private boolean applicationFrameworkExplicit = false;
     private String applicationFrameworkVersion = Agent.getVersion();
     private String deviceID;
     private String entityGuid;
@@ -266,8 +267,41 @@ public class AgentConfiguration implements HarvestConfigurable {
         return applicationFramework;
     }
 
-    public void setApplicationFramework(ApplicationFramework ApplicationFramework) {
-        this.applicationFramework = ApplicationFramework;
+    /**
+     * Choose the application framework explicitly. A null means no choice was made, so the default,
+     * Native, applies and the framework is not marked explicit; getApplicationFramework() is never null.
+     */
+    public void setApplicationFramework(ApplicationFramework framework) {
+        this.applicationFramework = (framework != null) ? framework : ApplicationFramework.Native;
+        this.applicationFrameworkExplicit = (framework != null);
+    }
+
+    /**
+     * True once a caller (normally a hybrid SDK, through NewRelic.withApplicationFramework) has
+     * chosen the framework. A detected framework does not count.
+     */
+    public boolean isApplicationFrameworkExplicit() {
+        return applicationFrameworkExplicit;
+    }
+
+    /**
+     * Apply a framework the agent detected on its own. Unlike setApplicationFramework() this does
+     * not mark the framework explicit, so a later explicit call still wins. The framework version
+     * is not touched.
+     */
+    public void applyDetectedApplicationFramework(ApplicationFramework detected) {
+        this.applicationFramework = (detected != null) ? detected : ApplicationFramework.Native;
+    }
+
+    /**
+     * Apply the framework version a hybrid SDK declared in the app's resources. Like
+     * applyDetectedApplicationFramework() this does not mark anything explicit. A null or blank
+     * version is ignored, so the default (the agent's own version) stays.
+     */
+    public void applyDetectedApplicationFrameworkVersion(String detectedVersion) {
+        if (detectedVersion != null && !detectedVersion.trim().isEmpty()) {
+            this.applicationFrameworkVersion = detectedVersion.trim();
+        }
     }
 
     public String getApplicationFrameworkVersion() {

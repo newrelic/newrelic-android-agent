@@ -102,6 +102,17 @@ public class FileBackedPayloadTest {
     }
 
     @Test
+    public void compressShouldBeIdempotent() throws IOException {
+        payload.compress(true);
+        byte[] compressedOnce = Streams.readAllBytes(dataFile);
+
+        File result = payload.compress(true);
+
+        Assert.assertEquals(dataFile.getAbsolutePath(), result.getAbsolutePath());
+        Assert.assertArrayEquals(compressedOnce, Streams.readAllBytes(dataFile));
+    }
+
+    @Test
     public void compress() throws IOException {
         seedData(dataFile);
         long preSize = dataFile.length();

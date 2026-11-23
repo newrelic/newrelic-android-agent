@@ -160,6 +160,70 @@ public class AgentConfigurationTest {
     }
 
     @Test
+    public void applicationFrameworkIsNotExplicitByDefault() {
+        Assert.assertFalse(agentConfiguration.isApplicationFrameworkExplicit());
+        Assert.assertEquals(ApplicationFramework.Native, agentConfiguration.getApplicationFramework());
+    }
+
+    @Test
+    public void settingApplicationFrameworkMarksItExplicit() {
+        agentConfiguration.setApplicationFramework(ApplicationFramework.Native);
+        Assert.assertTrue(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void settingNullApplicationFrameworkDoesNotMarkItExplicit() {
+        agentConfiguration.setApplicationFramework(null);
+        Assert.assertFalse(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void settingNullApplicationFrameworkNeverLeavesItNull() {
+        agentConfiguration.setApplicationFramework(null);
+        Assert.assertEquals(ApplicationFramework.Native, agentConfiguration.getApplicationFramework());
+    }
+
+    @Test
+    public void settingNullApplicationFrameworkAfterADetectionFallsBackToNative() {
+        agentConfiguration.applyDetectedApplicationFramework(ApplicationFramework.Flutter);
+
+        agentConfiguration.setApplicationFramework(null);
+
+        Assert.assertEquals(ApplicationFramework.Native, agentConfiguration.getApplicationFramework());
+        Assert.assertFalse(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void settingNullApplicationFrameworkAfterAnExplicitOneClearsIt() {
+        agentConfiguration.setApplicationFramework(ApplicationFramework.Cordova);
+
+        agentConfiguration.setApplicationFramework(null);
+
+        Assert.assertEquals(ApplicationFramework.Native, agentConfiguration.getApplicationFramework());
+        Assert.assertFalse(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void detectedApplicationFrameworkIsAppliedWithoutMarkingItExplicit() {
+        final String versionBefore = agentConfiguration.getApplicationFrameworkVersion();
+
+        agentConfiguration.applyDetectedApplicationFramework(ApplicationFramework.Flutter);
+
+        Assert.assertEquals(ApplicationFramework.Flutter, agentConfiguration.getApplicationFramework());
+        Assert.assertEquals(versionBefore, agentConfiguration.getApplicationFrameworkVersion());
+        Assert.assertFalse(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void explicitCallAfterDetectionOverridesAndMarksItExplicit() {
+        agentConfiguration.applyDetectedApplicationFramework(ApplicationFramework.Flutter);
+        agentConfiguration.setApplicationFramework(ApplicationFramework.ReactNative);
+
+        Assert.assertEquals(ApplicationFramework.ReactNative, agentConfiguration.getApplicationFramework());
+        Assert.assertTrue(agentConfiguration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
     public void shouldParseCapacitorApplicationFramework() {
         agentConfiguration.setApplicationFramework(ApplicationFramework.Capacitor);
         Assert.assertEquals(agentConfiguration.getApplicationFramework(), ApplicationFramework.Capacitor);
@@ -246,5 +310,37 @@ public class AgentConfigurationTest {
         // getSessionID() should now return the new session ID
         String sessionId3 = config.getSessionID();
         Assert.assertEquals(sessionId2, sessionId3);
+    }
+
+    @Test
+    public void applyDetectedApplicationFrameworkVersionSetsTheVersionWithoutMarkingTheFrameworkExplicit() {
+        final AgentConfiguration configuration = new AgentConfiguration();
+
+        configuration.applyDetectedApplicationFrameworkVersion(" 1.3.5 ");
+
+        Assert.assertEquals("1.3.5", configuration.getApplicationFrameworkVersion());
+        Assert.assertFalse(configuration.isApplicationFrameworkExplicit());
+    }
+
+    @Test
+    public void applyDetectedApplicationFrameworkVersionIgnoresNullAndBlank() {
+        final AgentConfiguration configuration = new AgentConfiguration();
+        final String before = configuration.getApplicationFrameworkVersion();
+
+        configuration.applyDetectedApplicationFrameworkVersion(null);
+        configuration.applyDetectedApplicationFrameworkVersion("   ");
+
+        Assert.assertEquals(before, configuration.getApplicationFrameworkVersion());
+    }
+
+    @Test
+    public void applyDetectedApplicationFrameworkWithNullFallsBackToNativeAndStaysNotExplicit() {
+        final AgentConfiguration configuration = new AgentConfiguration();
+        configuration.applyDetectedApplicationFramework(ApplicationFramework.Flutter);
+
+        configuration.applyDetectedApplicationFramework(null);
+
+        Assert.assertEquals(ApplicationFramework.Native, configuration.getApplicationFramework());
+        Assert.assertFalse(configuration.isApplicationFrameworkExplicit());
     }
 }

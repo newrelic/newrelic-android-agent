@@ -64,4 +64,14 @@ printf '* bad \377 byte ([#5](%s/5))\n* ok ([#6](%s/6))\n' "$u" "$u" > "$f"
 assert_eq "invalid UTF-8 does not confuse the PR number (drop 5)" 1 "$("$SCRIPTS/filter-bullets.sh" "$f" drop 5 | grep -c '^\* ')"
 assert_eq "invalid UTF-8 does not confuse the PR number (keep 5)" 1 "$("$SCRIPTS/filter-bullets.sh" "$f" keep 5 | grep -c 'bad')"
 
+
+# ---- several bullets for one PR are kept and dropped together ----
+cat > "$f" <<EOT
+* A ([#30]($u/30))
+* B ([#30]($u/30))
+* C ([#31]($u/31))
+EOT
+assert_eq "keep 30 keeps both of its bullets" 2 "$("$SCRIPTS/filter-bullets.sh" "$f" keep 30 | grep -c 'pull/30')"
+assert_eq "drop 30 removes both of its bullets" 0 "$("$SCRIPTS/filter-bullets.sh" "$f" drop 30 | grep -c 'pull/30')"
+
 finish
