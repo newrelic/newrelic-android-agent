@@ -33,6 +33,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
+import java.lang.ref.WeakReference
+
 /**
  * Models the host-app pattern that made the agent's wrapper recurse forever: a WebView subclass
  * that installs its own internal client with `super.setWebViewClient` and overrides the public
@@ -343,5 +345,49 @@ class WebViewInstrumentationCallbacksTest {
         // so wrapping is still safe and keeps page-finished reporting working.
         assertTrue(result is NRWebViewClient)
         assertSame(customer, (result as NRWebViewClient).delegate)
+    }
+
+    /**
+     * The host app's client commonly references the WebView it is set on (an inner class, or an SDK
+     * controller). The agent's static state must not turn that into a path from a GC root back to
+     * the WebView.
+     */
+    private class SelfReferencingClient(val owner: WebView) : WebViewClient()
+
+    private fun trackWebViewWhoseClientReferencesIt(): WeakReference<WebView> {
+        val leaky = WebView(RuntimeEnvironment.getApplication())
+        val wrapper = WebViewInstrumentationCallbacks.setWebViewClientCalled(leaky, SelfReferencingClient(leaky))
+        leaky.setWebViewClient(wrapper)
+        WebViewInstrumentationCallbacks.loadUrlCalled(leaky)
+        return WeakReference(leaky)
+    }
+
+    @Test
+    fun trackedWebView_whoseClientReferencesIt_isCollectable() {
+        val tracked = trackWebViewWhoseClientReferencesIt()
+
+        var attempts = 0
+        while (tracked.get() != null && attempts++ < 20) {
+            System.gc()
+            Thread.sleep(50)
+        }
+
+        assertNull("Agent state must not keep a WebView alive through its client", tracked.get())
+    }
+
+    @Test
+    fun setWebViewClientCalled_afterWrapperIsCollected_createsAFreshOne() {
+        val first = WeakReference(WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, mock(WebViewClient::class.java)))
+
+        var attempts = 0
+        while (first.get() != null && attempts++ < 20) {
+            System.gc()
+            Thread.sleep(50)
+        }
+        val customer = mock(WebViewClient::class.java)
+        val second = WebViewInstrumentationCallbacks.setWebViewClientCalled(webView, customer)
+
+        assertTrue(second is NRWebViewClient)
+        assertSame(customer, (second as NRWebViewClient).delegate)
     }
 }
