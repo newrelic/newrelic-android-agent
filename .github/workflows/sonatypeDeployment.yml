@@ -2,11 +2,6 @@ name: Sonatype Deployment
 permissions:
   contents: read
 
-# Publishing runs only in a protected GitHub Environment, never on pull requests:
-#   maven-central   releases: dispatch on main or a release tag
-#   maven-snapshots -SNAPSHOT builds: the nightly (develop) or a dispatch on a release/* branch
-# Pull requests only run the dry_run job, which references no secrets.
-
 on:
   pull_request:
     branches: ["main", "release/*"]
@@ -23,36 +18,10 @@ on:
         required: false
         type: string
         default: ''
-      environment:
-        description: 'GitHub Environment to publish under. Default: maven-central on main or a tag, else maven-snapshots'
-        required: false
-        type: string
-        default: ''
 
 jobs:
-  # Pull requests only prove the artifacts build. This job references no secrets
-  # and no environment, so a PR can never publish or sign.
-  dry_run:
-      name: Build artifacts (dry run)
-      if: github.event_name == 'pull_request'
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        - name: Setup JDK 17
-          uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
-          with:
-            java-version: '17'
-            distribution: 'temurin'
-            cache: 'gradle'
-        - name: Publish to the local Maven repository
-          run: ./gradlew clean publishToMavenLocal --max-workers 1
-        - name: Publish mono artifacts to the local Maven repository
-          run: ./gradlew clean publishToMavenLocal --max-workers 1 -PmonoEnabled=true
-
   publish_release:
       name: Publish artifacts
-      if: github.event_name != 'pull_request'
-      environment: ${{ inputs.environment || ((github.ref_name == 'main' || github.ref_type == 'tag') && 'maven-central' || 'maven-snapshots') }}
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -72,16 +41,7 @@ jobs:
             ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
             ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
             VERSION_OVERRIDE: ${{ inputs.version }}
-            TARGET_ENV: ${{ inputs.environment || ((github.ref_name == 'main' || github.ref_type == 'tag') && 'maven-central' || 'maven-snapshots') }}
           run: |
-            if [ "$TARGET_ENV" = "maven-snapshots" ]; then
-              # snapshot credentials must never stage a release version
-              [ -n "$VERSION_OVERRIDE" ] || VERSION_OVERRIDE="$(grep '^newrelic\.agent\.version' gradle.properties | sed 's/.*=[[:space:]]*\([0-9][0-9.]*\).*/\1/')-SNAPSHOT"
-              case "$VERSION_OVERRIDE" in
-                *-SNAPSHOT) ;;
-                *) echo "::error::maven-snapshots only publishes -SNAPSHOT versions (got '$VERSION_OVERRIDE')"; exit 1 ;;
-              esac
-            fi
             if [ -n "$VERSION_OVERRIDE" ]; then
               ./gradlew clean publishToSonatype closeSonatypeStagingRepository \
                 --max-workers 1 "-Pnewrelic.agent.version=$VERSION_OVERRIDE"
@@ -116,8 +76,6 @@ jobs:
 
   publish_mono_release:
      name: Publish Mono artifacts
-     if: github.event_name != 'pull_request'
-     environment: ${{ inputs.environment || ((github.ref_name == 'main' || github.ref_type == 'tag') && 'maven-central' || 'maven-snapshots') }}
      runs-on: ubuntu-latest
      steps:
        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -137,16 +95,7 @@ jobs:
            ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
            ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
            VERSION_OVERRIDE: ${{ inputs.version }}
-           TARGET_ENV: ${{ inputs.environment || ((github.ref_name == 'main' || github.ref_type == 'tag') && 'maven-central' || 'maven-snapshots') }}
          run: |
-           if [ "$TARGET_ENV" = "maven-snapshots" ]; then
-             # snapshot credentials must never stage a release version
-             [ -n "$VERSION_OVERRIDE" ] || VERSION_OVERRIDE="$(grep '^newrelic\.agent\.version' gradle.properties | sed 's/.*=[[:space:]]*\([0-9][0-9.]*\).*/\1/')-SNAPSHOT"
-             case "$VERSION_OVERRIDE" in
-               *-SNAPSHOT) ;;
-               *) echo "::error::maven-snapshots only publishes -SNAPSHOT versions (got '$VERSION_OVERRIDE')"; exit 1 ;;
-             esac
-           fi
            if [ -n "$VERSION_OVERRIDE" ]; then
              ./gradlew clean publishToSonatype closeSonatypeStagingRepository \
                --max-workers 1 -PmonoEnabled=true "-Pnewrelic.agent.version=$VERSION_OVERRIDE"
