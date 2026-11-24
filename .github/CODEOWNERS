@@ -1,0 +1,36 @@
+# Changes to CI, build, packaging and publishing files need a review from the
+# Mobile Agents release owners. The last matching pattern wins, so keep this
+# file's own entry at the bottom.
+
+# CI: workflows, actions and dependency update config
+/.github/                       @newrelic/mobagent
+
+# Gradle build, wrapper and version configuration
+/build.gradle                   @newrelic/mobagent
+/settings.gradle                @newrelic/mobagent
+/buildconfig.gradle             @newrelic/mobagent
+/jacoco.gradle                  @newrelic/mobagent
+/gradle.properties              @newrelic/mobagent
+/gradlew                        @newrelic/mobagent
+/gradlew.bat                    @newrelic/mobagent
+/gradle/                        @newrelic/mobagent
+
+# Module build scripts and dependency declarations
+/agent/build.gradle             @newrelic/mobagent
+/agent-core/build.gradle        @newrelic/mobagent
+/instrumentation/build.gradle   @newrelic/mobagent
+
+# Publishing, signing and the Gradle plugin that ships to customer builds
+/plugins/gradle/                @newrelic/mobagent
+
+# Sample app build files (they pin the agent and plugin versions under test)
+/samples/**/build.gradle        @newrelic/mobagent
+/samples/**/settings.gradle     @newrelic/mobagent
+/samples/**/gradle.properties   @newrelic/mobagent
+/samples/**/gradle/             @newrelic/mobagent
+
+# Release scripts
+/scripts/                       @newrelic/mobagent
+
+# This file
+/.github/CODEOWNERS             @newrelic/mobagent
