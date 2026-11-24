@@ -84,6 +84,7 @@ jobs:
     with:
       ref: develop
       version: ${{ needs.prepare.outputs.snapshot_version }}
+      environment: maven-snapshots
     secrets: inherit
 
   release:

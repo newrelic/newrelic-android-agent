@@ -13,6 +13,8 @@ permissions:
 jobs:
   assemble_project:
     name: Assemble project
+    # a failed or cancelled release run must not publish
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -28,6 +30,8 @@ jobs:
   publish_release:
       name: Publish artifacts
       needs: [assemble_project]
+      if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+      environment: gradle-plugin-portal
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
