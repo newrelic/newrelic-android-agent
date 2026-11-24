@@ -169,6 +169,10 @@ the release note always gets the layout described at the top, whatever an older 
 Each action downloads this repository at `develop` (a few seconds). Replace `main` with the repo's PR
 base branch.
 
+Pin every `uses:` to a full 40-character commit SHA with the version in a trailing comment, as the
+examples below do. Repos that require SHA pinning reject branch and tag references. The SHAs shown
+for this repository's actions are a point-in-time `develop` commit: update them when you update.
+
 `.github/workflows/release-notes-append.yml`:
 
 ```yaml
@@ -197,12 +201,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.base.ref }}
           fetch-depth: 0 # tags, for the already-released check
           persist-credentials: false
-      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/append@develop
+      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/append@78fd5ff47d9cfbcaade0dfe222ebecccbc49325c # develop
         with:
           bot-pat: ${{ secrets.BOT_PAT }}
           bot-email: ${{ secrets.BOT_EMAIL }}
@@ -232,10 +236,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/check@develop
+      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/check@78fd5ff47d9cfbcaade0dfe222ebecccbc49325c # develop
 ```
 
 `.github/workflows/release-notes-generate.yml` comes in two shapes, depending on how the repo
@@ -279,11 +283,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # tags and history
           persist-credentials: false
-      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/generate@develop
+      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/generate@78fd5ff47d9cfbcaade0dfe222ebecccbc49325c # develop
         with:
           version: ${{ inputs.version }}
           overwrite: ${{ inputs.overwrite || false }}
@@ -342,11 +346,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # tags and history
           persist-credentials: false
-      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/generate@develop
+      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/generate@78fd5ff47d9cfbcaade0dfe222ebecccbc49325c # develop
         with:
           version: ${{ inputs.version || github.event.release.tag_name }}
           release-date: published
@@ -389,10 +393,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/ready@develop
+      - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/ready@78fd5ff47d9cfbcaade0dfe222ebecccbc49325c # develop
         with:
           version: ${{ inputs.version }}
           bot-pat: ${{ secrets.BOT_PAT }}
@@ -470,15 +474,15 @@ from inputs, so one setting covers every caller.
     dry-run:
       runs-on: ubuntu-latest
       steps:
-        - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
           with:
             fetch-depth: 0
             persist-credentials: false
-        - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/generate@develop
+        - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/generate@78fd5ff47d9cfbcaade0dfe222ebecccbc49325c # develop
           with:
             version: <latest released version>
             dry-run: true
-        - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/append@develop
+        - uses: newrelic/newrelic-android-agent/.github/actions/release-notes/append@78fd5ff47d9cfbcaade0dfe222ebecccbc49325c # develop
           with:
             pr-number: <a merged PR>
             dry-run: true
