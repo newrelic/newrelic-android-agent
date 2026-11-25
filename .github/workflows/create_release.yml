@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   release:
+    if: github.repository == 'newrelic/newrelic-android-agent'
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code

@@ -1,4 +1,9 @@
 name: Add JIRA Links
+
+# Uses pull_request_target so the token can edit PRs from forks. That is safe here because this
+# workflow never checks out or runs code from the PR, and the PR title and body are only read as
+# data from the event payload inside the script (never interpolated into script text). Keep it so:
+# do not add a checkout, and do not splice event expression values into a script.
 on:
   pull_request_target:
     types: [opened, edited, reopened]

@@ -13,8 +13,7 @@ on:
       - "android-agent-next.mdx"
 
 permissions:
-  contents: write # the generate dry run calls POST /releases/generate-notes
-  pull-requests: read
+  contents: read
 
 jobs:
   test:
@@ -39,6 +38,9 @@ jobs:
   dry-run:
     # A fork PR's token is read-only, and generate-notes needs contents: write.
     if: github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write # the generate dry run calls POST /releases/generate-notes
+      pull-requests: read # gh pr list, to find an unreleased PR
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

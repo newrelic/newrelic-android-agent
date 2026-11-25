@@ -8,11 +8,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   prepare:
     name: Skip check and version resolution
+    # Every other job needs this one, so a fork never builds, publishes or tags.
+    if: github.repository == 'newrelic/newrelic-android-agent'
     runs-on: ubuntu-latest
     outputs:
       skip:             ${{ steps.skip-check.outputs.skip }}
@@ -91,6 +93,8 @@ jobs:
     needs: [prepare, publish]
     if: needs.prepare.outputs.skip != 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the nightly tag and create the pre-release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -98,11 +102,13 @@ jobs:
           fetch-depth: 0
 
       - name: Create and push nightly tag
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "${{ needs.prepare.outputs.tag }}"
-          git push origin "${{ needs.prepare.outputs.tag }}"
+          git tag "$TAG"
+          git push origin "$TAG"
 
       - name: Create GitHub pre-release
         env:
